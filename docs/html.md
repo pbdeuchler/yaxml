@@ -101,7 +101,10 @@ HTML parsing, so it is not a parameter; the input is read in the context
 document's encoding (pass `OwnedDocument::html_encoding`), and without one it
 is sniffed from `<meta>` or the first non-ASCII byte but never from a
 byte-order mark, as libxml2 does. The nodes are the top-level children of the
-returned document (text included), to be copied with `Editor::import`.
+returned document (text included), to be copied with `Editor::import`. XML
+content, whose names depend on the context's namespaces, is parsed by
+[`Editor::parse_content`](owned-dom.md#parsing-content-in-context) instead,
+directly into the context's document.
 libxml2 returns the last error code for an empty list; the diagnostics carry
 it here.
 

@@ -565,6 +565,119 @@ identity, so handles of the original do not resolve in it, but its `nodes()`
 visit the same tree in the same order. It fails only on allocation
 (`Allocation`) and identity exhaustion (`IdentifierExhausted`).
 
+## Parsing content in context
+
+| Call | libxml2 | Result |
+| --- | --- | --- |
+| `editor.parse_content(node, input, options)` | `xmlParseInNodeContext(node, data, len, options, &list)`, `xmlCtxtParseContent(ctxt, input, node, 0)` | The top-level nodes of `input`, parsed as content of `node`, detached in this document. |
+| `editor.parse_content(document.root().id(), input, ParseOptions::default())` | `xmlParseBalancedChunkMemory(doc, NULL, NULL, 0, string, &list)` | The same, with the document's entities and no namespaces. |
+
+`input` is any sequence of content: text, several elements, comments, PIs,
+CDATA and references, but no XML declaration or DOCTYPE. It is parsed in the
+nearest element or document at or above `node` (libxml2's parent chain, so
+entity content parses in the document), with that element's in-scope
+namespaces and the document's general entities. The nodes come back in
+`Fragment::nodes`, detached like a [copy](#copying-and-importing); under the
+element they were parsed in they need no new declarations, and anywhere else
+insertion declares what the new place lacks.
+
+```rust
+use yaxml::{EditLimits, OwnedDocument, ParseOptions, save};
+let mut document = OwnedDocument::parse("<r xmlns:p='urn:p' xmlns='urn:d'><a/></r>")?;
+let r = document.root_element().id();
+let a = document.root_element().first_child().unwrap().id();
+let mut editor = document.edit(EditLimits::default())?;
+let fragment = editor.parse_content(r, b"text <p:b/><c/>", ParseOptions::default())?;
+for node in fragment.nodes {
+    editor.insert_before(a, node)?;
+}
+let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+assert!(saved.ends_with("<r xmlns:p=\"urn:p\" xmlns=\"urn:d\">text <p:b/><c/><a/></r>\n"));
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+**Why a detached list.** The parsed names use the context's bindings, so they
+cannot live in a document of their own the way
+[`html::parse_fragment`](html.md#fragments)'s nodes do (HTML needs no
+context): they are created in the target document, as libxml2 returns an
+unlinked list in `node->doc`. Returning them detached composes with every move
+(`append_child`, `insert_before`, `insert_after`, `replace`) rather than adding
+a parse-and-insert method per anchor, and the caller can still inspect or
+discard them first. The borrowed `Document` has no in-context parsing: it
+cannot be edited, so the nodes would have nowhere to go.
+
+**How it parses.** The one parser engine runs in content mode: no prolog or
+epilog, any number of top-level nodes, no XML declaration (`<?xml` is a
+misnamed PI), and the context's bindings seeded below every element. A
+document with a DTD reads the content through the DTD stack seeded with its
+entity and notation declarations only: libxml2's fresh parser context has no
+attribute defaults or attribute types from the document, so neither applies
+while parsing. The nodes are then copied in as `import` copies them, so the
+document's DTD types their IDs (`element_by_id` finds them once inserted).
+Parse budgets (`options.limits`) apply as to a document; edit limits as to an
+`import`, and the copy is atomic: a failure leaves the document unchanged.
+
+**Errors.** Malformed content is `EditErrorKind::Parse(kind)` with
+`value_offset` the error's offset in `input`; `Error { kind, offset }.describe(&LineIndex::content(input))`
+gives libxml2's diagnostic (an end tag with nothing open is
+`XML_ERR_NOT_WELL_BALANCED`, 85). That is libxml2's first error;
+`xmlParseInNodeContext` returns its last one. Under `RECOVER` only limits
+fail: the nodes come back with `Fragment::errors`, as libxml2 returns its
+list (and `XML_ERR_OK`) once it built one. A DOCTYPE node or an HTML document
+is `WrongNodeKind` (`XML_ERR_INTERNAL_ERROR` in libxml2; HTML has
+`html::parse_fragment`), and `XINCLUDE` or `DTDVALID` is
+`Parse(UnsupportedOption)`. Differences from libxml2:
+
+- The input is UTF-8. `xmlParseInNodeContext` decodes it as the document's
+  declared encoding, which its documentation calls "typically not what you
+  want"; a text declaration (`xmlCtxtParseContent`'s `hasTextDecl`) is not
+  offered.
+- A namespace error (an unbound prefix, `xmlns:p=""`) fails without
+  `RECOVER`, as in a document; libxml2 reports it and keeps the node.
+- A reference is parsed where it stands, in the context's scope and under
+  `options`. libxml2 reuses the content it parsed at the document's first
+  reference to the entity, outside any namespace scope and under the
+  document's options (so under `NOENT` a nested reference in it stays a
+  reference); see [copies](#copying-and-importing).
+- `xmlParseInNodeContext` does not register IDs (`XML_PARSE_SKIP_IDS`);
+  yaxml types them as for any copy.
+- `NOBLANKS` inside the content ignores the DTD's element-content
+  declarations, which libxml2's `areBlanks` consults.
+- External entities are loaded only through `options.resolver`; libxml2
+  tries the file system and warns (`XML_IO_LOAD_ERROR`).
+
+`yaxml-harness/tests/fragment_oracle.rs` compares `parse_content` with
+`xmlParseInNodeContext` on every node of seven context documents (prefixes,
+default namespaces and `xmlns=""`, DTD entities with markup and nested
+references, unparsed and external entities, an unloaded external subset) and
+with `xmlParseBalancedChunkMemory`, for random chunks of well-formed and
+malformed content (top-level text, several elements, references, misplaced
+declarations, end tags with nothing open, cut-off tags) under eight option
+sets, through `yaxml-harness/tooling/libxml2_fragment.c`. It compares the
+node list, the document after appending it, success and the first error
+code:
+
+```sh
+YAXML_FRAGMENT_HELPER=$(sh -c '. ./lib.sh; helper fragment') YAXML_FRAGMENT_CASES=20000 \
+  YAXML_FRAGMENT_SEED=1 cargo test --release --test fragment_oracle -- --nocapture
+```
+
+At the last run (seeds 1-4, 20,000 chunks each) 92.02-92.36% of chunks agree
+exactly and none differ unexplained. The rest are documented: strict
+namespace errors (about 6%), entities libxml2 reuses from the document
+(0.6-0.7%), and about 1% that show the same difference when the chunk is the
+content of a whole document (`RECOVER` repairs and `NOBLANKS`, see
+[compatibility](compatibility.md#recovery-recover)), which the test checks by
+parsing that document on both sides. First error codes agree on 97.7-98.0%
+of chunks; the others are whole-document diagnostic differences (an invalid
+character reported before earlier errors, the offset of a malformed reference
+on the DTD path, libxml2's load warning). libxml2's return code (its last
+error) equals yaxml's first on 61-63% of failures. The `fragment` fuzz target
+parses random content in a random node under random options and edit limits
+and checks that a failure leaves the document unchanged, that the nodes come
+back detached, and that the document stays namespace-consistent and reparses
+the same after they are inserted.
+
 ## Compaction and memory growth
 
 Slots are never reused, so stale handles stay rejectable. Three things grow

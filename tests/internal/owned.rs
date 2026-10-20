@@ -602,7 +602,7 @@ fn owned_builder_errors_are_not_remapped_or_replaced_by_cancellation() {
     let builder = OwnedBuilder::new(0, 0, Global).unwrap();
     assert_eq!(
         builder
-            .finish(10, None, Default::default(), Vec::new())
+            .finish(10, None, Default::default(), Vec::new(), false)
             .unwrap_err(),
         Error::new(ErrorKind::MissingRoot, 10)
     );

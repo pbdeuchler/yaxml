@@ -322,6 +322,8 @@ pub struct LineIndex<'s> {
     /// HTML input re-decoded after a charset switch, before conversion:
     /// what earlier reports show.
     raw: Option<&'s [u8]>,
+    /// Content parsed in a node's context, not a document.
+    content: bool,
 }
 
 /// The decoders of transcoded input.
@@ -404,6 +406,7 @@ impl<'s> LineIndex<'s> {
             starts,
             decoded: Some((decoder, raw)),
             raw: None,
+            content: false,
         }
     }
 
@@ -418,6 +421,36 @@ impl<'s> LineIndex<'s> {
             starts,
             decoded: None,
             raw: None,
+            content: false,
+        }
+    }
+
+    /// Indexes UTF-8 `input` parsed as content in a node's context
+    /// ([`Editor::parse_content`](crate::Editor::parse_content)): errors
+    /// are described as libxml2's content parser reports them (an end tag
+    /// with nothing open is `XML_ERR_NOT_WELL_BALANCED`, there is no
+    /// prolog or epilog, and `<?xml` is an ordinary misnamed PI).
+    ///
+    /// ```
+    /// use yaxml::{EditErrorKind, EditLimits, Error, LineIndex, OwnedDocument, ParseOptions};
+    /// let mut document = OwnedDocument::parse("<r/>")?;
+    /// let r = document.root_element().id();
+    /// let input = b"<a/></r>";
+    /// let failure = document
+    ///     .edit(EditLimits::default())?
+    ///     .parse_content(r, input, ParseOptions::default())
+    ///     .unwrap_err();
+    /// let (EditErrorKind::Parse(kind), Some(offset)) = (failure.kind, failure.value_offset) else {
+    ///     unreachable!()
+    /// };
+    /// let diagnostic = Error { kind, offset }.describe(&LineIndex::content(input));
+    /// assert_eq!((diagnostic.code, diagnostic.column), (85, 5));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn content(input: &'s [u8]) -> Self {
+        Self {
+            content: true,
+            ..Self::utf8(input)
         }
     }
 
@@ -435,6 +468,7 @@ impl<'s> LineIndex<'s> {
             starts,
             decoded,
             raw: None,
+            content: false,
         }
     }
 
@@ -505,6 +539,7 @@ impl<'s> LineIndex<'s> {
             starts,
             decoded: None,
             raw,
+            content: false,
         }
     }
 
@@ -626,7 +661,7 @@ impl LineIndex<'_> {
     #[doc(hidden)]
     pub fn describe_counted(&self, errors: &[Error]) -> (Vec<Diagnostic>, usize, usize) {
         let work = Work::new(self.text().len());
-        let mut scan = Scan::default();
+        let mut scan = Scan::new(self.content);
         let mut described: Vec<Diagnostic> = Vec::new();
         for error in errors {
             let at = self.to_text(error.offset);
@@ -730,7 +765,7 @@ impl Error {
         let at = lines.to_text(self.offset);
         let work = Work::new(lines.text().len());
         lines.diagnostic(
-            found(self.kind, lines, at, &mut Scan::default(), &work),
+            found(self.kind, lines, at, &mut Scan::new(lines.content), &work),
             &work,
         )
     }

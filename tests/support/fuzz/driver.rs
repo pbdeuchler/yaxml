@@ -49,6 +49,9 @@ mod save;
 #[path = "domedit.rs"]
 mod domedit;
 
+#[path = "fragment.rs"]
+mod fragment;
+
 #[path = "mutation.rs"]
 mod mutation;
 
@@ -137,6 +140,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_construction(input);
     exercise_mutation(input);
     exercise_domedit(input);
+    exercise_fragment(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     exercise_push(input);
     if let Some(outcome) = exercise_encoding(input) {
@@ -485,6 +489,13 @@ fn check_abort(error: Error, expected_offset: usize) {
 pub fn exercise_domedit(input: &[u8]) {
     assert!(input.len() <= MAX_INPUT_BYTES);
     domedit::exercise(input);
+}
+
+/// Exercise content parsed in a node's context and inserted; see
+/// `fragment.rs` for the testcase format.
+pub fn exercise_fragment(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    fragment::exercise(input);
 }
 
 /// Exercise caller-created edits independently from the XML grammar bytes.

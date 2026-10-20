@@ -118,7 +118,7 @@ pub use name::Name;
 pub use options::ParseOptions;
 pub use origin::SourceOrigin;
 pub use owned::{
-    AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, NameSpec, NamespaceSpec,
+    AttributeSpec, EditLimits, Editor, ElementItem, ElementSpec, Fragment, NameSpec, NamespaceSpec,
     OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
 };
 pub use push::PushParser;

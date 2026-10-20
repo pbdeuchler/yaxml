@@ -89,6 +89,8 @@ pub(super) struct Scan {
     /// The construct the last call stopped at, so a later error inside it
     /// does not search for its end again.
     held: Option<(Part, usize, Option<usize>)>,
+    /// Content in a node's context: no prolog, epilog or DOCTYPE.
+    content: bool,
 }
 
 /// The first of `stops` at or after `from` outside quotes.
@@ -144,6 +146,13 @@ fn part_at(t: &[u8], pos: usize, subset: bool) -> (Part, Option<usize>) {
 }
 
 impl Scan {
+    pub(super) fn new(content: bool) -> Self {
+        Self {
+            content,
+            ..Self::default()
+        }
+    }
+
     /// Moves past the terminated construct `part` from `pos` to `end`.
     fn advance(&mut self, t: &[u8], part: Part, pos: usize, end: usize) {
         match part {
@@ -156,7 +165,7 @@ impl Scan {
             Part::EndTag => {
                 self.open.pop();
             }
-            Part::Doctype => self.subset = !self.subset && t[end - 1] == b'[',
+            Part::Doctype if !self.content => self.subset = !self.subset && t[end - 1] == b'[',
             _ => {}
         }
         self.pos = end;
@@ -1791,7 +1800,7 @@ fn described(
         return found;
     }
     if at < scan.pos {
-        *scan = Scan::default();
+        *scan = Scan::new(scan.content);
     }
     let checked = scan.to(t, at, work).and_then(|(part, start, end)| {
         // Each re-read of a construct is charged again.
@@ -1805,9 +1814,16 @@ fn described(
 fn reread(kind: ErrorKind, c: &Cur<'_>, at: usize, part: Part, scan: &Scan) -> Check {
     let (t, lines, start) = (c.t, c.lines, c.i);
     let mut c = Cur { ..*c };
+    // Content reads `<!DOCTYPE` as a start tag without a name.
+    let part = match part {
+        Part::Doctype if scan.content => Part::StartTag,
+        part => part,
+    };
     let document = lines.starts[0];
     match part {
-        Part::Pi if start == document && c.has(b"<?xml") && blank(c.nb(5)) => xml_decl(&mut c),
+        Part::Pi if start == document && !scan.content && c.has(b"<?xml") && blank(c.nb(5)) => {
+            xml_decl(&mut c)
+        }
         Part::Pi => pi(&mut c),
         Part::Comment => comment(&mut c),
         Part::Text if scan.subset => {
@@ -1836,7 +1852,10 @@ fn reread(kind: ErrorKind, c: &Cur<'_>, at: usize, part: Part, scan: &Scan) -> C
                 _ => c.fail(DOCTYPE_NOT_FINISHED, "DOCTYPE improperly terminated"),
             }
         }
-        _ if scan.open.is_empty() && scan.rooted => {
+        _ if scan.content && scan.open.is_empty() && part == Part::EndTag => {
+            c.fail(NOT_WELL_BALANCED, "chunk is not well balanced")
+        }
+        _ if scan.open.is_empty() && scan.rooted && !scan.content => {
             // The epilog after the root element.
             c.i = c.i.max(at);
             if part == Part::Text {
@@ -1846,7 +1865,7 @@ fn reread(kind: ErrorKind, c: &Cur<'_>, at: usize, part: Part, scan: &Scan) -> C
         }
         Part::Doctype => doctype(&mut c),
         Part::StartTag => start_tag(&mut c, &scan.open, kind, at).map(drop),
-        _ if scan.open.is_empty() => {
+        _ if scan.open.is_empty() && !scan.content => {
             // The prolog before the root element.
             if part != Part::Text {
                 c.i += 1;
@@ -1861,7 +1880,7 @@ fn reread(kind: ErrorKind, c: &Cur<'_>, at: usize, part: Part, scan: &Scan) -> C
         }
         Part::EndTag => end_tag(&mut c, *scan.open.last().expect("an open element")),
         Part::Cdata => cdata(&mut c),
-        Part::Text if at >= t.len() => Err(premature(
+        Part::Text if at >= t.len() && !scan.open.is_empty() => Err(premature(
             &Cur { i: at, ..c },
             *scan.open.last().expect("open"),
         )),

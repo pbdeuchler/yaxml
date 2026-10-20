@@ -469,6 +469,31 @@ impl<'a> Reader<'a> {
         })
     }
 
+    /// This fresh reader reads content in a node's context
+    /// (`xmlCtxtParseContent`): `bindings` in scope, from the first byte (a
+    /// byte-order mark is text), and with `dtd`'s entities, when there is
+    /// one, through the DTD stack as a document's content would be.
+    pub(crate) fn in_context(
+        mut self,
+        bindings: &[(&str, &str)],
+        dtd: Option<&crate::valid::Dtd>,
+    ) -> Result<Self, Error> {
+        let mut ordinary = self.ordinary.take().expect("a fresh reader");
+        ordinary.cursor = 0;
+        ordinary.state = ordinary.state.in_context(bindings)?;
+        let Some(dtd) = dtd else {
+            self.ordinary = Some(ordinary);
+            return Ok(self);
+        };
+        let body = DtdController::seeded(self.options, dtd, self.loader.take())?;
+        let decoded = self.decode.max_decoded_token_bytes;
+        let parser = ordinary.state.rereading(false, false);
+        let controller =
+            BorrowedContentController::stable_utf8(body, parser, self.source, decoded)?;
+        self.session.push(Phase::Content(controller));
+        Ok(self)
+    }
+
     /// The finished document's declarations, moved out of the reader.
     pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
         match self.session.first_mut() {

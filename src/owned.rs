@@ -26,6 +26,7 @@ const XML: &str = "http://www.w3.org/XML/1998/namespace";
 
 mod construction;
 mod copy;
+pub use copy::Fragment;
 mod edit;
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -611,7 +612,7 @@ impl OwnedDocument {
     /// [`xinclude::process`](crate::xinclude::process) with the same
     /// resolver, and its failures are [`ErrorKind::XInclude`].
     pub fn parse_with(input: &[u8], options: ParseOptions) -> Result<Self, Error> {
-        let (mut document, flags, include) = Self::parse_tree(input, options, 0, Global)?;
+        let (mut document, flags, include) = Self::parse_tree(input, options, 0, Global, None)?;
         if let Some((resolver, base, limits)) = include {
             let options = crate::xinclude::Options {
                 base_fixup: flags.fixes_base(),
@@ -634,6 +635,10 @@ impl OwnedDocument {
 
 /// What a deferred XInclude pass needs: resolver, base URI and limits.
 type Include = (Box<dyn crate::Resolver>, String, Limits);
+
+/// A node's context for parsing content in it: the namespace bindings in
+/// scope (prefix, URI; `""` is the default namespace) and the document's DTD.
+pub(crate) type Context<'c> = (&'c [(&'c str, &'c str)], Option<&'c crate::valid::Dtd>);
 
 #[cfg(feature = "allocator_api")]
 impl<A: Allocator + Clone> OwnedDocument<A> {
@@ -663,7 +668,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
     /// ```
     pub fn parse_in(input: &[u8], options: ParseOptions, allocator: A) -> Result<Self, Error> {
         let (document, flags, _) =
-            Self::parse_tree(input, options, crate::options::XINCLUDE, allocator)?;
+            Self::parse_tree(input, options, crate::options::XINCLUDE, allocator, None)?;
         Ok(document.validated(flags))
     }
 
@@ -684,13 +689,15 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
 }
 
 impl<A: Allocator + Clone> OwnedDocument<A> {
-    /// Builds the tree. XInclude, whose result is a global-heap document, is
-    /// left to the caller.
-    fn parse_tree(
+    /// Builds the tree, or with a `context` the tree of content parsed in it
+    /// (the document's top-level nodes). XInclude, whose result is a
+    /// global-heap document, is left to the caller.
+    pub(crate) fn parse_tree(
         input: &[u8],
         mut options: ParseOptions,
         unsupported: u32,
         allocator: A,
+        context: Option<Context<'_>>,
     ) -> Result<(Self, Flags, Option<Include>), Error> {
         let flags = options.check(true, unsupported)?;
         let (limits, decode) = options.effective_limits();
@@ -712,7 +719,8 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             }
         };
         let mut builder = OwnedBuilder::new(input.len(), expected_nodes(input), allocator)?;
-        let document = if crate::encoding::needs_decoding(input) {
+        let content = context.is_some();
+        let document = if !content && crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
             let end = parser
                 .feed_with(input, |event, origin, budget| {
@@ -723,7 +731,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                         .finish_with(|event, origin, budget| builder.consume(event, origin, budget))
                 });
             let errors = Budget::conclude(parser.budget(), end)?;
-            builder.finish(parser.position(), parser.take_dtd(), flags, errors)?
+            builder.finish(parser.position(), parser.take_dtd(), flags, errors, false)?
         } else {
             // Recovery reads invalid UTF-8 as libxml2 does; offsets then
             // count the repaired text.
@@ -738,6 +746,9 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 ..limits
             };
             let mut reader = Reader::configured(source, read, decode, flags, options)?;
+            if let Some((bindings, dtd)) = context {
+                reader = reader.in_context(bindings, dtd)?;
+            }
             if let Some((_, error)) = repaired {
                 reader.owned_budget().recover(error)?;
             }
@@ -753,7 +764,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 builder.consume(&event, origin, reader.owned_budget())?;
             };
             let errors = Budget::conclude(reader.budget(), end)?;
-            builder.finish(reader.position(), reader.take_dtd(), flags, errors)?
+            builder.finish(reader.position(), reader.take_dtd(), flags, errors, content)?
         };
         Ok((
             OwnedDocument { url, ..document },
@@ -1707,6 +1718,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         dtd: Option<crate::valid::Dtd>,
         flags: Flags,
         errors: Vec<Error>,
+        content: bool,
     ) -> Result<OwnedDocument<A>, Error> {
         let xml_ids = std::mem::take(&mut self.xml_ids);
         // A recovered parse can stop with elements open: close them where
@@ -1721,8 +1733,9 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         }
         // Recovery keeps a document without an element unless the input is
         // empty, as libxml2 does (otherwise the reader failed already).
+        // Content needs no element.
         let input = self.nodes[0].source.and_then(SourceOrigin::input_range);
-        let rootless = input.is_some_and(|input| !input.is_empty());
+        let rootless = content || input.is_some_and(|input| !input.is_empty());
         let document = self
             .finish_with_counter(position, &LAST_DOCUMENT_ID, rootless)
             .map_err(|error| match error.kind {
@@ -1749,7 +1762,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
                 .collect()
         };
         if flags.drops_blanks() {
-            for blank in crate::xpath::tree::blanks(&document) {
+            for blank in crate::xpath::tree::blanks(&document, content) {
                 document.remove(blank.slot.0);
             }
         }
