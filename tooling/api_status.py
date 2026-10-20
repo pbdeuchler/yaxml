@@ -168,7 +168,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
     "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
-    "CATALOG_PI": ("N", "constant defined, rejected with UnsupportedOption"),
+    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver)"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
 HTML_OPT = {"HTML5": ("N", "constant defined, rejected with UnsupportedOption")}
@@ -822,10 +822,17 @@ P|xmlNewCatalog xmlParseCatalogFile|catalog::Catalog::parse
 I|xmlACatalogResolve xmlACatalogResolvePublic xmlACatalogResolveSystem xmlCatalogResolve xmlCatalogResolvePublic xmlCatalogResolveSystem|catalog::Catalog::resolve
 I|xmlACatalogResolveURI xmlCatalogResolveURI|catalog::Catalog::resolve_uri
 P|xmlCatalogLocalResolve xmlCatalogLocalResolveURI|catalog::CatalogResolver::new
-N|xmlACatalogAdd xmlACatalogRemove xmlACatalogDump xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlCatalogAddLocal xmlCatalogFreeLocal xmlLoadCatalogs xmlCatalogConvert xmlConvertSGMLCatalog xmlLoadSGMLSuperCatalog xmlCatalogGetPublic xmlCatalogGetSystem xmlCatalogIsEmpty|catalog editing/dumping and the catalog PI not started (docs/catalog.md)
+I|xmlACatalogAdd|catalog::Catalog::add
+I|xmlACatalogRemove|catalog::Catalog::remove
+I|xmlACatalogDump|catalog::Catalog::dump
+P|xmlCatalogAddLocal|catalog::CatalogResolver::catalog_pi - the resolver of a CATALOG_PI parse keeps the list
+A|xmlCatalogFreeLocal|the resolver owns the list and drops it with the parse
+A|xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlLoadCatalogs xmlCatalogGetPublic xmlCatalogGetSystem|operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
+A|xmlCatalogConvert xmlConvertSGMLCatalog|declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
+N|xmlLoadSGMLSuperCatalog xmlCatalogIsEmpty|not started (docs/catalog.md)
 A|xmlCatalogCleanup xmlInitializeCatalog xmlCatalogSetDefaults xmlCatalogGetDefaults xmlCatalogSetDefaultPrefer xmlCatalogSetDebug xmlCatalogAllow xmlCatalogPrefer XML_CATA_ALLOW_* XML_CATA_PREFER_NONE xmlFreeCatalog|no global catalog state
 P|XML_CATA_PREFER_PUBLIC XML_CATA_PREFER_SYSTEM|catalog::Catalog::parse - read from the catalog file's prefer attribute
-N|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|catalog PI not started
+A|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|private constants of catalog::Catalog and the parser
 A|xmlCatalogPtr|raw pointer alias
 # ---- xmlschemas.h
 I|xmlSchemaParse|xsd::Schema::parse
@@ -866,7 +873,8 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
-N|xmlRelaxNGValidateFullElement xmlRelaxNGDump xmlRelaxNGDumpTree XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+N|xmlRelaxNGValidateFullElement XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+A|xmlRelaxNGDump xmlRelaxNGDumpTree|declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
 P|xmlRelaxParserSetIncLImit|relaxng::Limits::max_include_depth
 A|XML_RELAXNGP_FREE_DOC XML_RELAXNGP_NONE XML_RELAXNG_OK|no parser flags or success code
 A|xmlRelaxNGNewValidCtxt xmlRelaxNGFree xmlRelaxNGFreeParserCtxt xmlRelaxNGFreeValidCtxt xmlRelaxNGPtr xmlRelaxNGParserCtxt xmlRelaxNGParserCtxtPtr xmlRelaxNGValidCtxt xmlRelaxNGValidCtxtPtr xmlRelaxNGInitTypes xmlRelaxNGCleanupTypes xmlRelaxNGValidCtxtClearErrors xmlRelaxNGSet*Errors xmlRelaxNGGet*Errors xmlRelaxNGValidity*Func|Drop, raw pointer alias, or diagnostics returned as Vec

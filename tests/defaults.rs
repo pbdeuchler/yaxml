@@ -112,7 +112,7 @@ fn cases() -> Vec<(&'static str, String, String, String)> {
             "catalog::Limits",
             catalog::Limits,
             format!(
-                "Limits {{ max_loads: 64, max_bytes: {}, max_depth: 50 }}",
+                "Limits {{ max_loads: 64, max_bytes: {}, max_depth: 50, max_local: 64 }}",
                 16 * MIB
             )
         ),

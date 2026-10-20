@@ -58,7 +58,114 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
-### Current matched results (2026-10-19, fifth series)
+### Current matched results (2026-10-19, sixth series)
+
+Ratios are **libxml2 median / yaxml median** of parse plus destruction per
+document: the fifth-series merge (`4a99833`, rustc 1.95) → main (`7b2fb0f`,
+rustc 1.97.0 as pinned by rust-toolchain.toml), with the min–max of the
+per-pair ratios after. Since the fifth series main gained DOM editing and
+copies, structured diagnostics, streaming save and `TextWriter`, the public
+DTD model (`valid::Dtd` owns entity storage), TextReader `NOBLANKS`, reset
+and the boxed lent storage. Method as before: 9 alternating pairs per
+workload with both revisions back to back; every small-chunk row, `flat`,
+`unicode`, `deep`, `normalized`, `mixed` and `tiny` DOM/reader were repeated
+with 21 pairs (`mixed` buffered/1 and `namespaces`/`normalized` DOM a third
+time), which the table shows. Apple M1 Max shared with other jobs (load
+average 9-28). yaxml leads in **63 of 65** workloads; the losses are the
+known `namespaces` push/7 (**0.98**) and `mixed` push/7 (**0.94**). No row
+lost more than 2% against the fifth series; `normalized` DOM and owned are
+1.8% slower in both runs while retiring 1.7% and 0.8% fewer instructions.
+
+| Fixture | DOM | Owned | Reader | Push | Buffered |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| tiny | 3.48 → **3.69** (3.50–3.91) | 2.21 → **2.38** (2.33–2.47) | 3.99 → **4.23** (4.09–4.38) | 1.52 → **1.54** (1.46–1.62) | 2.21 → **2.23** (2.19–2.27) |
+| flat | 1.34 → **1.33** (1.30–1.37) | 1.18 → **1.18** (1.16–1.20) | 1.42 → **1.41** (1.32–1.65) | 1.04 → **1.03** (1.01–1.06) | 1.05 → **1.04** (1.01–1.08) |
+| text | 2.95 → **2.96** (2.89–3.02) | 2.56 → **2.56** (2.40–2.88) | 1.28 → **1.29** (1.26–1.30) | 1.13 → **1.16** (1.08–1.77) | 1.28 → **1.26** (1.09–1.30) |
+| attributes | 2.10 → **2.09** (1.69–3.84) | 1.65 → **1.69** (1.60–1.75) | 1.41 → **1.42** (1.28–1.47) | 1.05 → **1.05** (1.04–1.06) | 1.38 → **1.39** (1.08–1.95) |
+| namespaces | 1.57 → **1.56** (1.52–1.61) | 1.31 → **1.32** (1.30–1.35) | 1.89 → **1.88** (1.25–1.90) | 1.09 → **1.11** (1.08–1.12) | 1.42 → **1.42** (1.40–1.43) |
+| normalized | 1.64 → **1.61** (1.57–1.63) | 1.51 → **1.49** (0.93–1.53) | 1.77 → **1.75** (1.72–1.81) | 1.22 → **1.21** (1.19–1.38) | 1.48 → **1.48** (1.45–1.53) |
+| unicode | 1.34 → **1.33** (1.26–1.35) | 1.18 → **1.17** (1.14–1.30) | 1.62 → **1.61** (1.56–1.78) | 1.02 → **1.02** (0.98–1.04) | 1.26 → **1.25** (1.24–1.27) |
+| deep | 1.16 → **1.16** (1.06–1.29) | 1.06 → **1.08** (1.06–1.11) | 1.80 → **1.79** (1.74–2.01) | 1.06 → **1.08** (0.99–1.09) | 1.26 → **1.26** (1.23–1.41) |
+| mixed | 2.21 → **2.22** (2.14–2.29) | 1.79 → **1.83** (1.72–1.89) | 2.67 → **2.65** (2.61–2.70) | 1.27 → **1.26** (1.25–1.43) | 1.69 → **1.68** (1.56–1.71) |
+
+| Small chunks | Push 1 | Push 7 | Buffered 1 | Buffered 7 |
+| --- | ---: | ---: | ---: | ---: |
+| tiny | 1.91 → **1.93** (1.86–2.04) | 1.48 → **1.48** (1.04–1.56) | 2.69 → **2.74** (2.42–2.85) | 2.18 → **2.23** (2.07–2.29) |
+| text | 1.22 → **1.25** (1.23–1.27) | 1.12 → **1.15** (1.08–1.17) | 2.23 → **2.24** (2.21–2.27) | 1.66 → **1.66** (1.64–1.74) |
+| namespaces | 1.13 → **1.15** (1.08–1.16) | 0.97 → **0.98** (0.95–0.99) | 1.99 → **2.00** (1.97–2.03) | 1.51 → **1.52** (1.50–1.54) |
+| normalized | 1.27 → **1.30** (1.28–1.31) | 1.05 → **1.06** (1.04–1.07) | 2.27 → **2.31** (2.26–2.35) | 1.67 → **1.68** (1.65–1.70) |
+| mixed | 1.19 → **1.23** (1.15–1.28) | 0.93 → **0.94** (0.87–0.97) | 2.37 → **2.44** (2.40–2.55) | 1.78 → **1.79** (1.59–2.83) |
+
+Compiler and code effects are separated by instruction counts (per
+document, difference of N- and 2N-document runs, minimum of 3) of both
+revisions built with both compilers (`cargo +1.95.0 ... --ignore-rust-version`
+for main). Code changes moved no workload by more than +0.9% at a fixed
+compiler; 1.97 retires 1-2.5% fewer instructions than 1.95 on slice-reader,
+DOM and buffered/1 rows and up to +0.9% more on `attributes` push. The
+`tiny` reader drop is the boxed lent storage (`141e20b`). Timing shows no
+compiler regression at this load: the matrix is within noise of the fifth
+series everywhere except the `tiny` DOM, owned and reader rows, 6-8% faster (boxing).
+
+| Workload | 4a99 1.95 | 4a99 1.97 | main 1.95 | main 1.97 | code (1.97) | compiler (main) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| tiny reader 8192 | 6.21k | 6.17k | 5.95k | 5.83k | -5.56% | -1.95% |
+| tiny owned 8192 | 12.16k | 11.85k | 11.86k | 11.68k | -1.39% | -1.49% |
+| flat dom 8192 | 14.29M | 13.97M | 14.25M | 13.97M | -0.00% | -1.97% |
+| flat push 8192 | 11.16M | 11.12M | 11.18M | 11.14M | +0.13% | -0.36% |
+| attributes push 8192 | 16.70M | 16.85M | 16.76M | 16.90M | +0.29% | +0.88% |
+| namespaces reader 8192 | 23.98M | 23.59M | 23.63M | 23.42M | -0.72% | -0.88% |
+| normalized dom 8192 | 22.21M | 21.83M | 22.07M | 21.83M | +0.01% | -1.09% |
+| deep reader 8192 | 189.35k | 184.18k | 188.26k | 183.84k | -0.18% | -2.35% |
+| mixed reader 8192 | 7.90M | 7.76M | 7.91M | 7.76M | -0.06% | -1.92% |
+| mixed push 8192 | 7.49M | 7.54M | 7.56M | 7.58M | +0.53% | +0.23% |
+| comments reader 8192 | 4.59M | 4.50M | 4.58M | 4.46M | -0.72% | -2.55% |
+| cdata dom 8192 | 5.26M | 5.08M | 5.21M | 5.10M | +0.41% | -2.22% |
+| text buffered 1 | 126.18M | 123.14M | 125.59M | 122.66M | -0.39% | -2.33% |
+| mixed push 7 | 15.83M | 15.79M | 15.86M | 15.82M | +0.17% | -0.24% |
+| namespaces push 7 | 41.48M | 41.15M | 41.39M | 41.16M | +0.00% | -0.57% |
+| normalized push 7 | 28.13M | 28.08M | 28.13M | 28.09M | +0.03% | -0.14% |
+
+DOM paths outside the matrix (`dombench`, a throwaway example; instructions
+per iteration, same method), fifth series → main → this series, all rustc
+1.97. `decl` is 2,000 internal general entities and `<r/>`; `many` adds a
+reference to each; `dtd` is the `cargo bench --bench parse` fixture; save
+is `save::to_vec` of an owned document (now through `to_writer`'s
+32 KiB-chunked sink); XPath runs on an owned document.
+
+| Workload | 4a99833 | main | after |
+| --- | ---: | ---: | ---: |
+| owned parse, decl | 27.65M | 30.58M (+10.6%) | 27.58M (-0.3%) |
+| DOM parse, decl | 27.62M | 30.53M (+10.5%) | 27.58M (-0.1%) |
+| owned parse, many | 74.28M | 77.12M (+3.8%) | 74.17M (-0.2%) |
+| owned parse, dtd | 300.07M | 300.49M (+0.1%) | 300.68M (+0.2%) |
+| DOM parse, dtd | 289.46M | 290.28M (+0.3%) | 290.37M (+0.3%) |
+| save flat / mixed / namespaces | 6.85M / 5.73M / 9.84M | +0.3% / -0.7% / +0.9% | — |
+| save dtd (kept entity refs) | 20.69M | -0.5% | — |
+| XPath `count(//item[@a='value'])` flat | 18.67M | 0.0% | — |
+| XPath `count(//p:item/q:leaf)` namespaces | 9.07M | 0.0% | — |
+
+Root cause of the one regression: both DOM builders cloned the catalog's
+`Dtd` into the document. Once `valid::Dtd` owned all declaration storage,
+that clone copied every entity's name and value and rebuilt the `general`,
+`parameter` and `declared` tables, about 1,500 instructions per entity.
+The builders now move the finished catalog's `Dtd` out
+(`Reader::take_dtd`, `StreamingSession::take_dtd`), and entity insertion
+skips the lookups that `apply`'s duplicate check already excludes.
+
+Remaining: DTD documents are far from libxml2. `xmllint --noout` (startup
+subtracted) retires about 100M instructions on the `dtd` fixture against
+yaxml's 300M owned, and about 10M against 27.6M for 2,000 entity
+declarations. Samples spread over the entity-expansion machinery
+(`TextCoordinator::drive`, `Tokenizer::advance_content` on replacement
+text, `ContentControllerCore::take_event`/`enter_general`), allocation, and
+SipHash (about 8%, the `valid::Dtd` and attribute-declaration tables); each
+reference re-tokenizes its replacement text where libxml2 copies the
+entity's cached node list. No single hot spot; closing it is a design
+change, not a tuning pass. `mixed` push/7 retires 6.7% more instructions
+than libxml2 (15.82M against 14.82M) for the reasons in the fifth series;
+no new lead.
+
+### Fifth series (2026-10-19, `840662a` → `11608692`)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per
 document, main after recovery round two (`840662a`) → the fifth series

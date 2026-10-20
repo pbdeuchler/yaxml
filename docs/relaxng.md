@@ -158,11 +158,39 @@ and stdout on all 798 schema and instance pairs of `tests/yaxmllint.rs`.
 
 ## Gaps
 
-- No compact syntax, `xmlRelaxNGDump`, or user-registered datatype libraries.
+- No compact syntax or user-registered datatype libraries.
+- `xmlRelaxNGDump` and `xmlRelaxNGDumpTree` are declined; see below.
 - The DTD compatibility annotations (`a:defaultValue`) are ignored and IDs
   are checked as libxml2 does, not with the ID-type consistency rules of
   the DTD compatibility specification.
 - Messages follow libxml2's wording but not always its choice of message.
+
+## Declined: `xmlRelaxNGDump`, `xmlRelaxNGDumpTree`
+
+Neither prints a simplified grammar, so there is nothing yaxml's compiled
+schema could print in its place (checked on the 2.15.4 oracle build, which has
+`LIBXML_DEBUG_ENABLED`).
+
+- `xmlRelaxNGDump` is a debug printer of libxml2's internal `define` tree: it
+  writes `RelaxNG: <url>`, an open `<grammar>`, and the `<start>` pattern. It
+  prints nothing for `data`, `value`, `except` and `param`, never prints the
+  `define`s (its own `TODO`), and prints an empty `<start>` when the start
+  is a `ref`: for a grammar with `<start><ref name="r"/></start>` and an
+  element-defining `r` the whole body is `<start>\n</start>`.
+- `xmlRelaxNGDumpTree` is `xmlDocDump` of the schema *document* after
+  `xmlRelaxNGCleanupTree` rewrote it in place: an element's or attribute's
+  `name` attribute becomes a `<name ns="">` child, while `optional`, `mixed`,
+  `zeroOrMore` and foreign attributes stay as written. The grammar above prints
+  as one line, `<define name="r"><element><name ns="">r</name>...`. Matching it
+  byte for byte means reproducing that rewrite (and what it does to
+  `include`, `externalRef`, `div` and `ns` inheritance) and `xmlDocDump`'s
+  output of the result.
+- yaxml keeps neither: `load.rs` reads the document into a transient `El` tree
+  while it applies sections 4.1 to 4.11, `compile.rs` turns that into
+  hash-consed derivative patterns with defines inlined, and the `El` tree is
+  dropped. A dump of either would be a new serializer for a tree kept alive
+  only for it, matched against a debug format nothing consumes (both are
+  `P3` debug aids; the grammar is already available as the schema text).
 
 ## Fuzzing
 

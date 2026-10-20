@@ -690,7 +690,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                         .finish_with(|event, origin, budget| builder.consume(event, origin, budget))
                 });
             let errors = Budget::conclude(parser.budget(), end)?;
-            builder.finish(parser.position(), parser.catalog(), flags, errors)?
+            builder.finish(parser.position(), parser.take_dtd(), flags, errors)?
         } else {
             // Recovery reads invalid UTF-8 as libxml2 does; offsets then
             // count the repaired text.
@@ -720,7 +720,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 builder.consume(&event, origin, reader.owned_budget())?;
             };
             let errors = Budget::conclude(reader.budget(), end)?;
-            builder.finish(reader.position(), reader.catalog(), flags, errors)?
+            builder.finish(reader.position(), reader.take_dtd(), flags, errors)?
         };
         Ok((
             OwnedDocument { url, ..document },
@@ -1640,7 +1640,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
     fn finish(
         mut self,
         position: usize,
-        catalog: Option<&crate::dtd_catalog::DtdCatalog>,
+        dtd: Option<crate::valid::Dtd>,
         flags: Flags,
         errors: Vec<Error>,
     ) -> Result<OwnedDocument<A>, Error> {
@@ -1665,7 +1665,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
                 ErrorKind::MissingRoot => errors.first().copied().unwrap_or(error),
                 _ => error,
             })?;
-        let dtd = catalog.map(|catalog| Box::new(catalog.dtd().clone()));
+        let dtd = dtd.map(Box::new);
         let mut document = OwnedDocument {
             dtd,
             errors,

@@ -117,6 +117,9 @@ impl<'input> ContentControllerCore<'input> {
     pub(crate) fn catalog(&self) -> &DtdCatalog {
         &self.body.catalog
     }
+    pub(crate) fn catalog_mut(&mut self) -> &mut DtdCatalog {
+        &mut self.body.catalog
+    }
 
     /// Scans `input` (none after `finish_step`).
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<ContentStep, Error> {
@@ -470,6 +473,7 @@ impl<'input> ContentControllerCore<'input> {
             },
             &mut |value, offset, budget| budget.copy(value, offset),
         );
+        (self.parser.take_catalogs().iter()).for_each(|url| self.body.catalog.catalog_pi(url));
         // Capped at the remaining work by `prepare_publication`.
         work.spend(self.body.catalog.usage().work - catalog_before);
         self.body.counters.work = work.work();
@@ -520,6 +524,7 @@ impl<'input> ContentControllerCore<'input> {
                     .map(Some)
             }
         };
+        (self.parser.take_catalogs().iter()).for_each(|url| self.body.catalog.catalog_pi(url));
         let (_, work) = self.coordinator.current_with_work().expect("ready token");
         work.spend(self.body.catalog.usage().work - catalog_before);
         self.sync_usage();

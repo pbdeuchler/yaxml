@@ -29,11 +29,15 @@
 use std::collections::{HashMap, HashSet};
 use std::{fmt, io};
 
+use crate::save::{ATTRIBUTE, escape_into};
 use crate::uri::{canonic_path, resolve as build};
+use crate::xpath::tree::XML_NAMESPACE;
 use crate::{OwnedDocument, OwnedNode, Request, Resolver, ResourceKind};
 
 const NAMESPACE: &str = "urn:oasis:names:tc:entity:xmlns:xml:catalog";
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
+/// The prolog `xmlACatalogDump` writes before the `catalog` element.
+const DOCTYPE: &str = "<?xml version=\"1.0\"?>\n<!DOCTYPE catalog PUBLIC \"-//OASIS//DTD Entity Resolution XML Catalog V1.0//EN\" \"http://www.oasis-open.org/committees/entity/release/1.0/catalog.dtd\">\n";
 const URN: &str = "urn:publicid:";
 /// libxml2's `MAX_DELEGATE`: distinct delegate catalogs remembered per step.
 const MAX_DELEGATE: usize = 50;
@@ -49,15 +53,19 @@ pub struct Limits {
     /// Nesting of catalogs while loading SGML catalogs or resolving
     /// (libxml2's `MAX_CATAL_DEPTH`, 50); deeper catalogs are skipped.
     pub max_depth: usize,
+    /// Catalogs a document adds with `<?oasis-xml-catalog?>` (see
+    /// [`CatalogResolver`]); later ones are ignored. libxml2 has no bound.
+    pub max_local: usize,
 }
 
-setters!(const Limits { max_loads: usize, max_bytes: usize, max_depth: usize });
+setters!(const Limits { max_loads: usize, max_bytes: usize, max_depth: usize, max_local: usize });
 
 impl Limits {
     pub const DEFAULT: Self = Self {
         max_loads: 64,
         max_bytes: 1 << 24,
         max_depth: 50,
+        max_local: 64,
     };
 }
 
@@ -78,6 +86,9 @@ pub enum Error {
     LimitExceeded,
     /// Not a well-formed XML catalog, or an SGML catalog libxml2 rejects.
     Malformed,
+    /// [`Catalog::add`] refused the entry: an unknown type, an SGML entry
+    /// without a name or whose name is taken.
+    Rejected,
 }
 
 impl fmt::Display for Error {
@@ -87,6 +98,7 @@ impl fmt::Display for Error {
             Self::Io(kind) => write!(f, "catalog could not be read: {kind}"),
             Self::LimitExceeded => f.write_str("catalog load limit exceeded"),
             Self::Malformed => f.write_str("malformed catalog"),
+            Self::Rejected => f.write_str("catalog entry rejected"),
         }
     }
 }
@@ -104,8 +116,18 @@ enum Kind {
     RewriteUri,
     DelegateUri,
     NextCatalog,
-    /// A delegate or `nextCatalog` whose file failed to load; never matches.
-    Broken,
+    /// A `group`; its members carry `id` as their `group`. `prefer` is the
+    /// attribute when the group has one (even an invalid value).
+    Group {
+        id: usize,
+        prefer: Option<bool>,
+    },
+    /// libxml2's `catalog` type, which [`Catalog::add`] accepts and no lookup
+    /// consults.
+    Catalog,
+    /// A delegate or `nextCatalog` whose file failed to load, or a removed
+    /// entry; never matches and is not dumped.
+    Inert,
 }
 
 /// Element, match attribute and URI attribute of each XML catalog entry.
@@ -152,6 +174,9 @@ struct Entry {
     /// The identifier or prefix matched; `None` for `nextCatalog` and for a
     /// public identifier that normalizes to nothing (a prefix of everything).
     name: Option<String>,
+    /// The target as written (a group's `xml:base`), which [`Catalog::dump`]
+    /// prints.
+    value: Option<String>,
     /// The target, rewrite prefix or catalog, resolved against `xml:base`.
     url: String,
     prefer_public: bool,
@@ -178,6 +203,37 @@ enum Sgml {
     Public,
     System,
     Catalog,
+    Delegate,
+    Entity,
+    Doctype,
+    Linktype,
+    Notation,
+    Sgmldecl,
+    Document,
+    Base,
+}
+
+/// The SGML entry keywords [`Catalog::add`] takes and [`Catalog::dump`] prints.
+const KEYWORDS: [(&str, Sgml); 11] = [
+    ("SYSTEM", Sgml::System),
+    ("PUBLIC", Sgml::Public),
+    ("DELEGATE", Sgml::Delegate),
+    ("ENTITY", Sgml::Entity),
+    ("DOCTYPE", Sgml::Doctype),
+    ("LINKTYPE", Sgml::Linktype),
+    ("NOTATION", Sgml::Notation),
+    ("SGMLDECL", Sgml::Sgmldecl),
+    ("DOCUMENT", Sgml::Document),
+    ("CATALOG", Sgml::Catalog),
+    ("BASE", Sgml::Base),
+];
+
+/// An SGML entry; the hash key is its name, or the loaded URL of a `CATALOG`.
+#[derive(Debug)]
+struct Named {
+    kind: Sgml,
+    name: String,
+    value: Option<String>,
 }
 
 #[derive(Debug)]
@@ -190,7 +246,7 @@ enum Body {
         cache: HashMap<String, usize>,
     },
     /// libxml2's single SGML hash: the first entry for a key wins.
-    Sgml(HashMap<String, (Sgml, String)>),
+    Sgml(HashMap<String, Named>),
 }
 
 /// The resolver with its remaining budgets.
@@ -241,11 +297,20 @@ impl Fetcher {
 pub struct Catalog {
     body: Body,
     fetch: Fetcher,
+    /// Catalogs a document named (see [`Catalog::add_local`]): the list as
+    /// file 0, `nextCatalog` entries, and the files loaded from it.
+    local: Local,
+}
+
+#[derive(Debug)]
+struct Local {
+    files: Vec<Vec<Entry>>,
+    cache: HashMap<String, usize>,
 }
 
 impl fmt::Debug for Catalog {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Catalog").field("body", &self.body).finish()
+        (f.debug_struct("Catalog").field("body", &self.body)).finish()
     }
 }
 
@@ -284,7 +349,11 @@ impl Catalog {
                 Body::Sgml(map)
             }
         };
-        Ok(Self { body, fetch })
+        let local = Local {
+            files: vec![Vec::new()],
+            cache: HashMap::new(),
+        };
+        Ok(Self { body, fetch, local })
     }
 
     /// The URI for an external identifier (`xmlACatalogResolve`; with one
@@ -295,9 +364,152 @@ impl Catalog {
             Body::Xml { root, files, cache } => {
                 uri(Query::new(files, cache, &mut self.fetch).list(root, 0, public, system))
             }
-            Body::Sgml(map) => (public.and_then(|id| sgml(map, &normalize(id), Sgml::Public)))
+            Body::Sgml(map) => (public.map(normalize))
+                .filter(|id| !id.is_empty())
+                .and_then(|id| sgml(map, &id, Sgml::Public))
                 .or_else(|| system.and_then(|id| sgml(map, id, Sgml::System))),
         }
+    }
+
+    /// Adds an entry (`xmlACatalogAdd`). An XML catalog takes the element
+    /// names of its entries (`"public"`, `"rewriteSystem"`, ...) and
+    /// `"catalog"`; `orig` is the identifier or prefix matched (not needed for
+    /// `"nextCatalog"`), `replace` the target. An entry of the same type and
+    /// name changes in place; any other is appended to the root catalog's
+    /// entries, and `replace` is used as given, without resolving it. An SGML
+    /// catalog takes its keywords (`"PUBLIC"`, `"SYSTEM"`, ...), which need an
+    /// `orig` no entry has.
+    pub fn add(&mut self, kind: &str, orig: Option<&str>, replace: &str) -> Result<(), Error> {
+        match &mut self.body {
+            Body::Xml { files, .. } => {
+                let kind = match kind {
+                    "catalog" => Kind::Catalog,
+                    _ => {
+                        ENTRIES
+                            .iter()
+                            .find(|entry| entry.0 == kind)
+                            .ok_or(Error::Rejected)?
+                            .1
+                    }
+                };
+                let entries = &mut files[0];
+                let same = |entry: &&mut Entry| {
+                    entry.kind == kind && orig.is_some() && entry.name.as_deref() == orig
+                };
+                match entries.iter_mut().find(same) {
+                    // A delegate keeps the file it already loaded, as in C.
+                    Some(entry) => {
+                        (entry.value, entry.url) = (Some(replace.into()), replace.into())
+                    }
+                    None => entries.push(Entry {
+                        kind,
+                        name: identifier(kind, orig),
+                        value: Some(replace.into()),
+                        url: replace.into(),
+                        prefer_public: true,
+                        group: 0,
+                        file: None,
+                    }),
+                }
+                Ok(())
+            }
+            Body::Sgml(map) => {
+                let (_, kind) = KEYWORDS
+                    .iter()
+                    .find(|entry| entry.0 == kind)
+                    .ok_or(Error::Rejected)?;
+                let name = orig
+                    .filter(|name| !map.contains_key(*name))
+                    .ok_or(Error::Rejected)?;
+                let value = Some(replace.into());
+                map.insert(
+                    name.into(),
+                    Named {
+                        kind: *kind,
+                        name: name.into(),
+                        value,
+                    },
+                );
+                Ok(())
+            }
+        }
+    }
+
+    /// Removes the entries whose name or target is `value` from an XML
+    /// catalog's root file, or the SGML entry with that name
+    /// (`xmlACatalogRemove`), and returns how many. libxml2 returns 0 for XML.
+    pub fn remove(&mut self, value: &str) -> usize {
+        match &mut self.body {
+            Body::Xml { files, .. } => (files[0].iter_mut())
+                .filter(|entry| {
+                    entry.name.as_deref() == Some(value) || entry.value.as_deref() == Some(value)
+                })
+                .map(|entry| std::mem::replace(&mut entry.kind, Kind::Inert))
+                .filter(|kind| *kind != Kind::Inert)
+                .count(),
+            Body::Sgml(map) => usize::from(map.remove(value).is_some()),
+        }
+    }
+
+    /// The catalog as `xmlACatalogDump` writes it: an XML catalog document
+    /// of the root file's entries (indented, with the catalog DTD's document
+    /// type declaration), or one SGML entry per line in the order of their
+    /// keys (libxml2 uses its hash order). Entries that never match (removed,
+    /// or whose file failed to load) are left out, groups are kept.
+    pub fn dump(&self) -> String {
+        match &self.body {
+            Body::Xml { files, .. } => {
+                let members = dump_group(&files[0], 0, 1);
+                let (open, close) = match members.is_empty() {
+                    true => ("/>\n", ""),
+                    false => (">\n", "</catalog>\n"),
+                };
+                format!("{DOCTYPE}<catalog xmlns=\"{NAMESPACE}\"{open}{members}{close}")
+            }
+            Body::Sgml(map) => {
+                let mut named: Vec<_> = map.iter().collect();
+                named.sort_unstable_by_key(|(key, _)| *key);
+                (named.into_iter())
+                    .map(|(_, entry)| dump_sgml(entry))
+                    .collect()
+            }
+        }
+    }
+
+    /// Adds a catalog for lookups before the main one (`xmlCatalogAddLocal`),
+    /// loaded through this catalog's resolver on first use. `url` is not
+    /// resolved against anything. Past [`Limits::max_local`] it is ignored.
+    pub(crate) fn add_local(&mut self, url: &str) {
+        let list = &mut self.local.files[0];
+        if list.len() < self.fetch.limits.max_local {
+            list.push(Entry {
+                kind: Kind::NextCatalog,
+                name: None,
+                value: Some(url.into()),
+                url: url.into(),
+                prefer_public: true,
+                group: 0,
+                file: None,
+            });
+        }
+    }
+
+    /// `xmlResolveFromCatalog`: the document's catalogs, then this one, for
+    /// the external identifiers and then for the URI.
+    pub(crate) fn resolve_all(&mut self, public: Option<&str>, system: &str) -> Option<String> {
+        self.resolve_local(|query, url, child| query.list(url, child, public, Some(system)))
+            .or_else(|| self.resolve(public, Some(system)))
+            .or_else(|| self.resolve_local(|query, url, child| query.list_uri(url, child, system)))
+            .or_else(|| self.resolve_uri(system))
+    }
+
+    fn resolve_local(
+        &mut self,
+        search: impl FnMut(&mut Query<'_>, &str, usize) -> Option<Found>,
+    ) -> Option<String> {
+        let Local { files, cache } = &mut self.local;
+        let mut query = Query::new(files, cache, &mut self.fetch);
+        uri(query.follow(0, |entry| entry.kind == Kind::NextCatalog, false, search))
     }
 
     /// The URI a catalog maps `uri` to (`xmlACatalogResolveURI`). An SGML
@@ -320,8 +532,8 @@ fn uri(found: Option<Found>) -> Option<String> {
     }
 }
 
-fn sgml(map: &HashMap<String, (Sgml, String)>, key: &str, kind: Sgml) -> Option<String> {
-    (map.get(key)).and_then(|(found, uri)| (*found == kind).then(|| uri.clone()))
+fn sgml(map: &HashMap<String, Named>, key: &str, kind: Sgml) -> Option<String> {
+    (map.get(key)).and_then(|found| found.value.clone().filter(|_| found.kind == kind))
 }
 
 /// One top-level resolution: libxml2's per-call `xmlCatalogResolveCache`
@@ -448,10 +660,15 @@ impl<'a> Query<'a> {
                     return found;
                 }
             }
+            // libxml2 counts `nextCatalog`s only while looking for an identifier.
             let next = |entry: &Entry| entry.kind == Kind::NextCatalog;
-            query.follow(file, next, false, |query, url, child| {
-                query.list(url, child, public, system)
-            })
+            (public.is_some() || system.is_some())
+                .then(|| {
+                    query.follow(file, next, false, |query, url, child| {
+                        query.list(url, child, public, system)
+                    })
+                })
+                .flatten()
         })
     }
 
@@ -548,7 +765,7 @@ impl<'a> Query<'a> {
         let entry = &mut self.files[file][index];
         match child {
             Some(_) => entry.file = child,
-            None => entry.kind = Kind::Broken,
+            None => entry.kind = Kind::Inert,
         }
         child
     }
@@ -650,7 +867,26 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
             continue;
         };
         if element == "group" {
-            scopes.insert(node.id(), (scopes.len(), prefer(node, prefer_public)));
+            let (id, now) = (scopes.len(), prefer(node, prefer_public));
+            scopes.insert(node.id(), (id, now));
+            let base = (node.attributes())
+                .find(|attribute| {
+                    attribute.name.local() == "base"
+                        && attribute.name.namespace() == Some(XML_NAMESPACE)
+                })
+                .map(|attribute| attribute.value.into_owned());
+            entries.push(Entry {
+                kind: Kind::Group {
+                    id,
+                    prefer: property(node, "prefer").map(|_| now),
+                },
+                name: property(node, "id"),
+                value: base,
+                url: String::new(),
+                prefer_public,
+                group,
+                file: None,
+            });
             continue;
         }
         let Some(&(_, kind, name, target)) = ENTRIES.iter().find(|entry| entry.0 == element) else {
@@ -668,17 +904,12 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
         };
         let url = match base(node, &document_url) {
             Some(base) => build(&target, &base),
-            None => Ok(target),
+            None => Ok(target.clone()),
         };
         let Ok(url) = url else {
             continue;
         };
-        let name = match kind {
-            Kind::Public | Kind::DelegatePublic => name
-                .map(|name| normalize(&name))
-                .filter(|name| !name.is_empty()),
-            _ => name,
-        };
+        let name = identifier(kind, name.as_deref());
         let repeated = |other: &Entry| {
             other.kind == Kind::NextCatalog
                 && other.url == url
@@ -689,6 +920,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
             entries.push(Entry {
                 kind,
                 name,
+                value: Some(target),
                 url,
                 prefer_public,
                 group,
@@ -697,6 +929,104 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Option<Vec<Entry>>
         }
     }
     Some(entries)
+}
+
+/// The name an entry of `kind` stores for `name`: public identifiers are
+/// normalized, and one that normalizes to nothing has none.
+fn identifier(kind: Kind, name: Option<&str>) -> Option<String> {
+    match kind {
+        Kind::Public | Kind::DelegatePublic => name.map(normalize).filter(|name| !name.is_empty()),
+        _ => name.map(str::to_owned),
+    }
+}
+
+/// `xmlDumpXMLCatalogNode`: the entries of `group` as indented elements,
+/// each group followed by its members.
+fn dump_group(entries: &[Entry], group: usize, depth: usize) -> String {
+    let mut out = String::new();
+    let indent = "  ".repeat(depth);
+    for entry in entries.iter().filter(|entry| entry.group == group) {
+        let name = entry.name.as_deref().unwrap_or_default();
+        let (element, attributes, members): (&str, Vec<(&str, Option<&str>)>, String) =
+            match entry.kind {
+                Kind::Group { id, prefer } => {
+                    let prefer = prefer.map(|public| ["system", "public"][usize::from(public)]);
+                    let attributes = [("id", Some(name)), ("xml:base", entry.value.as_deref())]
+                        .into_iter()
+                        .chain([("prefer", prefer)]);
+                    (
+                        "group",
+                        attributes.collect(),
+                        dump_group(entries, id, depth + 1),
+                    )
+                }
+                kind => {
+                    let Some(&(element, _, attribute, target)) =
+                        ENTRIES.iter().find(|candidate| candidate.1 == kind)
+                    else {
+                        continue;
+                    };
+                    let attributes = [attribute.map(|attribute| (attribute, Some(name)))]
+                        .into_iter()
+                        .flatten()
+                        .chain([(target, entry.value.as_deref())]);
+                    (element, attributes.collect(), String::new())
+                }
+            };
+        out.push_str(&format!("{indent}<{element}"));
+        for (attribute, value) in attributes.into_iter().filter_map(|(a, v)| Some((a, v?))) {
+            out.push_str(&format!(" {attribute}=\""));
+            escape_into(&mut out, value, &ATTRIBUTE, true);
+            out.push('"');
+        }
+        match members.is_empty() {
+            true => out.push_str("/>\n"),
+            false => out.push_str(&format!(">\n{members}{indent}</{element}>\n")),
+        }
+    }
+    out
+}
+
+/// `xmlCatalogDumpEntry`: one SGML entry as a line.
+fn dump_sgml(entry: &Named) -> String {
+    let keyword = KEYWORDS.iter().find(|candidate| candidate.1 == entry.kind);
+    let keyword = keyword.map_or("", |keyword| keyword.0);
+    let bare = matches!(
+        entry.kind,
+        Sgml::Entity | Sgml::Doctype | Sgml::Linktype | Sgml::Notation
+    );
+    let name = match bare {
+        true => entry.name.clone(),
+        false => format!("\"{}\"", entry.name),
+    };
+    let value = match entry.kind {
+        Sgml::Catalog | Sgml::Sgmldecl | Sgml::Document | Sgml::Base => String::new(),
+        _ => format!(" \"{}\"", entry.value.as_deref().unwrap_or("(null)")),
+    };
+    format!("{keyword} {name}{value}\n")
+}
+
+/// `xmlParseCatalogPI`: the `catalog` pseudo-attribute of an
+/// `oasis-xml-catalog` processing instruction's data (`catalog="URL"`, either
+/// quote), or `None` for a syntax error.
+pub(crate) fn pi_catalog(data: &str) -> Option<&str> {
+    fn after<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+        let rest = text.trim_start_matches(blank_char).strip_prefix(prefix)?;
+        Some(rest.trim_start_matches(blank_char))
+    }
+    let rest = after(after(data, "catalog")?, "=")?;
+    let quote = rest
+        .chars()
+        .next()
+        .filter(|quote| matches!(quote, '"' | '\''))?;
+    let (url, tail) = rest[1..].split_once(quote)?;
+    tail.trim_start_matches(blank_char)
+        .is_empty()
+        .then_some(url)
+}
+
+fn blank_char(c: char) -> bool {
+    c.is_ascii() && blank(&(c as u8))
 }
 
 fn blank(byte: &u8) -> bool {
@@ -749,7 +1079,7 @@ fn sgml_literal(text: &[u8]) -> Option<(String, &[u8])> {
 /// `xmlParseSGMLCatalog`, loading `CATALOG` entries as `xmlExpandCatalog`
 /// does. `None` is libxml2's -1; entries before the error are kept.
 fn parse_sgml(
-    map: &mut HashMap<String, (Sgml, String)>,
+    map: &mut HashMap<String, Named>,
     fetch: &mut Fetcher,
     input: &[u8],
     file: &str,
@@ -800,7 +1130,9 @@ fn parse_sgml(
                 // libxml2 parses DELEGATE but keeps no entry for it.
                 let keep = keyword != b"DELEGATE" && !(kind == Sgml::Public && name.is_empty());
                 if let Some(url) = url.filter(|_| keep) {
-                    map.entry(name).or_insert((kind, url));
+                    let value = Some(url);
+                    map.entry(name.clone())
+                        .or_insert(Named { kind, name, value });
                 }
             }
             b"BASE" | b"CATALOG" | b"DOCUMENT" | b"SGMLDECL" => {
@@ -815,7 +1147,12 @@ fn parse_sgml(
                     else {
                         continue;
                     };
-                    map.insert(url.clone(), (Sgml::Catalog, url.clone()));
+                    let named = Named {
+                        kind: Sgml::Catalog,
+                        name: literal,
+                        value: None,
+                    };
+                    map.insert(url.clone(), named);
                     // Nested failures are ignored, as by xmlExpandCatalog.
                     if let Ok(nested) = fetch.get(&url) {
                         parse_sgml(map, fetch, &nested, &url, depth + 1);
@@ -844,11 +1181,22 @@ impl CatalogResolver {
 
 impl Resolver for CatalogResolver {
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>> {
-        let mapped = (self.catalog.resolve(request.public_id, Some(request.uri)))
-            .or_else(|| self.catalog.resolve_uri(request.uri));
+        let mapped = self.catalog.resolve_all(request.public_id, request.uri);
         self.inner.resolve(Request {
             uri: mapped.as_deref().unwrap_or(request.uri),
             ..request
         })
     }
+
+    /// With `CATALOG_PI`, a document's `<?oasis-xml-catalog catalog="URL"?>`
+    /// adds that catalog before the main one, for the rest of this parse (the
+    /// resolver is consumed by it). The catalog is fetched through the
+    /// catalog's own resolver, so nothing it forbids is loaded.
+    fn catalog_pi(&mut self, catalog: &str) {
+        self.catalog.add_local(catalog);
+    }
 }
+
+#[cfg(test)]
+#[path = "../tests/internal/catalog.rs"]
+mod tests;

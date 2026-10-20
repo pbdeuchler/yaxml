@@ -98,12 +98,21 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
 
 ## Differences
 
-- libxml2's epsilon reduction lets a counted repetition inside a nullable
-  loop, such as `(x{2,3})*`, end below `minOccurs`; yaxml reports the missing
-  children (about 1 random case in 2,500).
-- libxml2's counter execution rejects some valid instances of nested counted
-  groups (`seq{3}(choice*(seq{0,2}(any?), c{1,2}))` rejects `<c/>`); yaxml
-  accepts them (about 1 random case in 30,000).
+- **Counter quirks, deliberately not reproduced.** libxml2's epsilon
+  reduction lets a counted repetition inside a nullable loop, such as
+  `(x{2,3})*`, end below `minOccurs`, so it accepts an invalid instance; yaxml
+  reports the missing children (about 1 random case in 2,500). libxml2's
+  counter execution rejects some valid instances of nested counted groups
+  (`seq{3}(choice*(seq{0,2}(any?), c{1,2}))` rejects `<c/>`); yaxml accepts
+  them (about 1 random case in 30,000). Both are validity bugs, which the
+  project does not match, and neither is cheap to match: they are artifacts
+  of `xmlRegExecPushString` running counters over the epsilon-reduced
+  automaton with backtracking. `automaton.rs` builds that automaton only to
+  decide UPA, so matching them would mean porting the executor as a second
+  engine beside `model.rs` and keeping its state in both the tree and the
+  stream path, for outcomes no schema author wants. The two are reported as
+  the only divergence classes of the random differential, and are bounded
+  (about 1 case in 1,000 of that generator overall).
 - Content models over `max_model_work` fail instead of compiling slowly
   (libxml2 needs 30 s for 2,500 optional elements in a sequence; yaxml
   compiles that in about 1 s and rejects 5,000), and group nesting stops at
@@ -111,9 +120,16 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
 - `xml:base` in schema documents is ignored when resolving locations;
   attribute-use value constraints are not checked against the declaration's,
   as in libxml2.
-- libxml2's stream validation has no nodes, so it never checks `ID`
-  uniqueness and rejects every `ENTITY` value; yaxml's keeps the tree's
-  verdicts. Streams see the DTD of the internal subset only (`ID` attributes
+- **Stream `ID` and `ENTITY`, deliberately not matched.** libxml2's stream
+  validation has no nodes, so it never checks `ID` uniqueness (it accepts a
+  document that repeats an `ID`, which violates cvc-id) and rejects every
+  `ENTITY` value, declared or not (it rejects a valid document). Matching
+  would make yaxml's stream mode wrong in both directions about validity, and
+  the stream already has what the tree has (the `ID` table, the DTD's
+  unparsed entities), so yaxml's keeps the tree's verdicts. The two table cases
+  that differ (`duplicate ID values`, `ENTITY names an unparsed entity`) are
+  pinned by `libxml2_stream_agrees_except_ids_and_entities`, which fails if
+  either verdict ever changes. Streams see the DTD of the internal subset only (`ID` attributes
   and unparsed entities of an external subset are unknown), and since a tree
   knows every ID beforehand, a schema `ID` repeated by a later DTD ID or
   `xml:id` is reported at the later attribute in a stream. `StreamValidator::set_dtd`

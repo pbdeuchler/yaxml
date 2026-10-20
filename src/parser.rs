@@ -342,6 +342,10 @@ pub(crate) struct ParserState<'source> {
     /// [`LentValues`]); boxed on first use, since a larger state makes every
     /// construction and move of the slice reader slower (`tiny` reader -9%).
     lent: Option<Box<[LentValues; 1]>>,
+    /// `catalog` URLs of `<?oasis-xml-catalog?>` instructions (`CATALOG_PI`)
+    /// not yet handed to the resolver; boxed for the same reason as `lent`.
+    #[expect(clippy::box_collection, reason = "a smaller state constructs faster")]
+    catalogs: Option<Box<Vec<String>>>,
 }
 
 /// Normalized values lent in order: each stands in its event as
@@ -390,7 +394,24 @@ impl<'source> ParserState<'source> {
             rereads: false,
             rewind: None,
             lent: None,
+            catalogs: None,
         }
+    }
+
+    /// Records the catalog of an `oasis-xml-catalog` instruction when the
+    /// flags ask for it (`xmlParseCatalogPI`; a syntax error is ignored).
+    fn note_catalog(&mut self, target: &str, data: &str) {
+        if self.flags.catalog_pi()
+            && target == "oasis-xml-catalog"
+            && let Some(url) = crate::catalog::pi_catalog(data)
+        {
+            (self.catalogs.get_or_insert_default()).push(url.to_owned());
+        }
+    }
+
+    /// The recorded catalog URLs, in document order.
+    pub(crate) fn take_catalogs(&mut self) -> Vec<String> {
+        self.catalogs.take().map_or_else(Vec::new, |urls| *urls)
     }
 
     /// A fresh state for `limits` that keeps this one's emptied allocations;
@@ -1108,6 +1129,7 @@ impl<'source> ParserState<'source> {
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
+        self.note_catalog(target, data);
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
             data: self.normalized::<REREADS>(data, offset, false, false, true)?,
@@ -1508,6 +1530,7 @@ impl<'source> ParserState<'source> {
                 }
                 let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
                 let offset = start + raw.len() - 2 - data.len();
+                self.note_catalog(target, data);
                 Event::ProcessingInstruction {
                     target: self.budget.copy(target, start + 2)?,
                     data: self.budget.copy(data, offset)?,
