@@ -62,10 +62,14 @@ line and column come from the error's byte offset, and the wording is yaxml's.
 - `--maxmem` bounds input and owned bytes rather than the allocator.
   `--huge` sets `HUGE` and raises the owned-byte budget.
 - `--stream` walks the whole document through `TextReader` and prints nothing
-  but `--relaxng` and `--schema` results: the reader validates as it reads,
-  printing the diagnostics (`file:line:` without the source line, as the reader
-  reports) and one verdict, then `failed to parse` if reading failed, as
-  xmllint does. DTD and Schematron checks need the tree and do not run.
+  but `--valid`, `--relaxng` and `--schema` results: the reader validates as it
+  reads, printing the diagnostics (DTD ones with the source line, as
+  libxml2's parser reports them; schema ones `file:line:` without it, as the
+  reader reports), `Document FILE does not validate` or one schema verdict, then
+  `failed to parse` if reading failed, as xmllint does. Without a DTD
+  `--stream --valid` fails (exit 3), as in xmllint; content-model errors are
+  reported once each ([textreader.md](textreader.md#dtd-validation)).
+  Schematron and `--postvalid` need the tree and do not run.
 - A missing DTD under `--valid` is reported but not fatal, as in xmllint;
   under `--postvalid` it fails.
 - `--recover` parses with `RECOVER`: each recovered error is printed as a
@@ -89,9 +93,9 @@ and unsupported encodings (ISO-8859-5) as fatal where libxml2 continues.
 `tests/yaxmllint.rs` runs both programs over libxml2's own test inputs when
 `YAXML_XMLLINT` names the pinned binary (`YAXML_LIBXML2_SRC` its source tree)
 and compares stdout and exit code: `--noout`, `--valid`, `--postvalid`,
-`--c14n`, `--c14n11`, `--exc-c14n`, `--html`, `--relaxng`, `--stream --relaxng`,
+`--stream --valid`, `--c14n`, `--c14n11`, `--exc-c14n`, `--html`, `--relaxng`, `--stream --relaxng`,
 `--stream --schema`, `--schema`, `--xpath` and default output agree on every input outside the
-listed gaps (120/120, 120/120, 33/33, 7/7, 28/28, 21/21, 44/44, 798/798, 798/798, 242/242, 242/242,
+listed gaps (120/120, 120/120, 33/33, 120/120, 7/7, 28/28, 21/21, 44/44, 798/798, 798/798, 242/242, 242/242,
 327/327, 120/120); over all inputs default and `--format` output agree on 130/143 and 127/143
 (105 and 104 before entity references were kept, 127 and 126 before attribute references were),
 the rest being the gaps and, for `--format`, three documents where the `NOBLANKS` sibling
