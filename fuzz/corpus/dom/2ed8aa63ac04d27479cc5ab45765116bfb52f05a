@@ -1,0 +1,17 @@
+î<?xml version="1.0" encoding="UTGle.org">
+    <n1:elem2 ="1.0"?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc bad IDREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "a$">
+<!ATTLISTKdoc Ok IDREFS "abc:1 aST doc Ok IDREFS "abc:1 a1bc_2">
+]>
+<Doc "la=xmlns:n1="http://ex
+<docample.net" xml:lang="en">
+	<n3:stuffREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "a$">
+<!ATTLI$$$">
+<!ATTLIST doc Ok NMTOKEN "1aË¹c_2">
+<!ATTLIST doc bad IDREF "1abc_2">
+<!ATTLIST doc ok2 IDREF "a$">
+<!ATTLIST doc Ok IDREFS "abc:ÿ#x

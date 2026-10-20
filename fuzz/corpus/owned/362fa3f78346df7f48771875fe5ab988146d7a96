@@ -1,0 +1,14 @@
+«<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c§§§§§§§§§§§§§§§§§§§§§§£§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§:§§§§§D§§§§§§§§§§§§§§§§§§§§§§§§§§§§/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the pro5•blem</p>
+   <TION n SYSTEM('n'><!ENTITY u SYS'&n of garbage now to trigger thec att CDATA #FIXED>
+]>
+<dPoc/> verencoding='I8-c]`><![C0DE x [ <!ELEMENT x EMPTY> ]>
+<x xmlns:foo='http:ATA//exa problem</p>
+   <p>p://www.ietf.org">
+       est2;</ent>
+</doc>
+

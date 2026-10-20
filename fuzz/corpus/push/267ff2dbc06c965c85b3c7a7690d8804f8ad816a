@@ -1,0 +1,7 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!>
+]>
+<foo>You cENTTIY gt ">">
+]>
+<foo>You can use ]]&gt; or ]]&#62»</foo>

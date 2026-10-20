@@ -1,0 +1,12 @@
+«<!DOCTYPE doc [
+<!ENTITY test1 "<a/>,<b/>,<c§§§§§§§§§§§§§§§§§§§§§§£§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§§D§§§§§§§§§§§§§§§§§§§§§§§§§§§§/>,<d/>">
+]>
+<doc>
+   <ent>&test1;</ent>
+   <p> WE need lot of garbage now to trigger the pro•blem</p>
+   <p> WEem</p>
+   <p> WE !NOTATION n SYSTEM('n'><!ENTITY u SYS'&n of garbage now to trigger the problem</p>
+   <p>p://www.ietf.org">
+       est2;</ent>
+</doc>
+

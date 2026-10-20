@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+
+<!ELEMENT woot EMPTY>
+<!ATTLIST root:    value	(brittannica | wo   ><!-- testsibut

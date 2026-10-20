@@ -1,0 +1,21 @@
+<!DOCTYPE doc [
+<!ENTITY<!DOCTYPE root [
+  <!ELEME(good|bad) #REQUIRED 
+      >
+  <!ATTLIST g gattr1 NMTOKEN #REQUIRED>
+  <!ATTLIST h hattr1 NMTOKE
+<root>
+ e1 "&e2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYS  <a TEM "0.2.eaattr1 = "a1"> Element type a </a>
+  <b battr1 = "anyvalue" battr2="good" battr8 ="b1"> Element type b </b>
+  <c c_reference = "b1"> Element type c </c>rrrrrrrrrrr
+  <d 
+]>
+<root>
+ e1 "&e2;">
+<!ENTITY e2 "&e3;">
+<!ENTITY e3 SYS  <a TEM "012.eaattr1 = "a1"> Element type a </e2 "&e3;">
+<!ENTITY e3 SYS  <a TEM "012.eaattr1 = "a1"> Element type a </a>
+  <b battr1 = "anyvalue" battr2="good" batt->
+

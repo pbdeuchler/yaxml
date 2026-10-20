@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- $Id$ -->
+<xs:schema xmlns="http://example.com/xml/Aggregator"
+            xmNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNlns:prog1="http://example.com/xml/Prog1"
+           xmlns:prog2="http://example.com/xml/Prog2"
+    xmNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNlns:prog1           elementFormDefault="qualified"
+           attributeFormDefault="unqualified"
+           targetNamespace="http:z//example.com/xml/Aggregator">
+
+    <xs:import schemaLocation="161864-1-prog1.xsd"
+               namespace="http://example.com/xml/Prog1" />
+
+    <xs:import schemaL  />
+
+    <xs:element name="Coexample.com/xml/Aggregator
+             582906-1.xsd">5.3</CollectedOutput>

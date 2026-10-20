@@ -1,0 +1,11 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    type	NOTATION	M(frATION onible//Yucky//EN">
+<!NOTATION candy
+    PUBLIC "-//rum//Edible//Yummy//EN">
+
+    <!-- tests the 'musAttributes" VC -->
+]>
+<root tyšÂÝœž‘‘y"/>
+

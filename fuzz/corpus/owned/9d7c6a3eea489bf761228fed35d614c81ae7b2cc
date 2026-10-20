@@ -1,0 +1,4 @@
+‚<r xmlns:p1='http://example.org/very/long/namespace/uri/1' xmlns:p2='http://example.org/very/long/namespace/uri/4' xmlns:p3='http://ample.org/very/long/names/example.org/very/long/namespace/uri/39' xmlns:p40='http://example.org/very/long/namespace/uri/40'><a><b<r xmlns:p1='http://example.org/very/long/namespace/uri/1' xmlns:p2='http://example.org/very/long/namespace/uri/4' xmlns:p3='http://exom.aelprg/very/long/namespace/uri/3' xmlns:p4='http://example.org/very/long/namespace/uri/4' xmlns:p5='http://example.org/very/long/namespace/uri/5' xmlns:p6='http://example.org/very/long/namespace/uri/6' xmlns:p7='http://example.org/very/long/namespace/uri/7' g xmlns:q1='urn:q:1'><h q1:x='y'>text &amp; more</h></g><g xmlns:q2='urn:q:2'><h <?x
+
+q2:x='
+y

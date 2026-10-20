@@ -1,0 +1,29 @@
+<!DOCTYPE rnode [
+<!ELEMENT rnode (f)>
+                                                                                         
+<!ENTITY f
+   "
+   <f>
+   hello world
+   </f>
+   "
+>
+]>
+                                                    
+<!ELEMENT f (#PCDATA)>
+<!ATTLIST f
+   att0 CDATA #FIXED 'J'>
+                                                                                
+<!ENTITY f
+   "
+   <f>
+   hello world
+   </f>
+   "
+>
+]>
+                                                                 
+<rnode>
+   &f;
+</rnode>
+

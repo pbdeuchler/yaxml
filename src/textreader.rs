@@ -379,6 +379,44 @@ impl<R: BufRead> TextReader<R> {
         })
     }
 
+    /// Starts a new document on `input` with the same flags and limits,
+    /// keeping the parser's allocated capacity (`xmlReaderNewMemory` on an
+    /// existing reader), and returns the previous source. Read position,
+    /// sticky failure, queued nodes, namespace scope, schemas, counters and
+    /// the resolver are gone; the document URI is kept.
+    pub fn reset(&mut self, input: R) -> R {
+        let previous = self.source.reset(input);
+        self.resolver = false;
+        self.restart();
+        previous
+    }
+
+    /// [`TextReader::reset`] with new options (`base` is the new document
+    /// URI). Unsupported options are an error that leaves the reader as it was
+    /// (`input` is dropped).
+    pub fn reset_with(&mut self, input: R, options: ParseOptions) -> Result<R, Error> {
+        let (limits, _) = options.effective_limits();
+        let (flags, url, resolver) = (
+            Flags(options.flags),
+            options.base.clone(),
+            options.resolver.is_some(),
+        );
+        let previous = self.source.reset_with(input, options)?;
+        (self.limits, self.flags, self.url, self.resolver) = (limits, flags, url, resolver);
+        self.restart();
+        Ok(previous)
+    }
+
+    fn restart(&mut self) {
+        self.state = ReadState::Initial;
+        self.queue.clear();
+        self.buffered = 0;
+        self.pending = None;
+        self.attribute = None;
+        self.scope = Scope::default();
+        self.validators = Validators::default();
+    }
+
     /// `xmlTextReaderRead`: moves to the next node in document order.
     /// Returns false at the end of a well-formed document. Errors are sticky.
     pub fn read(&mut self) -> Result<bool, ReadError> {
@@ -1017,27 +1055,9 @@ impl<R: BufRead> TextReader<R> {
     /// ones and the document URI (`http://`, `ftp://` and `urn:` stop early).
     pub fn base_uri(&self) -> Option<String> {
         self.node()?;
-        let mut base: Option<String> = None;
-        for frame in self.scope.frames.iter().rev() {
-            if let Some(span) = frame.base {
-                let outer = self.scope.get(span);
-                let resolved = match base {
-                    Some(inner) => crate::uri::resolve(&inner, outer).ok()?,
-                    None => outer.to_owned(),
-                };
-                if ["http://", "ftp://", "urn:"]
-                    .iter()
-                    .any(|scheme| resolved.starts_with(scheme))
-                {
-                    return Some(resolved);
-                }
-                base = Some(resolved);
-            }
-        }
-        match (base, &self.url) {
-            (Some(base), Some(url)) => crate::uri::resolve(&base, url).ok(),
-            (base, url) => base.or_else(|| url.clone()),
-        }
+        let frames = self.scope.frames.iter().rev();
+        let bases = frames.filter_map(|frame| Some(self.scope.get(frame.base?)));
+        crate::xpath::tree::resolve_base(bases, self.url.as_deref())
     }
 
     /// Inherited `xml:lang` of the current node.

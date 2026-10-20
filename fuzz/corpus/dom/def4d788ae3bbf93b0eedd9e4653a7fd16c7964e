@@ -1,0 +1,23 @@
+î<!DOCTYPE doc [<!<doTA)>
+<!ATTLIST root att CDATA #IMPLIED>
+<!ENTITY c>
+  <!-- no normalization --> attr='
+  foId attr='
+
+f!<doc>
+  <!-- no normalizatioî --!DOCTYPE doc [<!<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+f!<doc>
+  <!-- no-> attr='
+  foId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>
+  <normId attr=' &#48;&#xa;&#9; '/> <!-- PBM seriayizing back -->
+</doc>

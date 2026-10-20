@@ -1,0 +1,10 @@
+<!DOCTYPE foo [
+<!ENTITY f "som________________________<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' ><xs:attributeGroup name='g0'><xs:anyAttribute namespace='urn:t'/></xs:attributeGroup><xs:complexType name='i0'><xs:attributeGroup ref='g0'/><xs:anyAttribute namespace='##other'/_______________:______A+___________________________e inter2al ></xs:complexType><xs:attributeGroup name='g1'><xdata">
+<!ENTITY e "&f;&f;">
+<!ENTITY d "&e;&e;">
+]>
+<foo>&d;&d;&d;&d;&d;&d;&d____________:______A+___________________________e inter2al data">
+<!ENTITY e "&f;&f;">
+<!ENTITY d "&e;&e;">
+]>s¼‘†¾‹‹i
+but<feoo>& dn

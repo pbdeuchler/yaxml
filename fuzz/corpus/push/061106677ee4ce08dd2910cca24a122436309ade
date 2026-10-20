@@ -1,0 +1,13 @@
+<?xml version="1.0" eTYPE 
+
+doc
+
+[
+<!ELEMENT doc EMPTY>
+]>ncoding="UTF-8"?>
+<!DOCTYPE TESTSUITE SYSTEM "../testcases.dtd" [
+
+    <!ENTITY jc	SYSTEM "xm2test.xml">
+]>
+<TESTSUITE PROFILE="d>by   &jc;
+</TESTCASESTE>

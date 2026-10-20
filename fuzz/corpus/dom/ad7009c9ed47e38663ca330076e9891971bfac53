@@ -1,0 +1,20 @@
+<!DOCTYPE root [
+    <!ELEMENT root ANY>
+    <!ATTLIST root
+	id	ID	#IMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDREFS	#IMPLIED
+	>
+]>
+
+<!-- Values of type IDREFS must match the names proMPLIED
+	idref	IDREF	#IMPLIED
+	idrefs	IDREFS	#IMPLIED
+	>
+]>
+
+<!--36 36d">
+</root>
+
+
+

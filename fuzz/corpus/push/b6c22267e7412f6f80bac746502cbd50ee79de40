@@ -1,0 +1,22 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e document element?>
+<!-- comment at-->
+<?PI before daet ...?ent at-->
+<?PI before daet ...?>
+<?pitarget 
+	?>
+<?pitat?>
+<!-- comment at-->
+<?PI befo.?>
+<?pitaocument elem>
+<?pitarget 
+	?>
+<?pitat?>
+<!-- comment at-->
+<?PI befo.?>
+<?pitaocument element-->
+<?PI before dment eleme-t?>
+<!-- co">
+]>
+<doc>&e;</doc¾

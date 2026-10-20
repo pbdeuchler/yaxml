@@ -18,6 +18,7 @@ mod dtd_tag;
 mod encoding;
 mod error;
 mod escape;
+pub mod features;
 pub mod html;
 mod name;
 pub mod options;
@@ -54,6 +55,7 @@ pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
     ReadError, WriteError,
 };
+pub use features::{LIBXML2_COMPAT_VERSION, LIBXML2_COMPAT_VERSION_NUMBER, VERSION};
 pub use name::Name;
 pub use options::ParseOptions;
 pub use origin::SourceOrigin;
@@ -67,5 +69,6 @@ pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
 pub use textreader::{NodeType, ParserProperty, ReadState, TextReader};
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
+pub use xpath::tree::NamespaceBinding;
 
 mod dtd_reference;

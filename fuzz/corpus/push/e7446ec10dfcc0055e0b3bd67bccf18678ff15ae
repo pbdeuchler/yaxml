@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE a SYSTEM "dtds/a.dtd" [
+<!ELEMENT a (#PCDATA | b
+	self::ietf:e1
+	    or
+	(parent::ietf:exml version="1.0"?>
+<!DOCTYPE a SYSTEM "dtds/a.dtd" [
+<!ELEMENT a (#PCDATA | b
+	self::ietf:e1
+	    or
+	(paþÿÿÿÿÿÿÿrent::ietf:e1  | c)*>
+C: Unique Element Type 1  | c)*>
+C: Unique Element Type Declaration ] </a>

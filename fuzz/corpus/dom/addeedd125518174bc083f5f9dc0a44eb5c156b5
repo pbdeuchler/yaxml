@@ -1,0 +1,11 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML Snitf SYSTEM dtds/nitf-1-5.dtd">
+  %nitf;
+]>
+<NewsML>
+  Catalog Hvef="http:/*www.afp.com/dtdtAFPCatalog.xml"/>
+  <NewsEnvelope>
+    <DateAndTime>2011022T154508Z</DateAndTime>
+  </NewsEnE r SYÒòòòòòSTEM òòòòòòòòòòòòòòòòòò   <wsML SYS`TEMïÿÿÿds/NewsMLv2.2.dtd" [
+  <!ENTITY % nitf SYSTEM
+  %ni    <Prto

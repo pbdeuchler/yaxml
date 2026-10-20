@@ -1,0 +1,35 @@
+î<?xml version="IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internal&number; ">
+    <!ENTITY number "42">
+
+    <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public iIED
+	nmtoken		NMTOKEN		#IMPLIED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idrefDIR		EF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    d//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeÿÿÿeeeeeeeeeeeeeeeED
+	nmtokeos	NMTOKENS	#IMPLIED
+	id		ID		#IMPLIED
+	idrefDIR		EF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    d//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeÿÿÿeeeeeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml versionÀÿÿÿ0"?>TYPE doc
+<!EY>]>
+<doc/>

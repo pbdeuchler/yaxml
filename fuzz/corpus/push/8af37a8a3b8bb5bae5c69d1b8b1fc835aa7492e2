@@ -1,0 +1,12 @@
+<!DOCTYPE doc
+[
+<!ELEMENT <?xml version="1.0" encoding= ?>
+<!--* missing EncName in above EncodingDecl *-d->
+<!DOCToc  doc att YPE root 
+[
+<!ELEMENT root (#PCDATA)(0|35a|Aç|-a|:a|a:|.|_a) #IMPLIED>>
+<!ATTLIST root att CDATA #IMPLIED>
+]>
+<r
+]>
+<doc/>oot/>

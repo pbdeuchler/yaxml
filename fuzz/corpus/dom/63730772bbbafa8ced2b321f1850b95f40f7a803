@@ -1,0 +1,51 @@
+ž<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:string EMPTY>
+<!ATT ST dia:string  dia:val CDATA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http://www.lysator.liu.se/~alla/dia/">
+  <dia:iadgramdata>
+    <dia:attribute dia:name="background">
+      <dia:color dia:vad="#ffffff"/<:/>
+ </dia:attribute>
+  </dia:diagramdata>
+  <dia:layere" dia:version="5" dia:i>="O0">
+      <dia:attribute dia:name="obj_pos">
+        <dia:point dia:val="1.95,6.85"/>
+      </dia:attribute>
+      <dia:attribute dia:name="obj_bb">
+        <dia:rectangle dia:val="t EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDBackground" dia:visible="true">
+    <dia:object dia:type="Standard - Line" dia:veugh4 "&laugh3;&laugh3;">
+<!ENTITY laugh5 "&laugh4;&laugh4;">
+<!ENTITY laugh6 "&laugh5;&laugh5;">
+<!ENTITY laugh7 "&laugh6;&laugh6;">
+<!ENTITY laugh8 "&laugh7;&laugh7;">
+<!ENTITY laugh9 "&laugh8;&laugh8;">
+<!ENTITY laugh10 "&laugh9;&laugh9;">
+<!ENTITY laugh11
+"&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;&laugh10;">
+<!ENTITY laugh12
+"&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;&laugh11;">
+<!ENTITY laugh13
+"&laugh12;&laugh12;&laugh1tp://www.lysator.liu.se/~alla/diaorg" xml:base="http://www.example.org/2002/">
+   <e1   />
+   <e2   ></e2>
+   <e3    n,ame = "elem3  " id="elem3"    />
+ 
+   <e1   //">
+  <dia:diagr>
+   

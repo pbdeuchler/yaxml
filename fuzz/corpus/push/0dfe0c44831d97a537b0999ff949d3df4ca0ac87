@@ -1,0 +1,22 @@
+<?xml version=" ?>
+<!DOCTYPE book [
+<!ELEMENoTb ok ANY>
+<!-- This test case covers     legal character ranges plus
+        discrete legal000000000000000000000000000000000000000000000000"1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo xmlns2a="http://example/o
+ 	attr0zA.="attt [rValue"
+ 	attr·0zA="attrValue"
+ 	attr̀·0z="attrVanue"
+ 	attŕ̀·0="attrVaalue"
+ 	、。퟾attr="attrValue"
+ 	。퟾퟿attr="attrValue"
+ 	퟾퟿豈r="attrValue"
+ 	、。퟾attr="attrValue"
+tr̀·0z="attrValue"
+ 	attŕ̀·0="attrVaalue"
+ 	、。퟾attr="attrValue"attr="attrValue"
+ 	퟿豈更attr="attr:b="hipper"
+     xmlns="http://example.org/~wglbur">
+xed attributes vith same
+     e/~k</fo>o>

@@ -1,0 +1,4 @@
+<doc<!DOCTYPE d [
+oc<!ENTITY e1 "&e2;">
+<!ENTITY !ELEMENT doc/dot
+ c>c>

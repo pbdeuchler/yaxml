@@ -1,0 +1,9 @@
+<!DOCTYPE references [
+
+<!ELEMENT references EMPTY>
+<!ATTLIST references
+    value	ENTITIES	"brittudentannicldbook.com">
+
+]>
+
+<references value="brittannica"/>

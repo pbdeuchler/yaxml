@@ -1,0 +1,20 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (tage? | textinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| lang 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri+ | rating? | image? | tex| textijput? | copyri | link 
+| lang 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| language | item+ | rating? | image? | tex| textijput? | copyri | link 
+| language | item+ | rating? | image? | textpnput? | crs? | skipDays?)*>
+<!ELEMENT  "http://ww.org/Graphr="attrValueics/SVG9890412.dtitle (#PCDATA)ption?)*>
+<!ELEMENT ue> | link 
+| language | item+ | rating? | image? | textpnput? | crs? | skipDays?)*>
+<!ELEMENT  "http://ww.org/Graphr="attrValueics/SVG9890412.dtitle (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

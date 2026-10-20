@@ -1,0 +1,8 @@
+Ž<?xml versi standalone='ye%s'?>
+<!DOCTYPE s [
+
+<!ATTLIST attributes
+X   NMTOKENon='1.0' standalone='ye%s'?>N    #IMPLIED[
+
+<!ATTLIST attributes
+X   NM  NMTOKEN/>

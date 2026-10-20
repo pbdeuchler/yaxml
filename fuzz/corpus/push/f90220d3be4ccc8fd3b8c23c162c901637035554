@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (a)? >
+<!ELEMENT a EM!ELEMENT doc (a)? >
+<!ELEMENT a PTY>
+]>
+<doc></doc>

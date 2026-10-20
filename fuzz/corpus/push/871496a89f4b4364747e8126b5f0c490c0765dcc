@@ -1,0 +1,83 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQUIRED>
+]>
+<!--* This test is to teson 4.3.2:
+      An internal general parsed encith is well-formed if 
+      i    its replacement text matche OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/stru>$>>
+cture/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+
+    xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+    xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+    xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+    xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+    xmlns:table="urn:oasis:names:tc:opendocument:xmlns:tle.a:b10"
+    xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+    xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+    xmlns:dr3d="urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0"
+    xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"
+    xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0"
+    xmlns:script="urn:oasis:na1.0"
+    xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:0.0"
+
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http:/=www.w3.ore/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>ode()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-/1999/xlink"
+    xmlns:math="http://www.w3.org/1998/Math/MathML"
+    xmlns:xforms="http:/=www.w3.org/2002/xforms"
+
+    xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+    xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+    xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+>
+<define name="office-process-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>ode()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namespace nodes; I am not in my parent's namespace axis -->
+     //oc xmlns="http://www.ietf.org" xmlns:w2c="http://www.wG3.org">
+   <e1>
+      <e2 xmlns="">
+ ="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //s the production dent (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        ithElemnetDecl "<!ELEMENT bogu test>"> 
+        <!ATTLISlabeled
+      "content" *--> 
+<?MyInstruct This is a test ?>
+<student att4="ibm">My Name is SnowMan. </student>

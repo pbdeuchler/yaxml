@@ -1,0 +1,1 @@
+ë<!DOCTYPE r [<!ENTITY a 'xyz'>]><r>&a; text <bPE r [<!ENTITY a Axyz'>]=><r>&a; text <b>m<!DOCTYPE r [<!ENTITY a 'xyyz'>]=><r>&a; text <b>m<!DOCTYPE r [<!ENTITY a 'xyz'>]><r>&a; text <bPE r [<!EN a 'xyz'tz'>]><r>&a; text <bPE r [<!EN a 'xyz't=p://www.w4.o.g/2001/Include'>,!--2-->

@@ -1,0 +1,15 @@
+<!DOCTYPE d [
+    <!ENTITY a "]>">
+    <!ENTITY b ']>'>
+    <!--> ]> -->
+]    >
+<?pi:p1?<?xml version="1.1"?>
+<XPath xmlns:bar="http://example.org/p://example.org/baz" xmlns:foo="http://ex	ample.org/foo" xml:lang=        ething  and
+       >
+<!--. c1 -->
+<d a=">" b=ÙÁØÁõÃÞ§CDATA[cdata]]>
+<?pi p4?>
+<!-->       (strãng(self::node()&) = namespace-ur    ]
+</XPath c1 -->
+&#1117070;    /errata-3>e-
+->

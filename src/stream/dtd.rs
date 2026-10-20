@@ -70,8 +70,11 @@ pub(crate) struct StreamingSession {
 
 impl StreamingSession {
     pub(crate) fn new(limits: Limits, decode: DecodeLimits, flags: Flags) -> Self {
+        Self::with_stream(Stream::new(limits, decode, flags), limits, decode, flags)
+    }
+    fn with_stream(ordinary: Stream, limits: Limits, decode: DecodeLimits, flags: Flags) -> Self {
         Self {
-            ordinary: Some(Stream::new(limits, decode, flags)),
+            ordinary: Some(ordinary),
             session: Vec::new(),
             limits,
             decode,
@@ -88,6 +91,19 @@ impl StreamingSession {
             finished: false,
             failure: None,
         }
+    }
+    /// Starts over with new limits and flags, keeping only the plain stream's
+    /// emptied allocations: counters, failure, DTD phase and loader are gone.
+    pub(crate) fn reset(&mut self, limits: Limits, decode: DecodeLimits, flags: Flags) {
+        let stream = match self.ordinary.take() {
+            Some(stream) => stream.recycled(limits, decode, flags),
+            None => Stream::new(limits, decode, flags),
+        };
+        *self = Self::with_stream(stream, limits, decode, flags);
+    }
+    /// [`Self::reset`] with the current limits and flags.
+    pub(crate) fn reset_same(&mut self) {
+        self.reset(self.limits, self.decode, self.options.flags);
     }
     pub(crate) fn position(&self) -> usize {
         self.ordinary.as_ref().map_or_else(

@@ -1,0 +1,2 @@
+…<!DOCTYPE r [<!ENTITY e "a<![CDC]>c<x<![>dCDATA[;]<!DOCTYPE doc [
+<!ENTITY % e PLUIBC ']></x>">]><r>&e;&e;</r>

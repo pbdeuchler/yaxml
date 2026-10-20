@@ -159,8 +159,16 @@ skip, plus the character screen). `namespaces` push/7 (0.99) is at parity
 in instructions. Two slice-reader rows lost time without retiring more
 instructions: `tiny` reader (4.09 → 3.73, +4.5% instructions, about 40 ns
 per document) and `deep` reader (1.90 → 1.72, +1.8%); both appear with the
-`&Event` and value-lending commit (`dd6bf1b`), which grew `ParserState` by
-two fields, and are unexplained.
+`&Event` and value-lending commit (`dd6bf1b`), which grew `ParserState` from
+448 to 496 bytes. The `tiny` loss was that size: each slice-reader
+construction moves the state (a 1.2 KB `Reader` is copied through
+`configured` and the caller's `Result`), and boxing the lent-value storage
+on first use (456 bytes) gives `tiny` reader 4.5% fewer instructions and
+10% less time than main, 4% less than before the series (21 pairs). A
+24-byte `Vec` in its place (472 bytes) recovered the time too but cost
+push 0.3-1.4% instructions through the extra indirection. `deep` reader
+stays about 3% slower than before the series while retiring 0.7% fewer
+instructions; it is code layout, not size.
 
 ### Fourth series (2026-10-19, `2a0e872` → `45c756e`)
 

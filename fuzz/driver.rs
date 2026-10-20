@@ -46,6 +46,9 @@ mod serialize;
 #[path = "save.rs"]
 mod save;
 
+#[path = "domedit.rs"]
+mod domedit;
+
 #[path = "mutation.rs"]
 mod mutation;
 
@@ -129,6 +132,7 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_textreader(input);
     exercise_construction(input);
     exercise_mutation(input);
+    exercise_domedit(input);
     exercise_pull(input, input.get(input.len() / 2).copied().unwrap_or(0));
     exercise_push(input);
     if let Some(outcome) = exercise_encoding(input) {
@@ -462,6 +466,13 @@ fn check_abort(error: Error, expected_offset: usize) {
         error.offset, expected_offset,
         "cancellation offset did not end the delivered event"
     );
+}
+
+/// Exercise random structural, attribute and namespace edit scripts over a
+/// parsed document; see `domedit.rs` for the testcase format.
+pub fn exercise_domedit(input: &[u8]) {
+    assert!(input.len() <= MAX_INPUT_BYTES);
+    domedit::exercise(input);
 }
 
 /// Exercise caller-created edits independently from the XML grammar bytes.

@@ -1,0 +1,5 @@
+‰<!DOCTYPE r [<!ENTITY e "<p:a></p:a><xmlns:b>TYPE doc [
+<!ELEMENT doc EMPTY>
+]>
+<doc/C>
+</xmlnó:b>">]><r>&e;</r>

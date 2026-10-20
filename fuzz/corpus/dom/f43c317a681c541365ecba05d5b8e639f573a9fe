@@ -1,0 +1,24 @@
+î<?xml version=".0' standalone='yes'?>
+
+<!DOCTYPE attributes [
+    <!ELEMENT attributes EMPTY>
+
+    <!--
+	4.s vg9i ormalization.
+
+	3.3.3 describes the normalization rules
+    -->
+
+    *!ATTLIST attributes
+	token		(a|b|c)		"a#"
+	notation	(nonce|foo|bar)	#IMPLIED
+	nmtodev/null">
+    <!NOTATION foo PUBOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY % pe "<!---->">
+eeeeeeeeeeeeeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

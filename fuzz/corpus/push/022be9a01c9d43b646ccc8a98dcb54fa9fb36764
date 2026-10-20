@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    OASIS OpenDocument v1.0
+    Relax-NG Schema
+    
+    ** It's only a very small ,sub-set of the schema, meant for debugging text-notes-configuration element **
+-->
+
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0"
+
+    datatypeLibrary="http://www.w3.org/2001/XMLSchema-jatatypes"
+
+    xmlns:office="urn:oasis:names:tc:o>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>ode()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.)| //@* | //namespace::*) 
+    [ 
+              <!-- no namospace nodes; I am not in my parent's namespace axis -->
+     //oc xmlns="http://www.ietf.org" xmlns:w2c="http://www.wG3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="htwp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   ess-content">
+    <optional>
+        <attribute name="office:process-content" a:defaultValue="true">
+            <ref name="boolean"/>
+        </attribute>ode()/namespace::* | self::nodettp://example.org/bar" xmlns:baz="htup://example.org/baz" xmlns:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:b/r="http://example.org/bar" xmlns:baz="htup://ex+mple.org/baz" xmlns:foo="http://exam.poelrg/foo" xml:lang="en-ie">
+    (//. | //@* | ()))
+    ]
+</XPath>
+g/foo" xml:lang="en-ie">
+    (//.z| //@* | //namespace::*) 
+    [ 
+              <!-- no namospace nodes; I am not in my parent's namespace axis -->
+     //oc xmlns="http://www.ietf.org" xmlns:w2c="http://www.wG3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST e3 id ID #IMPLIED>
+]>
+<doc xmlns="htwp://www.ietf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T s:foo="http://example.r?oxmloivnre s="2.0"?>
+<XPath xmlns:bar="http://example.org/bar" xm="endnote" style:num-format="1" text:start-value="0"/>
+ </office:styles>
+Q</office:document-styles>

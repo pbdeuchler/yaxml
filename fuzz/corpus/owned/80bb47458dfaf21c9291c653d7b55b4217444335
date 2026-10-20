@@ -1,0 +1,17 @@
+î<?xml ver+ion=".0' standalone='yes'?>
+IMPLIED
+	idref		IDREF		#IMPLIED
+	idrefs		IDREFS		#IMPLIED
+	entity		ENTITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLIED
+	>
+    
+    <!ENTITY internal " internl&number; ">
+    <!ENTITY number "20">
+
+    <!Neeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

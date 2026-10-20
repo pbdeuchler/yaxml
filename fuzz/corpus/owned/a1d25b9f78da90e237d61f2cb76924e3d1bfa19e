@@ -1,0 +1,13 @@
+<!DOCTYPE references [
+
+<!ELEMENT references EMPTY>
+<!ATTLIST references
+    value	ENTITIES	"brittudentannica 1orldbook"
+    >
+    <!-- tests the "attribute default legal" vc -->
+
+<!NOTATION e SYSTEM "http://www.worldbook.com">
+
+]>
+
+<rederences value="brittannica"/>

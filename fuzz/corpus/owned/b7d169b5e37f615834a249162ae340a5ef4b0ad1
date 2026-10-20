@@ -1,0 +1,8 @@
+–NT doc EMPTY>
+<!ATTLIST doc
+     defatt  (5|1)   "0"
+     xmlns:tst CDATA #FIXED "http://example.org"
+     tst:fatt  (5|1)   "0"
+     xmlns:tst CDATA #FIXED "http://example.org"
+     tst:att (1|1)   "2">
+]>d‘œßž‹‹ÂÜ1"/>

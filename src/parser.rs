@@ -326,10 +326,18 @@ pub(crate) struct ParserState<'source> {
     rereads: bool,
     /// Recovery: where libxml2 reads on, as content, inside the latest token.
     rewind: Option<usize>,
-    /// The latest token's normalized values while lending, in order: each
-    /// stands in its event as [`LENT_VALUE`] until [`ParserState::lend`].
+    /// The latest token's normalized values while lending (see
+    /// [`LentValues`]); boxed on first use, since a larger state makes every
+    /// construction and move of the slice reader slower (`tiny` reader -9%).
+    lent: Option<Box<[LentValues; 1]>>,
+}
+
+/// Normalized values lent in order: each stands in its event as
+/// [`LENT_VALUE`] until [`ParserState::lend`].
+#[derive(Default)]
+struct LentValues {
     values: String,
-    lent_values: Vec<Range<usize>>,
+    ranges: Vec<Range<usize>>,
 }
 
 impl<'source> ParserState<'source> {
@@ -369,8 +377,36 @@ impl<'source> ParserState<'source> {
             repairs_characters: false,
             rereads: false,
             rewind: None,
-            values: String::new(),
-            lent_values: Vec::new(),
+            lent: None,
+        }
+    }
+
+    /// A fresh state for `limits` that keeps this one's emptied allocations;
+    /// every scalar, counter and budget starts over (`PushParser::reset`).
+    pub(crate) fn recycled(self, limits: Limits) -> Self {
+        fn emptied<T>(mut vec: Vec<T>) -> Vec<T> {
+            vec.clear();
+            vec
+        }
+        let lent = self.lent.map(|mut lent| {
+            lent[0].values.clear();
+            lent[0].ranges.clear();
+            lent
+        });
+        let (mut index, mut ids, mut names) =
+            (self.namespace_index, self.namespace_ids, self.frame_names);
+        index.clear();
+        ids.clear();
+        names.clear();
+        Self {
+            stack: emptied(self.stack),
+            frame_names: names,
+            attribute_storage: emptied(self.attribute_storage),
+            bindings: emptied(self.bindings),
+            namespace_index: index,
+            namespace_ids: ids,
+            lent,
+            ..Self::new(limits, 0)
         }
     }
 
@@ -379,7 +415,7 @@ impl<'source> ParserState<'source> {
     /// `characters` outside `Char`, repairs them.
     /// Field assignments, not struct-update syntax: rustc 1.95-1.96 miscompile
     /// `Self { rereads, repairs_characters: rereads && characters, ..self }`
-    /// in release builds (tooling/simplify_comparison_scan.py).
+    /// in release builds (fixed in 1.97, now the MSRV; tooling/simplify_comparison_scan.py guards regressions).
     pub(crate) fn rereading(mut self, rereads: bool, characters: bool) -> Self {
         self.rereads = rereads && self.recovers();
         self.repairs_characters = self.rereads && characters;
@@ -499,12 +535,13 @@ impl<'source> ParserState<'source> {
             indexed,
             budget,
             lent_names,
-            values,
-            lent_values,
+            lent,
             ..
         } = self;
-        if !lent_values.is_empty() {
-            let mut ranges = lent_values.iter();
+        if let Some([LentValues { values, ranges }]) = lent.as_deref()
+            && !ranges.is_empty()
+        {
+            let mut ranges = ranges.iter();
             for attribute in attributes.iter_mut().filter(|a| is_lent_value(&a.value)) {
                 let range = ranges.next().expect("a lent value per placeholder");
                 attribute.value = Cow::Borrowed(&values[range.clone()]);
@@ -536,13 +573,9 @@ impl<'source> ParserState<'source> {
             | Event::Cdata(value)
             | Event::Comment(value)
             | Event::ProcessingInstruction { data: value, .. } => {
-                let Self {
-                    values,
-                    lent_values,
-                    budget,
-                    ..
-                } = self;
-                if let Some(range) = lent_values.first()
+                let Self { lent, budget, .. } = self;
+                if let Some([LentValues { values, ranges }]) = lent.as_deref()
+                    && let Some(range) = ranges.first()
                     && is_lent_value(value)
                 {
                     *value = Cow::Borrowed(&values[range.clone()]);
@@ -578,7 +611,9 @@ impl<'source> ParserState<'source> {
         if let Some(start) = self.pending_unwind.take() {
             self.unwind_bindings(start);
         }
-        self.lent_values.clear();
+        if let Some([lent]) = self.lent.as_deref_mut() {
+            lent.ranges.clear();
+        }
     }
 
     /// Closes a scope now, or after delivery when its event may be lent.
@@ -928,22 +963,26 @@ impl<'source> ParserState<'source> {
         if lent {
             // Normalization never lengthens a value, so the storage stays
             // within the token's size.
-            if self.lent_values.is_empty() {
-                self.values.clear();
+            let lent = match &mut self.lent {
+                Some(lent) => &mut lent[0],
+                lent => &mut lent.insert(boxed(LentValues::default(), offset)?)[0],
+            };
+            if lent.ranges.is_empty() {
+                lent.values.clear();
             }
-            let start = self.values.len();
+            let start = lent.values.len();
             normalize_into(
                 raw,
                 offset,
                 attribute,
                 references,
-                &mut self.values,
+                &mut lent.values,
                 recover,
             )?;
-            self.lent_values
+            lent.ranges
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
-            self.lent_values.push(start..self.values.len());
+            lent.ranges.push(start..lent.values.len());
             return Ok(Cow::Borrowed(LENT_VALUE));
         }
         let mut value = String::new();
@@ -2349,6 +2388,18 @@ fn invalid_namespace_binding(prefix: &str, uri: &str) -> bool {
         || (prefix == "xml" && uri != XML)
         || (prefix != "xml" && uri == XML)
         || (!prefix.is_empty() && uri.is_empty())
+}
+
+/// `value` on the heap, failing as `Allocation` at `offset` instead of aborting.
+fn boxed<T>(value: T, offset: usize) -> Result<Box<[T; 1]>, Error> {
+    let mut slot = Vec::new();
+    slot.try_reserve_exact(1)
+        .map_err(|_| Error::new(ErrorKind::Allocation, offset))?;
+    slot.push(value);
+    Ok(slot
+        .into_boxed_slice()
+        .try_into()
+        .unwrap_or_else(|_| unreachable!("one element")))
 }
 
 /// An attribute list's allocation, emptied and so free of its lifetime. The

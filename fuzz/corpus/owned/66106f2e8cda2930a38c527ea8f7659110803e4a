@@ -1,0 +1,7 @@
+î<!DOCTYPE doc [<!ATTLIST normIÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖÖd attr NMTOKENS #'MPLIED>]>
+<doc>
+lns:foo="http://www.bar.org" xml:base="http://www.example.org
+&lt;'/>
+ <normId attr=' &#06;&#xa;&#9; '/> <!-- PBM serializi;'/>
+  <normId attr=' &#13;&#xa;&#9; '/> <!-- PBM serializing back -->
+</doc>

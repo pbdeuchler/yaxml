@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE root [
+  <!ELEMENT root (a,b)>
+  <!ELEMENT a EMPTY>
+  <!ELEMENT b (#PCDATA|c)* >
+  <!ELEMENT c ANY>
+  <!ENTITY inContent "z<b>General entity reference in element contity reference in e<!DOCTYPE docATA)>
+]>
+<c>&#xFFFF;<5doc>
+e|CDSect|PI|CDSect|PI|CWgment, *-->B0
+<root><aLIST LegalNa}e Í±attr CDA(A #IMPLIED
+<!schema/">
+rg/~wilbur">
+xe>
+    &inC”‘t<!D

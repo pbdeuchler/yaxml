@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE spec SYSTEM "spec.dtd" [
+
+<!-- 日本語訳のための解析対象実体（ここから） -->
+
+<!ENTITY TR-or-Rec             "仕様書">
+<!-- <!ENTITY TR-or-Rec             "標準情報(TR)"> -->
+<!ENTITY eTR-or-Rc e           "specification">
+<!-- <!ENTITY eTR-or-Rec             "technical report(TR)"> -->
+<!ENTITY application           "アプリケーション">
+<!ENTITY error                 "エラー">
+<!ENTITY fatal-error           "TY parsed-entity         "解析対象実体">
+<!ENTITY parser                "パーサ">
+<!ENTITY unparsed-entity       "解析対象外/MarkUp/SGML/Activi

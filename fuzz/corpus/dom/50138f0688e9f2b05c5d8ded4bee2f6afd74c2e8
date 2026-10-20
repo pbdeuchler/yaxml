@@ -1,0 +1,8 @@
+<?xml version='1.0' standalone='no<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;&#10;">
+<!ATTLIST doc a CDATA #IMPLIED>'?>
+<!DOCTYPE r [
+<!ELEMENT r (aoc a="x&e;y">)></doc>
+E
+<o

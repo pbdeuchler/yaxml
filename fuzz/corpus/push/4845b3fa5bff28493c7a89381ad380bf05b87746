@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preg="US-ASCserve'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<ml:base="bar/">
+ w.iet<e1>
+      <e2 xmlns="" xml:id="abc" xml:base="bar/">
+         <e3 id="E3" xml:base="foo"/>
+      </e2>
+   </e1>
+</doc>

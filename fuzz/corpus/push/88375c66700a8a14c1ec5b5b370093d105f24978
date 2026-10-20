@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness:ttribus with same
+     local /ame, element in same namespace as prefixed attribute -->
+<foo xmlns:a="http://example.org/~wilbur">
+
+<a:bar a:attr="1" attr="2"/>
+
+</foo>

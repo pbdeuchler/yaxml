@@ -68,6 +68,16 @@ impl Tokenizer {
         }
     }
 
+    /// A new tokenizer that keeps this one's emptied buffer.
+    pub(crate) fn recycled(self, limit: usize, decoded_limit: usize) -> Self {
+        let mut buffer = self.buffer;
+        buffer.clear();
+        Self {
+            buffer,
+            ..Self::new(limit, decoded_limit)
+        }
+    }
+
     pub(crate) fn source_position(&self) -> usize {
         self.source_position
     }

@@ -1,0 +1,13 @@
+î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+foobar&lt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId ettr='foobrÿÿÿ· NMTOKENS #IMPLIED>]>
+<doc
+>  <!-- no normalization --> attr='
+  foId attr='#9; '/> <!-- PBM serializing back -->
+</doc>

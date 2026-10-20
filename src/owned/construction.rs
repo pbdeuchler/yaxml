@@ -30,13 +30,13 @@ struct StagedElement {
     attributes: Vec<StagedAttribute>,
 }
 
-struct Work {
-    used: usize,
-    limit: usize,
+pub(super) struct Work {
+    pub(super) used: usize,
+    pub(super) limit: usize,
 }
 
 impl Work {
-    fn charge(&mut self, amount: usize) -> Result<(), EditError> {
+    pub(super) fn charge(&mut self, amount: usize) -> Result<(), EditError> {
         let next = self.used.saturating_add(amount);
         if next > self.limit {
             return Err(namespace_work_error());
@@ -51,7 +51,7 @@ impl Work {
     }
 }
 
-fn allocation_error() -> EditError {
+pub(super) fn allocation_error() -> EditError {
     EditError::new(EditErrorKind::Allocation, None)
 }
 
@@ -264,7 +264,7 @@ fn check_spec_lengths(spec: &ElementSpec<'_>, limits: EditLimits) -> Result<usiz
     Ok(total)
 }
 
-fn validate_part(
+pub(super) fn validate_part(
     value: &str,
     component: EditComponent,
     item: Option<(usize, bool)>,
@@ -397,7 +397,7 @@ fn push_string(target: &mut String, value: &str) -> Result<(), EditError> {
     Ok(())
 }
 
-fn clone_string(value: &str) -> Result<String, EditError> {
+pub(super) fn clone_string(value: &str) -> Result<String, EditError> {
     let mut result = String::new();
     push_string(&mut result, value)?;
     Ok(result)
@@ -1297,7 +1297,7 @@ fn depth_bounded<A: Allocator>(
         .count()
 }
 
-fn limit_global(limit: EditLimit) -> EditError {
+pub(super) fn limit_global(limit: EditLimit) -> EditError {
     EditError::new(EditErrorKind::LimitExceeded(limit), None)
 }
 
@@ -1332,6 +1332,7 @@ pub(super) fn create<A: Allocator + Clone>(
         dtd: None,
         validity: Vec::new(),
         errors: Vec::new(),
+        url: None,
     };
     let staged = stage(&staging_document, None, &root, limits)?;
     if limits.max_created_nodes < 1 {
@@ -1441,8 +1442,6 @@ pub(super) fn append<A: Allocator>(
     )?;
 
     let node_id = NodeId(editor.document.nodes.len());
-    let node_link = Link::new(node_id);
-    let parent_link = Link::new(NodeId(parent));
     #[cfg(test)]
     if editor.document.nodes.len() == editor.document.nodes.capacity() {
         inject_edit_reservation_failure(EditReservation::Node)?;
@@ -1481,34 +1480,15 @@ pub(super) fn append<A: Allocator>(
         &staged.attributes,
         &mut editor.document.attributes,
     );
-    let previous_sibling = editor.document.nodes[parent].last_child;
-    editor.document.slots_are_preorder = false;
-    editor.document.nodes.push(OwnedRecord {
-        id: node_id,
-        content: Content::Element {
-            name,
-            attributes: start..end,
-        },
-        source: None,
-        parent: parent_link,
-        first_child: Link::NONE,
-        last_child: Link::NONE,
-        previous_sibling,
-        next_sibling: Link::NONE,
-        subtree_size: 1,
-    });
-    if let Some(previous) = previous_sibling.get() {
-        editor.document.nodes[previous.0].next_sibling = node_link;
-    } else {
-        editor.document.nodes[parent].first_child = node_link;
-    }
-    editor.document.nodes[parent].last_child = node_link;
-    let mut ancestor = Some(NodeId(parent));
-    while let Some(id) = ancestor {
-        let record = &mut editor.document.nodes[id.0];
-        record.subtree_size += 1;
-        ancestor = record.parent.get();
-    }
+    let content = Content::Element {
+        name,
+        attributes: start..end,
+    };
+    editor
+        .document
+        .nodes
+        .push(OwnedRecord::detached(node_id, content));
+    editor.document.attach(node_id.0, parent, Link::NONE);
     editor.document.edit_created_nodes = created_nodes;
     editor.document.edit_created_attributes = created_attributes;
     Ok(OwnedNodeId {

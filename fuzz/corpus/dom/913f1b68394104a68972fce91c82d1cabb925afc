@@ -1,0 +1,11 @@
+Ž<:f000000000000000000000000000000000000a;&#9; '/> <!--BMP  malizato/ion --> attr='
+  foId attr='
+
+fooÅÿÿÿlt;'/>
+  <normId attr='&lt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>
+  <normId attr=' &#13;&#x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a;&#9; '/> <!--BMP  serializing back -->
+</doc>

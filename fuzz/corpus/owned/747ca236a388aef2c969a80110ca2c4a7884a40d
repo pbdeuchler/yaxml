@@ -1,0 +1,6 @@
+<!DOCTYPE test [
+	<!ELEMENT test EMPTY>
+	<!ATTLIST test attr0 NMTOKENS #IMPLIED>
+]>
+<!--@ Should, be er@rata#E20 -->
+<test attr1=" a&#x9;b "/>

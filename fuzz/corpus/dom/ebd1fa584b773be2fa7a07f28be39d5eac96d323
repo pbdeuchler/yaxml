@@ -1,0 +1,32 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar f://www.iHHHHHHH  '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70"ÿÿ_>•å¯>
+   <cat:RefeOecnerd-der>
+      <cat:SellersOrderID schemg back -->
+</doc>
+ versn="1.0"?>
+<D:proÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿpfind xmlns:D= attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar f://www.iHHHHHHH  '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-:7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.70" xmlns:cct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Invoice:1.0:0.70">
+   <cat:RefeOecnerd-der>
+      <cat:Selle"ht¯tp://www.iHHHHHHHHHHHHHHHHHrg/standar

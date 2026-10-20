@@ -1,0 +1,25 @@
+î<?xml ver+ion=".0' standaldrefs		IDREFS		#IMPLIED
+	entity		ENtITY		#IMPLIED
+	entities	ENTITIES	#IMPLIED
+	cdata		CDATA		#IMPLID
+E	>
+    
+    <![ENTITY internal " internal&number; ">
+    <!ENTITY number "42"
+ 
+>   <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "file:/dev/null">
+    <!NOTATION baeeeeeeeeeeeeeeeeeeeeIMPLID
+E	>
+    
+    <![ENTITY internal " internal&number; ">
+    <!ENTITY number "42"
+ 
+>   <!NOTATION nonce SYSTEM "file:/dev/null">
+    <!NOTATION foo PUBLIC "-//public id//foo" "fileeeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xmeeeeeeeeeeeeeeee:eeeeee1.0"?>
+<!DOCTYPE doc [
+<?xml version="1.0"?>TYPE doc
+<!EY>]>
+<doc/>

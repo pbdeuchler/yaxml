@@ -3,6 +3,7 @@ use std::ops::Range;
 
 use crate::options::Flags;
 use crate::parser::Budget;
+use crate::xpath::tree::{self, NamespaceBinding};
 use crate::{
     Attribute, Declaration, Doctype, Element, Error, ErrorKind, Event, Limits, Name, ParseOptions,
     Reader, SourceOrigin,
@@ -104,6 +105,8 @@ pub struct Document<'input> {
     dtd: Option<Box<crate::valid::Dtd>>,
     validity: Vec<crate::valid::Diagnostic<NodeId>>,
     errors: Vec<Error>,
+    /// `ParseOptions::base`: libxml2's `doc->URL`.
+    url: Option<String>,
 }
 
 impl<'input> Document<'input> {
@@ -131,8 +134,16 @@ impl<'input> Document<'input> {
             max_decoded_bytes: usize::MAX,
             max_decoded_token_bytes: limits.max_token_bytes,
         };
+        let url = options.base.clone();
         let reader = Reader::configured(input, limits, decode, flags, options)?;
-        Self::from_reader(reader, input.len(), flags)
+        let document = Self::from_reader(reader, input.len(), flags)?;
+        Ok(Self { url, ..document })
+    }
+
+    /// The document URL (`ParseOptions::base`, libxml2's `doc->URL`), against
+    /// which [`Node::base_uri`] resolves.
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_deref()
     }
 
     fn from_reader(mut reader: Reader<'input>, length: usize, flags: Flags) -> Result<Self, Error> {
@@ -150,6 +161,7 @@ impl<'input> Document<'input> {
             dtd: None,
             validity: Vec::new(),
             errors: Vec::new(),
+            url: None,
         };
         let mut parents = Vec::new();
         let end = loop {
@@ -662,6 +674,21 @@ impl<'document, 'input> Node<'document, 'input> {
         })
     }
 
+    /// Returns the previous direct sibling, if any. Storage is preorder, so
+    /// the slot before this node is its parent or lies in that sibling's subtree.
+    pub fn previous_sibling(self) -> Option<Self> {
+        let parent = self.record().parent?;
+        let mut id = NodeId(self.id.0 - 1);
+        while id != parent {
+            let up = self.document.nodes[id.0].parent?;
+            if up == parent {
+                return self.document.node(id);
+            }
+            id = up;
+        }
+        None
+    }
+
     /// Iterates direct children in source order without a traversal stack.
     pub fn children(self) -> impl Iterator<Item = Self> + 'document {
         std::iter::successors(self.first_child(), |node| node.next_sibling())
@@ -673,6 +700,66 @@ impl<'document, 'input> Node<'document, 'input> {
             document: self.document,
             id: NodeId(index),
         })
+    }
+
+    /// `xmlGetProp`: the value of the first attribute whose name (local name
+    /// when namespaced) is `name`, in any namespace, else the DTD's default
+    /// for it; namespace declarations are not attributes.
+    pub fn attribute(self, name: &str) -> Option<&'document str> {
+        tree::property(self.document, self.id, name, None)
+    }
+
+    /// `xmlGetNsProp`: the attribute `local` in `namespace` (`None`: no
+    /// namespace), else the DTD's default for it.
+    pub fn attribute_ns(self, local: &str, namespace: Option<&str>) -> Option<&'document str> {
+        tree::property(self.document, self.id, local, Some(namespace))
+    }
+
+    /// `xmlNodeGetContent`: the payload of a leaf, or the concatenated
+    /// Text/CDATA of a document, element or entity reference; `None` for the
+    /// DOCTYPE. [`text_chunks`](Self::text_chunks) visits it without allocating.
+    pub fn content(self) -> Option<String> {
+        let doctype = matches!(self.kind(), NodeKind::Doctype(_));
+        (!doctype).then(|| self.text_chunks().collect())
+    }
+
+    /// `xmlGetNodePath`: a location path such as `/r/p:a[2]/text()`; `None`
+    /// for the DOCTYPE, entity references and their content.
+    pub fn path(self) -> Option<String> {
+        tree::path(self.document, self.id)
+    }
+
+    /// `xmlNodeGetBase`: `xml:base` values from this node outwards resolved
+    /// against each other and the document [`url`](Document::url).
+    pub fn base_uri(self) -> Option<String> {
+        tree::base(self.document, self.id, self.document.url())
+    }
+
+    /// `xmlNodeGetLang`: the nearest `xml:lang`.
+    pub fn lang(self) -> Option<&'document str> {
+        tree::lang(self.document, self.id)
+    }
+
+    /// `xmlNodeGetSpacePreserve`: the nearest `xml:space` of an element,
+    /// true for `preserve`, false for `default`; other values are skipped.
+    pub fn space_preserve(self) -> Option<bool> {
+        tree::space_preserve(self.document, self.id)
+    }
+
+    /// `xmlSearchNs`: the URI `prefix` (`None`: the default namespace) is
+    /// bound to here; `Some("")` under `xmlns=""`. `xml` is always bound.
+    pub fn search_ns(self, prefix: Option<&str>) -> Option<&'document str> {
+        tree::search_ns(self.document, self.id, prefix)
+    }
+
+    /// `xmlSearchNsByHref`: the innermost in-scope binding of `uri`.
+    pub fn search_ns_by_href(self, uri: &str) -> Option<NamespaceBinding<'document>> {
+        tree::search_ns_by_href(self.document, self.id, uri)
+    }
+
+    /// `xmlGetNsList`: every in-scope declaration, innermost first.
+    pub fn namespaces(self) -> Vec<NamespaceBinding<'document>> {
+        tree::ns_list(self.document, self.id)
     }
 }
 

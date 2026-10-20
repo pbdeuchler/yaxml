@@ -7,7 +7,7 @@ use std::iter::{once, successors};
 use super::parse::{
     Ast, Axis, BinOp, Core, Expr, Function, QName, Span, Start, Step, Test, scan_number,
 };
-use super::tree::{self, Item, Navigate, XML_NAMESPACE};
+use super::tree::{self, Item, Navigate};
 use super::{Context, Error, ErrorKind, Limit, Node, Value};
 
 type Result<T> = std::result::Result<T, Error>;
@@ -819,12 +819,9 @@ impl<'a, T: Navigate> Eval<'a, T> {
     fn lang(&mut self, node: Node<T::Id>, lang: &str) -> Result<bool> {
         let tree = self.tree;
         let (Node::Tree(start) | Node::Attribute(start, _) | Node::Namespace(start, _)) = node;
-        for id in successors(Some(start), |&id| tree.parent(id)) {
+        for id in tree::scope(tree, start) {
             self.tick(1)?;
-            let value = tree::attributes(tree, id)
-                .find(|(_, name, _)| name.namespace == Some(XML_NAMESPACE) && name.local == "lang")
-                .map(|(_, _, value)| value.as_bytes());
-            if let Some(value) = value {
+            if let Some(value) = tree::xml_attribute(tree, id, "lang").map(str::as_bytes) {
                 return Ok(value
                     .get(..lang.len())
                     .is_some_and(|prefix| prefix.eq_ignore_ascii_case(lang.as_bytes()))

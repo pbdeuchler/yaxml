@@ -1,0 +1,39 @@
+É<r xmlns:a='http://a/http:/b/..'><s<!DOCTYPE rss [
+<!--
+
+  Rich Site Summary (RSS) 0.91 official DTD, proposed.
+  
+  RSS is an XML vocabulary for de soft hyphen --><!ENTITY reg "&#174;">
+<!-- registered sign --><!ENTITY macr "&#175;">
+<!-- macron --><!ENTITY deg "&#176;">
+<!-- degree sign --><!ENTITY plusmn "&#177;">
+<!-- plus-or-minus sign --><!ENTITY sup2 "&#178;">
+<!-- superscript two --><!ENTITY sup3 "&#179;">
+<!-- superscript three --><!ENTITY acute "&#181;">
+<!-- acute accent --><!ENTITY micro "&#181;">
+<!-- micro sign --><!ENTITY para "&#182;">
+<!-- pilcrow (paragraph sign) --><!ENTITY middot "&#183;">
+<!-- middle dot --><!ENTITY cedil "&#184;">
+<!-- cedilla --><!ENTITY sup1 "&#185;">
+<!-- superscript one --><!ENTITY ordm "&#186;">
+<!-- ordinal indicator, masculine --><!ENTITY raquo "&#187;">
+<!-- angle quotatio;n mark, right --><!ENTITY frac14 "&#188;">
+<!-- fraction one-quarter --><!ENTITY frac12 "&#189;">
+<!-- fraction one-half --><!ENTITY frac34 "&#190;">
+<!-- fraction three-quarters --><!ENTITY iquest "&#191;">
+<!-- inverted question mark --><!ENTITY Agrave "&#192;">
+<!-- capittal U, dieresis or umlaut mark --><!ENTITY Yacute "&#221;">
+<!-- capital Y, acute accent --><!ENTITY THORN "&#22
+<!-- angle quotatio;n mark, right --><!ENTITY frac14 "&#188;">
+<!-- fraction one-quarter --><!ENTITY frac12 "&#189;">
+<!-- fraction one-half --><!ENTITY frac34 "&#190;">
+<!-- fraction three-quarters --><!ENTITY iquest "&#191;">
+<!-- inverted question mark --><!ENTITY Agrave "&#192;">
+<!-- capittal U, dieresis or umlaut mark --><!ENTITY Yacute "&#221;">
+<!-- capital Y, acute accent --><!ENTITY THORN "&#222;">
+<!-- capitalŽ<r xmg="e"><v xml:se="q>"/</u<ÿÿÿ>@tp://tp://h/</u< Tÿÿ
+<HORN, Icelandic --><!ENTITY szlig "&#223;">
+<!-- small sharp s, German (sz ligatureTAo) --><!ENTITY agrave "&#224;">
+<!-- smc>all a, grave accent --><!ENTITY aacute "&#225;">
+<!-- small a, acute accent --><!ENTITY acirc "&#226;">
+<!-- sm

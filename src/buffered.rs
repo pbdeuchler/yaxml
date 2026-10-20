@@ -92,6 +92,37 @@ impl<R: BufRead> BufferedReader<R> {
         })
     }
 
+    /// Starts a new document on `input` with the same flags and limits,
+    /// keeping allocated capacity (`xmlCtxtReset`), and returns the previous
+    /// source. The sticky failure, finish, I/O error, positions, counters,
+    /// DTD and resolver are gone.
+    pub fn reset(&mut self, input: R) -> R {
+        self.session.reset_same();
+        self.restart(input)
+    }
+
+    /// [`BufferedReader::reset`] with new options. Unsupported options are an
+    /// error that leaves the reader as it was (`input` is dropped); on success
+    /// the previous source is returned.
+    pub fn reset_with(&mut self, input: R, options: ParseOptions) -> Result<R, Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, decode) = options.effective_limits();
+        self.session.reset(limits, decode, flags);
+        if let Some(resolver) = options.resolver {
+            self.session
+                .set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
+        }
+        self.max_input_bytes = limits.max_input_bytes;
+        Ok(self.restart(input))
+    }
+
+    fn restart(&mut self, input: R) -> R {
+        self.eof = false;
+        self.pending = false;
+        self.status = Status::Active;
+        std::mem::replace(&mut self.input, input)
+    }
+
     /// Original bytes consumed, including encoding carry and text lookahead.
     /// Bytes merely prefetched by the underlying source are excluded.
     pub fn position(&self) -> usize {

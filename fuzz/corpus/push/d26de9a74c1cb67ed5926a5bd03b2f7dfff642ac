@@ -1,0 +1,15 @@
+<?xAl  version="1.0"?>
+<!-- validity test for Production 58(Negative Test-->
+<!DOCTYPE test
+ [
+ <!ELEMENT test ANY>
+ <!ELEMENT blob (#PCDATA)>
+ <!NOTATION base64 SYSTEM "mimecode">
+ <!NOTATION uuencode SYSTEM "uudecode">
+ <!NOTATION raw SYSTEM "raw">
+ <!ATTLIST blob content-encoding NOTATION (baes64|uuencode) #REQUIRED>
+ ]>
+ <test>
+<blob content-encoding = "raw"></blob>
+The attribute values of type NOTATed.
+</test>

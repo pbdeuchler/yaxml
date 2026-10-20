@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Attribute uniqueness: prefixed and with defaulna ]mespace -->
+<foo zmlns:a="http://example/ore"
+ r="attrValue"
+ 	豈퟿퟾。attr="attrValue"
+ 	更豈="attrValue"
+ 	attr.-�更="attrValue"
+ 	tr="attrValue"
+ 	attr0zA.="attrValue"
+ 	attr·0zA="attrValue"
+ 	attr̀·0z="attrValue"
+ 	attŕ̀·0="attrValue"
+ 	attrͮ́̀·="attrValue"
+ 	attrͯͮ́̀="attrValue"
+ 	attr‿ͯͮ́="attrValue"
+ 	atda="" a:cv=""/>
+<e c:fd="" bo="" c:ep="" c:cy="dkj=""foo>

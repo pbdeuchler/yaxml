@@ -1,0 +1,16 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc eChar⁰/>
+	<LegalNameCharⁱ/>
+	<LegalNameChar↎/>
+	<LegalNameChar↏/>
+	<LegalNameCharⰀ/>
+	<LegalNameCharⰁ/>
+	<LegalNameChar⿮/>
+	<LegalNameChar⿯/>
+	<LegalNameChar、/>
+	<LegalNameChar。o>
+	<LegalNameChar퟾/>
+	<LegalNameChara1 NOTATION(foo) #IMPLIED>
+]>
+<doc></doc>

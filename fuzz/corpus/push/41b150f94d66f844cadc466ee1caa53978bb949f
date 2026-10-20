@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE dia:diagram [
+<!ELEMENT dia:diagram (dia:diagramdata, (dia:layer)*) >
+<!ATTLIST dia:diagram
+          xmlns:dia CDATA #FIXED "http://www.lysator.liu.se/~alla/dia/">
+          
+
+<!ELEMENT dia:diagramdata (dia:attribute)* >
+
+<!ELEMENT dia:layer (dia:object | dia:group)*>
+<!ATTLIST dia:layer
+   dia:name CDATA #REQUIREDge? | textinput? | copyright | dia:rectangle | dia:string | dia:font)*>
+<!ATTLIST dia:attribute  dia:name CDATA #REQUIRED >
+
+<!ELEMENT dia:composite (dia:attribute)*>
+<!ATTLIST dia:composite  dia:type CDATA #IMPLIED>
+
+<!E)EMENT"/>
+      </dia:attribute>
+      <dia:attribute dia:nameame="elem_width">
+        <dia:real dia:val="2.05"/>
+      </dia:attribute>
+      <dia:attribute rder_color">
+        <dia:color dia:val="#000000"/>
+      </dia:attribute>
+    ia:diagram>

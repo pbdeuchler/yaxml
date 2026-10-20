@@ -34,3 +34,15 @@ work.
   worktrees in `../yaxml-wt/`. The visible workspace directory has no `.git`.
 - Pinned libxml2 2.15.4 oracle build: `../yaxml-oracle/build/xmllint`.
 - Backups of the pre-reset history and evidence: `../yaxml-backup/`.
+
+## Toolchains
+
+- Library: MSRV and `rust-toolchain.toml` are Rust 1.97.0 (CI matrix: 1.97.0 and
+  stable). Reason: rustc 1.95 and 1.96 miscompile a safe struct-update pattern
+  in release builds ([rust-lang/rust#158206](https://github.com/rust-lang/rust/issues/158206),
+  MIR pass SimplifyComparisonIntegral, fixed by #158214 in 1.97).
+  `tooling/simplify_comparison_scan.py` stays as the regression guard.
+- Fuzz and coverage: `nightly-2026-10-18` (`fuzz/rust-toolchain.toml`, so plain
+  `cargo fuzz` inside `fuzz/` works; from the root use `cargo +nightly-2026-10-18`).
+  The earlier pin, `nightly-2026-06-06`, predates the fix. Campaign results in
+  docs that name it were measured on it and are left as recorded.

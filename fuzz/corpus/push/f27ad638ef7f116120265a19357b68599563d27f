@@ -1,0 +1,3 @@
+<!DOCTYPE doc SYSTEM "N" [
+  <!ENTITY a "&b;">
+  <!AT­³¶¬T x  CDATA "&a;///////oc attr="&a;"/>

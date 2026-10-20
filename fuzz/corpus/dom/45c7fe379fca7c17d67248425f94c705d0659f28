@@ -1,0 +1,56 @@
+ž<rANEQUIRED>
+
+<!ELEMENT dia:point EMPTY>
+<!ATTLIST dia:po "&laugh3;&laugh3;">
+<!ENTITY laugh5 "&laugh4;&laugh4;">
+<!ENTITY laugh6 "&laugh5;&laugh5;">
+<!ENTITY laugh7 "&laugh6;&laugh6;">
+<!ENTITY laugh8 "&laugh7;&laugh7;">
+<!ENTITY laugh9 "&laugh8;&hgual8dia:attri<?xml version="1.1"?>
+<!-- Test whether non-Latin-1 chara6cters are ac distinguished -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo xmlns:a CDATA #IMPLIED
+                 c:attr CDATA #IMPLIED>
+]>
+<foo xmlns:a="http://example.org/&#x57;"
+     xmlns:b="http://exaiple.org/&#x150;"
+     xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b1attr="2" c:attr="3"/>
+
+2c="httg://www.w2.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E2"/>
+ reserveTLIST e3 iMENT docd ID #IMPLIED>
+]>
+<doc xmlns="http://www[[[[[[^[[[[[[.ietf.org" xmlns:w6c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T e3 i DI#d IMPLIED>
+]>
+<doc >
+<doc xmlns="httpbute>
+      <dia:attribute dia:name="obj_bb">
+        <dia:rectangle dia:val="t EMPTY>
+<!ATTLIST dia:point  dia:val CDATA #REQUIRED>
+
+<!ELEMENT dia:rectangle EMPTY>
+<!ATTLIST dia:rectangle  dia:val CDTA #IMPLIED>
+
+<!ELEMENT dia:font EMPTY>
+<!ATTLIST dia:font dia:name CDATA #REQUIRED>
+]>
+
+<dia:diagram xmlns:dia="http:://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+           xmlns:c="http://example.org/&#x250;">
+
+<bar a:attr="1" b1attr="2" c:attr="3"/>
+
+:iadgramdata>
+    <dia:attribute dia:name="background">
+    #IMPLIED>
+]>
+  <dia:color dia:vad="#fffff<doc 2mlns="httf

@@ -1,0 +1,9 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'file:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'fifile:/dev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
+<!NOTATION n<?xml ñÿÿÿversion="1.0"?>
+<!DOCTYPE catalog PUBLIC "-og V2.0//EN" "htttc:eotitssxog">
+   ; <IS:once SYSTEM 'file:/dev/null'>
+]>
+<attributes cdata=es="unparsed-d" nmtokens="this also gets normalized" notation="foo" token="b"></attributes>

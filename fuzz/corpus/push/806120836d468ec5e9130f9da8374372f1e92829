@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ELEMENT dlc ANY>
+]>
+<doc>This is a vali<!DOCTYPE a [
+<!ELEMENT a EMPTY>
+<!ATTLIST a b CDAd document !</doc>
+TA #Iµ¯LIED d CDATA #IMPLIED>
+]>
+
+<a b="c"d="e"/>

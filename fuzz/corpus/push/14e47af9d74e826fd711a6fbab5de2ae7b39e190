@@ -1,0 +1,10 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY ge "replaceme te
+tx"><!ENTITY
+ ge2
+ "replacement text"
+ >
+]>
+<doc/>>

@@ -1,0 +1,23 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no Œrmal)zation -->
+  <norm attr='   '/>
+  <norm attr='
+  foo bar foo bar   '/>
+  <norÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿm a=
+t
+rt'foobar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreComponentParameters:0.0:0.70"à‡’“‘ŒÅ¤ct="urn:oasis:names:tc:ubl:CoreComponentTypes:1.0:0.70" xmlns:cat="urn:oasis:names:tc:ubl:CommonAggregateTspes:1.0:0.70" xmlns="urn:oasis:names:tc:ubl:Itc:ubl:Invoice:1.0:0.70">
+   <cat:RefeOecnerd-dee5 attr5 ID #ÉMPLIED>
+<!ATTLIST LegalName5 att LegalName5 sn="
+<!ATTLIST LegalName5 attr5 ID #ÉMPLIED>
+<!ATTLIST LegalName5 att LegalName5 attr5 ID #IMPLIED>
+<!ATTLIST LegalName5 attr50 IDREF #IMPLIED>
+<!ELEMENT LegalNaŽ<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName0 ANY>
+<!ATTLIST LegalName0 me6 ANY>
+<!ATTLIST LegalNameï»¿<åŠ›ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸....<!Pattr0 ã‚¸># attr180="ID #

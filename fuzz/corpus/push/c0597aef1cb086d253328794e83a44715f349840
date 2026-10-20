@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+    <e xmlns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+    <e xmlns:ns="foo:x&#38;x&amÿp;x&apos;x&e;x"/>
+<c [
+<!ELEMEN doTc EMPTY>
+<!ATTLIST doc
+     xmlns CDATA #FIX/doc>

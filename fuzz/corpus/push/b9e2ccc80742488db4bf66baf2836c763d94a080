@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline "/#x26;#xA#;">
+]>
+<test newlineu44444444444444444444444444444444444444444444444444444444444uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuAuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu="&fewline;"/>

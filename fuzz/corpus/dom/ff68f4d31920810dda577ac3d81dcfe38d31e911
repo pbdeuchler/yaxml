@@ -1,0 +1,31 @@
+î<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+fooÅÿÿÿlt;'/>
+  <normId attr='&èt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>`
+  <normId attr=' &#06;&#x000000000000000000000000000000000000000000000000000000000¥<xml:base=" xml:Îx""""""TTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization --> attr='
+  foId attr='
+
+fooÅÿÿÿlt;'/>
+  <normId attr='&èt;foo bar
+'/>
+  <normId ettr='foobar
+
+&lt;'/>`
+  <normId attr=' &#06;&#x000000000000000000000000000000000000000000000000000000000¥<xml:base=" xml:Îx"""""""""""""""""[
+<!ELEMENT root EMPTY00000000000000000000000000000000000000000a;&#9; '/> <!->
+<!ATTLI-BMP ST roormId attr='&lt;foo bar
+7/>
+  <normId ett"""""""""""[
+<!ELEMENT root EMPTY00000000000000000000000000000000000000000a;&#9; '/> <!->
+<!ATTLI-BMP ST roormId attr='&lt;foo bar
+7/>
+  <normId ettr="""""""Å

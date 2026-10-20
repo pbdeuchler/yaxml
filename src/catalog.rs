@@ -33,7 +33,6 @@ use crate::uri::{canonic_path, resolve as build};
 use crate::{OwnedDocument, OwnedNode, Request, Resolver, ResourceKind};
 
 const NAMESPACE: &str = "urn:oasis:names:tc:entity:xmlns:xml:catalog";
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
 const URN: &str = "urn:publicid:";
 /// libxml2's `MAX_DELEGATE`: distinct delegate catalogs remembered per step.
@@ -609,29 +608,7 @@ fn property(node: OwnedNode<'_>, local: &str) -> Option<String> {
 /// `xmlNodeGetBase`: `xml:base` values from `node` outwards, then the
 /// document URL; `None` when a combination fails to resolve.
 fn base(node: OwnedNode<'_>, document_url: &str) -> Option<String> {
-    let mut base: Option<String> = None;
-    for node in std::iter::successors(Some(node), |node| node.parent()) {
-        let outer = (node.attributes()).find(|attribute| {
-            attribute.name.local() == "base" && attribute.name.namespace() == Some(XML_NS)
-        });
-        if let Some(outer) = outer.map(|attribute| attribute.value.into_owned()) {
-            let combined = match base {
-                Some(inner) => build(&inner, &outer).ok()?,
-                None => outer,
-            };
-            if ["http://", "ftp://", "urn:"]
-                .iter()
-                .any(|scheme| combined.starts_with(scheme))
-            {
-                return Some(combined);
-            }
-            base = Some(combined);
-        }
-    }
-    match base {
-        Some(inner) => build(&inner, document_url).ok(),
-        None => Some(document_url.to_owned()),
-    }
+    crate::xpath::tree::base(node.document(), node.id(), Some(document_url))
 }
 
 fn prefer(node: OwnedNode<'_>, inherited: bool) -> bool {

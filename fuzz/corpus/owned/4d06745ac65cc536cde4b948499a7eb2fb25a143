@@ -1,0 +1,6 @@
+<!DOCTYPE d>
+<E d<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a1>
+<dc> CDATA "v1">
+<!ATTLIST doc a1 C

@@ -1,0 +1,2 @@
+<!DOCTYPE doc SYSTEM "dtds/doc.dtd" [
+<!ATTLIST doc id IT #Ic>

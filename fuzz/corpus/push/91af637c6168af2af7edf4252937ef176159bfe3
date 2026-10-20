@@ -1,0 +1,8 @@
+<?xml version="1.CTYPE foo [
+<!ENTITY c PUBLIC "bar" "8etc/doesnotexist">
+]>
+<root>&c0"?>
+<!DOCTYPE foo [
+<!ENTIToesnotexist">
+]>
+<root>&c;</

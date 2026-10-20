@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        %z;
+]>
+<doc &<doc/ >;
+    '>
+    %z;
+]>
+<doc/>

@@ -68,6 +68,27 @@ impl PushParser {
         Self { session }
     }
 
+    /// Starts a new document with the same flags and limits, keeping
+    /// allocated capacity (`xmlCtxtResetPush`). Every counter, the sticky
+    /// failure or finish, the DTD, loaded resources and the resolver are gone.
+    pub fn reset(&mut self) {
+        self.session.reset_same();
+    }
+
+    /// [`PushParser::reset`] with new options, like `xmlCtxtSetOptions`
+    /// followed by a reset. Unsupported options are an error and leave the
+    /// parser untouched.
+    pub fn reset_with(&mut self, options: ParseOptions) -> Result<(), Error> {
+        let flags = options.check(false, 0)?;
+        let (limits, decode) = options.effective_limits();
+        self.session.reset(limits, decode, flags);
+        if let Some(resolver) = options.resolver {
+            self.session
+                .set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
+        }
+        Ok(())
+    }
+
     pub(crate) fn catalog(&self) -> Option<&crate::dtd_catalog::DtdCatalog> {
         self.session.catalog()
     }

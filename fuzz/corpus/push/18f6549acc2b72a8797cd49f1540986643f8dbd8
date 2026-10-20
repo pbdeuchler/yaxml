@@ -1,0 +1,9 @@
+<!-- Has a "long s" in a n<!DOCTYPEame, legal in XML 1.1, i doc
+[
+<!ELEMENT doc (#PCDATA)>
+<!ENTIllegal in XMTL 1.0 -->
+<eggſi>
+
+Y % pe "<!---->">
+%pe;<!---->%pe;
+]><doc/>

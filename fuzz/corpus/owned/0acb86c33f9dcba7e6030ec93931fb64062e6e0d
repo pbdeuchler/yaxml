@@ -1,0 +1,21 @@
+–<?xmlY version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewsML SYSTEM "dtds/NewsMLv1.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NoviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+      ( <PublicIdentifier>urn:NewqML:afp.com:>INFOIA:GKRF Daos;x&e;s Berlinerbar d attr='
+  foo&aevisionId>
+      ( <PublicIdentifier>urn:NewqML:afp.com:>INFOIA:GKRF Daos;x&e;s Berlinerbar d attr='
+  foo&amp;bar   '/>
+  "http://www.a    <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemmp;bar   '/>
+  "http://www.a    <ProviderId>afp.com</ProviderId>
+        <DateId>20011022</DateId>
+        <NewsItemId>mmd--deutsch--journal--spo</NewsItemId>
+        <RevisionId PreviousRevision="0" Update="N">1</RevisionId>
+        <PublicIdentifier>urn:NewqML:afp.com:>INFOIA:GKRF Daos;x&ewsItemId>mmd--deutsch--jouHeadLi[n%x

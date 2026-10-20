@@ -727,7 +727,7 @@ impl<'a, T: Navigate> Run<'a, T> {
             return Ok(());
         }
         let line = self.lines.node_line(self.tree, node).unwrap_or(0);
-        let path = node_path(self.tree, node);
+        let path = crate::xpath::tree::path(self.tree, node).unwrap_or_default();
         let kind = if test.report { "report" } else { "assert" };
         let text = self.format(&test.message, node, context)?;
         let text = text.unwrap_or_else(|| format!("node failed {kind}"));
@@ -848,48 +848,6 @@ fn value_name<T: Navigate>(tree: &T, node: Node<T::Id>) -> Option<&str> {
         // An `xmlNs` read as a node: its "name" is the URI.
         Node::Namespace(owner, index) => namespaces(tree, owner).get(index).map(|&(_, uri)| uri),
     }
-}
-
-/// `xmlGetNodePath` for an element: `/a/p:b[2]/*`, with `*` for an
-/// unprefixed name in a namespace.
-fn node_path<T: Navigate>(tree: &T, node: T::Id) -> String {
-    let chain: Vec<_> = std::iter::successors(Some(node), |&id| tree.parent(id)).collect();
-    let mut path = String::new();
-    for &id in chain.iter().rev() {
-        let Item::Element(name) = tree.item(id) else {
-            continue;
-        };
-        let generic = name.namespace.is_some() && !name.qualified.contains(':');
-        path.push('/');
-        path.push_str(if generic { "*" } else { name.qualified });
-        let same = |other: T::Id| match tree.item(other) {
-            Item::Element(other) => {
-                generic
-                    || (other.qualified == name.qualified
-                        && other.namespace.is_some() == name.namespace.is_some())
-            }
-            _ => false,
-        };
-        let siblings = tree.parent(id).map(|parent| children(tree, parent));
-        let (mut before, mut after, mut seen) = (0, false, false);
-        for sibling in siblings
-            .into_iter()
-            .flatten()
-            .filter(|&sibling| sibling == id || same(sibling))
-        {
-            match (sibling == id, seen) {
-                (true, _) => seen = true,
-                (false, false) => before += 1,
-                (false, true) => after = true,
-            }
-        }
-        match (before, after) {
-            (0, false) => {}
-            (0, true) => path.push_str("[1]"),
-            (before, _) => path.push_str(&format!("[{}]", before + 1)),
-        }
-    }
-    path
 }
 
 /// C's `printf("%g")`: six significant digits, exponent form outside

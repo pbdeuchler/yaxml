@@ -1288,3 +1288,19 @@ fn schematron_entry_replays_seeds_and_malformed_pieces() {
         driver::exercise_schematron(case);
     }
 }
+
+#[test]
+fn domedit_corpus_and_regressions_keep_their_invariants() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fuzz");
+    let mut replayed = 0;
+    for directory in ["corpus/domedit", "regressions/domedit"] {
+        let Ok(entries) = std::fs::read_dir(root.join(directory)) else {
+            continue;
+        };
+        for entry in entries {
+            driver::exercise_domedit(&std::fs::read(entry.unwrap().path()).unwrap());
+            replayed += 1;
+        }
+    }
+    assert!(replayed >= 5, "domedit seeds are missing");
+}

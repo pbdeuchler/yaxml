@@ -1,0 +1,8 @@
+Ž<?xml vŠers?xml versio=.0×1ln' version="1.0" encoding="UTF-8"?>
+<!DOCTYPE root [
+  <!ATTLIST foo xml:lang CDATA "eng">
+  <!ATTLIST foo bar CDATA "&eng">
+  <!ATTLIST foo bar CDATA "&lt;&gt;`quot;">
+]>
+<root>
+  <foo xm:ll  this&#x20; normaniza/>

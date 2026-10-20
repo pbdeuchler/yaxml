@@ -1,0 +1,57 @@
+<!DOCTYPE LegalName [
+<!ELEMENT LegalName ANY>
+<!ELEMENT LegalName: ANY>
+<!ELEMENT LegalNameÀ ANY>
+<!ELEMENT LegalNameÁ ANY>
+<!ELEMENT LegalName˾ ANY>
+<!ELEMENT LegalNameÂ ANY>
+<!ELEMENT LegalNameÃ ANY>
+<!ELEMENT LegalName˽ ANY>
+<!ELEMENT LegalName˿ ANY>
+<!ELEMENT LegalNameͰ ANY>
+<!ELEMENT LegalNameͱ ANY>
+<!ELEMENT LegalNameͼͽ ANY>
+<!ELEMENT LegalNameͽͿ ANY>
+<!ELEMENT LegalNameͿ΀ ANY>
+<!ELEMENT LegalName΀῾galName↎↏Ⰰ ANY>
+<!ELEMENT LegalName↏ⰀⰁ ANY>
+<!ELEMENT LegalNameⰀⰁ⿮ ANY>
+<!ELEMENT LegalNameⰁ⿮⿯ ANY>
+<!ELEMENT LegalName⿮⿯、 ANY>
+<!ELEMENT LegalName⿯、。 ANY>
+<!ElName΀῾/>
+	<LegalName῾῿/>
+	<LegalName῿‌/>
+	<LegalName‌‍/>
+	<LegalName‍⁰/>
+	<LegalName⁰ⁱ/>
+	<LegalNameⁱ↎/>
+	<LegalName↎↏Ⰰ/>
+	<LegalName↏ⰀⰁ/>
+	<LegalNameⰀⰁ⿮/>
+	<LegalNameⰁ⿮⿯/>
+	<LegalName⿮⿯、/>
+	<LegalName⿯、。/>
+	<LegalName、。퟾/>
+	<LegalName。퟾퟿/>
+	<LegalName퟾퟿豈/>
+	<LegalName퟿豈更/>
+	<Lega!DOCTYPE r [<!ENTITY e "a<![CDCTA[b]]>c<x>d<![CDATA[e]]lName豈퟿퟾。/>
+	<LegalName更豈퟿퟾/>
+	<LegalName�更豈퟿/>
+	<LegalName-�更豈/>
+	<LegalName.-�更/>
+	<LegalNameA.-�/>
+	<LegalNamezA.-/>
+	<LegalName0zA./>
+	<LegalName·0zA/>
+	<LegalNamè·0z/>
+	<LegalNamé̀·0/>
+	<LegalNameͮ́̀·/>
+	<LegalNameͯͮ́̀/>
+	<LegalName‿ͯͮ́/>
+	<LegalName⁀‿ͯͮ/>
+	<LegalNamenull⁀‿ͯ/>
+	<LegalNamenullnull⁀‿/>
+	<LegalNamenullnullnull⁀/>
+</LegalName>
