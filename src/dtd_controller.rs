@@ -123,6 +123,23 @@ impl DtdControllerCore<'static> {
         )
     }
 
+    /// What content parsed in a document's context reads with (from offset
+    /// 0): `dtd`'s entities and notations. `xmlCtxtParseContent` looks
+    /// entities up in the document, and its fresh context has no attribute
+    /// defaults or normalization.
+    pub(crate) fn seeded(
+        limits: DtdLimits,
+        dtd: &crate::valid::Dtd,
+        loader: Option<crate::resolve::Loader>,
+    ) -> Result<DtdBodyState, Error> {
+        let mut controller = Self::new_at(SourceEncoding::Utf8, 0, 0, limits, false);
+        controller.catalog.seed(dtd);
+        if let Some(loader) = loader {
+            controller.set_loader(loader);
+        }
+        controller.into_body_state()
+    }
+
     /// Parses the DOCTYPE starting at `physical_start` of `source`, whose
     /// first byte is at physical offset `source_start`.
     pub(crate) fn stable_utf8<'input>(

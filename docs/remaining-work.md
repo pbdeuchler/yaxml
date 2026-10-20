@@ -12,7 +12,7 @@ Size: **S** is under a week, **M** a few weeks, **L** a quarter or more. Priorit
 | 2 | UTF-16 and single-byte input on the borrowed `Reader` and `Document` | M | P1 | `OwnedDocument`, `PushParser`, `BufferedReader` and `TextReader` decode these already; the borrowed surfaces take UTF-8 only. This accounts for 44 XMLTS gaps. |
 | 3 | `RECOVER` and `NOBLANKS` on `PushParser`, `BufferedReader` and `TextReader` | M | P1 | lxml-style recovery over streams. Both DOMs have it. |
 | 4 | Recovery fidelity on the DOMs | M | P2 | 82.22% of libxml2's `test/errors` and 87.12% of XMLTS not-wf trees match `xmllint --recover`. The rest are distinct repair strategies, listed in [compatibility.md](compatibility.md#recovery-recover). |
-| 5 | Fragment and in-context XML parsing (`xmlParseInNodeContext`, `xmlCtxtParseContent`, `xmlParseBalancedChunkMemory`) | M | P1 | HTML already has `parse_fragment`. |
+| 5 | ~~Fragment and in-context XML parsing~~ **Done 2026-10-20** | — | — | `Editor::parse_content` ([owned-dom.md](owned-dom.md#parsing-content-in-context)). Left: a text declaration (`hasTextDecl`) and input in the document's declared encoding. |
 | 6 | SAX2 handler table (`xmlSAXHandler`, `xmlSAX2*`) | L | P2 | Events carry the data; this is the callback-table shape that SAX ports and lxml's target parser expect. |
 | 7 | XML 1.1 and namespace-unaware parsing | L | P3 | 611 XMLTS cases per surface are unscored, plus 9 namespace-off cases. |
 | 8 | DTD construction and editing (`xmlAddEntity`, `xmlAddElementDecl`, `xmlCreateIntSubset`, `xmlIsID`, `xmlIsRef`), DOCTYPE copies and edits | S–M | P2 | Read-only views exist (`valid::Dtd`). |
@@ -20,7 +20,7 @@ Size: **S** is under a week, **M** a few weeks, **L** a quarter or more. Priorit
 | 10 | Error-callback model (`xmlCtxtSetErrorHandler`, `xmlGetLastError`) | S | P3 | Errors are returned instead. Known detail gaps: libxml2's column lag after entity values, and context lines for errors inside entities. |
 | 11 | Diagnostic wording | S | P3 | The IDREF line in DTD stream validation, and the tree content-model "expecting" list. |
 | 12 | Utility headers (`xmlunicode.h`, `xmlstring.h`, `debugXML.h` dumps) | S | P3 | `std` covers most of them. |
-| 13 | Remaining API inventory | — | — | [libxml2-api.tsv](libxml2-api.tsv): 934 implemented, 506 partial and 1,249 not started, out of 4,060 identifiers. No P0 row is not started. Most of the not-started rows are libxml2 error-code constants (`xmlerror.h`), the schema component model (`schemasInternals.h`), SAX2 and the items above. |
+| 13 | Remaining API inventory | — | — | [libxml2-api.tsv](libxml2-api.tsv): 936 implemented, 506 partial and 1,247 not started, out of 4,060 identifiers. No P0 row is not started. Most of the not-started rows are libxml2 error-code constants (`xmlerror.h`), the schema component model (`schemasInternals.h`), SAX2 and the items above. |
 
 Declined, with reasons recorded in the linked docs: `xmlRelaxNGDump`, `xmlCatalogConvert`, the XSD stream `ID`/`ENTITY` and counter quirks (libxml2 validity bugs), `xmlSaveSetEscape`, compressed input (`UNZIP`), FTP and HTTP.
 

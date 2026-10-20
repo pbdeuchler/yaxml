@@ -54,7 +54,7 @@ fn limits(control: u8) -> EditLimits {
 }
 
 /// Everything a failed edit must leave unchanged.
-fn snapshot(document: &OwnedDocument) -> (Vec<u8>, Vec<(OwnedNodeId, Option<String>)>) {
+pub(super) fn snapshot(document: &OwnedDocument) -> (Vec<u8>, Vec<(OwnedNodeId, Option<String>)>) {
     let saved = yaxml::save::to_vec(document, &yaxml::save::Options::default())
         .expect("a well-formed tree saves");
     let nodes = document
@@ -218,7 +218,7 @@ fn copied(document: &OwnedDocument, copy: OwnedNodeId, original: OwnedNode<'_>, 
     }
 }
 
-fn check(document: &OwnedDocument, handles: &[OwnedNodeId]) {
+pub(super) fn check(document: &OwnedDocument, handles: &[OwnedNodeId]) {
     // Links: every live handle is its parent's child, siblings agree, and
     // subtree sizes match a walk.
     let root = document.root();

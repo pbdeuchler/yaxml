@@ -414,8 +414,11 @@ P|xmlReadFd xmlReadIO xmlReadFile xmlParseFile xmlCtxtReadDoc xmlCtxtReadFd xmlC
 P|xmlRecoverDoc xmlRecoverMemory xmlRecoverFile|OwnedDocument::parse_with, options::RECOVER
 I|xmlParseDTD|valid::Dtd::parse
 P|xmlCtxtParseDtd xmlIOParseDTD|valid::Dtd::parse
-P|xmlCtxtParseContent xmlParseInNodeContext|html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
-N|xmlParseBalancedChunkMemory xmlParseBalancedChunkMemoryRecover xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|fragment and in-context parsing not started (roadmap 13)
+I|xmlParseInNodeContext|Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
+P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment - no text declaration (hasTextDecl); UTF-8 input
+I|xmlParseBalancedChunkMemory|Editor::parse_content - on OwnedDocument::root with default options
+P|xmlParseBalancedChunkMemoryRecover|Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
+N|xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|external parsed entities as standalone input not started
 N|xmlSAXParse* xmlSAXUserParse*|SAX2 handler table not started (roadmap 15)
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish

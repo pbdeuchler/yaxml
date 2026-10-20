@@ -264,6 +264,9 @@ pub enum EditErrorKind {
     LimitExceeded(EditLimit),
     /// Memory allocation failed.
     Allocation,
+    /// Content given to [`Editor::parse_content`](crate::Editor::parse_content)
+    /// does not parse; `value_offset` is the [`Error`] offset in it.
+    Parse(ErrorKind),
 }
 
 /// An [`Editor`](crate::Editor) or construction failure.

@@ -215,6 +215,23 @@ impl DtdCatalog {
         }
     }
 
+    /// Takes `dtd`'s entity and notation declarations as already applied.
+    pub(crate) fn seed(&mut self, dtd: &Dtd) {
+        // Replacement texts are no longer spelled in the input.
+        let entities = dtd.entities.iter().map(|entity| EntityDecl {
+            input: None,
+            ..entity.clone()
+        });
+        self.dtd = Dtd {
+            entities: entities.collect(),
+            general: dtd.general.clone(),
+            parameter: dtd.parameter.clone(),
+            notations: dtd.notations.clone(),
+            notation_index: dtd.notation_index.clone(),
+            ..Dtd::default()
+        };
+    }
+
     pub(crate) fn cap_work(&mut self, ceiling: usize) {
         self.limits.work = self.limits.work.min(ceiling);
     }

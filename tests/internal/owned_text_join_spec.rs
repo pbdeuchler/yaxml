@@ -41,7 +41,8 @@ fn end(mut b: OwnedBuilder, budget: &mut Budget) -> OwnedDocument {
         budget,
     )
     .unwrap();
-    b.finish(200, None, Default::default(), Vec::new()).unwrap()
+    b.finish(200, None, Default::default(), Vec::new(), false)
+        .unwrap()
 }
 fn serialized(doc: &OwnedDocument) -> Vec<u8> {
     let mut w = crate::Writer::new(Vec::new());

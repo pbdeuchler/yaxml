@@ -258,6 +258,8 @@ pub(crate) struct ParserState<'source> {
     /// not yet handed to the resolver; boxed for the same reason as `lent`.
     #[expect(clippy::box_collection, reason = "a smaller state constructs faster")]
     catalogs: Option<Box<Vec<String>>>,
+    /// Content of a node (`xmlCtxtParseContent`): no prolog or epilog.
+    fragment: bool,
 }
 
 /// Normalized values lent in order: each stands in its event as
@@ -308,6 +310,7 @@ impl<'source> ParserState<'source> {
             replacement: false,
             lent: None,
             catalogs: None,
+            fragment: false,
         }
     }
 
@@ -450,6 +453,18 @@ impl<'source> ParserState<'source> {
         self.set_initial_offset(initial);
         self.token_limit = decoded_token_limit;
         self.token_limit_kind = Limit::DecodedTokenBytes;
+    }
+
+    /// Content in a node's context (`xmlCtxtParseContent`): any sequence of
+    /// content, no XML declaration, and `bindings` (prefix, URI; `""` is
+    /// the default namespace) in scope.
+    pub(crate) fn in_context(mut self, bindings: &[(&str, &str)]) -> Result<Self, Error> {
+        (self.fragment, self.phase, self.initial) = (true, Phase::Content, usize::MAX);
+        for &(prefix, uri) in bindings {
+            let mut copy = |raw: &str, offset, budget: &mut Budget| budget.copy(raw, offset);
+            self.bind(prefix, None, &Cow::Borrowed(uri), 0, &mut copy)?;
+        }
+        Ok(self)
     }
 
     /// Applies the token-level parser options (`NOCDATA`, `NSCLEAN`, `IGNORE_ENC`).
@@ -745,6 +760,7 @@ impl<'source> ParserState<'source> {
     pub(crate) fn validate_finish(&self, offset: usize) -> Result<(), Error> {
         match self.phase {
             Phase::Prolog => Err(Error::new(ErrorKind::MissingRoot, offset)),
+            Phase::Content if self.fragment && self.stack.is_empty() => Ok(()),
             Phase::Content => Err(Error::new(ErrorKind::UnexpectedEof, offset)),
             Phase::Epilog => Ok(()),
         }
@@ -1291,7 +1307,7 @@ impl<'source> ParserState<'source> {
         };
         if empty {
             self.close_scope(bindings_start);
-            if self.stack.is_empty() {
+            if self.stack.is_empty() && !self.fragment {
                 self.phase = Phase::Epilog;
             }
             Ok(Some(Event::Empty(element)))
@@ -1668,7 +1684,7 @@ impl<'source> ParserState<'source> {
         let name = self.resolve_name(qualified, prefix_length, start + 2, false)?;
         let frame = self.pop_frame();
         self.close_scope(frame.bindings_start);
-        if self.stack.is_empty() {
+        if self.stack.is_empty() && !self.fragment {
             self.phase = Phase::Epilog;
         }
         Ok(Some(Event::End(name)))

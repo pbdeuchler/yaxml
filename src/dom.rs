@@ -284,7 +284,7 @@ impl<'input> Document<'input> {
         let dtd = reader.take_dtd().map(Box::new);
         let mut document = Self { dtd, ..document };
         if flags.drops_blanks() {
-            let blanks = crate::xpath::tree::blanks(&document);
+            let blanks = crate::xpath::tree::blanks(&document, false);
             document.remove_leaves(&blanks);
         }
         // Without DTD-declared ID attributes or removed nodes, the `xml:id`s

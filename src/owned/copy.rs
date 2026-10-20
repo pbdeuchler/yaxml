@@ -1,6 +1,8 @@
 //! Copies: `xmlDocCopyNode` across documents ([`Editor::import`]),
 //! `xmlCopyNode` within one ([`Editor::copy`]) and `xmlCopyDoc`
-//! ([`OwnedDocument::try_clone`]).
+//! ([`OwnedDocument::try_clone`]); and content parsed in a node's context
+//! ([`Editor::parse_content`]), which is a copy of the nodes parsed into a
+//! scratch document.
 //!
 //! A copy is staged from the source without changing anything, then appended
 //! to the destination's arenas as a detached subtree and reconciled there:
@@ -35,7 +37,8 @@ struct Staged {
 /// Where staging copies to and what it may create there.
 struct Target<'t, A: Allocator> {
     document: &'t OwnedDocument<A>,
-    /// The source is the destination: references resolve and ranges are shared.
+    /// References resolve in the destination as in the source: it is the
+    /// destination, or was parsed in its context.
     same: bool,
     limits: &'t EditLimits,
 }
@@ -221,14 +224,15 @@ impl Staged {
     }
 }
 
-/// Stages a copy of `root` (deep: with its descendants) for `target`. The
-/// root's attributes are staged last, so that declarations added to it
-/// extend the attribute arena's tail in place.
+/// Stages a copy of `root` (deep: with its descendants) for `target`, after
+/// what `staged` holds. The root's attributes are staged last, so that
+/// declarations added to it extend the attribute arena's tail in place.
 fn stage<A: Allocator, B: Allocator>(
     source: &OwnedDocument<B>,
     root: OwnedNodeId,
     target: &Target<'_, A>,
     deep: bool,
+    mut staged: Staged,
 ) -> Result<Staged, EditError> {
     let invalid = EditError::new(EditErrorKind::InvalidHandle, None);
     let root = source.node(root).ok_or(invalid)?;
@@ -242,7 +246,7 @@ fn stage<A: Allocator, B: Allocator>(
     // A reference's content is part of it, even in a shallow copy.
     let deep = deep || root.kind() == OwnedNodeKind::EntityRef;
     let base = target.document.nodes.len();
-    let mut staged = Staged::default();
+    let first = base + staged.nodes.len();
     let (mut node, mut parent, mut depth) = (root, None, 0);
     loop {
         target.check(node)?;
@@ -267,7 +271,7 @@ fn stage<A: Allocator, B: Allocator>(
         loop {
             depth -= usize::from(node.kind() == OwnedNodeKind::Element);
             if node.id() == root.id() {
-                staged.attributes(root, base, target)?;
+                staged.attributes(root, first, target)?;
                 staged.ids.sort_unstable();
                 return Ok(staged);
             }
@@ -330,8 +334,8 @@ impl<A: Allocator> Editor<'_, A> {
             same: false,
             limits: &self.limits,
         };
-        let staged = stage(source, node, &target, deep)?;
-        self.publish(staged, Some(&source.pool.0))
+        let staged = stage(source, node, &target, deep, Staged::default())?;
+        self.publish(staged, Some(&source.pool.0), Self::reconcile_copy)
     }
 
     /// [`import`](Self::import) from this document (`xmlCopyNode`). The copy
@@ -342,13 +346,19 @@ impl<A: Allocator> Editor<'_, A> {
             same: true,
             limits: &self.limits,
         };
-        let staged = stage(target.document, node, &target, deep)?;
-        self.publish(staged, None)
+        let staged = stage(target.document, node, &target, deep, Staged::default())?;
+        self.publish(staged, None, Self::reconcile_copy)
     }
 
-    /// Reserves, appends and reconciles a staged copy; `pool` is the source's
-    /// when its strings must be copied. A failure truncates every store back.
-    fn publish(&mut self, staged: Staged, pool: Option<&str>) -> Result<OwnedNodeId, EditError> {
+    /// Reserves, appends and `reconcile`s (given its first slot) a staged
+    /// copy; `pool` is the source's when its strings must be copied. A
+    /// failure truncates every store back.
+    fn publish(
+        &mut self,
+        staged: Staged,
+        pool: Option<&str>,
+        reconcile: impl FnOnce(&mut Self, usize) -> Result<(), EditError>,
+    ) -> Result<OwnedNodeId, EditError> {
         let document = &mut *self.document;
         let capacity = document.pool.edit_capacity(
             if pool.is_some() { staged.bytes } else { 0 },
@@ -433,7 +443,7 @@ impl<A: Allocator> Editor<'_, A> {
         document.edit_created_nodes += document.nodes.len() - lengths[0];
         document.edit_created_attributes += document.attributes.len() - lengths[1];
         let root = lengths[0];
-        if let Err(failure) = self.reconcile_copy(root) {
+        if let Err(failure) = reconcile(self, root) {
             let document = &mut *self.document;
             document.nodes.truncate(lengths[0]);
             document.attributes.truncate(lengths[1]);
@@ -473,6 +483,116 @@ impl<A: Allocator> Editor<'_, A> {
         }
         self.declare(plan)
     }
+
+    /// Parses `input` as content of `context` (`xmlParseInNodeContext`,
+    /// `xmlCtxtParseContent`) and returns the top-level nodes, detached in
+    /// this document. Insert them with [`append_child`](Self::append_child)
+    /// or another move; under `context` they need no new declarations.
+    ///
+    /// The content is parsed in the nearest element or document at or above
+    /// `context`, with the namespaces in scope there and this document's
+    /// entities, from UTF-8 `input` (any sequence of content: text, several
+    /// elements, no XML declaration or DOCTYPE). As in libxml2, the DTD's
+    /// attribute defaults and types do not apply while parsing; this
+    /// document's DTD still types IDs. `xmlParseBalancedChunkMemory` is this
+    /// on [`OwnedDocument::root`] with default options.
+    ///
+    /// Parse budgets apply as to a document, edit limits as to an
+    /// [`import`](Self::import) of the result.
+    ///
+    /// # Errors
+    ///
+    /// Malformed content is [`EditErrorKind::Parse`] at its byte offset
+    /// ([`LineIndex::content`](crate::LineIndex::content) gives libxml2's
+    /// diagnostic); under `RECOVER` only limits fail, and
+    /// [`Fragment::errors`] lists the rest. A DOCTYPE context or an HTML
+    /// document is `WrongNodeKind` (see
+    /// [`html::parse_fragment`](crate::html::parse_fragment)); `XINCLUDE`
+    /// and `DTDVALID` are `Parse(UnsupportedOption)`.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, ParseOptions, save};
+    /// let mut document = OwnedDocument::parse(
+    ///     "<!DOCTYPE r [<!ENTITY who 'world'>]><r xmlns:p='urn:p'/>",
+    /// )?;
+    /// let r = document.root_element().id();
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// let input = b"hello <p:b>&who;</p:b>!";
+    /// let fragment = editor.parse_content(r, input, ParseOptions::default())?;
+    /// for node in fragment.nodes {
+    ///     editor.append_child(r, node)?;
+    /// }
+    /// let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+    /// assert!(saved.ends_with("<r xmlns:p=\"urn:p\">hello <p:b>&who;</p:b>!</r>\n"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn parse_content(
+        &mut self,
+        context: OwnedNodeId,
+        input: &[u8],
+        options: ParseOptions,
+    ) -> Result<Fragment, EditError> {
+        let document = &*self.document;
+        let node = document.view(NodeId(self.resolve(context)?));
+        let node = node.filter(|node| node.kind() != OwnedNodeKind::DocumentType);
+        let node = node
+            .filter(|_| !document.is_html())
+            .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))?;
+        // libxml2's parent chain, where entity content's parent is the
+        // entity declaration under the document.
+        let element = std::iter::successors(Some(node), |node| {
+            node.parent()
+                .filter(|parent| parent.kind() != OwnedNodeKind::EntityRef)
+        })
+        .find(|node| node.kind() == OwnedNodeKind::Element);
+        let scope = element.map(OwnedNode::namespaces).unwrap_or_default();
+        let bindings: Vec<_> = (scope.iter())
+            .filter(|binding| binding.prefix != Some("xml"))
+            .map(|binding| (binding.prefix.unwrap_or(""), binding.uri))
+            .collect();
+        let unsupported = crate::options::XINCLUDE | crate::options::DTDVALID;
+        let context = Some((&bindings[..], document.dtd()));
+        let (parsed, _, _) =
+            OwnedDocument::parse_tree(input, options, unsupported, Global, context).map_err(
+                |error| EditError::new(EditErrorKind::Parse(error.kind), Some(error.offset)),
+            )?;
+        let context = element.map_or(0, |element| element.record().id.0);
+        let target = Target {
+            document,
+            same: true,
+            limits: &self.limits,
+        };
+        let (mut staged, mut roots) = (Staged::default(), Vec::new());
+        for node in parsed.root().children() {
+            roots.push(document.nodes.len() + staged.nodes.len());
+            staged = stage(&parsed, node.id(), &target, true, staged)?;
+        }
+        self.publish(staged, Some(&parsed.pool.0), |editor, _| {
+            let mut work = Work {
+                used: 0,
+                limit: editor.limits.max_namespace_work,
+            };
+            let mut plan = Vec::new();
+            for &root in &roots {
+                plan = editor.document.plan(root, Some(context), plan, &mut work)?;
+            }
+            editor.declare(plan)
+        })?;
+        Ok(Fragment {
+            nodes: roots.iter().map(|&slot| self.id(slot)).collect(),
+            errors: parsed.errors,
+        })
+    }
+}
+
+/// The nodes [`Editor::parse_content`] parsed.
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Fragment {
+    /// The top-level nodes in input order, each detached.
+    pub nodes: Vec<OwnedNodeId>,
+    /// What `RECOVER` recovered from, as [`OwnedDocument::errors`].
+    pub errors: Vec<Error>,
 }
 
 /// A fallible element-by-element clone in the same allocator.

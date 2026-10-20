@@ -700,8 +700,10 @@ pub(crate) fn attributes<T: Navigate>(
 /// when it keeps characters); in elements the DTD declares with element
 /// content always; otherwise only when the text is not the only child and
 /// neither the first child nor the node before it is text, and it is not
-/// followed by an entity reference.
-pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
+/// followed by an entity reference. In `content` (parsed in a node's
+/// context), the root's children are those of libxml2's `#root` element,
+/// where blanks before the end of input stay.
+pub(crate) fn blanks<T: Navigate>(tree: &T, content: bool) -> Vec<T::Id> {
     let text = |id: T::Id| matches!(tree.item(id), Item::Text(_)) && !tree.is_cdata(id);
     let blank = |id: T::Id| {
         matches!(tree.item(id), Item::Text(value) if value.bytes().all(|b| b" \t\r\n".contains(&b)))
@@ -709,16 +711,16 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
     };
     let mut found = Vec::new();
     for parent in preorder(tree, Some(tree.root()), None) {
-        let Item::Element(name) = tree.item(parent) else {
-            continue;
+        let name = match tree.item(parent) {
+            Item::Element(name) => Some(name.qualified),
+            Item::Root if content => None,
+            _ => continue,
         };
         let space = space_preserve(tree, parent);
         if space == Some(true) {
             continue;
         }
-        let declared = tree
-            .dtd()
-            .and_then(|dtd| dtd.has_element_content(name.qualified));
+        let declared = name.and_then(|name| tree.dtd()?.has_element_content(name));
         let children: Vec<_> =
             std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id)).collect();
         let mut kept: Vec<T::Id> = Vec::new();
@@ -729,9 +731,9 @@ pub(crate) fn blanks<T: Navigate>(tree: &T) -> Vec<T::Id> {
                 .is_none_or(|&last| !text(last) && !text(kept[0]));
             // Outside declared element content, libxml2 sees the `&` of a
             // following reference: not blank.
-            let reference = tree
-                .next_sibling(child)
-                .is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)));
+            let next = tree.next_sibling(child);
+            let reference = next.is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)))
+                || (name.is_none() && next.is_none());
             let spoken = space.is_none() && spoken_kept;
             match blank(child)
                 && !spoken

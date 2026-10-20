@@ -1087,6 +1087,7 @@ fn fuzz_regressions_replay() {
                 "relaxng" => driver::exercise_relaxng(&data),
                 "schematron" => driver::exercise_schematron(&data),
                 "save" => driver::exercise_save(&data),
+                "fragment" => driver::exercise_fragment(&data),
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1228,6 +1229,49 @@ fn schematron_entry_replays_seeds_and_malformed_pieces() {
     ];
     for case in cases {
         driver::exercise_schematron(case);
+    }
+}
+
+#[test]
+fn fragment_entry_replays_seeds_and_contexts() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let mut replayed = 0;
+    for directory in ["fuzz-seeds/fragment", "fuzz-regressions/fragment"] {
+        let Ok(entries) = std::fs::read_dir(root.join(directory)) else {
+            continue;
+        };
+        for entry in entries {
+            driver::exercise_fragment(&std::fs::read(entry.unwrap().path()).unwrap());
+            replayed += 1;
+        }
+    }
+    assert!(replayed >= 4, "fragment seeds are missing");
+    let contexts: &[&[u8]] = &[
+        b"<r/>",
+        b"<r xmlns='urn:d' xmlns:p='urn:p'><p:a xml:space='preserve'>t</p:a></r>",
+        b"<!DOCTYPE r [<!ENTITY e '<p:x/>'><!ENTITY t 'text'>]><r xmlns:p='urn:p'>&e;&t;</r>",
+        b"<!--c--><r xmlns:p='urn:p'><a xmlns=''/></r>",
+    ];
+    let contents: &[&[u8]] = &[
+        b"",
+        b" text <a/> <p:b xmlns:p='urn:q'/>&lt; ",
+        b"<p:a/><c>&e;&t;</c>&t;",
+        b"</r><a>",
+        b"<?xml version='1.0'?><!DOCTYPE z><u:a/>",
+        b"<a><b><c></c></b></a>\xff",
+        b"]]>&undefined;<a a='1' a='2'/>",
+    ];
+    for (i, context) in contexts.iter().enumerate() {
+        for (j, content) in contents.iter().enumerate() {
+            for control in 0..8u8 {
+                let mut input = context.to_vec();
+                input.push(0);
+                let node = (i + j) as u8 * 3 + control;
+                input.extend([control, node, control.wrapping_mul(37), control]);
+                input.extend_from_slice(content);
+                driver::exercise_fragment(&input);
+            }
+        }
     }
 }
 

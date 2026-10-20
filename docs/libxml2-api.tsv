@@ -888,7 +888,7 @@ parser.h	xmlCtxtGetVersion	function	not_marked	P0-P3	partial	https://github.com/
 parser.h	xmlCtxtIsHtml	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsInSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsStopped	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
+parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment - no text declaration (hasTextDecl); UTF-8 input
 parser.h	xmlCtxtParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlCtxtParseDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlCtxtReadDoc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
@@ -940,18 +940,18 @@ parser.h	xmlNewInputFromString	function	not_marked	P0-P3	not-applicable	https://
 parser.h	xmlNewInputFromUrl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlNewParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
 parser.h	xmlNewSAXParserCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	xmlParseBalancedChunkMemory	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
-parser.h	xmlParseBalancedChunkMemoryRecover	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
+parser.h	xmlParseBalancedChunkMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - on OwnedDocument::root with default options
+parser.h	xmlParseBalancedChunkMemoryRecover	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
 parser.h	xmlParseChunk	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::feed, PushParser::finish
-parser.h	xmlParseCtxtExternalEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
+parser.h	xmlParseCtxtExternalEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
 parser.h	xmlParseDTD	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlParseDoc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with
 parser.h	xmlParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
-parser.h	xmlParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
-parser.h	xmlParseExtParsedEnt	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
-parser.h	xmlParseExternalEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
+parser.h	xmlParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
+parser.h	xmlParseExtParsedEnt	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
+parser.h	xmlParseExternalEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
 parser.h	xmlParseFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
-parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
+parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
 parser.h	xmlParseMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with
 parser.h	xmlParserAddNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
 parser.h	xmlParserFindNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
