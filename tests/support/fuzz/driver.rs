@@ -376,7 +376,7 @@ pub fn exercise_save(input: &[u8]) {
 /// under `RECOVER`.
 pub fn exercise_push(input: &[u8]) {
     check_finish_abort(input);
-    recover::exercise(input, 0, selector(input));
+    recover::exercise(input, yaxml::options::RECOVER, selector(input));
     if let Some(document) = parse_utf8(input) {
         check_streaming(input, document.err());
     }

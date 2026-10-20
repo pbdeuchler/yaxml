@@ -182,11 +182,14 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
         None => assert_eq!(name, local),
     }
     if reader.node_type() == NodeType::Element {
+        // A name a namespace error left in no namespace has no prefix.
+        let unbound = reader.namespace_uri().is_none() && name.contains(':');
         let bound = reader.lookup_namespace(reader.prefix());
-        assert_eq!(bound.filter(|uri| !uri.is_empty()), reader.namespace_uri());
+        assert!(unbound || bound.filter(|uri| !uri.is_empty()) == reader.namespace_uri());
         assert_eq!(reader.lookup_namespace(Some("xml")), Some(XML));
         let count = reader.attribute_count();
         assert_eq!(reader.move_to_first_attribute(), count > 0);
+        let mut index = 0;
         while reader.node_type() == NodeType::Attribute {
             let qualified = reader.name().expect("attribute name").to_owned();
             let value = reader.value().expect("attribute value").to_owned();
@@ -197,7 +200,12 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
             assert_eq!(reader.get_attribute(&qualified), None);
             assert!(matches!(reader.read_string(), Ok(None)));
             assert!(reader.move_to_element());
-            assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
+            // A namespace error can leave a qualified name unresolvable, as
+            // in libxml2: an unbound prefix or a malformed QName.
+            let resolvable = !qualified.contains(':') || namespace.is_some();
+            if resolvable {
+                assert_eq!(reader.get_attribute(&qualified), Some(value.as_str()));
+            }
             assert!(
                 reader
                     .get_attribute_ns(&local, namespace.as_deref())
@@ -207,7 +215,11 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
                 assert!(reader.move_to_attribute_ns(&local, namespace));
                 assert!(reader.move_to_element());
             }
-            assert!(reader.move_to_attribute(&qualified));
+            match resolvable {
+                true => assert!(reader.move_to_attribute(&qualified)),
+                false => assert!(reader.move_to_attribute_no(index)),
+            }
+            index += 1;
             assert_eq!(reader.value(), Some(value.as_str()));
             if !reader.move_to_next_attribute() {
                 assert!(reader.move_to_element());
@@ -502,11 +514,9 @@ pub fn exercise(input: &[u8]) {
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
         }
-        if flags != 0 {
-            let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
-            while slice.read_event().unwrap().is_some() {}
-            assert_eq!(reader.errors(), slice.errors(), "recovered errors differ");
-        }
+        let mut slice = Reader::with_options(document, ParseOptions::new(flags)).unwrap();
+        while slice.read_event().unwrap().is_some() {}
+        assert_eq!(reader.errors(), slice.errors(), "kept errors differ");
         let top: Vec<_> = expected
             .iter()
             .filter(|node| node.depth == 0 && node.kind != NodeType::EndElement)

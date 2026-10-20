@@ -505,9 +505,9 @@ impl Stream {
                     self.engine.flush(&self.scope);
                     self.scope.push(&element.attributes);
                     let attributes = (element.attributes.iter())
-                        .map(|attribute| (qname(&attribute.name), &*attribute.value));
+                        .map(|attribute| (QName::of(&attribute.name), &*attribute.value));
                     let offset = origin.input_range().map(|range| range.start);
-                    let (index, name) = (self.elements - 1, qname(&element.name));
+                    let (index, name) = (self.elements - 1, QName::of(&element.name));
                     if !(self.engine).start(index, offset, name, attributes, &self.scope) {
                         self.skipped = 1;
                     }
@@ -552,14 +552,6 @@ impl Stream {
     }
 }
 
-fn qname<'a>(name: &'a crate::Name<'_>) -> QName<'a> {
-    QName {
-        qualified: name.qualified(),
-        local: name.local(),
-        namespace: name.namespace().filter(|uri| !uri.is_empty()),
-    }
-}
-
 /// The namespace bindings of a stream's open elements, and its DTD.
 #[derive(Default)]
 struct Bindings {
@@ -572,7 +564,7 @@ impl Bindings {
     fn push(&mut self, attributes: &[crate::Attribute<'_>]) {
         self.marks.push(self.bindings.len());
         for attribute in attributes {
-            if let Some(prefix) = qname(&attribute.name).declared_prefix() {
+            if let Some(prefix) = QName::of(&attribute.name).declared_prefix() {
                 (self.bindings).push((prefix.to_owned(), attribute.value.to_string()));
             }
         }

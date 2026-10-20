@@ -147,6 +147,14 @@ fn explicit_namespaces_shadow_unwind_and_resolve_independent_of_attribute_order(
     let output = serialize(input);
     assert_eq!(output, b"<p:r p:a=\"1\" xmlns:p=\"urn:u\" xmlns=\"urn:d\" a=\"2\"><p:c xmlns:p=\"urn:v\"/><p:c/><c xmlns=\"\"/><c xml:lang=\"en\"/></p:r>");
     assert_round_trip(input, &output);
+    // What a namespace error leaves (unbound prefixes, malformed QNames,
+    // duplicate expanded names, colons in PI targets) writes as read.
+    for input in [
+        b"<p:r q:a='1' a:b:c='2'><?p:q?></p:r>".as_slice(),
+        b"<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>",
+    ] {
+        assert_round_trip(input, &serialize(input));
+    }
     const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
     for (prefix, invalid, expected) in [
         (
@@ -190,21 +198,6 @@ fn explicit_namespaces_shadow_unwind_and_resolve_independent_of_attribute_order(
                 "r",
                 None,
                 vec![attribute("a", None, "1"), attribute("a", None, "2")],
-                true,
-            ),
-            ErrorKind::DuplicateAttribute,
-        ),
-        (
-            vec![],
-            element(
-                "r",
-                None,
-                vec![
-                    attribute("xmlns:p", Some(XMLNS), "urn:u"),
-                    attribute("xmlns:q", Some(XMLNS), "urn:u"),
-                    attribute("p:a", Some("urn:u"), "1"),
-                    attribute("q:a", Some("urn:u"), "2"),
-                ],
                 true,
             ),
             ErrorKind::DuplicateAttribute,
@@ -310,14 +303,6 @@ fn invalid_operations_emit_nothing_and_poison_later_calls() {
                 data: Cow::Borrowed("a?>b"),
             },
             Syntax,
-        ),
-        (
-            vec![],
-            Event::ProcessingInstruction {
-                target: Cow::Borrowed("p:q"),
-                data: Cow::Borrowed(""),
-            },
-            InvalidName,
         ),
         (
             vec![],

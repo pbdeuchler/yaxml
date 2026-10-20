@@ -153,8 +153,8 @@ impl StreamValidator {
                             offset: origin.input_range().map(|range| range.start),
                         };
                         let attributes = (element.attributes.iter())
-                            .map(|attribute| (qname(&attribute.name), &*attribute.value));
-                        validator.start(dtd, node, qname(&element.name), attributes);
+                            .map(|attribute| (QName::of(&attribute.name), &*attribute.value));
+                        validator.start(dtd, node, QName::of(&element.name), attributes);
                         if matches!(event, Event::Empty(_)) {
                             validator.end(dtd);
                         }
@@ -221,13 +221,5 @@ fn owned((qualified, local, namespace): &(String, usize, Option<String>)) -> QNa
         qualified,
         local: &qualified[*local..],
         namespace: namespace.as_deref().filter(|uri| !uri.is_empty()),
-    }
-}
-
-fn qname<'a>(name: &'a crate::Name<'_>) -> QName<'a> {
-    QName {
-        qualified: name.qualified(),
-        local: name.local(),
-        namespace: name.namespace().filter(|uri| !uri.is_empty()),
     }
 }

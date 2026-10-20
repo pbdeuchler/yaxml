@@ -332,9 +332,10 @@ impl<'input> Document<'input> {
         }
     }
 
-    /// The well-formedness errors a `RECOVER` parse recovered from, in the
-    /// order found (at most 100, like libxml2); empty for a well-formed
-    /// document and without `RECOVER`.
+    /// The errors the parse kept, in the order found (at most 100, like
+    /// libxml2): namespace errors, which never stop a parse (libxml2's
+    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
+    /// from; empty for a namespace-well-formed document.
     pub fn errors(&self) -> &[Error] {
         &self.errors
     }

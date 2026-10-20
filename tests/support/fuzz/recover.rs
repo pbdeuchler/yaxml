@@ -1,6 +1,7 @@
-//! `RECOVER` on the streams. For every chunking, push and pull deliver the
-//! same events, ranges and recovered errors; on UTF-8 input the slice
-//! reader's, which project onto the recovered DOM.
+//! `RECOVER` on the streams, and the namespace errors strict parsing keeps.
+//! For every chunking, push and pull deliver the same events, ranges and
+//! recovered errors; on UTF-8 input the slice reader's, which project onto
+//! the recovered DOM.
 
 use std::io::BufReader;
 use std::ops::{ControlFlow, Range};
@@ -25,7 +26,7 @@ fn render(event: &Event<'_>, range: Range<usize>) -> String {
 }
 
 fn options(flags: u32) -> ParseOptions {
-    ParseOptions::new(RECOVER | flags)
+    ParseOptions::new(flags)
 }
 
 /// The push parser fed `input` in chunks of `widths` (then the rest).
@@ -95,8 +96,8 @@ pub(super) fn comparable(input: &[u8]) -> bool {
     !super::encoding::recognizes(input) && !declared && !(doctype && characters)
 }
 
-/// The recovering streams on `input` under `flags`, chunked as `control`
-/// selects.
+/// The streams on `input` under `flags` (`RECOVER` or strict), chunked as
+/// `control` selects.
 pub(super) fn exercise(input: &[u8], flags: u32, control: u8) {
     let width = 1 + usize::from(control % 13);
     let widths: Vec<usize> = (0..input.len().div_ceil(width)).map(|_| width).collect();
@@ -126,6 +127,7 @@ pub(super) fn exercise(input: &[u8], flags: u32, control: u8) {
                 error.kind,
                 ErrorKind::LimitExceeded(_) | ErrorKind::Allocation | ErrorKind::EntityLoop
             ));
+            assert!(flags & RECOVER != 0 || error.kind == ErrorKind::Namespace);
         }
     }
     let Some((slice, events)) = sliced(input, flags).filter(|_| comparable(input) && !owned) else {

@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use yaxml::{Error, ErrorKind, Event, Limit, Limits, Reader};
 
+/// The events, or the first error: the one that stopped the reader, or a
+/// namespace error it kept.
 fn read(input: &[u8]) -> Result<Vec<Event<'_>>, Error> {
     let mut reader = Reader::new(input)?;
     let mut events = Vec::new();
@@ -10,7 +12,10 @@ fn read(input: &[u8]) -> Result<Vec<Event<'_>>, Error> {
     }
     assert!(reader.read_event()?.is_none());
     assert_eq!(reader.position(), input.len());
-    Ok(events)
+    match reader.errors().first() {
+        Some(&error) => Err(error),
+        None => Ok(events),
+    }
 }
 
 #[test]
@@ -66,11 +71,11 @@ fn malformed_documents_are_rejected() {
         ("<r></ r>", InvalidName),
         ("< r/>", InvalidName),
         ("<1/>", InvalidName),
-        ("<a:b:c/>", InvalidName),
-        ("<:a/>", InvalidName),
-        ("<a:/>", InvalidName),
-        ("<r a::b='v'/>", InvalidName),
-        ("<?a:b?><r/>", InvalidName),
+        ("<a:b:c/>", Namespace),
+        ("<:a/>", Namespace),
+        ("<a:/>", Namespace),
+        ("<r a::b='v'/>", Namespace),
+        ("<?a:b?><r/>", Namespace),
         ("<r a='1' a='2'/>", DuplicateAttribute),
         ("<p:r/>", Namespace),
         ("<r p:a='v'/>", Namespace),
@@ -88,10 +93,7 @@ fn malformed_documents_are_rejected() {
         ),
         ("<r xmlns='http://www.w3.org/2000/xmlns/'/>", Namespace),
         ("<r xmlns:p='http://www.w3.org/2000/xmlns/'/>", Namespace),
-        (
-            "<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>",
-            DuplicateAttribute,
-        ),
+        ("<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>", Namespace),
         ("<r><s xmlns:p='u'/><p:s/></r>", Namespace),
         ("<r>&unknown;</r>", UnknownEntity),
         ("<r>&amp</r>", InvalidReference),
@@ -334,7 +336,7 @@ fn resource_limits_are_inclusive() {
 
 #[test]
 fn fatal_errors_are_sticky() {
-    for input in ["<r></x>", "<r><p:x/></r>", "<r>&bad;</r>", "<r>"] {
+    for input in ["<r></x>", "<r>&bad;</r>", "<r>"] {
         let mut reader = Reader::new(input.as_bytes()).unwrap();
         let error = loop {
             match reader.read_event() {
@@ -485,7 +487,7 @@ fn namespace_interning_preserves_aliases_and_scope() {
     ] {
         assert_eq!(
             read(input.as_bytes()).unwrap_err().kind,
-            ErrorKind::DuplicateAttribute
+            ErrorKind::Namespace
         );
     }
     assert!(read(b"<r xmlns:p='urn:a' xmlns:q='urn:b' p:a='1' q:a='2'/>").is_ok());
@@ -535,7 +537,7 @@ fn expanded_attribute_uniqueness_and_end_tags_on_both_paths() {
         ),
         (
             "<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>".into(),
-            Some(ErrorKind::DuplicateAttribute),
+            Some(ErrorKind::Namespace),
         ),
         ("<r xmlns:p='u' xmlns:q='w' p:a='1' q:a='2'/>".into(), None),
         ("<r xmlns:p='u' p:a='1' a='2'/>".into(), None),
@@ -544,13 +546,14 @@ fn expanded_attribute_uniqueness_and_end_tags_on_both_paths() {
             Some(ErrorKind::DuplicateAttribute),
         ),
         (many(""), None),
+        (many(" p:x='1' q:x='2'"), Some(ErrorKind::Namespace)),
         (
-            many(" p:x='1' q:x='2'"),
+            many(" p:x='1' q:x='2' p:x='3'"),
             Some(ErrorKind::DuplicateAttribute),
         ),
         (many(" a3='1'"), Some(ErrorKind::DuplicateAttribute)),
         (many(" a3='1' z:b='2'"), Some(ErrorKind::DuplicateAttribute)),
-        (many(" z:b='2' a3='1'"), Some(ErrorKind::Namespace)),
+        (many(" z:b='2' a3='1'"), Some(ErrorKind::DuplicateAttribute)),
         (many(" z:b='2'"), Some(ErrorKind::Namespace)),
         (many(" prefixed_1='a' prefixed_2='b'"), None),
         (
@@ -570,12 +573,13 @@ fn expanded_attribute_uniqueness_and_end_tags_on_both_paths() {
         ("<r></rr>".into(), Some(ErrorKind::MismatchedEndTag)),
         ("<r></1>".into(), Some(ErrorKind::InvalidName)),
     ];
+    // The error that stopped the reader, else the first namespace error kept.
     for (xml, expected) in cases {
         let mut reader = Reader::new(xml.as_bytes()).unwrap();
         let result = loop {
             match reader.read_event() {
                 Ok(Some(_)) => {}
-                Ok(None) => break None,
+                Ok(None) => break reader.errors().first().map(|error| error.kind),
                 Err(error) => break Some(error.kind),
             }
         };
@@ -619,26 +623,28 @@ fn namespace_scopes_resolve_across_index_threshold() {
                     seen.push(element.name.namespace().map(str::to_owned));
                 }
             };
-            let error = if push {
+            // The unbound `q` is kept in no namespace.
+            let errors = if push {
                 let mut parser = yaxml::PushParser::new();
-                parser
-                    .feed(xml.as_bytes(), |event, _| {
-                        record(event);
-                        std::ops::ControlFlow::Continue(())
-                    })
-                    .unwrap_err()
+                let mut emit = |event: &Event<'_>, _| {
+                    record(event);
+                    std::ops::ControlFlow::Continue(())
+                };
+                parser.feed(xml.as_bytes(), &mut emit).unwrap();
+                parser.finish(&mut emit).unwrap();
+                parser.errors().to_vec()
             } else {
                 let mut reader = Reader::new(xml.as_bytes()).unwrap();
-                loop {
-                    match reader.read_event() {
-                        Ok(Some(event)) => record(&event),
-                        Ok(None) => panic!("unbound q accepted"),
-                        Err(error) => break error,
-                    }
+                while let Some(event) = reader.read_event().unwrap() {
+                    record(&event);
                 }
+                reader.errors().to_vec()
             };
+            let mut expected = expected.clone();
+            expected.push(None);
             assert_eq!(seen, expected, "root {root} push {push}");
-            assert_eq!(error.kind, ErrorKind::Namespace);
+            let kinds: Vec<_> = errors.iter().map(|error| error.kind).collect();
+            assert_eq!(kinds, [ErrorKind::Namespace]);
         }
     }
 }

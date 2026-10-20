@@ -591,7 +591,8 @@ impl<A: Allocator> Editor<'_, A> {
 pub struct Fragment {
     /// The top-level nodes in input order, each detached.
     pub nodes: Vec<OwnedNodeId>,
-    /// What `RECOVER` recovered from, as [`OwnedDocument::errors`].
+    /// The errors the parse kept (namespace errors, and under `RECOVER` what
+    /// it recovered from), as [`OwnedDocument::errors`].
     pub errors: Vec<Error>,
 }
 

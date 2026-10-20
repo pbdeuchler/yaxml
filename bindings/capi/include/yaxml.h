@@ -327,7 +327,8 @@ yaxml_status yaxml_doc_root(yaxml_doc *doc, yaxml_node *out, yaxml_error *err);
 yaxml_status yaxml_doc_element(yaxml_doc *doc, yaxml_node *out, yaxml_error *err);
 yaxml_status yaxml_doc_element_by_id(yaxml_doc *doc, yaxml_str id,
                                      yaxml_node *out, yaxml_error *err);
-/* RECOVER errors and DTDVALID validity errors found while parsing. */
+/* Namespace errors, RECOVER errors and DTDVALID validity errors found while
+   parsing. */
 yaxml_status yaxml_doc_diagnostics(yaxml_doc *doc, yaxml_diagnostics *out,
                                    yaxml_error *err);
 yaxml_status yaxml_doc_set_edit_limits(yaxml_doc *doc,

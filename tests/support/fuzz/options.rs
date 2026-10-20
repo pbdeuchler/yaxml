@@ -289,11 +289,7 @@ fn inherited<'a>(element: yaxml::Node<'a, '_>, prefix: &str) -> Option<&'a str> 
 /// saves to bytes that recover to themselves; both DOMs agree; resource
 /// limits still fail the parse.
 fn check_recovered(flags: u32, document: &[u8]) {
-    super::recover::exercise(
-        document,
-        flags & !(TREE_ONLY | RECOVER),
-        super::selector(document),
-    );
+    super::recover::exercise(document, flags & !TREE_ONLY, super::selector(document));
     let saved = |tree: &Document<'_>| save::to_vec(tree, &Default::default()).expect("save");
     let strict = Document::parse_with(document, ParseOptions::new(flags & !RECOVER));
     let recovered = Document::parse_with(document, ParseOptions::new(flags));
@@ -301,7 +297,12 @@ fn check_recovered(flags: u32, document: &[u8]) {
         let tree = recovered
             .as_ref()
             .expect("RECOVER rejected a well-formed document");
-        assert!(tree.errors().is_empty(), "errors in a well-formed document");
+        // A well-formed document keeps only its namespace errors.
+        assert_eq!(
+            tree.errors(),
+            strict.errors(),
+            "errors in a well-formed document"
+        );
         assert_eq!(
             saved(strict),
             saved(tree),
@@ -369,7 +370,9 @@ fn check_recovered(flags: u32, document: &[u8]) {
     if flags & SKIP_IDS == 0 {
         super::check_document(&tree, document.len(), Limits::default().max_events);
     }
-    assert_eq!(tree.errors().is_empty(), strict.is_ok());
+    // Strict parsing stops at any but a namespace error (below the cap).
+    let namespace = tree.errors().iter().all(|e| e.kind == ErrorKind::Namespace);
+    assert!(tree.errors().len() == 100 || namespace == strict.is_ok());
     assert!(tree.errors().len() <= 100);
     // Recovery makes progress: every node but the root starts at a later
     // input byte than the one before, so without entity references there

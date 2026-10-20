@@ -38,9 +38,11 @@ fn several_top_level_elements_are_not_one_xml_document() {
     );
 }
 
-fn well_formed(output: &str) {
-    if let Err(error) = OwnedDocument::parse(output) {
-        panic!("malformed XML {output:?}: {error:?}");
+/// Whether `output` parses with a namespace error.
+fn well_formed(output: &str) -> bool {
+    match OwnedDocument::parse(output) {
+        Ok(document) => !document.errors().is_empty(),
+        Err(error) => panic!("malformed XML {output:?}: {error:?}"),
     }
 }
 
@@ -54,9 +56,10 @@ fn writer_output_is_well_formed_or_an_error() {
         // The writer validates every event: XML-incompatible names, characters
         // and comments, CDATA holding "]]>" and DOCTYPE identifiers with both
         // quotes are rejected.
+        // A name HTML allows can be one XML reads with a namespace error.
         if writer.write_owned_document(&document).is_ok() {
-            assert!(valid, "{input:?}");
-            well_formed(&String::from_utf8(writer.into_inner()).unwrap());
+            let namespace = well_formed(&String::from_utf8(writer.into_inner()).unwrap());
+            assert!(*valid || namespace, "{input:?}");
         }
     }
 }
@@ -72,7 +75,7 @@ fn c14n_output_is_well_formed_or_an_error() {
         match c14n::to_string(&document, &options) {
             Ok(output) => {
                 assert!(valid, "{input:?} gave {output:?}");
-                well_formed(&output);
+                assert!(!well_formed(&output));
             }
             Err(error) => {
                 assert!(!valid, "{input:?}: {error}");

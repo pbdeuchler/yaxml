@@ -2,36 +2,50 @@
 
 use std::ops::ControlFlow;
 
-use yaxml::{Declaration, Document, Element, ErrorKind, Event, NodeKind, PushParser, Reader};
+use yaxml::{
+    Declaration, Document, Element, Error, ErrorKind, Event, NodeKind, PushParser, Reader,
+};
 
 // Expectations come from the XML and Namespaces grammars, rather than another
 // frontend of this crate. See docs/conformance.md for the scope and references.
+
+/// A parse's first error: the one that stopped it, or a namespace error it
+/// kept (namespace errors never stop a parse, as in libxml2).
+fn first_error(result: Result<&[Error], Error>) -> Result<(), ErrorKind> {
+    let kept = result.map_err(|error| error.kind)?;
+    assert!(kept.iter().all(|error| error.kind == ErrorKind::Namespace));
+    kept.first().map_or(Ok(()), |error| Err(error.kind))
+}
+
 fn slice_result(input: &[u8]) -> Result<(), ErrorKind> {
     let mut reader = Reader::new(input).map_err(|error| error.kind)?;
-    while reader.read_event().map_err(|error| error.kind)?.is_some() {}
-    Ok(())
+    let end = std::iter::from_fn(|| reader.read_event().transpose()).find_map(Result::err);
+    first_error(end.map_or(Ok(reader.errors()), Err))
 }
 
 fn push_result(input: &[u8], chunks: &[&[u8]]) -> Result<(), ErrorKind> {
     let mut parser = PushParser::new();
-    for chunk in chunks {
-        parser
-            .feed(chunk, |_, _| ControlFlow::Continue(()))
-            .map_err(|error| error.kind)?;
+    let end = chunks
+        .iter()
+        .map(|chunk| parser.feed(chunk, |_, _| ControlFlow::Continue(())))
+        .find_map(Result::err)
+        .map_or_else(|| parser.finish(|_, _| ControlFlow::Continue(())), Err);
+    if end.is_ok() {
+        assert_eq!(parser.position(), input.len());
     }
-    assert_eq!(parser.position(), input.len());
-    parser
-        .finish(|_, _| ControlFlow::Continue(()))
-        .map_err(|error| error.kind)
+    first_error(end.map(|()| parser.errors()))
 }
 
 fn check(input: &str, expected: Result<(), ErrorKind>) {
     let input = input.as_bytes();
     assert_eq!(slice_result(input), expected, "Reader: {input:?}");
     assert_eq!(
-        Document::parse_bytes(input)
-            .map(|_| ())
-            .map_err(|error| error.kind),
+        first_error(
+            Document::parse_bytes(input)
+                .as_ref()
+                .map(Document::errors)
+                .map_err(|e| *e)
+        ),
         expected,
         "DOM: {input:?}"
     );
@@ -81,8 +95,8 @@ fn document_and_markup_grammar() {
         ("<r><![CDATA[x]]>]]></r>", Err(Syntax)),
         ("<r><?p? ></r>", Err(UnexpectedEof)),
         ("<r><?p/data?></r>", Err(InvalidName)),
-        ("<r><?:p?></r>", Err(InvalidName)),
-        ("<r><?p:q?></r>", Err(InvalidName)),
+        ("<r><?:p?></r>", Err(Namespace)),
+        ("<r><?p:q?></r>", Err(Namespace)),
         ("<r>< /r>", Err(InvalidName)),
         ("<r></r/>", Err(Syntax)),
         ("<r a='1'/ >", Err(Syntax)),
@@ -208,11 +222,11 @@ fn namespace_constraints_are_case_sensitive_and_scope_local() {
         ("<r xmlns='urn:u' xmlns='urn:v'/>", Err(DuplicateAttribute)),
         (
             "<r xmlns:p='urn:u' xmlns:q='urn:&#x75;' p:a='1' q:a='2'/>",
-            Err(DuplicateAttribute),
+            Err(Namespace),
         ),
         (
             "<r xmlns:p='urn:u'><a xmlns:q='urn:u' p:a='1' q:a='2'/></r>",
-            Err(DuplicateAttribute),
+            Err(Namespace),
         ),
         (
             "<r xmlns:xml='http://www.w3.org/XML/1998/namespac&#x65;' xml:a='v'/>",
@@ -323,19 +337,21 @@ fn ncname_boundary_classes_in_all_name_positions() {
             (character.to_string(), start),
             (format!("n{character}"), continuation),
         ] {
-            let expected = if accepted {
-                Ok(())
-            } else {
-                Err(ErrorKind::InvalidName)
+            let expected = |namespace| match (accepted, continuation && namespace) {
+                (true, _) => Ok(()),
+                // A Name that is no QName is a namespace error.
+                (false, true) => Err(ErrorKind::Namespace),
+                (false, false) => Err(ErrorKind::InvalidName),
             };
-            for input in [
-                format!("<{name}/>"),
-                format!("<r {name}='v'/>"),
-                format!("<p:{name} xmlns:p='urn:u'/>"),
-                format!("<{name}:r xmlns:{name}='urn:u'/>"),
-                format!("<?{name}?><r/>"),
+            for (input, namespace) in [
+                (format!("<{name}/>"), false),
+                (format!("<r {name}='v'/>"), false),
+                (format!("<p:{name} xmlns:p='urn:u'/>"), true),
+                (format!("<r p:{name}='v' xmlns:p='urn:u'/>"), true),
+                (format!("<{name}:r xmlns:{name}='urn:u'/>"), false),
+                (format!("<?{name}?><r/>"), false),
             ] {
-                check(&input, expected);
+                check(&input, expected(namespace));
             }
         }
     }

@@ -437,12 +437,7 @@ fn malformed_and_unsupported_inputs_return_explicit_errors() {
         (b"x<r/>", ErrorKind::TextOutsideRoot),
         (b"<r>\xff</r>", ErrorKind::InvalidUtf8),
         (b"<r>\0</r>", ErrorKind::InvalidCharacter),
-        (b"<p:r/>", ErrorKind::Namespace),
         (b"<r a='1' a='2'/>", ErrorKind::DuplicateAttribute),
-        (
-            b"<r xmlns:p='u' xmlns:q='u' p:a='1' q:a='2'/>",
-            ErrorKind::DuplicateAttribute,
-        ),
         (b"<r>&unknown;</r>", ErrorKind::UnknownEntity),
         (b"<r>&#0;</r>", ErrorKind::InvalidReference),
         (b"<?xml version='1.x'?><r/>", ErrorKind::InvalidDeclaration),

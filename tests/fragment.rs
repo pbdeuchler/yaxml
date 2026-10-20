@@ -121,11 +121,23 @@ fn the_document_node_parses_a_balanced_chunk() {
         .parse_content(root, b"<a>&e;</a>", ParseOptions::default())
         .unwrap();
     editor.append_child(r, chunk.nodes[0]).unwrap();
+    // The document node binds no prefix: `p` is a namespace error, kept.
     let unbound = editor.parse_content(root, b"<p:a/>", ParseOptions::default());
+    let unbound = unbound.unwrap();
     assert_eq!(
-        unbound.unwrap_err().kind,
-        EditErrorKind::Parse(ErrorKind::Namespace)
+        unbound.errors,
+        [Error {
+            kind: ErrorKind::Namespace,
+            offset: 1
+        }]
     );
+    let name = editor
+        .document()
+        .node(unbound.nodes[0])
+        .unwrap()
+        .name()
+        .unwrap();
+    assert_eq!((name.qualified(), name.namespace()), ("p:a", None));
     assert!(saved(&document).ends_with("<r xmlns:p=\"urn:p\"><a>&e;</a></r>"));
 }
 
@@ -143,8 +155,13 @@ fn entity_content_parses_in_the_document() {
     let r = document.root_element().id();
     let mut editor = document.edit(EditLimits::default()).unwrap();
     let unbound = editor.parse_content(text, b"<p:a/>", ParseOptions::default());
-    let namespace = EditErrorKind::Parse(ErrorKind::Namespace);
-    assert_eq!(unbound.unwrap_err().kind, namespace);
+    assert_eq!(
+        unbound.unwrap().errors,
+        [Error {
+            kind: ErrorKind::Namespace,
+            offset: 1
+        }]
+    );
     let fragment = editor
         .parse_content(text, b"<a/>", ParseOptions::default())
         .unwrap();
@@ -199,7 +216,6 @@ fn malformed_content_reports_libxml2_codes() {
         ("<r/>", "&undefined;", ErrorKind::UnknownEntity, 0, 26),
         ("<r/>", "<?xml version='1.0'?>", ErrorKind::InvalidDeclaration, 0, 64),
         ("<r/>", "<!DOCTYPE r>", ErrorKind::Syntax, 0, 68),
-        ("<r/>", "<u:a/>", ErrorKind::Namespace, 1, 201),
         ("<r/>", "]]>", ErrorKind::Syntax, 0, 62),
         ("<r/>", "&bad", ErrorKind::InvalidReference, 0, 23),
         ("<r/>", "<a b='1' b='2'/>", ErrorKind::DuplicateAttribute, 0, 42),

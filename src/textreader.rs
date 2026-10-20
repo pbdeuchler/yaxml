@@ -186,10 +186,12 @@ impl Node {
         push(&mut self.text, value)
     }
 
+    /// A name in no namespace has no prefix, as in libxml2.
     fn qname(&mut self, name: &Name<'_>) -> QName {
+        let prefix = name.prefix().filter(|_| name.namespace().is_some());
         QName {
             qualified: self.push(name.qualified()),
-            prefix: name.prefix().map_or(0, str::len),
+            prefix: prefix.map_or(0, str::len),
             namespace: name.namespace().map(|namespace| self.push(namespace)),
         }
     }
@@ -652,9 +654,10 @@ impl<R: BufRead> TextReader<R> {
         self.read()
     }
 
-    /// The well-formedness errors a `RECOVER` parse recovered from so far, in
-    /// input order (the first 100, as libxml2 keeps), possibly from nodes
-    /// read ahead of the cursor; empty without `RECOVER`.
+    /// The errors kept so far, in input order (the first 100, as libxml2
+    /// keeps), possibly from nodes read ahead of the cursor: namespace errors,
+    /// which never stop a parse (libxml2's `xmlNsErr`), and under `RECOVER`
+    /// every well-formedness error recovered from.
     pub fn errors(&self) -> &[Error] {
         self.source.errors()
     }

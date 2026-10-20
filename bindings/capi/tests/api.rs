@@ -590,6 +590,19 @@ fn recovered_documents_have_diagnostics_and_may_lack_an_element() {
     );
     assert!(out.items.is_null() && out.len == 0);
     free(doc);
+
+    // A namespace error does not stop a parse, with or without RECOVER.
+    for flags in [0, 1] {
+        let doc = parse_with("<r><p:c/></r>", Some(&options(flags))).unwrap();
+        // SAFETY: valid pointers.
+        assert_eq!(
+            unsafe { yaxml_doc_diagnostics(doc, &mut out, null_mut()) },
+            OK
+        );
+        let message = "Namespace prefix p on c is not defined".to_owned();
+        assert_eq!(diagnostics(out), [(3, 201, 2, 1, message)]);
+        free(doc);
+    }
 }
 
 #[test]

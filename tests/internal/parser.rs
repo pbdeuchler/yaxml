@@ -614,6 +614,7 @@ fn frame_reservation_starts_large_then_doubles_only_when_full() {
 #[test]
 fn recovery_records_well_formedness_errors_and_keeps_fatal_ones() {
     let syntax = Error::new(ErrorKind::Syntax, 1);
+    let namespace = Error::new(ErrorKind::Namespace, 1);
     let fatal = [
         ErrorKind::LimitExceeded(Limit::Depth),
         ErrorKind::Allocation,
@@ -622,11 +623,16 @@ fn recovery_records_well_formedness_errors_and_keeps_fatal_ones() {
         ErrorKind::InvalidState,
     ];
     // (recovering, error, recorded?)
-    let mut cases = vec![(false, syntax, false), (true, syntax, true)];
+    let mut cases = vec![
+        (false, syntax, false),
+        (true, syntax, true),
+        (false, namespace, true),
+        (true, namespace, true),
+    ];
     cases.extend(fatal.map(|kind| (true, Error::new(kind, 2), false)));
     for (recovering, error, recorded) in cases {
         let mut budget = Budget::new(Limits::default());
-        budget.recovered = recovering.then(Vec::new);
+        budget.recovers = recovering;
         assert_eq!(budget.recovers(), recovering);
         assert_eq!(budget.recover(error).is_ok(), recorded, "{error:?}");
         let errors = Budget::conclude(Some(&mut budget), Ok(()));
@@ -638,19 +644,23 @@ fn recovery_records_well_formedness_errors_and_keeps_fatal_ones() {
 fn conclude_records_the_terminal_error_or_returns_it() {
     let end = Error::new(ErrorKind::UnexpectedEof, 9);
     let limit = Error::new(ErrorKind::LimitExceeded(Limit::Events), 9);
+    let namespace = Error::new(ErrorKind::Namespace, 9);
     let mut budget = Budget::new(Limits::default());
     // (budget, recovering, end, result)
     type Case = (bool, bool, Result<(), Error>, Result<Vec<Error>, Error>);
-    let cases: [Case; 6] = [
+    let cases: [Case; 8] = [
         (true, false, Ok(()), Ok(vec![])),
         (true, false, Err(end), Err(end)),
+        // A strict parse that stopped returns its error, even a namespace one.
+        (true, false, Err(namespace), Err(namespace)),
+        (true, true, Err(namespace), Ok(vec![namespace])),
         (true, true, Ok(()), Ok(vec![])),
         (true, true, Err(end), Ok(vec![end])),
         (true, true, Err(limit), Err(limit)),
         (false, true, Err(end), Err(end)),
     ];
     for (present, recovering, ending, expected) in cases {
-        budget.recovered = recovering.then(Vec::new);
+        budget.recovers = recovering;
         let budget = present.then_some(&mut budget);
         assert_eq!(Budget::conclude(budget, ending), expected, "{ending:?}");
     }
@@ -658,14 +668,15 @@ fn conclude_records_the_terminal_error_or_returns_it() {
 
 #[test]
 fn recovery_records_at_most_libxml2s_error_count() {
-    let mut budget = Budget::new(Limits::default());
-    budget.recovered = Some(Vec::new());
-    for offset in 0..MAX_RECOVERED + 5 {
-        budget
-            .recover(Error::new(ErrorKind::Syntax, offset))
-            .unwrap();
+    // (recovering, kind): strict parsing records namespace errors only.
+    for (recovering, kind) in [(true, ErrorKind::Syntax), (false, ErrorKind::Namespace)] {
+        let mut budget = Budget::new(Limits::default());
+        budget.recovers = recovering;
+        for offset in 0..MAX_RECOVERED + 5 {
+            budget.recover(Error::new(kind, offset)).unwrap();
+        }
+        let errors = Budget::conclude(Some(&mut budget), Ok(())).unwrap();
+        assert_eq!(errors.len(), MAX_RECOVERED);
+        assert_eq!(errors.last().unwrap().offset, MAX_RECOVERED - 1);
     }
-    let errors = Budget::conclude(Some(&mut budget), Ok(())).unwrap();
-    assert_eq!(errors.len(), MAX_RECOVERED);
-    assert_eq!(errors.last().unwrap().offset, MAX_RECOVERED - 1);
 }

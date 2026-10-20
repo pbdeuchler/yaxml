@@ -101,6 +101,16 @@ def test_syntax_error():
     assert info.value.lineno == 1
 
 
+def test_namespace_error_stops_iteration():
+    # As lxml: the namespace error is raised where it is read.
+    seen = []
+    with pytest.raises(et.XMLSyntaxError) as info:
+        for _, element in et.iterparse(b"<r><a/><p:c/></r>"):
+            seen.append(element.tag)
+    assert info.value.code == 201
+    assert seen == ["a"]
+
+
 def test_error_from_file_reader():
     class Broken:
         def read(self, n):
