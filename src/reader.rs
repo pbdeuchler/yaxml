@@ -629,8 +629,12 @@ impl<'a> Reader<'a> {
     #[inline(never)]
     fn stop(&mut self, error: Error) -> Result<Option<Event<'a>>, Error> {
         if let Some(Ok(())) = self.budget().map(|budget| budget.recover(error)) {
-            self.end = Some(End::Stopped(error.offset));
-            return self.close_next(error.offset);
+            let at = match self.session.first() {
+                Some(Phase::Content(controller)) => controller.stopped_at(error.offset),
+                _ => error.offset,
+            };
+            self.end = Some(End::Stopped(at));
+            return self.close_next(at);
         }
         self.end = Some(End::Failed(error));
         Err(error)

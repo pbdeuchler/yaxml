@@ -1032,7 +1032,9 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             } else {
                 character
             };
-            if !is_entity && character == '<' {
+            // A literal's own `<` is its scanner's error (kept when tags
+            // recover, as libxml2 keeps it); only replacement text's is ours.
+            if !is_entity && character == '<' && frame.entity.is_some() {
                 return Err(fail(ErrorKind::Syntax));
             }
             let character = if !is_entity && matches!(character, '\r' | '\n' | '\t') {

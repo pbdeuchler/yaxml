@@ -222,7 +222,10 @@ impl StreamingSession {
         let error = (self.ordinary.as_ref()).map_or(error, |stream| stream.terminal(error));
         self.budget()?.recover(error).ok()?;
         (self.failure, self.finalizing, self.finished, self.stopped) = (None, true, true, true);
-        Some(error.offset)
+        match self.session.first().and_then(|s| s.phase.as_ref()) {
+            Some(Phase::Content(controller)) => Some(controller.stopped_at(error.offset)),
+            _ => Some(error.offset),
+        }
     }
     /// The next event that closes, at `at` where a stopped parse stopped, what
     /// it left open.
