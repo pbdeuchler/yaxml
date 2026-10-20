@@ -307,3 +307,54 @@ fn erased_and_borrowed_documents_are_send_and_sync() {
     shareable::<OwnedDocument<&'static System>>();
     shareable::<OwnedDocument<System>>();
 }
+
+#[test]
+fn clones_and_imports_cross_allocators() {
+    const HELD: usize = 3;
+    let shared: Shared = Arc::new(System);
+    let input = b"<r xmlns:p='urn:p'><p:a k='1'>t</p:a></r>";
+    let original =
+        OwnedDocument::parse_in(input, ParseOptions::default(), shared.clone()).expect("parses");
+    let clone = original.try_clone().expect("clones");
+    assert!(Arc::ptr_eq(clone.allocator(), &shared));
+    assert_eq!(Arc::strong_count(&shared), 1 + 2 * HELD);
+    let written = |document: &OwnedDocument<Shared>| {
+        let mut writer = Writer::new(Vec::new());
+        writer.write_owned_document(document).expect("writes");
+        writer.into_inner()
+    };
+    assert_eq!(written(&clone), written(&original));
+
+    // An erased-allocator source imported into a global and a borrowed one.
+    let a = original.root_element().first_child().expect("a").id();
+    let system = System;
+    let mut global = OwnedDocument::parse("<t/>").expect("parses");
+    let mut borrowed =
+        OwnedDocument::parse_in(b"<t/>", ParseOptions::default(), &system).expect("parses");
+    // The Writer keeps stored order: the root declaration was appended.
+    let expected = b"<t><p:a k=\"1\" xmlns:p=\"urn:p\">t</p:a></t>".to_vec();
+    for output in [
+        {
+            let t = global.root_element().id();
+            let mut editor = global.edit(EditLimits::default()).expect("edits");
+            let copy = editor.import(&original, a, true).expect("imports");
+            editor.append_child(t, copy).expect("appends");
+            let mut writer = Writer::new(Vec::new());
+            writer.write_owned_document(&global).expect("writes");
+            writer.into_inner()
+        },
+        {
+            let t = borrowed.root_element().id();
+            let mut editor = borrowed.edit(EditLimits::default()).expect("edits");
+            let copy = editor.import(&original, a, true).expect("imports");
+            editor.append_child(t, copy).expect("appends");
+            let mut writer = Writer::new(Vec::new());
+            writer.write_owned_document(&borrowed).expect("writes");
+            writer.into_inner()
+        },
+    ] {
+        assert_eq!(output, expected);
+    }
+    drop((original, clone));
+    assert_eq!(Arc::strong_count(&shared), 1);
+}

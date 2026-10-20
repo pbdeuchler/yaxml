@@ -449,6 +449,26 @@ pub fn to_writer<'document, 'input: 'document>(
     saver.out.finish()
 }
 
+/// `xmlEscapeText` of content into `out`: `&`, `<` and `>` in HTML;
+/// otherwise as text is saved, with non-ASCII as references when `ascii`
+/// (a document without an encoding).
+pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool) {
+    if html {
+        for c in text.chars() {
+            match c {
+                '&' => out.push_str("&amp;"),
+                '<' => out.push_str("&lt;"),
+                '>' => out.push_str("&gt;"),
+                c => out.push(c),
+            }
+        }
+        return;
+    }
+    let mut escaped = Out::new(Output::Utf8, ascii, None);
+    escaped.text(text, false);
+    out.push_str(std::str::from_utf8(&escaped.bytes).unwrap_or_default());
+}
+
 /// Bytes buffered before they are handed to the sink.
 pub const CHUNK: usize = 32 * 1024;
 

@@ -1,7 +1,10 @@
 //! Differential test against `tooling/libxml2_domedit.c` (libxml2 2.15.4):
 //! `path`, `base_uri`, `lang`, `space_preserve` and `content` on every node,
-//! and the tree after random move scripts (`xmlAddChild` text merging,
-//! sibling insertion, unlink, replace), dumped by `xmlDocDumpMemory`. Runs
+//! `list_string` (`xmlNodeListGetString`) both ways, and the tree after
+//! random move scripts (`xmlAddChild` text merging, sibling insertion,
+//! unlink, replace) or copy scripts (`xmlDocCopyNode` from another document
+//! or the same one, then `xmlAddChild`; `xmlCopyDoc`), dumped by
+//! `xmlDocDumpMemory`. Runs
 //! only when `YAXML_DOMEDIT_HELPER` names the compiled helper; see
 //! `docs/owned-dom.md`.
 #![forbid(unsafe_code)]
@@ -14,7 +17,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use process::ProcessLimits;
-use yaxml::{EditLimits, OwnedDocument, OwnedNodeId, ParseOptions};
+use yaxml::{EditLimits, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, ParseOptions};
 
 struct Random(u64);
 
@@ -106,7 +109,7 @@ fn content(random: &mut Random, xml: &mut String, depth: usize, namespaces: bool
                 content(random, xml, depth + 1, namespaces, entities);
                 write!(xml, "</{name}>").unwrap();
             }
-            3 | 4 => xml.push_str(random.pick(&["x", " ", "\n ", "t&amp;", "y"])),
+            3 | 4 => xml.push_str(random.pick(&["x", " ", "\n ", "t&amp;", "y", "\u{e9}&lt;"])),
             5 => xml.push_str("<![CDATA[c]]>"),
             6 => xml.push_str(random.pick(&["<!--k-->", "<!---->"])),
             7 => xml.push_str(random.pick(&["<?p d?>", "<?q?>", "<?p?>"])),
@@ -180,6 +183,92 @@ fn script(random: &mut Random, document: &mut OwnedDocument) -> String {
     accepted.join(" ")
 }
 
+fn in_entity(node: OwnedNode<'_>) -> bool {
+    std::iter::successors(node.parent(), |node| node.parent())
+        .any(|node| node.kind() == OwnedNodeKind::EntityRef)
+}
+
+/// Whether the detached `copy`, about to go under `parent`, would show a
+/// documented divergence instead of a bug:
+/// - an unnamespaced element relying on the default namespace being unbound
+///   gets `xmlns=""` here; libxml2's `xmlAddChild` puts it in the parent's
+///   default namespace;
+/// - libxml2 parses an entity's content at its first reference, so a copied
+///   reference to an entity the document never referenced has none there;
+/// - a copy from entity content (`scoped`) keeps the namespaces of its
+///   reference's scope; libxml2 parses the entity once, outside any.
+fn diverges(
+    document: &OwnedDocument,
+    copy: OwnedNodeId,
+    parent: OwnedNodeId,
+    referenced: &[String],
+    scoped: bool,
+) -> bool {
+    let default = document
+        .node(parent)
+        .and_then(|parent| parent.search_ns(None));
+    let default = default.is_some_and(|uri| !uri.is_empty());
+    document.node(copy).unwrap().descendants().any(|node| {
+        let name = node.name();
+        let unnamespaced = name
+            .as_ref()
+            .is_some_and(|name| name.prefix().is_none() && name.namespace().is_none());
+        let undeclared =
+            default && unnamespaced && node.search_ns(None).is_none() && !in_entity(node);
+        let unparsed = node
+            .entity_name()
+            .is_some_and(|name| !referenced.iter().any(|seen| seen == name));
+        let namespaced = scoped && name.is_some_and(|name| name.namespace().is_some());
+        undeclared || unparsed || namespaced
+    })
+}
+
+/// Applies a random copy script: `import` from `source` or `copy` within,
+/// then `append_child`, and sometimes `try_clone` at the end (`D`).
+fn copy_script(
+    random: &mut Random,
+    document: &mut OwnedDocument,
+    source: &OwnedDocument,
+    skipped: &mut usize,
+) -> String {
+    let ids: Vec<OwnedNodeId> = document.nodes().map(|node| node.id()).collect();
+    let sources: Vec<OwnedNodeId> = source.nodes().map(|node| node.id()).collect();
+    let referenced: Vec<String> = document
+        .nodes()
+        .filter_map(|node| node.entity_name().map(str::to_owned))
+        .collect();
+    let mut accepted = Vec::new();
+    for _ in 0..random.next(7) {
+        let (imported, deep) = (random.next(3) != 0, random.next(3) != 0);
+        let i = random.next(if imported { sources.len() } else { ids.len() });
+        let j = random.next(ids.len());
+        let scoped = match imported {
+            true => in_entity(source.node(sources[i]).unwrap()),
+            false => in_entity(document.node(ids[i]).unwrap()),
+        };
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let copy = match imported {
+            true => editor.import(source, sources[i], deep),
+            false => editor.copy(ids[i], deep),
+        };
+        let Ok(copy) = copy else {
+            continue;
+        };
+        let diverging = diverges(editor.document(), copy, ids[j], &referenced, scoped);
+        *skipped += usize::from(diverging);
+        if diverging || editor.append_child(ids[j], copy).is_err() {
+            editor.remove_subtree(copy).unwrap();
+            continue;
+        }
+        let kind = if imported { 'C' } else { 'c' };
+        accepted.push(format!("{kind},{i},{j},{}", u8::from(deep)));
+    }
+    if random.next(3) == 0 {
+        accepted.push("D".to_owned());
+    }
+    accepted.join(" ")
+}
+
 /// The helper's report for a parsed document: dump, then one line per node.
 fn report(document: &OwnedDocument) -> Vec<String> {
     let dump = yaxml::save::to_vec(document, &yaxml::save::Options::default()).unwrap();
@@ -195,11 +284,13 @@ fn report(document: &OwnedDocument) -> Vec<String> {
     for node in document.nodes() {
         let space = node.space_preserve().map_or(-1, i32::from);
         lines.push(format!(
-            "N {} {} {} {space} {}",
+            "N {} {} {} {space} {} {} {}",
             field(node.path().as_deref()),
             field(node.base_uri().as_deref()),
             field(node.lang()),
             field(node.content().as_deref()),
+            field(Some(&node.list_string(true))),
+            field(Some(&node.list_string(false))),
         ));
     }
     lines.push("END".to_owned());
@@ -226,26 +317,46 @@ fn accessors_and_moves_match_libxml2() {
         .and_then(|seed| seed.parse().ok());
     let mut random = Random(seed.unwrap_or(0x5eed));
     let (mut requests, mut expected) = (String::new(), Vec::new());
-    let mut operations = 0;
+    let (mut operations, mut copied, mut skipped) = (0, 0, 0);
     for case in 0..cases {
-        let edits = case % 2 == 1;
+        // Namespaced documents take no moves (libxml2 does not reconcile
+        // them) but do take copies, which it declares on the copy's root.
+        let (moves, copies) = (case % 3 == 1, case % 3 == 2);
         let entities = random.next(3) == 0;
-        let xml = document(&mut random, !edits, entities);
+        let namespaces = !moves && (!copies || random.next(2) == 0);
+        let xml = document(&mut random, namespaces, entities);
         let url = urls[random.next(urls.len())];
         let options = ParseOptions {
             base: url.map(str::to_owned),
             ..ParseOptions::default()
         };
         let mut owned = OwnedDocument::parse_with(xml.as_bytes(), options).unwrap();
-        let ops = if edits {
-            script(&mut random, &mut owned)
-        } else {
-            String::new()
+        let source_namespaces = random.next(2) == 0;
+        let source = copies.then(|| document(&mut random, source_namespaces, entities));
+        let ops = match &source {
+            Some(source) => {
+                let source = OwnedDocument::parse(source).unwrap();
+                copy_script(&mut random, &mut owned, &source, &mut skipped)
+            }
+            None if moves => script(&mut random, &mut owned),
+            None => String::new(),
         };
         operations += ops.split(' ').filter(|op| !op.is_empty()).count();
+        copied += ops
+            .split(' ')
+            .filter(|op| op.starts_with(['C', 'c', 'D']))
+            .count();
         let url_field = url.map_or("-".to_owned(), |url| hex(url.as_bytes()));
-        writeln!(requests, "{}\t{url_field}\t{ops}", hex(xml.as_bytes())).unwrap();
-        expected.push((xml, ops, report(&owned)));
+        let source_field = source
+            .as_ref()
+            .map_or("-".to_owned(), |xml| hex(xml.as_bytes()));
+        let xml_field = hex(xml.as_bytes());
+        writeln!(requests, "{xml_field}\t{url_field}\t{ops}\t{source_field}").unwrap();
+        let report = match ops.ends_with('D') {
+            true => report(&owned.try_clone().unwrap()),
+            false => report(&owned),
+        };
+        expected.push((xml, ops, report));
     }
     let output = process::run(
         Path::new(&helper),
@@ -275,11 +386,13 @@ fn accessors_and_moves_match_libxml2() {
         }
         // Documented divergence: libxml2's document content also descends
         // into the DTD's parsed entity declarations.
+        // The content is the sixth field of the document node's line.
         if xml.starts_with("<!DOCTYPE")
             && let Some(document) = theirs.get_mut(1)
-            && let Some((fields, _)) = document.rsplit_once(' ')
         {
-            *document = format!("{fields} {}", report[1].rsplit_once(' ').unwrap().1);
+            let mut fields: Vec<&str> = document.split(' ').collect();
+            fields[5] = report[1].split(' ').nth(5).unwrap();
+            *document = fields.join(" ");
         }
         if theirs != *report {
             let decode = |lines: &[String]| -> Vec<String> {
@@ -300,15 +413,23 @@ fn accessors_and_moves_match_libxml2() {
                     })
                     .collect()
             };
-            mismatches.push(format!(
-                "{xml}\nops: {ops}\nyaxml:   {:#?}\nlibxml2: {:#?}",
-                decode(report),
-                decode(&theirs)
-            ));
+            // Only the lines that differ, by position.
+            let (ours, theirs) = (decode(report), decode(&theirs));
+            let differing: Vec<_> = (0..ours.len().max(theirs.len()))
+                .filter(|&line| ours.get(line) != theirs.get(line))
+                .map(|line| {
+                    format!(
+                        "line {line}\n  yaxml:   {:?}\n  libxml2: {:?}",
+                        ours.get(line),
+                        theirs.get(line)
+                    )
+                })
+                .collect();
+            mismatches.push(format!("{xml}\nops: {ops}\n{}", differing.join("\n")));
         }
     }
     eprintln!(
-        "domedit differential: {cases} documents, {operations} accepted operations, {} mismatches",
+        "domedit differential: {cases} documents, {operations} accepted operations ({copied} copies; {skipped} divergent copies not sent), {} mismatches",
         mismatches.len()
     );
     assert!(

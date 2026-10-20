@@ -1,13 +1,17 @@
-//! Random edit scripts over a parsed document: moves, unlink, replace,
-//! removal, creation, attribute membership, names, namespace declarations
-//! and compaction. After every operation the tree is checked: links are
-//! consistent, every name resolves to its stored namespace, a failed edit
-//! changed nothing, removed handles stay rejected, and saving then
-//! reparsing gives the same tree.
+//! Random edit scripts over two parses of one document: moves, unlink,
+//! replace, removal, creation, attribute membership, names, namespace
+//! declarations, compaction, imports from the other document, copies within
+//! one, whole-document clones and swapping which document is edited. After
+//! every operation both trees are checked: links are consistent, every name
+//! resolves to its stored namespace, a failed edit changed neither, removed
+//! handles stay rejected, and saving then reparsing gives the same tree. A
+//! copy resolves every name on its own and, when deep, saves as its source
+//! does; a clone saves as its original.
 //!
 //! Input: XML bytes, a 0x00 separator, then 4-byte operations
 //! `[kind, a, b, c]`; `a` and `b` select handles from every node seen so far
-//! (removed ones included), `c` selects names and values. The first script
+//! (removed ones included; an import's `b` selects from the other document),
+//! `c` selects names, values and whether a copy is deep. The first script
 //! byte chooses default or tight `EditLimits`.
 
 use yaxml::{
@@ -72,12 +76,16 @@ pub fn exercise(input: &[u8]) {
         return;
     };
     let (xml, script) = (&input[..split], &input[split + 1..]);
-    let Ok(mut document) = OwnedDocument::parse_bytes(xml) else {
+    let (Ok(mut document), Ok(mut other)) = (
+        OwnedDocument::parse_bytes(xml),
+        OwnedDocument::parse_bytes(xml),
+    ) else {
         return;
     };
     let limits = limits(script.first().copied().unwrap_or(0));
     let foreign = OwnedDocument::parse("<f/>").unwrap().root_element().id();
     let mut handles: Vec<OwnedNodeId> = document.nodes().map(|node| node.id()).collect();
+    let mut others: Vec<OwnedNodeId> = other.nodes().map(|node| node.id()).collect();
     for operation in script
         .get(1..)
         .unwrap_or_default()
@@ -88,9 +96,16 @@ pub fn exercise(input: &[u8]) {
     {
         let pick = |selector: u8| handles[usize::from(selector) % handles.len()];
         let (a, b, c) = (pick(operation[1]), pick(operation[2]), operation[3]);
-        let before = snapshot(&document);
+        let (kind, deep) = (operation[0] % 19, c % 2 == 0);
+        let source = others[usize::from(operation[2]) % others.len()];
+        if kind == 18 {
+            std::mem::swap(&mut document, &mut other);
+            std::mem::swap(&mut handles, &mut others);
+            continue;
+        }
+        let before = (snapshot(&document), snapshot(&other));
         let mut editor = document.edit(limits).expect("limits only grow");
-        let result: Result<Option<OwnedNodeId>, EditError> = match operation[0] % 15 {
+        let result: Result<Option<OwnedNodeId>, EditError> = match kind {
             0 => editor.append_child(a, b).map(Some),
             1 => editor.insert_before(a, b).map(Some),
             2 => editor.insert_after(a, b).map(Some),
@@ -133,20 +148,42 @@ pub fn exercise(input: &[u8]) {
             11 => editor.set_name(a, name(c)).map(|()| None),
             12 => editor.compact().map(|()| None),
             13 => editor.append_comment(a, "k").map(Some),
-            _ => editor.unlink(foreign).map(|()| None),
+            14 => editor.unlink(foreign).map(|()| None),
+            15 => editor.import(&other, source, deep).map(Some),
+            16 => editor.copy(a, deep).map(Some),
+            _ => {
+                let clone = editor.document().try_clone().expect("cloning succeeds");
+                assert_eq!(
+                    snapshot(&clone).0,
+                    before.0.0,
+                    "a clone saves as its original"
+                );
+                assert_eq!(shape(&clone), shape(editor.document()));
+                Ok(None)
+            }
         };
         if std::env::var_os("YAXML_DOMEDIT_TRACE").is_some() {
             eprintln!("{operation:?} {a:?} {b:?} -> {result:?}");
         }
         match result {
+            Ok(Some(copy)) if matches!(kind, 15 | 16) => {
+                let original = match kind {
+                    15 => other.node(source),
+                    _ => document.node(a),
+                };
+                copied(
+                    &document,
+                    copy,
+                    original.expect("copied from a live node"),
+                    deep,
+                );
+                handles.push(copy);
+            }
             Ok(created) => handles.extend(created),
             Err(error) => {
                 assert_ne!(error.kind, EditErrorKind::Allocation);
-                assert_eq!(
-                    snapshot(&document),
-                    before,
-                    "failed edit {error:?} changed the tree"
-                );
+                let after = (snapshot(&document), snapshot(&other));
+                assert_eq!(after, before, "failed edit {error:?} changed a tree");
             }
         }
         let stale: Vec<_> = handles
@@ -159,6 +196,32 @@ pub fn exercise(input: &[u8]) {
             assert_eq!(error.kind, EditErrorKind::InvalidHandle);
         }
         check(&document, &handles);
+        check(&other, &others);
+    }
+}
+
+/// A fresh copy is detached, has no source range, resolves every name
+/// within itself and, deep and without expanded references, saves as its
+/// source subtree does (`save` declares a subtree's missing namespaces on
+/// its root, where a copy declares them).
+fn copied(document: &OwnedDocument, copy: OwnedNodeId, original: OwnedNode<'_>, deep: bool) {
+    let node = document.node(copy).expect("a copy is live");
+    assert!(node.parent().is_none() && node.range().is_none());
+    for element in node.descendants().filter(|node| !in_entity(*node)) {
+        let Some(name) = element.name() else {
+            continue;
+        };
+        let bound = element
+            .search_ns(name.prefix())
+            .filter(|uri| !uri.is_empty());
+        assert_eq!(bound, name.namespace(), "copied {:?}", name.qualified());
+    }
+    let expanded = original.descendants().len() != node.descendants().len();
+    if deep && !expanded {
+        let options = yaxml::save::Options::default();
+        let ours = yaxml::save::to_vec(node, &options).ok();
+        let theirs = yaxml::save::to_vec(original, &options).ok();
+        assert_eq!(ours, theirs, "a copy saves as its source");
     }
 }
 

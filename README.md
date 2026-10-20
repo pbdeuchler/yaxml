@@ -6,8 +6,8 @@ dependency. This is an early implementation, not a libxml2 drop-in replacement.
 The current library parses an explicitly bounded subset: XML 1.0 Fifth Edition
 in UTF-8, UTF-16 and libxml2's built-in single-byte encodings, namespaces, attributes, predefined/numeric references, comments,
 processing instructions, CDATA, a borrowed DOM, and an owned DOM with bounded
-value edits, insertion, moves, attribute and namespace edits and permanent
-subtree removal. Internal DTD subsets
+value edits, insertion, moves, attribute and namespace edits, copies within
+and across documents and permanent subtree removal. Internal DTD subsets
 are processed (entities, attribute normalization and, on request, default
 attributes) and the declaration is reported as `Event::Doctype`; entity
 references are kept or substituted as libxml2 options select. External subsets and entities
@@ -203,9 +203,13 @@ no cumulative counters. The editor also moves nodes with libxml2's semantics
 attributes and namespace declarations, renames elements, and `compact`s edit
 garbage without renumbering handles. Every edit keeps namespace prefixes
 declared where they are used. Both DOMs offer libxml2's accessors:
-`attribute`, `content`, `path`, `base_uri`, `lang`, `space_preserve`,
-`search_ns`, `namespaces` and `previous_sibling`. Copy and adoption across
-documents remain pending.
+`attribute`, `content`, `list_string`, `path`, `base_uri`, `lang`,
+`space_preserve`, `search_ns`, `namespaces` and `previous_sibling`.
+`Editor::import` copies a node from another document (`xmlDocCopyNode`),
+`Editor::copy` within one and `OwnedDocument::try_clone` a whole document
+(`xmlCopyDoc`); copies arrive detached, with the namespaces they need declared
+on their root. Moving between documents is `import` plus `remove_subtree`,
+since a handle names one document.
 
 The `allocator_api` cargo feature (Rust 1.100) charges owned-document node
 and attribute storage to a caller's allocator:

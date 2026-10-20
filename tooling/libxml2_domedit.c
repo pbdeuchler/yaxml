@@ -1,16 +1,21 @@
 /* Fixed tree-API oracle only; Cargo never compiles or links this file.
  *
- * Reads one request per line: hex(xml) TAB hex(url) or "-" TAB operations,
- * where operations are space-separated tokens over the initial preorder
- * node list (see `walk`):
+ * Reads one request per line: hex(xml) TAB hex(url) or "-" TAB operations
+ * TAB hex(source xml) or "-", where operations are space-separated tokens
+ * over the initial preorder node lists of the document (n) and the source
+ * document (s; see `walk`):
  *   A,i,j  xmlAddChild(n[i], n[j])        B,i,j  xmlAddPrevSibling(n[i], n[j])
  *   N,i,j  xmlAddNextSibling(n[i], n[j])  U,i    xmlUnlinkNode(n[i])
  *   R,i,j  xmlReplaceNode(n[i], n[j])     T,i,h  xmlAddChild(n[i], new text h)
+ *   C,i,j,d  xmlAddChild(n[j], xmlDocCopyNode(s[i], doc, d ? 1 : 2))
+ *   c,i,j,d  xmlAddChild(n[j], xmlDocCopyNode(n[i], doc, d ? 1 : 2))
+ *   D      report xmlCopyDoc(doc, 1) instead of the document
  * The caller sends only operations yaxml accepted. Prints "ERR" when the
  * document does not parse, else "DOC" hex(xmlDocDumpMemory) and one "N" line
  * per node of the final tree: hex(xmlGetNodePath) hex(xmlNodeGetBase)
  * hex(xmlNodeGetLang) xmlNodeGetSpacePreserve hex(xmlNodeGetContent)
- * ("-" for NULL), then "END". */
+ * hex(xmlNodeListGetString(doc, node, 1)) hex(xmlNodeListGetString(doc,
+ * node, 0)) ("-" for NULL), then "END". */
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/entities.h>
@@ -40,48 +45,52 @@ static void hex(const xmlChar *s) {
     for (; *s; s++) printf("%02x", *s);
 }
 
-static xmlNodePtr *nodes;
-static size_t count, capacity;
+typedef struct { xmlNodePtr *nodes; size_t count, capacity; } List;
 
-static void keep(xmlNodePtr node) {
-    if (count == capacity) {
-        capacity = capacity ? 2 * capacity : 64;
-        nodes = realloc(nodes, capacity * sizeof *nodes);
+static void keep(List *list, xmlNodePtr node) {
+    if (list->count == list->capacity) {
+        list->capacity = list->capacity ? 2 * list->capacity : 64;
+        list->nodes = realloc(list->nodes, list->capacity * sizeof *list->nodes);
     }
-    nodes[count++] = node;
+    list->nodes[list->count++] = node;
 }
 
 /* Preorder as yaxml stores it: entity references contain their entity's
  * content, the DTD node has no children. */
-static void walk(xmlNodePtr node) {
+static void walk(List *list, xmlNodePtr node) {
     for (; node != NULL; node = node->next) {
-        keep(node);
+        keep(list, node);
         if (node->type == XML_ENTITY_REF_NODE) {
             xmlEntityPtr entity = (xmlEntityPtr)node->children;
-            if (entity != NULL) walk(entity->children);
+            if (entity != NULL) walk(list, entity->children);
         } else if (node->type == XML_ELEMENT_NODE) {
-            walk(node->children);
+            walk(list, node->children);
         }
     }
 }
 
-static void collect(xmlDocPtr doc) {
-    count = 0;
-    keep((xmlNodePtr)doc);
-    walk(doc->children);
+static void collect(List *list, xmlDocPtr doc) {
+    list->count = 0;
+    if (doc == NULL) return;
+    keep(list, (xmlNodePtr)doc);
+    walk(list, doc->children);
 }
 
-static xmlNodePtr at(char **cursor) {
+static xmlNodePtr at(List *list, char **cursor) {
     long index = strtol(*cursor, cursor, 10);
     if (**cursor == ',') (*cursor)++;
-    return index >= 0 && (size_t)index < count ? nodes[index] : NULL;
+    return index >= 0 && (size_t)index < list->count ? list->nodes[index] : NULL;
 }
 
-static void apply(xmlDocPtr doc, char *op) {
+static List nodes, sources;
+
+/* Applies one operation; returns 1 for "D". */
+static int apply(xmlDocPtr doc, char *op) {
     char kind = op[0];
     char *cursor = op + 2;
-    xmlNodePtr first = at(&cursor);
-    xmlNodePtr second = (kind == 'U' || kind == 'T') ? NULL : at(&cursor);
+    if (kind == 'D') return 1;
+    xmlNodePtr first = at(kind == 'C' ? &sources : &nodes, &cursor);
+    xmlNodePtr second = (kind == 'U' || kind == 'T') ? NULL : at(&nodes, &cursor);
     switch (kind) {
     case 'A': xmlAddChild(first, second); break;
     case 'B': xmlAddPrevSibling(first, second); break;
@@ -90,15 +99,45 @@ static void apply(xmlDocPtr doc, char *op) {
     case 'R': xmlReplaceNode(first, second); break;
     case 'T': {
         char *text = unhex(cursor);
-        xmlNodePtr node = xmlNewDocText(doc, (xmlChar *)text);
-        if (xmlAddChild(first, node) != node && node->parent == NULL) {
-            /* merged and freed by xmlAddChild */
-        }
+        /* xmlAddChild frees the node when it merges. */
+        xmlAddChild(first, xmlNewDocText(doc, (xmlChar *)text));
         free(text);
         break;
     }
+    case 'C':
+    case 'c':
+        xmlAddChild(second, xmlDocCopyNode(first, doc, atoi(cursor) ? 1 : 2));
+        break;
     default: fputs("bad op\n", stderr); exit(2);
     }
+    return 0;
+}
+
+static void report(xmlDocPtr doc) {
+    xmlChar *dump = NULL;
+    int size = 0;
+    xmlDocDumpMemory(doc, &dump, &size);
+    fputs("DOC", stdout);
+    hex(dump);
+    fputc('\n', stdout);
+    xmlFree(dump);
+    collect(&nodes, doc);
+    for (size_t i = 0; i < nodes.count; i++) {
+        xmlNodePtr node = nodes.nodes[i];
+        xmlChar *values[] = {
+            xmlGetNodePath(node), xmlNodeGetBase(doc, node), xmlNodeGetLang(node),
+            NULL, xmlNodeGetContent(node), xmlNodeListGetString(doc, node, 1),
+            xmlNodeListGetString(doc, node, 0),
+        };
+        fputs("N", stdout);
+        for (size_t v = 0; v < sizeof values / sizeof *values; v++) {
+            if (v == 3) printf(" %d", xmlNodeGetSpacePreserve(node));
+            else hex(values[v]);
+            xmlFree(values[v]);
+        }
+        fputc('\n', stdout);
+    }
+    puts("END");
 }
 
 int main(void) {
@@ -107,50 +146,41 @@ int main(void) {
     if (LIBXML_VERSION != 21504) { fputs("wrong libxml2\n", stderr); return 2; }
     while (getline(&line, &cap, stdin) > 0) {
         line[strcspn(line, "\n")] = 0;
-        char *fields[3] = {0};
+        char *fields[4] = {0};
         char *rest = line;
-        for (int i = 0; i < 3; i++) fields[i] = strsep(&rest, "\t");
+        for (int i = 0; i < 4; i++) fields[i] = strsep(&rest, "\t");
         char *xml = unhex(fields[0]);
         char *url = (fields[1] && strcmp(fields[1], "-")) ? unhex(fields[1]) : NULL;
+        char *source_xml = (fields[3] && strcmp(fields[3], "-")) ? unhex(fields[3]) : NULL;
         xmlDocPtr doc = xmlReadMemory(xml, (int)strlen(xml), url, NULL, 0);
+        xmlDocPtr source = source_xml
+            ? xmlReadMemory(source_xml, (int)strlen(source_xml), NULL, NULL, 0) : NULL;
         if (doc == NULL) {
             puts("ERR");
         } else {
-            collect(doc);
+            int copy = 0;
+            collect(&nodes, doc);
+            collect(&sources, source);
             char *ops = fields[2] ? fields[2] : "";
             for (char *op = strtok(ops, " "); op; op = strtok(NULL, " "))
-                apply(doc, op);
-            xmlChar *dump = NULL;
-            int size = 0;
-            xmlDocDumpMemory(doc, &dump, &size);
-            fputs("DOC", stdout);
-            hex(dump);
-            fputc('\n', stdout);
-            xmlFree(dump);
-            collect(doc);
-            for (size_t i = 0; i < count; i++) {
-                xmlNodePtr node = nodes[i];
-                xmlChar *path = xmlGetNodePath(node);
-                xmlChar *base = xmlNodeGetBase(doc, node);
-                xmlChar *lang = xmlNodeGetLang(node);
-                xmlChar *content = xmlNodeGetContent(node);
-                fputs("N", stdout);
-                hex(path);
-                hex(base);
-                hex(lang);
-                printf(" %d", xmlNodeGetSpacePreserve(node));
-                hex(content);
-                fputc('\n', stdout);
-                xmlFree(path); xmlFree(base); xmlFree(lang); xmlFree(content);
+                copy |= apply(doc, op);
+            if (copy) {
+                xmlDocPtr clone = xmlCopyDoc(doc, 1);
+                report(clone);
+                xmlFreeDoc(clone);
+            } else {
+                report(doc);
             }
-            puts("END");
             xmlFreeDoc(doc);
         }
+        xmlFreeDoc(source);
         fflush(stdout);
         free(xml);
         free(url);
+        free(source_xml);
     }
     free(line);
-    free(nodes);
+    free(nodes.nodes);
+    free(sources.nodes);
     return 0;
 }
