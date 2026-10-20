@@ -1,6 +1,8 @@
 # Language binding boundary
 
-Status: design outline. No binding package exists yet.
+Status: the C ABI (`bindings/capi`, crate `yaxml-capi`) and a Go package over
+it (`bindings/go`) exist; see [C ABI](#c-abi) and [Go](#go). Python and Node
+adapters are not written.
 
 ## Where unsafe lives
 
@@ -10,8 +12,8 @@ PyO3 for Python, magnus or a C ABI for Ruby, napi-rs or wasm-bindgen for
 JavaScript, and cgo over a C ABI for Go. Bindings therefore live in **separate
 crates**, such as `yaxml-capi`, `yaxml-py` and `yaxml-node`, that depend on
 the safe core. The core's guarantees stay intact, and every unsafe line sits
-in one audited adapter layer. **This needs explicit owner sign-off before any
-adapter is written.**
+in one audited adapter layer. The owner approved this
+([decisions](#decisions-owner-2026-10-19)).
 
 A WebAssembly build of the safe core needs no unsafe code in yaxml. It copies
 bytes in and results out, which makes it the lowest-risk JavaScript route.
@@ -293,6 +295,244 @@ which handles died, so it is left to the adapter.
 - **iconv-only encodings** (UCS-4, UCS-2, EBCDIC and others that distro
   libxml2 builds accept through iconv) are wanted, at low priority.
 
+## C ABI
+
+`bindings/` is its own Cargo workspace (`bindings/Cargo.toml`, own
+`Cargo.lock`), so nothing it depends on reaches the core's graph. The core
+is a single package, not a workspace, so its `cargo test` never builds
+`bindings/`; its `exclude = ["/bindings"]` only keeps the bindings out of a
+published core package.
+`bindings/capi` builds `libyaxml_capi` as a cdylib, a staticlib and an rlib
+(for its Rust tests and fuzzer). The header `include/yaxml.h` is
+hand-written: smaller than a cbindgen dependency, and `tests/abi.rs` checks
+that it declares exactly the exported functions and pins every struct's size
+and key offsets, which `tests/c/abi_test.c` pins again with `_Static_assert`.
+
+```c
+#include "yaxml.h"
+
+yaxml_doc *doc;
+yaxml_error err = {0};
+if (yaxml_parse((const uint8_t *)xml, len, NULL, &doc, &err) != YAXML_OK) {
+  printf("%llu:%llu: %.*s\n", err.diagnostic.line, err.diagnostic.column,
+         (int)err.diagnostic.message.len, err.diagnostic.message.ptr);
+  yaxml_free(err.diagnostic.message.ptr);
+  return;
+}
+yaxml_node root;
+yaxml_doc_element(doc, &root, NULL);
+yaxml_xpath_value v;
+yaxml_str expr = {"//item", 6};
+if (yaxml_xpath_eval(doc, root, expr, NULL, 0, &v, &err) == YAXML_OK) {
+  for (size_t i = 0; i < v.len; i++) { /* v.items[i].node */ }
+  yaxml_free(v.items);
+}
+yaxml_doc_free(doc);
+```
+
+**Calls.** Every function returns a `yaxml_status`: `YAXML_OK` (0),
+`YAXML_NONE` (1: the node or value asked for does not exist; out-parameters
+get null values) or a negative error, stable forever:
+
+| Status | Meaning | `err->diagnostic` |
+| --- | --- | --- |
+| `ERR_NULL` -1 | a required pointer is NULL | domain 0 |
+| `ERR_ARGUMENT` -2 | invalid UTF-8, unknown enum value, `struct_size` too small or unknown nonzero trailing fields | domain 0 |
+| `ERR_HANDLE` -3 | unknown, freed, stale, foreign or forged handle or node | domain 0 |
+| `ERR_BUSY` -4 | the handle is in use (see threads) | domain 0 |
+| `ERR_POISONED` -5 | an earlier call panicked on this handle | domain 0 |
+| `ERR_PANIC` -6 | this call panicked (a yaxml bug); the handle is now poisoned | domain 0, message `internal error: ...` |
+| `ERR_XML` -7 | parse or serialization error | libxml2's: `Error::describe` against the input (parse), `ErrorKind::libxml2_code` otherwise |
+| `ERR_EDIT` -8 | editing error | domain 1000, code `YAXML_EDIT_*` (one per `EditErrorKind`), column = UTF-8 index + 1 |
+| `ERR_XPATH` -9 | XPath error | domain 12, code 1200 + `xmlXPathError`, libxml2's message (`xpath::Error::libxml2`) |
+| `ERR_SCHEMA` -10 | a schema did not compile | domain 16 (XSD), 18 (RELAX NG) or Schematron's, first error's code, every error in the message |
+| `ERR_C14N` -11 | canonicalization error | domain 21, codes 91, 1953, 1955, 1546 |
+| `ERR_CALLBACK` -12 | a callback stopped the parse or a write failed | domain 0 |
+
+`err` may be NULL. On an error it is filled (status, input byte offset of a
+parse error, diagnostic) and nothing else is written; its message is owned.
+On success it is untouched.
+
+**Handles.** `yaxml_doc*`, `yaxml_reader*`, `yaxml_push*` and
+`yaxml_schema*` are tokens, never Rust pointers: each indexes a table of live
+objects, tokens come from one counter and are never reused. A freed, stale or
+invented handle is `ERR_HANDLE`, a second free returns `ERR_HANDLE` and does
+nothing, and a handle of one type passed as another is not found. Nodes are
+values, `yaxml_node { doc, slot }` = `OwnedNodeId::parts()`, rebuilt with
+`OwnedNodeId::from_parts` and validated on every call; a removed node, a node
+of another document (including a clone) and a forged slot are `ERR_HANDLE`.
+`{0, 0}` is the null node. XPath results and C14N node-sets are
+`yaxml_xpath_item { node, type, index }`: type 0 is a tree node, 2 an
+attribute (index = position in `yaxml_node_attribute_at` order), 18 a
+namespace (index on XPath's namespace axis, 0 = `xml`).
+
+**Memory.** Strings are UTF-8 `yaxml_str { ptr, len }`, never
+NUL-terminated. In arguments, `ptr == NULL` (with `len == 0`) means absent
+where the header says so (no namespace, default prefix, document encoding).
+Results come in two kinds:
+
+- *Borrowed* `yaxml_str`: from a document they point into its string pool
+  and stay valid until the next editing call on that document or
+  `yaxml_doc_free`; from `yaxml_reader_next` until the next call on that
+  reader; in an event callback until the callback returns.
+- *Owned*: `yaxml_buffer`, every array (`yaxml_diagnostics.items`, which also
+  holds the messages, `yaxml_xpath_value.items` and `.string`) and every error
+  message. `yaxml_free(ptr)` frees each; NULL, unknown and already freed
+  pointers are ignored, so a double free on an error path is harmless. Empty
+  results are NULL and own nothing.
+
+Owned results are kept in a table until freed, so leak checkers see them as
+reachable: `yaxml_live_objects(&handles, &allocations)` counts live handles
+and unfreed allocations, and a leak test checks both are 0 at exit (the C
+test, the fuzzer and the Go tests do).
+
+**Options.** `yaxml_parse_options` and `yaxml_edit_limits` start with
+`uint32_t struct_size` (set it to `sizeof`). Fields are only appended: the
+library reads the caller's `struct_size` bytes, a smaller struct than the
+first version is `ERR_ARGUMENT`, fields the caller's header lacks keep their
+defaults, and bytes past the fields the library knows must be zero (a newer
+caller's nonzero option is refused rather than ignored). `flags` are
+libxml2's `XML_PARSE_*` values; every limit field is a `Limits`,
+`DecodeLimits` or `EditLimits` field of the same name, and 0 keeps yaxml's
+default, so a zeroed struct is the hostile-input policy. NULL options are
+the defaults. No resolver crosses the ABI: nothing external is ever loaded.
+
+**Panics and poisoning.** Every exported function runs inside
+`catch_unwind`; a panic becomes `ERR_PANIC` with the panic message. Access to
+a handle goes through a guard that marks the handle poisoned if the access
+unwinds, so later calls on it are `ERR_POISONED` while its free still works.
+Callbacks are `extern "C"` and must not unwind (a C++ exception or
+`longjmp` out of one aborts or is undefined, as for any C library).
+
+**Threads.** Any handle may be used from any thread (`OwnedDocument` is
+`Send + Sync`; the parsers are reached only through `&mut`). Each object sits
+behind a reader-writer lock taken with `try_read`/`try_write`: concurrent
+read-only calls on one document run in parallel, and a call that would wait
+(an edit during another call on the document, a callback re-entering the
+parser or document it was called from) returns `ERR_BUSY` instead, so no
+call blocks or deadlocks.
+Freeing a handle while another thread uses it is safe: the call in flight
+keeps its object alive. Borrowed strings are the caller's to synchronize
+with edits.
+
+**Functions.**
+
+| Area | Functions |
+| --- | --- |
+| Library | `yaxml_version`, `yaxml_has_feature` (`XML_WITH_*`), `yaxml_free`, `yaxml_live_objects` |
+| Documents | `yaxml_parse` (copies the input, kept for line numbers and diagnostics), `yaxml_doc_create`, `yaxml_doc_clone` (`xmlCopyDoc`), `yaxml_doc_free`, `yaxml_doc_root` (document node), `yaxml_doc_element`, `yaxml_doc_element_by_id`, `yaxml_doc_diagnostics` (`RECOVER` and `DTDVALID` diagnostics), `yaxml_doc_set_edit_limits` |
+| Nodes | `yaxml_node_kind` (`xmlElementType`), `yaxml_node_relative` (parent, first/last child, next/previous sibling), `yaxml_node_name` (also PI target, entity name), `yaxml_node_value`, `yaxml_node_content` (`xmlNodeGetContent`), `yaxml_node_path` (`xmlGetNodePath`), `yaxml_node_line` (`xmlGetLineNo`), `yaxml_node_attribute_count`/`_at`, `yaxml_node_attribute` (`xmlGetProp`), `yaxml_node_attribute_ns` (`xmlGetNsProp`), `yaxml_node_namespace_uri` (`xmlSearchNs`), `yaxml_node_namespace_prefix` (`xmlSearchNsByHref`) |
+| XPath | `yaxml_xpath_eval`: node-set, boolean, number or string, with prefix bindings |
+| Output | `yaxml_save` (`xmlSaveDoc` for the document node, else `xmlNodeDump`; `XML_SAVE_*` flags, encoding), `yaxml_save_to` (the same through a write callback, in 32 KiB chunks), `yaxml_c14n` (three modes, comments, node-set, inclusive prefixes) |
+| Validation | `yaxml_validate_dtd`, `yaxml_schema_new` (XSD, RELAX NG, Schematron; nothing referenced is loaded), `yaxml_validate`, `yaxml_schema_free`; diagnostics as `yaxml_diagnostics` arrays of `yaxml_diagnostic` (domain, code, level, line, column, message) with an `errors` count |
+| Editing | `yaxml_append_element`, `yaxml_append_leaf` (text, CDATA, comment, PI), `yaxml_set_value`, `yaxml_set_attribute`, `yaxml_remove_attribute` (`NONE` when absent), `yaxml_declare_namespace`, `yaxml_set_name`, `yaxml_set_url`, `yaxml_move` (append child, insert before/after, replace), `yaxml_unlink`, `yaxml_remove`, `yaxml_copy`, `yaxml_import` (from another document; the same one is `ERR_BUSY`), `yaxml_compact` |
+| Streaming | `yaxml_reader_new` (copies the input; `BufferedReader`), `yaxml_reader_next` (`NONE` at the end), `yaxml_reader_free`; `yaxml_push_new`, `yaxml_push_feed`, `yaxml_push_finish`, `yaxml_push_free` (`PushParser`; the callback gets a borrowed `yaxml_event` and a user pointer, and a nonzero return stops with `ERR_CALLBACK`) |
+
+`yaxml_event` carries the kind, name, value, target, system id, internal
+subset, attributes (borrowed array) and input byte range (`UINT64_MAX`
+without one); the header's kind table says which field holds what.
+
+**Unsafe code.** All of it is in `src/ffi.rs`: `slice` (pointer and length
+to a slice, after NULL, alignment and size checks), `get`, `text` (plus
+UTF-8 validation), `versioned` (the `struct_size` read), `Out::put`/`reply`
+(out-parameter writes after NULL and alignment checks), `emit` and `write`
+(callback calls), and `Send`/`Sync` for C records stored beside the strings
+they point to. Exported functions are `unsafe extern "C" fn`; each call of a
+helper carries a `// SAFETY:` comment naming the yaxml.h contract it relies
+on. The crate denies `unsafe_op_in_unsafe_fn` and clippy's
+`undocumented_unsafe_blocks` and `multiple_unsafe_ops_per_block`.
+
+**Testing.** `cargo test` in `bindings/` runs the Rust tests (every function,
+happy and sad paths, layouts, header symbols, panic poisoning, busy
+handling). `bindings/capi/tests/c/run.sh` builds `tests/c/abi_test.c`, which
+calls every function and frees everything, with
+`-fsanitize=address,undefined` and runs it (LeakSanitizer on Linux), then on
+macOS runs an uninstrumented build under `leaks --atExit`; both end with
+`yaxml_live_objects` at 0. `bindings/capi/fuzz` (cargo-fuzz, own workspace,
+nightly-2026-10-18) has the `calls` target: random call sequences through the
+exported functions with NULL out-parameters and errors, freed, stale,
+invented and cross-type handles, forged nodes, double frees, invalid UTF-8,
+truncated `struct_size`, and callbacks that stop or fail; it reads every
+returned string under ASan and checks the tables are empty after each input:
+
+```sh
+cd bindings/capi/fuzz && cargo fuzz run -O calls -- -max_total_time=600
+```
+
+Core accessors added for the ABI: `OwnedNodeId::parts`/`from_parts` (node
+handles as integers, still validated by every lookup) and
+`xpath::Error::libxml2` made public (XPath errors as libxml2's code and
+message).
+
+## Go
+
+`bindings/go` is the module `github.com/pbdeuchler/yaxml/bindings/go`
+(package `yaxml`, Go 1.26), cgo over the static library:
+
+```sh
+cargo build --release --manifest-path bindings/Cargo.toml -p yaxml-capi  # or go generate
+cd bindings/go && go test ./...
+```
+
+```go
+doc, err := yaxml.Parse(data, yaxml.WithFlags(yaxml.NoEnt))
+if err != nil {
+	var d yaxml.Diagnostic
+	errors.As(err, &d) // libxml2's domain, code, level, line, column, message
+	return err
+}
+defer doc.Close()
+root, _ := doc.Root()
+for child := range root.Children() {
+	fmt.Println(child.Name().Local, child.Text())
+}
+items, err := doc.XPath("//p:item/@id", yaxml.Namespace{Prefix: "p", URI: "urn:p"})
+out, err := doc.Save(yaxml.Format)
+```
+
+- `Parse(data, ...Option)` with `WithFlags`, `WithBase`, `WithLimits`;
+  `Create(Name)`; `Document.Close` (idempotent; `runtime.AddCleanup` frees a
+  forgotten document as a safety net), `Clone`, `Root`, `DocumentNode`,
+  `ElementByID`, `Diagnostics`, `ValidateDTD`, `XPath`, `Save`, `WriteTo`
+  (`io.WriterTo`, through the write callback), `C14N`, `Import`.
+- `Node` is a value (document plus handle): `Kind`, `Name`, `Value`, `Text`,
+  `Path`, `Line`, `Attrs`, `Attr`, `AttrNS`, `LookupNamespace`, `Parent`,
+  `FirstChild`, `LastChild`, `NextSibling`, `PreviousSibling`, `Children`
+  (`iter.Seq`), `Eval` (any XPath value), `Save`, and the edits
+  (`AppendElement`, `AppendText`, `AppendCDATA`, `AppendComment`,
+  `AppendPI`, `SetValue`, `SetAttr`, `RemoveAttr`, `Rename`, `AppendChild`,
+  `InsertBefore`, `InsertAfter`, `Replace`, `Unlink`, `Remove`, `Copy`).
+  XPath attribute results are attribute nodes (`Kind() == AttributeNode`).
+  A node of a closed document reads as empty and its edits fail.
+- `CompileSchema(XSD|RelaxNG|Schematron, data, base)`,
+  `Schema.Validate(doc)`, `Valid(diagnostics)`.
+- `NewReader(data, ...Option)` and `Reader.Next` (`io.EOF` at the end):
+  events copied into Go, names interned per reader (at most 4,096).
+- Errors are `*Error{Status, Offset, Diagnostic}`; `Unwrap` gives the
+  `Diagnostic`. `LiveObjects()` exposes `yaxml_live_objects`; `TestMain`
+  fails if a test leaks.
+- Strings are copied both ways; strings stored in structs passed to C
+  (names, XPath bindings) are pinned with `runtime.Pinner`. The tests pass
+  under `-race` and `GOEXPERIMENT=cgocheck2`.
+
+**FFI overhead** (`go test -bench . -benchmem`, `bench_test.go`; Apple M-series,
+2026-10-20, medians of 5): a cgo call costs about 37 ns, and the copy into
+Go is the rest.
+
+| Input | yaxml DOM (`Parse`+`Close`) | yaxml `Reader` (all events into Go) | `encoding/xml` `Token` loop |
+| --- | --- | --- | --- |
+| 10-byte `<r a="1"/>` | 1.39 µs, 10 allocs | 1.95 µs, 15 allocs | 0.39 µs, 10 allocs |
+| 100 KB, 1,000 namespaced items (9,003 events) | 0.70 ms (142 MB/s), 10 allocs | 2.52 ms (39 MB/s), 5,032 allocs | 1.82 ms (56 MB/s), 27,025 allocs |
+
+The DOM is one call per document, so a large document parses 2.6x faster
+than `encoding/xml` tokenizes it; a tiny one pays a fixed 1 µs (handle
+table, options, input copy, cleanup registration). The `Reader` pays a call
+and a copy per event: of its 280 ns per event, the core's `BufferedReader`
+is 90, the ABI (handle lookup, event lowering into reused buffers) 40 and
+the Go side (cgo call, string copies; names are interned) 150. Code that
+walks a parsed document or asks XPath for nodes stays on the DOM side.
+
 ## Open decisions
 
-- Packaging and CI matrices for each language.
+- Packaging and CI matrices for each language beyond the Linux CI jobs
+  (`capi`, `capi-fuzz`, `go`); a Python or Node adapter.
