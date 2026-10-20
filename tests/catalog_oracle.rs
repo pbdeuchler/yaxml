@@ -104,12 +104,20 @@ fn attribute(value: &str) -> String {
         .replace('<', "&lt;")
 }
 
-fn entry(rng: &mut Rng, depth: usize) -> String {
+/// `dump` keeps delegates and `nextCatalog`s out of groups: libxml2 stops
+/// dumping a group whose first member failed to load (docs/catalog.md).
+fn entry(rng: &mut Rng, depth: usize, dump: bool) -> String {
     let base = match rng.chance(15) {
         true => format!(" xml:base=\"{}\"", rng.pick(BASES)),
         false => String::new(),
     };
-    let (element, name, value) = match rng.below(12) {
+    let kind = rng.below(12);
+    let kind = if dump && depth > 0 && matches!(kind, 3 | 4 | 7 | 8) {
+        0
+    } else {
+        kind
+    };
+    let (element, name, value) = match kind {
         0 => ("public", "publicId", "uri"),
         1 => ("system", "systemId", "uri"),
         2 => ("rewriteSystem", "systemIdStartString", "rewritePrefix"),
@@ -126,7 +134,9 @@ fn entry(rng: &mut Rng, depth: usize) -> String {
                 " prefer='public'",
                 " prefer='bogus'",
             ][rng.below(4)];
-            let children: String = (0..rng.below(4)).map(|_| entry(rng, depth + 1)).collect();
+            let children: String = (0..rng.below(4))
+                .map(|_| entry(rng, depth + 1, dump))
+                .collect();
             return format!("<group{prefer}{base}>{children}</group>");
         }
         10 => return "<other xmlns='urn:x' uri='x'/>".into(),
@@ -151,9 +161,9 @@ fn entry(rng: &mut Rng, depth: usize) -> String {
     format!("<{element}{key} {value}=\"{}\"{base}/>", attribute(target))
 }
 
-fn xml_catalog(rng: &mut Rng) -> String {
+fn xml_catalog(rng: &mut Rng, dump: bool) -> String {
     let prefer = ["", " prefer='system'", " prefer='public'", " prefer='x'"][rng.below(4)];
-    let entries: String = (0..rng.below(14)).map(|_| entry(rng, 0)).collect();
+    let entries: String = (0..rng.below(14)).map(|_| entry(rng, 0, dump)).collect();
     let text = format!(
         "<?xml version='1.0'?>\n<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'{prefer}>{entries}</catalog>"
     );
@@ -216,6 +226,7 @@ fn decode(field: &str) -> Option<String> {
     }
 }
 
+#[derive(Debug)]
 enum Query {
     Resolve(Option<String>, Option<String>),
     Uri(String),
@@ -238,7 +249,7 @@ fn generated_catalogs_match_libxml2() {
     let directory =
         std::env::temp_dir().join(format!("yaxml-catalog-oracle-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&directory);
-    let mut rng = Rng(0x5eed);
+    let mut rng = Rng(seed(0x5eed));
     let mut input = String::new();
     let mut cases = Vec::new();
     for case in 0..CASES {
@@ -252,9 +263,9 @@ fn generated_catalogs_match_libxml2() {
                 write(name, sgml_catalog(&mut rng));
             }
         } else {
-            write("root.xml", xml_catalog(&mut rng));
+            write("root.xml", xml_catalog(&mut rng, false));
             for name in FILES {
-                write(name, xml_catalog(&mut rng));
+                write(name, xml_catalog(&mut rng, false));
             }
             write("s.sgml", "PUBLIC \"-//A//DTD X//EN\" \"s.dtd\"\n".into());
         }
@@ -323,4 +334,225 @@ fn generated_catalogs_match_libxml2() {
         mismatches.len()
     );
     assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
+}
+
+const XML_TYPES: &[&str] = &[
+    "public",
+    "system",
+    "rewriteSystem",
+    "delegatePublic",
+    "delegateSystem",
+    "uri",
+    "rewriteURI",
+    "delegateURI",
+    "nextCatalog",
+    "catalog",
+    "bogus",
+    "PUBLIC",
+];
+const SGML_TYPES: &[&str] = &[
+    "PUBLIC", "SYSTEM", "DELEGATE", "ENTITY", "DOCTYPE", "LINKTYPE", "NOTATION", "SGMLDECL",
+    "DOCUMENT", "CATALOG", "BASE", "public", "bogus",
+];
+
+#[derive(Debug)]
+enum Op {
+    Query(Query),
+    Add(&'static str, Option<String>, String),
+    Del(String),
+    Dump,
+}
+
+fn operation(rng: &mut Rng, sgml: bool) -> Op {
+    let names: Vec<&str> = [PUBLIC, SYSTEM, PREFIX, TARGET, REFS].concat();
+    match rng.below(10) {
+        0..=3 => Op::Query(query(rng)),
+        4..=6 => {
+            let kind = rng.pick(if sgml { SGML_TYPES } else { XML_TYPES });
+            let orig = (!rng.chance(10)).then(|| rng.pick(&names).to_owned());
+            Op::Add(kind, orig, rng.pick(&[TARGET, REFS].concat()).to_owned())
+        }
+        7 | 8 => Op::Del(rng.pick(&names).to_owned()),
+        _ => Op::Dump,
+    }
+}
+
+/// SGML dumps come out of a hash in unspecified order.
+fn lines(sgml: bool, dump: &str) -> Vec<String> {
+    let mut lines: Vec<String> = dump.lines().map(str::to_owned).collect();
+    if sgml {
+        lines.sort();
+    }
+    lines
+}
+
+#[test]
+fn edits_and_dumps_match_libxml2() {
+    let Some(helper) = std::env::var_os("YAXML_CATALOG_HELPER") else {
+        eprintln!("YAXML_CATALOG_HELPER unset; skipping the libxml2 differential");
+        return;
+    };
+    let directory = std::env::temp_dir().join(format!("yaxml-catalog-edit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    let mut rng = Rng(seed(0xed17));
+    let (mut input, mut cases) = (String::new(), Vec::new());
+    for case in 0..CASES {
+        let root = directory.join(format!("c{case}"));
+        std::fs::create_dir_all(root.join("sub")).unwrap();
+        let sgml = case % 4 == 3;
+        let write = |name: &str, text: String| std::fs::write(root.join(name), text).unwrap();
+        let root_name = if sgml { "root.sgml" } else { "root.xml" };
+        if sgml {
+            for name in ["root.sgml", "s.sgml", "t.sgml"] {
+                write(name, sgml_catalog(&mut rng));
+            }
+        } else {
+            for name in FILES.iter().chain(&[root_name]) {
+                write(name, xml_catalog(&mut rng, true));
+            }
+            write("s.sgml", "PUBLIC \"-//A//DTD X//EN\" \"s.dtd\"\n".into());
+        }
+        let url = format!("c{case}/{root_name}");
+        writeln!(input, "load\t{}", encode(Some(&url))).unwrap();
+        // A first lookup makes libxml2 fetch the root, as its dump needs.
+        let first = Op::Query(Query::Resolve(Some(PUBLIC[0].into()), None));
+        let ops: Vec<Op> = std::iter::once(first)
+            .chain((0..24).map(|_| operation(&mut rng, sgml)))
+            .chain([Op::Dump])
+            .collect();
+        for op in &ops {
+            match op {
+                Op::Query(Query::Resolve(public, system)) => {
+                    let (public, system) = (encode(public.as_deref()), encode(system.as_deref()));
+                    writeln!(input, "res\t{public}\t{system}").unwrap();
+                }
+                Op::Query(Query::Uri(uri)) => {
+                    writeln!(input, "uri\t{}", encode(Some(uri))).unwrap()
+                }
+                Op::Add(kind, orig, replace) => writeln!(
+                    input,
+                    "add\t{}\t{}\t{}",
+                    encode(Some(kind)),
+                    encode(orig.as_deref()),
+                    encode(Some(replace))
+                )
+                .unwrap(),
+                Op::Del(value) => writeln!(input, "del\t{}", encode(Some(value))).unwrap(),
+                Op::Dump => input.push_str("dump\n"),
+            }
+        }
+        cases.push((url, sgml, ops));
+    }
+    let _ = std::fs::write(directory.join("input.txt"), &input);
+    let limits = ProcessLimits {
+        timeout: Duration::from_secs(120),
+        max_output_bytes: 1 << 26,
+    };
+    let output = process::run_with_environment(
+        Path::new(&helper),
+        &[],
+        input.as_bytes(),
+        limits,
+        &[],
+        &[],
+        Some(&directory),
+    )
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let mut answers = stdout.lines();
+    let (mut compared, mut dumps, mut mismatches) = (0, 0, Vec::new());
+    for (url, sgml, ops) in &cases {
+        let loaded = answers.next().unwrap();
+        let resolver = FileResolver::new(&directory).unwrap();
+        let mut catalog = Catalog::load(url, Limits::default(), Box::new(resolver)).ok();
+        for (index, op) in ops.iter().enumerate() {
+            let theirs = answers.next().unwrap();
+            let Some(catalog) = catalog.as_mut() else {
+                continue;
+            };
+            assert_eq!(loaded, "OK", "{url}");
+            let (ours, theirs) = match op {
+                Op::Query(Query::Resolve(public, system)) => (
+                    format!(
+                        "{:?}",
+                        catalog.resolve(public.as_deref(), system.as_deref())
+                    ),
+                    format!("{:?}", decode(theirs)),
+                ),
+                Op::Query(Query::Uri(uri)) => (
+                    format!("{:?}", catalog.resolve_uri(uri)),
+                    format!("{:?}", decode(theirs)),
+                ),
+                Op::Add(kind, orig, replace) => {
+                    let added = catalog.add(kind, orig.as_deref(), replace);
+                    (
+                        format!("{}", if added.is_ok() { 0 } else { -1 }),
+                        theirs.to_owned(),
+                    )
+                }
+                Op::Del(value) => {
+                    let removed = catalog.remove(value);
+                    // libxml2 reports no count for XML catalogs.
+                    let ours = match sgml {
+                        true => {
+                            if removed == 1 {
+                                1
+                            } else {
+                                -1
+                            }
+                        }
+                        false => 0,
+                    };
+                    (ours.to_string(), theirs.to_owned())
+                }
+                Op::Dump => {
+                    dumps += 1;
+                    let (ours, theirs) = (
+                        lines(*sgml, &catalog.dump()),
+                        lines(*sgml, &decode(theirs).unwrap_or_default()),
+                    );
+                    let only = |from: &[String], other: &[String]| {
+                        (from.iter().filter(|line| !other.contains(line)).cloned())
+                            .collect::<Vec<_>>()
+                    };
+                    (
+                        format!("{:?}", only(&ours, &theirs)),
+                        format!("{:?}", only(&theirs, &ours)),
+                    )
+                }
+            };
+            compared += 1;
+            if ours != theirs {
+                let history = format!("{:?}", &ops[..=index]);
+                mismatches.push(format!(
+                    "{url} op {index}: yaxml {ours}, libxml2 {theirs}\n{history}"
+                ));
+            }
+        }
+    }
+    if std::env::var_os("KEEP").is_none() {
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+    eprintln!(
+        "catalog edit differential: {compared} operations ({dumps} dumps) over {CASES} catalogs, {} mismatches",
+        mismatches.len()
+    );
+    assert!(
+        mismatches.is_empty(),
+        "{}",
+        mismatches[..mismatches.len().min(20)].join("\n")
+    );
+}
+
+/// `YAXML_CATALOG_SEED` replaces a test's default seed.
+fn seed(default: u64) -> u64 {
+    std::env::var("YAXML_CATALOG_SEED")
+        .ok()
+        .and_then(|seed| seed.parse().ok())
+        .unwrap_or(default)
 }

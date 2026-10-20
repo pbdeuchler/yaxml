@@ -4,6 +4,12 @@
 //! public, `s…` system, `u…` URI, otherwise `public|system`. The resolver
 //! fails with an I/O error for `d/err`. The queries also run against
 //! `Catalog::load` of `d/0` and under small input-derived limits.
+//!
+//! Lines of the last piece starting `+` or `-` also edit the catalogs: `+type|orig|replace`
+//! adds (`orig` `-` is none), `-value` removes. The edited root catalog dumps
+//! to a catalog that loads (XML) and dumps the same once it has been loaded
+//! once; edits cleaned to absolute names against an empty catalog dump, load
+//! and answer exactly as the edited catalog.
 
 use std::sync::{Arc, Mutex};
 
@@ -128,12 +134,160 @@ fn run(
     (answers, requests)
 }
 
+/// The edit a `+` or `-` line asks for, applied; whether the catalog took it.
+fn edit(catalog: &mut Catalog, line: &str) {
+    if let Some(add) = line.strip_prefix('+') {
+        let mut fields = add.splitn(3, '|');
+        let (kind, orig, replace) = (fields.next(), fields.next(), fields.next());
+        let orig = orig.filter(|orig| *orig != "-");
+        let added = catalog.add(kind.unwrap_or(""), orig, replace.unwrap_or(""));
+        assert!(added.is_ok() || added == Err(yaxml::catalog::Error::Rejected));
+    } else if let Some(value) = line.strip_prefix('-') {
+        catalog.remove(value);
+    }
+}
+
+/// `text` restricted to characters every catalog syntax and URI takes as they are.
+fn clean(text: &str) -> String {
+    (text.chars())
+        .filter(|c| c.is_ascii_alphanumeric() || "./_-".contains(*c))
+        .take(24)
+        .collect()
+}
+
+/// An empty XML catalog and an empty SGML one.
+fn empty(sgml: bool) -> Catalog {
+    let text: &[u8] = if sgml {
+        b""
+    } else {
+        b"<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'/>"
+    };
+    Catalog::parse(
+        text,
+        Limits::DEFAULT,
+        "d/dump",
+        resolver(&[], &Log::default()),
+    )
+    .unwrap()
+}
+
+/// Edits cleaned to absolute names dump, load and answer like the edited
+/// catalog (XML: every entry type; SGML: `PUBLIC` and `SYSTEM`, the entries a
+/// catalog keeps when it loads).
+fn strict_round_trip(lines: &[&str], sgml: bool) {
+    const XML: [&str; 9] = [
+        "public",
+        "system",
+        "rewriteSystem",
+        "delegatePublic",
+        "delegateSystem",
+        "uri",
+        "rewriteURI",
+        "delegateURI",
+        "nextCatalog",
+    ];
+    let mut catalog = empty(sgml);
+    let mut names = vec!["p-//A//DTD X//EN".to_owned(), "shttp://e/x.dtd".to_owned()];
+    for (index, line) in lines.iter().enumerate() {
+        let line = if let Some(add) = line.strip_prefix('+') {
+            let mut fields = add.splitn(3, '|');
+            let kind = fields.next().unwrap_or("").len();
+            let (orig, replace) = (fields.next().unwrap_or(""), fields.next().unwrap_or(""));
+            // Loading drops an SGML `PUBLIC` that normalizes to nothing.
+            let orig = if sgml && clean(orig).is_empty() {
+                "x"
+            } else {
+                orig
+            };
+            let kind = if sgml {
+                ["PUBLIC", "SYSTEM"][kind % 2]
+            } else {
+                XML[kind % XML.len()]
+            };
+            names.push(format!("s{}", clean(orig)));
+            names.push(format!("p{}", clean(orig)));
+            names.push(format!("u{}", clean(orig)));
+            // Distinct replacements: loading drops a repeated `nextCatalog`.
+            format!(
+                "+{kind}|{}|http://h/{}-{index}",
+                clean(orig),
+                clean(replace)
+            )
+        } else {
+            format!("-{}", clean(&line[line.len().min(1)..]))
+        };
+        edit(&mut catalog, &line);
+    }
+    let dumped = catalog.dump();
+    let reloaded = Catalog::parse(
+        dumped.as_bytes(),
+        Limits::DEFAULT,
+        "d/dump",
+        resolver(&[], &Log::default()),
+    );
+    let Ok(mut reloaded) = reloaded else {
+        panic!("a dump of edits does not load: {dumped}");
+    };
+    assert_eq!(reloaded.dump(), dumped);
+    for name in names {
+        let query = query(&name);
+        let ask = |catalog: &mut Catalog| match query {
+            Query::Id(public, system) => catalog.resolve(public, system),
+            Query::Uri(uri) => catalog.resolve_uri(uri),
+        };
+        assert_eq!(ask(&mut catalog), ask(&mut reloaded), "{name} in {dumped}");
+    }
+}
+
+/// Every edit line, on the root catalog and cleaned on empty ones.
+fn editing(root: &[u8], resources: &[&[u8]], lines: &[&str]) {
+    let edits: Vec<&str> = (lines.iter().copied())
+        .filter(|line| line.starts_with(['+', '-']))
+        .take(32)
+        .collect();
+    strict_round_trip(&edits, false);
+    strict_round_trip(&edits, true);
+    let log = Log::default();
+    let Ok(mut catalog) = Catalog::parse(root, LIMITS, "d/root", resolver(resources, &log)) else {
+        return;
+    };
+    // Lookups first, so the dump sees what they loaded and what failed to.
+    lines.iter().for_each(|line| drop(ask(&mut catalog, line)));
+    edits.iter().for_each(|line| edit(&mut catalog, line));
+    let dumped = catalog.dump();
+    assert_eq!(catalog.dump(), dumped);
+    if dumped.starts_with("<?xml") {
+        // Escaping keeps any value loadable, and loading drops only what does
+        // not resolve, so a second round trip changes nothing.
+        let load = |text: &str| {
+            Catalog::parse(
+                text.as_bytes(),
+                LIMITS,
+                "d/dump",
+                resolver(&[], &Log::default()),
+            )
+        };
+        let once = load(&dumped)
+            .unwrap_or_else(|error| panic!("{error}: {dumped}"))
+            .dump();
+        assert_eq!(load(&once).unwrap().dump(), once);
+    }
+}
+
+fn ask(catalog: &mut Catalog, line: &str) -> Option<String> {
+    match query(line) {
+        Query::Id(public, system) => catalog.resolve(public, system),
+        Query::Uri(uri) => catalog.resolve_uri(uri),
+    }
+}
+
 pub fn exercise(input: &[u8]) {
     let mut pieces = input.split(|byte| *byte == 0);
     let root = pieces.next().unwrap_or_default();
     let resources: Vec<&[u8]> = pieces.collect();
     let text = String::from_utf8_lossy(resources.last().copied().unwrap_or(root));
     let lines: Vec<&str> = FIXED.iter().copied().chain(text.lines().take(32)).collect();
+    editing(root, &resources, &lines);
     let queries: Vec<Query<'_>> = lines.iter().map(|line| query(line)).collect();
     let (answers, requests) = run(Some(root), &resources, &queries, LIMITS);
     // Resolution is deterministic, lazy loading included.

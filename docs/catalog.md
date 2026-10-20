@@ -28,7 +28,12 @@ let resolver = CatalogResolver::new(catalog, Box::new(files));
   the inner resolver fetch the result, or the original URI.
 - Catalog files are requested with `ResourceKind::Catalog` through the
   catalog's own resolver, within `Limits { max_loads: 64, max_bytes: 16 MiB,
-  max_depth: 50 }`. A file over budget counts as missing.
+  max_depth: 50, max_local: 64 }`. A file over budget counts as missing.
+- `add(type, orig, replace)`, `remove(value)` and `dump()` are
+  `xmlACatalogAdd`, `xmlACatalogRemove` and `xmlACatalogDump`; see
+  [Editing and dumping](#editing-and-dumping).
+- With `CATALOG_PI`, `CatalogResolver` adds the catalogs a document names; see
+  [Document catalogs](#document-catalogs-catalog_pi).
 
 ## Behavior kept from libxml2
 
@@ -60,6 +65,94 @@ let resolver = CatalogResolver::new(catalog, Box::new(files));
   unquoted literal at end of input rejects the catalog, as libxml2 does.
   `resolve_uri` consults `SYSTEM` entries.
 
+## Editing and dumping
+
+`Catalog::add(type, orig, replace)` is `xmlACatalogAdd`. An XML catalog takes
+the element names of its entries (`public`, `system`, `rewriteSystem`,
+`delegatePublic`, `delegateSystem`, `uri`, `rewriteURI`, `delegateURI`,
+`nextCatalog`) and `catalog` (accepted, consulted by no lookup); `orig` is the
+identifier or prefix, `None` for `nextCatalog`. An entry of the same type
+whose stored name equals `orig` changes in place (a public identifier compares
+unnormalized with the normalized stored one, so `"a  b"` never updates `"a b"`,
+and a delegate that already loaded keeps its file); any other is appended to
+the root file's entries. `replace` is used as given, not resolved against the
+catalog's URL, and a delegate added this way prefers `public`. An unknown type
+is `Error::Rejected`. An SGML catalog takes its keywords (`PUBLIC`, `SYSTEM`,
+`DELEGATE`, `ENTITY`, `DOCTYPE`, `LINKTYPE`, `NOTATION`, `SGMLDECL`,
+`DOCUMENT`, `CATALOG`, `BASE`) and needs a name no entry holds; only
+`PUBLIC` and `SYSTEM` entries answer lookups, but the others take their key
+and are dumped and removed like them.
+
+`Catalog::remove(value)` is `xmlACatalogRemove`: it retires every entry of an
+XML catalog's root file whose name or target (as written) is `value`, or
+removes the SGML entry with that key, and returns how many. libxml2 returns 0
+for XML. A removed group takes its members out of the dump but not out of
+lookups.
+
+`Catalog::dump()` is `xmlACatalogDump` returning the text: an XML catalog as
+the indented catalog document with the OASIS document type declaration (entries
+as written, `group` with `id`, `xml:base` and `prefer`; removed entries and
+delegates or `nextCatalog`s whose file failed to load are left out), an SGML
+catalog as one line per entry. Attribute values escape as libxml2's do for a
+document without an encoding (non-ASCII as `&#xE9;`).
+
+Differences, each measured against the oracle:
+
+- libxml2 parses an XML catalog on the first lookup, add or removal, so dumping
+  before then prints an empty catalog; here the root file is parsed when the
+  catalog is built, and a dump always prints it. The differential looks up
+  something first.
+- libxml2 stops dumping a group when its first member is a delegate or
+  `nextCatalog` that failed to load (its dump loop meets a "catalog" entry in
+  the starting position and follows its empty child list), so the group prints
+  empty. That drops entries from a dump, which defeats dump-and-reload, so
+  members are all printed. The oracle generator keeps delegates and
+  `nextCatalog` out of groups for this reason.
+- The SGML dump is in key order; libxml2's is its hash order.
+- `remove` returns the count (above). An XML catalog cannot be created empty;
+  parse `<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog"/>`
+  (libxml2's `xmlNewCatalog(0)` makes a catalog that refuses every `add`).
+- **Declined: `xmlCatalogConvert` / `xmlConvertSGMLCatalog`.** In 2.15.4 the
+  scan passes `&catal` instead of `catal` to its callback, which reads the
+  address of a local as a catalog: on the oracle build, converting a loaded SGML
+  catalog with `PUBLIC`, `SYSTEM`, `ENTITY` and `DELEGATE` entries segfaults
+  (exit 139). The callback also returns at once when the catalog has no XML
+  part, which an SGML catalog never has, so the intended conversion moves
+  nothing either. There is nothing to match and no behavior to invent.
+- The functions on the process-wide catalog (`xmlCatalogAdd`, `xmlCatalogRemove`,
+  `xmlCatalogDump`, `xmlCatalogDumpDoc`, `xmlLoadCatalogs`, ...) have no
+  counterpart because there is no global catalog.
+
+## Document catalogs (`CATALOG_PI`)
+
+With `options::CATALOG_PI`, each `<?oasis-xml-catalog catalog="URL"?>`
+outside the DTD (prolog, content, or an entity's replacement text, as in
+libxml2's `xmlParsePI`) goes to `Resolver::catalog_pi` on every parsing surface
+(`Reader`, `PushParser`, `BufferedReader`, `TextReader`, both DOMs). The
+default ignores it, so it does something only if the caller's resolver is a
+`CatalogResolver`, which then adds the catalog as `xmlCatalogAddLocal` does:
+document catalogs are consulted in document order before the main catalog
+(`xmlResolveFromCatalog`: document identifiers, main identifiers, document URI
+rules, main URI rules), and apply to loads that happen after the instruction.
+The resolver is consumed by the parse, so the catalogs last exactly that long.
+
+Capability safety: the URL is passed unchanged (libxml2 does not resolve it
+against the document either) to the catalog's own resolver as
+`ResourceKind::Catalog`, so a root-confined `FileResolver` refuses `../x.xml`,
+absolute paths and URLs, and anything else the caller's resolver forbids fails
+the same way: the catalog is ignored from then on and lookups go on. Loads
+count against `Limits::max_loads` and `max_bytes` like every other catalog
+file, and the list stops growing at `Limits::max_local`. `NO_XXE` still stops
+every load before the resolver is asked. The syntax is `xmlParseCatalogPI`'s
+(`catalog = "URL"` or single quotes, blanks around, nothing after); anything
+else adds nothing.
+
+Tests: `tests/catalog_pi.rs` (every surface, ordering, bounds, a root-confined
+resolver, a resolver that ignores the hook) and a differential against
+`xmlReadFile` with `XML_PARSE_CATALOG_PI` (`tooling/libxml2_catalog.c`, op
+`parse`): 800 generated parses, 93 of them changed by a document catalog,
+0 mismatches (also 0 over 15 other seeds).
+
 ## Tests
 
 `tests/catalog.rs` runs libxml2's `test/catalogs` scripts through an
@@ -78,7 +171,17 @@ YAXML_CATALOG_HELPER="$PWD/target/catalog-helper" \
 It writes 400 generated catalog sets (XML with groups, bases, delegates,
 cycles, broken and truncated files; SGML with nesting) and compares 4,800
 lookups in order, so lazy loading and broken-entry state are compared too:
-0 mismatches (also 0 over four other seeds, 19,200 more lookups).
+0 mismatches (also 0 over four other seeds, 19,200 more lookups, and 0
+over eight more).
+
+The edit differential (`edits_and_dumps_match_libxml2`, same helper, ops
+`add`, `del`, `dump`) applies 24 random operations to each of 400 catalogs
+and compares return codes, lookups and dumps (SGML dumps as sorted lines):
+9,542 operations with 1,270 dumps, 0 mismatches (also 0 over 28 more seeds).
+`YAXML_CATALOG_SEED` changes the seed of either test. Writing it found two
+older differences in lookups, now fixed: a lookup with no usable identifier
+(an empty public identifier alone) loaded `nextCatalog` files, which libxml2
+does not, and an SGML `PUBLIC ""` added by `add` answered a query for `""`.
 
 ## Differences and gaps
 
@@ -91,7 +194,6 @@ lookups in order, so lazy loading and broken-entry state are compared too:
   (libxml2 skips catalogs for existing local files). Entities inside a mapped
   resource are based on the original URI, not the mapped one, because
   `Resolver` cannot report the URI it served.
-- Not ported: catalog editing and serialization (`xmlACatalogAdd/Remove/Dump`,
-  `xmlcatalog --add/--del/--create`), SGML super catalogs, `xmlCatalogConvert`
-  (its 2.15.4 implementation passes the wrong pointer), the `oasis-xml-catalog`
-  processing instruction (`XML_PARSE_CATALOG_PI`) and debugging output.
+- Not ported: SGML super catalogs (`xmlLoadSGMLSuperCatalog`),
+  `xmlCatalogIsEmpty`, `xmlCatalogConvert` (declined, above) and debugging
+  output.

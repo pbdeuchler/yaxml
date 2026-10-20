@@ -1,0 +1,713 @@
+#![forbid(unsafe_code)]
+//! `CATALOG_PI`: a document's `<?oasis-xml-catalog catalog="URL"?>` adds a
+//! catalog to a `CatalogResolver` for the rest of that parse, on every parsing
+//! surface, and never loads anything the resolver forbids. The libxml2
+//! differential (`YAXML_CATALOG_HELPER`, see docs/catalog.md) runs generated
+//! documents against `xmlReadFile` with `XML_PARSE_CATALOG_PI`.
+
+#[allow(dead_code)]
+#[path = "../examples/support/process.rs"]
+mod process;
+
+use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::io;
+use std::ops::ControlFlow;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use process::ProcessLimits;
+use yaxml::catalog::{Catalog, CatalogResolver, Limits};
+use yaxml::options::{CATALOG_PI, DTDLOAD, NO_XXE, NOENT};
+use yaxml::{
+    BufferedReader, Document, Event, FileResolver, NodeType, OwnedDocument, ParseOptions,
+    PushParser, Reader, Request, Resolver, ResourceKind, TextReader,
+};
+
+type Log = Arc<Mutex<Vec<(ResourceKind, String)>>>;
+
+/// Serves `files` by URI and records every request.
+fn served(files: &[(&str, &str)], log: &Log) -> Box<dyn Resolver> {
+    let files: HashMap<String, Vec<u8>> = files
+        .iter()
+        .map(|(uri, text)| (uri.to_string(), text.as_bytes().to_vec()))
+        .collect();
+    let log = log.clone();
+    Box::new(move |request: Request<'_>| {
+        log.lock()
+            .unwrap()
+            .push((request.kind, request.uri.to_owned()));
+        match request.uri {
+            "denied.xml" => Err(io::Error::new(io::ErrorKind::PermissionDenied, "denied")),
+            uri => Ok(files.get(uri).cloned()),
+        }
+    })
+}
+
+/// A catalog document with literal `$body` entries.
+macro_rules! catalog {
+    ($body:expr) => {
+        concat!(
+            "<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'>",
+            $body,
+            "</catalog>"
+        )
+    };
+}
+
+fn catalog_xml(body: &str) -> String {
+    format!("<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog'>{body}</catalog>")
+}
+
+/// A resolver as `Reader` and the other surfaces take it: the catalogs load
+/// through one log, the resources they map through another.
+fn resolver(main: &str, files: &[(&str, &str)], limits: Limits) -> (Box<dyn Resolver>, Log, Log) {
+    let (catalogs, resources) = (Log::default(), Log::default());
+    let catalog = Catalog::parse(
+        catalog_xml(main).as_bytes(),
+        limits,
+        "main.xml",
+        served(files, &catalogs),
+    )
+    .unwrap();
+    let resolver = CatalogResolver::new(catalog, served(files, &resources));
+    (Box::new(resolver), catalogs, resources)
+}
+
+/// Every surface that can load a DTD, over `doc`: the character data of the
+/// document, or `None` when parsing failed.
+fn text_on_every_surface(
+    doc: &str,
+    options: impl Fn() -> ParseOptions,
+) -> Vec<(&'static str, Option<String>)> {
+    let document = Document::parse_with(doc.as_bytes(), options())
+        .ok()
+        .map(|document| document.root_element().text_chunks().collect::<String>());
+    let owned = OwnedDocument::parse_with(doc.as_bytes(), options())
+        .ok()
+        .map(|document| document.root_element().text_chunks().collect::<String>());
+    let reader = (|| {
+        let mut reader = Reader::with_options(doc.as_bytes(), options()).ok()?;
+        let mut text = String::new();
+        while let Some(event) = reader.read_event().ok()? {
+            if let Event::Text(chunk) = event {
+                text.push_str(&chunk);
+            }
+        }
+        Some(text)
+    })();
+    let buffered = (|| {
+        let mut reader = BufferedReader::with_options(doc.as_bytes(), options()).ok()?;
+        let mut text = String::new();
+        while let Some((event, _)) = reader.read_event().ok()? {
+            if let Event::Text(chunk) = event {
+                text.push_str(&chunk);
+            }
+        }
+        Some(text)
+    })();
+    let push = (|| {
+        let mut parser = PushParser::with_options(options()).ok()?;
+        let mut text = String::new();
+        let mut emit = |event: &Event<'_>, _| {
+            if let Event::Text(chunk) = event {
+                text.push_str(chunk);
+            }
+            ControlFlow::Continue(())
+        };
+        // One byte at a time: a processing instruction can be split anywhere.
+        for byte in doc.as_bytes().chunks(1) {
+            parser.feed(byte, &mut emit).ok()?;
+        }
+        parser.finish(&mut emit).ok()?;
+        Some(text)
+    })();
+    let pull = (|| {
+        let mut reader = TextReader::with_options(doc.as_bytes(), options()).ok()?;
+        let mut text = String::new();
+        while reader.read().ok()? {
+            if reader.node_type() == NodeType::Text {
+                text.push_str(reader.value().unwrap_or_default());
+            }
+        }
+        Some(text)
+    })();
+    vec![
+        ("Document", document),
+        ("OwnedDocument", owned),
+        ("Reader", reader),
+        ("BufferedReader", buffered),
+        ("PushParser", push),
+        ("TextReader", pull),
+    ]
+}
+
+struct Case {
+    name: &'static str,
+    doc: &'static str,
+    /// Files served to both resolvers.
+    files: &'static [(&'static str, &'static str)],
+    /// Entries of the main (global) catalog.
+    main: &'static str,
+    flags: u32,
+    expected: Option<&'static str>,
+}
+
+const R_DTD: &str = "http://x.invalid/r.dtd";
+const C1: &str = catalog!("<system systemId='http://x.invalid/r.dtd' uri='d1.dtd'/>");
+const C2: &str = catalog!(
+    "<system systemId='http://x.invalid/r.dtd' uri='d2.dtd'/>\
+     <system systemId='http://x.invalid/y.ent' uri='y.ent'/>"
+);
+const NEXT: &str = catalog!("<nextCatalog catalog='c2.xml'/>");
+const SHARED: &[(&str, &str)] = &[
+    (R_DTD, "<!ENTITY e 'orig'>"),
+    ("c1.xml", C1),
+    ("c2.xml", C2),
+    ("next.xml", NEXT),
+    ("d1.dtd", "<!ENTITY e 'one'>"),
+    ("d2.dtd", "<!ENTITY e 'two'>"),
+    ("dmain.dtd", "<!ENTITY e 'main'>"),
+    ("x.ent", "from-x"),
+    ("y.ent", "from-y"),
+    ("http://x.invalid/x.ent", "orig-x"),
+    ("http://x.invalid/y.ent", "orig-y"),
+];
+
+#[test]
+fn a_catalog_pi_adds_a_catalog_for_the_rest_of_the_parse() {
+    let files = SHARED;
+    let cases = [
+        Case {
+            name: "before the DOCTYPE, it maps the external subset",
+            doc: "<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("one"),
+        },
+        Case {
+            name: "without the flag it is only a processing instruction",
+            doc: "<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: NOENT | DTDLOAD,
+            expected: Some("orig"),
+        },
+        Case {
+            name: "single quotes and spaces around the equals sign",
+            doc: "<?oasis-xml-catalog  catalog = 'c1.xml' ?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("one"),
+        },
+        Case {
+            name: "the first catalog that answers wins",
+            doc: "<?oasis-xml-catalog catalog=\"c2.xml\"?><?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("two"),
+        },
+        Case {
+            name: "a catalog without an answer falls through to the next one",
+            doc: "<?oasis-xml-catalog catalog=\"missing.xml\"?><?oasis-xml-catalog catalog=\"denied.xml\"?><?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("one"),
+        },
+        Case {
+            name: "document catalogs come before the main one",
+            doc: "<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "<system systemId='http://x.invalid/r.dtd' uri='dmain.dtd'/>",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("one"),
+        },
+        Case {
+            name: "the main catalog answers what they do not",
+            doc: "<?oasis-xml-catalog catalog=\"c2.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd' [<!ENTITY m SYSTEM 'http://x.invalid/m.ent'>]><r>&m;</r>",
+            files: &[("c2.xml", catalog!("")), ("mapped.ent", "main-m")],
+            main: "<system systemId='http://x.invalid/m.ent' uri='mapped.ent'/>",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("main-m"),
+        },
+        Case {
+            name: "a nextCatalog of a document catalog is followed",
+            doc: "<?oasis-xml-catalog catalog=\"next.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("two"),
+        },
+        Case {
+            name: "after the DOCTYPE, it maps external entities",
+            doc: "<!DOCTYPE r [<!ENTITY x SYSTEM 'http://x.invalid/x.ent'>]><?oasis-xml-catalog catalog=\"cx.xml\"?><r>&x;</r>",
+            files: &[
+                (
+                    "cx.xml",
+                    catalog!("<system systemId='http://x.invalid/x.ent' uri='x.ent'/>"),
+                ),
+                ("x.ent", "from-x"),
+                ("http://x.invalid/x.ent", "orig-x"),
+            ],
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("from-x"),
+        },
+        Case {
+            name: "in content, it applies only to what follows",
+            doc: "<!DOCTYPE r [<!ENTITY x SYSTEM 'http://x.invalid/x.ent'><!ENTITY y SYSTEM 'http://x.invalid/y.ent'><!ENTITY w SYSTEM 'http://x.invalid/y.ent'>]><r>&x;&y;<?oasis-xml-catalog catalog=\"c2.xml\"?>&w;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("orig-xorig-yfrom-y"),
+        },
+        Case {
+            name: "in an entity's replacement text",
+            doc: "<!DOCTYPE r [<!ENTITY p \"<?oasis-xml-catalog catalog='c2.xml'?>\"><!ENTITY y SYSTEM 'http://x.invalid/y.ent'>]><r>&p;&y;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("from-y"),
+        },
+        Case {
+            name: "syntax errors add nothing",
+            doc: "<?oasis-xml-catalog catalog=c1.xml?><?oasis-xml-catalog catalog=\"c1.xml\" x?><?oasis-xml-catalog cat=\"c1.xml\"?><?oasis-xml-catalog?><?other catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("orig"),
+        },
+        Case {
+            name: "NO_XXE loads nothing, catalogs included",
+            doc: "<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD | NO_XXE,
+            expected: Some(""),
+        },
+        Case {
+            name: "no DOCTYPE, nothing to load",
+            doc: "<?oasis-xml-catalog catalog=\"c1.xml\"?><r>text</r>",
+            files,
+            main: "",
+            flags: CATALOG_PI | NOENT | DTDLOAD,
+            expected: Some("text"),
+        },
+    ];
+    for case in cases {
+        let results = std::cell::RefCell::new(Vec::new());
+        let options = || {
+            let (resolver, catalogs, resources) =
+                resolver(case.main, case.files, Limits::default());
+            results.borrow_mut().push((catalogs, resources));
+            ParseOptions::new(case.flags).with_resolver("doc.xml", resolver)
+        };
+        for (surface, text) in text_on_every_surface(case.doc, options) {
+            assert_eq!(text.as_deref(), case.expected, "{}: {surface}", case.name);
+        }
+    }
+}
+
+#[test]
+fn document_catalogs_load_through_the_catalogs_own_resolver_only() {
+    let files = SHARED;
+    let doc = "<?oasis-xml-catalog catalog=\"c1.xml\"?><?oasis-xml-catalog catalog=\"denied.xml\"?>\
+               <!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>";
+    let (resolver, catalogs, resources) = resolver("", files, Limits::default());
+    let options =
+        ParseOptions::new(CATALOG_PI | NOENT | DTDLOAD).with_resolver("doc.xml", resolver);
+    let document = Document::parse_with(doc.as_bytes(), options).unwrap();
+    assert_eq!(
+        document.root_element().text_chunks().collect::<String>(),
+        "one"
+    );
+    // The document's URLs are requested as catalogs, as given and in order, and
+    // the first catalog's answer ends the lookup.
+    assert_eq!(
+        *catalogs.lock().unwrap(),
+        [(ResourceKind::Catalog, "c1.xml".to_owned())]
+    );
+    assert_eq!(
+        *resources.lock().unwrap(),
+        [(ResourceKind::DtdSubset, "d1.dtd".to_owned())]
+    );
+
+    // A catalog the resolver refuses is skipped: the lookup goes on.
+    let doc = "<?oasis-xml-catalog catalog=\"denied.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>";
+    let (resolver, catalogs, resources) = resolver_with("", files);
+    let options =
+        ParseOptions::new(CATALOG_PI | NOENT | DTDLOAD).with_resolver("doc.xml", resolver);
+    let document = Document::parse_with(doc.as_bytes(), options).unwrap();
+    assert_eq!(
+        document.root_element().text_chunks().collect::<String>(),
+        "orig"
+    );
+    assert_eq!(
+        *catalogs.lock().unwrap(),
+        [(ResourceKind::Catalog, "denied.xml".to_owned())]
+    );
+    assert_eq!(
+        *resources.lock().unwrap(),
+        [(ResourceKind::DtdSubset, R_DTD.to_owned())]
+    );
+}
+
+fn resolver_with(main: &str, files: &[(&str, &str)]) -> (Box<dyn Resolver>, Log, Log) {
+    resolver(main, files, Limits::default())
+}
+
+#[test]
+fn a_root_confined_resolver_keeps_a_hostile_catalog_url_out() {
+    let directory = std::env::temp_dir().join(format!("yaxml-catalog-pi-{}", std::process::id()));
+    let root = directory.join("root");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(
+        directory.join("secret.xml"),
+        catalog_xml("<system systemId='http://x.invalid/r.dtd' uri='root/d.dtd'/>"),
+    )
+    .unwrap();
+    std::fs::write(root.join("d.dtd"), "<!ENTITY e 'mapped'>").unwrap();
+    std::fs::write(root.join("r.dtd"), "<!ENTITY e 'plain'>").unwrap();
+    let doc = |url: &str| {
+        format!("<?oasis-xml-catalog catalog=\"{url}\"?><!DOCTYPE r SYSTEM 'r.dtd'><r>&e;</r>")
+    };
+    let parse = |url: &str| {
+        let files = FileResolver::new(&root).unwrap();
+        let empty = catalog_xml("");
+        let catalog = Catalog::parse(
+            empty.as_bytes(),
+            Limits::default(),
+            "main.xml",
+            Box::new(files.clone()),
+        )
+        .unwrap();
+        let resolver = CatalogResolver::new(catalog, Box::new(files));
+        let options = ParseOptions::new(CATALOG_PI | NOENT | DTDLOAD)
+            .with_resolver("doc.xml", Box::new(resolver));
+        Document::parse_with(doc(url).as_bytes(), options)
+            .map(|document| document.root_element().text_chunks().collect::<String>())
+            .ok()
+    };
+    // The catalog above the root, and absolute and remote ones, are never read.
+    for url in [
+        "../secret.xml",
+        &directory.join("secret.xml").display().to_string(),
+        "http://x.invalid/c.xml",
+        "file://host/c.xml",
+    ] {
+        assert_eq!(parse(url).as_deref(), Some("plain"), "{url}");
+    }
+    let _ = std::fs::remove_dir_all(&directory);
+}
+
+#[test]
+fn a_resolver_that_does_not_act_on_the_instruction_is_unaffected() {
+    let log = Log::default();
+    let files = SHARED;
+    let doc = "<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>";
+    let options = ParseOptions::new(CATALOG_PI | NOENT | DTDLOAD)
+        .with_resolver("doc.xml", served(files, &log));
+    let document = Document::parse_with(doc.as_bytes(), options).unwrap();
+    assert_eq!(
+        document.root_element().text_chunks().collect::<String>(),
+        "orig"
+    );
+    assert_eq!(
+        *log.lock().unwrap(),
+        [(ResourceKind::DtdSubset, R_DTD.to_owned())]
+    );
+}
+
+#[test]
+fn document_catalogs_are_bounded_by_the_loads_and_by_max_local() {
+    let files = SHARED;
+    // (limits, instructions before c1.xml, expected)
+    let cases = [
+        (Limits::DEFAULT.max_local(0), 0, "orig"),
+        (Limits::DEFAULT.max_local(1), 0, "one"),
+        (Limits::DEFAULT.max_local(1), 1, "orig"),
+        (Limits::DEFAULT.max_local(2), 1, "one"),
+        // Each missing catalog spends a load before c1.xml can be fetched.
+        (Limits::DEFAULT.max_loads(2), 2, "orig"),
+        (Limits::DEFAULT.max_loads(3), 2, "one"),
+    ];
+    for (limits, missing, expected) in cases {
+        let prologue = "<?oasis-xml-catalog catalog=\"gone.xml\"?>".repeat(missing);
+        let doc = format!(
+            "{prologue}<?oasis-xml-catalog catalog=\"c1.xml\"?><!DOCTYPE r SYSTEM 'http://x.invalid/r.dtd'><r>&e;</r>"
+        );
+        let (resolver, ..) = resolver("", files, limits);
+        let options =
+            ParseOptions::new(CATALOG_PI | NOENT | DTDLOAD).with_resolver("doc.xml", resolver);
+        let document = Document::parse_with(doc.as_bytes(), options).unwrap();
+        assert_eq!(
+            document.root_element().text_chunks().collect::<String>(),
+            expected,
+            "{limits:?} after {missing}"
+        );
+    }
+}
+
+// The differential: generated documents against libxml2's own parser.
+
+struct Rng(u64);
+
+impl Rng {
+    fn below(&mut self, n: usize) -> usize {
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (self.0 >> 33) as usize % n
+    }
+    fn pick<'a>(&mut self, items: &[&'a str]) -> &'a str {
+        items[self.below(items.len())]
+    }
+    fn chance(&mut self, percent: usize) -> bool {
+        self.below(100) < percent
+    }
+}
+
+const SYSTEMS: &[&str] = &[
+    "http://x.invalid/r.dtd",
+    "http://x.invalid/s.dtd",
+    "http://x.invalid/x.ent",
+    "http://x.invalid/y.ent",
+];
+
+fn instruction(rng: &mut Rng) -> String {
+    let target = rng.pick(&["c0.xml", "c1.xml", "c2.xml", "sub/c3.xml", "gone.xml", ""]);
+    match rng.below(14) {
+        0 => format!("<?oasis-xml-catalog catalog='{target}'?>"),
+        1 => format!("<?oasis-xml-catalog   catalog = \"{target}\"   ?>"),
+        2 => format!("<?oasis-xml-catalog catalog={target}?>"),
+        3 => format!("<?oasis-xml-catalog catalog=\"{target}\" x?>"),
+        4 => format!("<?oasis-xml-catalog cat=\"{target}\"?>"),
+        5 => format!("<?oasis-xml-catalogs catalog=\"{target}\"?>"),
+        6 => "<?oasis-xml-catalog?>".into(),
+        _ => format!("<?oasis-xml-catalog catalog=\"{target}\"?>"),
+    }
+}
+
+/// What `system` maps to in catalog `which`: DTDs (which say which catalog won
+/// by the value of `e`) for subsets, text for entities.
+fn target(rng: &mut Rng, system: &str) -> &'static str {
+    match (system.ends_with(".dtd"), rng.below(3)) {
+        (true, 0) => "d0",
+        (true, 1) => "d1",
+        (true, _) => "d2",
+        (false, 0) => "t0",
+        (false, 1) => "t1",
+        (false, _) => "t2",
+    }
+}
+
+fn catalog_body(rng: &mut Rng, files: usize) -> String {
+    (0..1 + rng.below(5))
+        .map(|_| {
+            let system = rng.pick(SYSTEMS);
+            match rng.below(9) {
+                0..=2 => format!(
+                    "<system systemId='{system}' uri='{}'/>",
+                    target(rng, system)
+                ),
+                3 => format!(
+                    "<rewriteSystem systemIdStartString='http://x.invalid/' rewritePrefix='{}'/>",
+                    rng.pick(&["m", "sub/m"])
+                ),
+                4 | 5 => format!("<nextCatalog catalog='c{}.xml'/>", rng.below(files)),
+                6 => format!("<uri name='{system}' uri='{}'/>", target(rng, system)),
+                7 => format!(
+                    "<delegateSystem systemIdStartString='http://x.invalid/{}' catalog='c{}.xml'/>",
+                    rng.pick(&["", "r", "x"]),
+                    rng.below(files)
+                ),
+                _ => "<system systemId='nothing' uri='nowhere'/>".into(),
+            }
+        })
+        .collect()
+}
+
+fn encode(value: &str) -> String {
+    value.bytes().fold(String::new(), |mut out, byte| {
+        write!(out, "{byte:02x}").unwrap();
+        out
+    })
+}
+
+fn decode(field: &str) -> Option<String> {
+    match field {
+        "-" => None,
+        "0" => Some(String::new()),
+        _ => Some(
+            String::from_utf8(
+                (0..field.len() / 2)
+                    .map(|i| u8::from_str_radix(&field[2 * i..2 * i + 2], 16).unwrap())
+                    .collect(),
+            )
+            .unwrap(),
+        ),
+    }
+}
+
+#[test]
+fn catalog_pi_matches_libxml2() {
+    let Some(helper) = std::env::var_os("YAXML_CATALOG_HELPER") else {
+        eprintln!("YAXML_CATALOG_HELPER unset; skipping the libxml2 differential");
+        return;
+    };
+    let seed = std::env::var("YAXML_CATALOG_SEED")
+        .ok()
+        .and_then(|seed| seed.parse().ok());
+    let mut rng = Rng(seed.unwrap_or(0x91));
+    let directory =
+        std::env::temp_dir().join(format!("yaxml-catalog-pi-oracle-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    const CASES: usize = 400;
+    let (mut input, mut cases) = (String::new(), Vec::new());
+    for case in 0..CASES {
+        let root = directory.join(format!("p{case}"));
+        std::fs::create_dir_all(root.join("sub")).unwrap();
+        let write = |name: &str, text: String| std::fs::write(root.join(name), text).unwrap();
+        for index in 0..3 {
+            write(
+                &format!("c{index}.xml"),
+                catalog_xml(&catalog_body(&mut rng, 3)),
+            );
+        }
+        write("sub/c3.xml", catalog_xml(&catalog_body(&mut rng, 3)));
+        // The mapped DTDs tell by the value of `e` which catalog won.
+        for (name, value) in [("d0", "d0"), ("d1", "d1"), ("d2", "d2")] {
+            write(name, format!("<!ENTITY e '{value}'>"));
+        }
+        for name in ["t0", "t1", "t2"] {
+            write(name, format!("text-{name}"));
+        }
+        for dir in ["", "sub/"] {
+            write(&format!("{dir}mr.dtd"), format!("<!ENTITY e '{dir}mr'>"));
+            write(&format!("{dir}ms.dtd"), format!("<!ENTITY e '{dir}ms'>"));
+            write(&format!("{dir}mx.ent"), format!("{dir}mx"));
+            write(&format!("{dir}my.ent"), format!("{dir}my"));
+        }
+        // A prologue instruction, the DOCTYPE, instructions between it and the root, content.
+        let mut doc = String::new();
+        (0..rng.below(4)).for_each(|_| doc.push_str(&instruction(&mut rng)));
+        let system = rng.pick(&SYSTEMS[..2]);
+        let subset = match rng.below(3) {
+            0 => String::new(),
+            1 => " [<!ENTITY x SYSTEM 'http://x.invalid/x.ent'><!ENTITY y SYSTEM 'http://x.invalid/y.ent'>]".into(),
+            _ => " [<!ENTITY p \"<?oasis-xml-catalog catalog='c1.xml'?>\">\
+                    <!ENTITY x SYSTEM 'http://x.invalid/x.ent'><!ENTITY y SYSTEM 'http://x.invalid/y.ent'>]"
+                .into(),
+        };
+        let external = match rng.chance(85) {
+            true => format!(" SYSTEM '{system}'"),
+            false => String::new(),
+        };
+        write!(doc, "<!DOCTYPE r{external}{subset}>").unwrap();
+        (0..rng.below(2)).for_each(|_| doc.push_str(&instruction(&mut rng)));
+        doc.push_str("<r>");
+        for _ in 0..rng.below(7) {
+            match rng.below(5) {
+                0 => doc.push_str("&e;"),
+                1 => doc.push_str("&x;"),
+                2 => doc.push_str("&y;"),
+                3 => doc.push_str(&instruction(&mut rng)),
+                _ => doc.push_str("&p;"),
+            }
+        }
+        doc.push_str("</r>");
+        write("doc.xml", doc.clone());
+        writeln!(input, "cd\t{}", encode(&root.display().to_string())).unwrap();
+        for flag in [0, 1] {
+            writeln!(
+                input,
+                "parse\t{}\t{}",
+                encode("doc.xml"),
+                encode(&flag.to_string())
+            )
+            .unwrap();
+        }
+        cases.push((case, doc));
+    }
+    let limits = ProcessLimits {
+        timeout: Duration::from_secs(120),
+        max_output_bytes: 1 << 24,
+    };
+    let output = process::run_with_environment(
+        Path::new(&helper),
+        &[],
+        input.as_bytes(),
+        limits,
+        &[],
+        &[],
+        Some(&directory),
+    )
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let mut answers = stdout.lines();
+    let (mut compared, mut mapped, mut mismatches) = (0, 0, Vec::new());
+    for (case, doc) in &cases {
+        let root = directory.join(format!("p{case}"));
+        assert_eq!(answers.next(), Some("OK"));
+        let mut without = None;
+        for flag in [0, 1] {
+            let theirs = match answers.next().unwrap() {
+                "ERR" => None,
+                hex => decode(hex),
+            };
+            let files = FileResolver::new(&root).unwrap();
+            let empty = catalog_xml("");
+            let global = Catalog::parse(
+                empty.as_bytes(),
+                Limits::default(),
+                "none.xml",
+                Box::new(files.clone()),
+            )
+            .unwrap();
+            // What libxml2 cannot fetch (nothing speaks HTTP) is a missing file.
+            let mut local = files.clone();
+            let inner = move |request: Request<'_>| match request.uri.starts_with("http:") {
+                true => Ok(None),
+                false => local.resolve(request),
+            };
+            let resolver = CatalogResolver::new(global, Box::new(inner));
+            let flags = NOENT | DTDLOAD | if flag == 1 { CATALOG_PI } else { 0 };
+            let options = ParseOptions::new(flags).with_resolver("doc.xml", Box::new(resolver));
+            let ours = Document::parse_with(doc.as_bytes(), options)
+                .ok()
+                .map(|document| document.root_element().text_chunks().collect::<String>());
+            compared += 1;
+            // A parse the instructions changed was mapped by a document catalog.
+            mapped += usize::from(flag == 1 && theirs != without);
+            without = theirs.clone();
+            if ours != theirs {
+                mismatches.push(format!(
+                    "p{case} pi={flag}: yaxml {ours:?}, libxml2 {theirs:?}\n{doc}"
+                ));
+            }
+        }
+    }
+    if std::env::var_os("KEEP").is_none() {
+        let _ = std::fs::remove_dir_all(&directory);
+    }
+    eprintln!(
+        "catalog PI differential: {compared} parses over {CASES} documents, {mapped} through a document catalog, {} mismatches",
+        mismatches.len()
+    );
+    assert!(
+        mismatches.is_empty(),
+        "{}",
+        mismatches[..mismatches.len().min(10)].join("\n")
+    );
+}
