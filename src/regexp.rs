@@ -15,9 +15,11 @@
 //! # Ok::<(), yaxml::regexp::Error>(())
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, TryReserveError};
 use std::fmt;
 use std::sync::Mutex;
+
+use crate::fallible::{TryPush, collected, copied};
 
 pub(crate) mod unicode;
 
@@ -67,6 +69,8 @@ pub enum Error {
     },
     /// The automaton would exceed the compile budget.
     TooComplex,
+    /// An allocation the pattern sized failed.
+    Allocation,
 }
 
 impl fmt::Display for Error {
@@ -76,11 +80,18 @@ impl fmt::Display for Error {
                 write!(f, "invalid regular expression at byte {offset}: {message}")
             }
             Self::TooComplex => f.write_str("regular expression exceeds the compile budget"),
+            Self::Allocation => f.write_str("regular expression allocation failed"),
         }
     }
 }
 
 impl std::error::Error for Error {}
+
+impl From<TryReserveError> for Error {
+    fn from(_: TryReserveError) -> Self {
+        Self::Allocation
+    }
+}
 
 /// A compiled pattern.
 pub struct Regex {
@@ -113,7 +124,7 @@ impl Regex {
             return parser.fail("extra characters");
         }
         Ok(Self {
-            pattern: pattern.into(),
+            pattern: copied(pattern)?.into(),
             nfa: Box::new(Nfa::compile(&root, &parser.atoms, parser.budget)?),
             cache: Mutex::default(),
         })
@@ -330,7 +341,7 @@ impl Parser<'_> {
         let mut branches = vec![self.branch()?];
         while self.cur() == b'|' {
             self.pos += 1;
-            branches.push(self.branch()?);
+            branches.try_push(self.branch()?)?;
         }
         Ok(match branches.len() {
             1 => branches.pop().expect("one branch"),
@@ -342,7 +353,7 @@ impl Parser<'_> {
     fn branch(&mut self) -> Result<Node, Error> {
         let mut pieces = Vec::new();
         while let Some(atom) = self.piece()? {
-            pieces.push(self.quantifier(atom)?);
+            pieces.try_push(self.quantifier(atom)?)?;
         }
         Ok(Node::Seq(pieces))
     }
@@ -646,10 +657,11 @@ struct Nfa {
 
 impl Nfa {
     fn compile(root: &Node, atoms: &[Set], mut budget: usize) -> Result<Self, Error> {
-        let mut starts: Vec<u32> = std::iter::once(0)
-            .chain(atoms.iter().flatten().flat_map(|&(lo, hi)| [lo, hi + 1]))
-            .filter(|&c| c <= MAX_CHAR)
-            .collect();
+        let mut starts = collected(
+            std::iter::once(0)
+                .chain(atoms.iter().flatten().flat_map(|&(lo, hi)| [lo, hi + 1]))
+                .filter(|&c| c <= MAX_CHAR),
+        )?;
         starts.sort_unstable();
         starts.dedup();
         let class = |c: u32| (starts.partition_point(|&s| s <= c) - 1) as u32;
@@ -674,7 +686,7 @@ impl Nfa {
 
     fn push(&mut self, inst: Inst, budget: &mut usize) -> Result<u32, Error> {
         *budget = budget.checked_sub(1).ok_or(Error::TooComplex)?;
-        self.insts.push(inst);
+        self.insts.try_push(inst)?;
         Ok(self.insts.len() as u32 - 1)
     }
 

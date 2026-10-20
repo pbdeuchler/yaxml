@@ -9,7 +9,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::components::Sym;
-use super::model::{Atom, Kind, Matched, Node};
+use super::model::{Atom, Kind, Matched, Node, TooComplex};
+use crate::fallible::{TryPush, collected};
 
 #[derive(Clone, Copy, Debug)]
 struct Trans {
@@ -48,10 +49,6 @@ struct State {
     reached: Mark,
 }
 
-/// Construction ran out of budget.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct TooComplex;
-
 struct Automaton {
     states: Vec<Option<State>>,
     atoms: Vec<Atom>,
@@ -64,7 +61,7 @@ const UNBOUNDED: Option<u32> = None;
 
 impl Automaton {
     fn charge(&mut self, work: usize) -> Result<(), TooComplex> {
-        self.budget = self.budget.checked_sub(work).ok_or(TooComplex)?;
+        self.budget = self.budget.checked_sub(work).ok_or(TooComplex::Work)?;
         Ok(())
     }
 
@@ -78,7 +75,7 @@ impl Automaton {
 
     fn push_state(&mut self) -> Result<usize, TooComplex> {
         self.charge(1)?;
-        self.states.push(Some(State {
+        self.states.try_push(Some(State {
             kind: Type::Transition,
             trans: Vec::new(),
             live: HashSet::new(),
@@ -86,7 +83,7 @@ impl Automaton {
             mark: Mark::Normal,
             markd: false,
             reached: Mark::Normal,
-        }));
+        }))?;
         Ok(self.states.len() - 1)
     }
 
@@ -102,16 +99,17 @@ impl Automaton {
         self.charge(1)?;
         let to_i = to as i64;
         let state = self.state_mut(from);
+        state.live.try_reserve(1)?;
         if !state.live.insert((atom, to_i, counter, count)) {
             return Ok(());
         }
-        state.trans.push(Trans {
+        state.trans.try_push(Trans {
             atom,
             to: to_i,
             counter,
             count,
-        });
-        self.state_mut(to).trans_to.push(from);
+        })?;
+        self.state_mut(to).trans_to.try_push(from)?;
         Ok(())
     }
 
@@ -148,7 +146,7 @@ impl Automaton {
         to: Option<usize>,
         atom: Atom,
     ) -> Result<usize, TooComplex> {
-        self.atoms.push(atom);
+        self.atoms.try_push(atom)?;
         let atom = self.atoms.len() - 1;
         let to = match to {
             Some(to) => to,
@@ -681,6 +679,7 @@ impl Automaton {
             };
             self.charge(count)?;
             let mut last: HashMap<(Key, i64, i64, i64), usize> = HashMap::new();
+            last.try_reserve(count)?;
             for i in 0..count {
                 let t = self.state(id).trans[i];
                 let Some(atom) = t.atom else { continue };
@@ -702,21 +701,24 @@ impl Automaton {
             let Some(state) = &self.states[id] else {
                 continue;
             };
-            let live: Vec<(usize, Trans)> = state
-                .trans
-                .iter()
-                .copied()
-                .enumerate()
-                .filter(|(_, t)| t.to >= 0)
-                .collect();
+            let live = collected(
+                state
+                    .trans
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|(_, t)| t.to >= 0),
+            )?;
             let mut named: HashMap<Key, Vec<Trans>> = HashMap::new();
             let mut wild = Vec::new();
+            named.try_reserve(live.len())?;
+            wild.try_reserve(live.len())?;
             for (k, &(_, t)) in live.iter().enumerate() {
                 let Some(atom) = t.atom.map(|a| self.atoms[a]) else {
                     continue;
                 };
                 match !atom.negated && atom.local.is_some() && atom.ns != Some(None) {
-                    true => named.entry(key(&atom)).or_default().push(t),
+                    true => named.entry(key(&atom)).or_default().try_push(t)?,
                     false => wild.push(k),
                 }
             }
@@ -782,7 +784,7 @@ pub(crate) fn deterministic(
     let mut shadowed = Vec::new();
     let result = automaton.deterministic(&mut shadowed)?;
     if automaton.budget == 0 {
-        return Err(TooComplex);
+        return Err(TooComplex::Work);
     }
     *budget = automaton.budget;
     Ok((result, shadowed))

@@ -9,6 +9,7 @@ use super::encoding::{content_charset, encode, output};
 use super::tables;
 use super::tokenizer::blank;
 use crate::encoding::Output;
+use crate::fallible::Memory;
 use crate::save::CHUNK;
 use crate::{
     Doctype, Error, ErrorKind, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, WriteError,
@@ -44,11 +45,12 @@ pub(crate) fn save_node(
 }
 
 fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
-    let mut bytes = Vec::new();
+    let mut bytes = Memory::default();
     match dump(node, format, encoding, &mut bytes) {
-        Ok(()) => Ok(bytes),
+        Ok(()) => Ok(bytes.0),
         Err(WriteError::Xml(error)) => Err(error),
-        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::Allocation, bytes.len())),
+        // Memory fails only to grow.
+        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::Allocation, bytes.0.len())),
     }
 }
 
@@ -90,6 +92,10 @@ struct Dumper<'a> {
     encoding: Option<&'a str>,
     /// The head that received a generated `<meta charset>`.
     meta_head: Option<OwnedNodeId>,
+}
+
+fn refused() -> WriteError {
+    WriteError::Xml(Error::new(ErrorKind::Allocation, 0))
 }
 
 fn element_name<'a>(node: OwnedNode<'a>) -> Option<&'a str> {
@@ -167,8 +173,20 @@ fn meta_encoding(node: OwnedNode<'_>) -> Option<(usize, usize, usize)> {
 
 impl Dumper<'_> {
     fn write(&mut self, text: &str) {
-        self.out.extend_from_slice(text.as_bytes());
+        if self.room(text) {
+            self.out.extend_from_slice(text.as_bytes());
+        }
         self.drain(CHUNK);
+    }
+
+    /// Room for `text` before the next drain; a refusal is an allocation
+    /// error, after which nothing reaches the sink.
+    fn room(&mut self, text: &str) -> bool {
+        let room = self.out.try_reserve(text.len()).is_ok();
+        if !room {
+            self.error.get_or_insert(refused());
+        }
+        room
     }
 
     /// Encodes and writes the buffered output once it holds `threshold`
@@ -176,6 +194,17 @@ impl Dumper<'_> {
     /// non-ASCII byte and calls `write` only for ASCII.
     fn drain(&mut self, threshold: usize) {
         if self.out.len() < threshold {
+            return;
+        }
+        // A character reference or entity is at most 5 bytes per input byte.
+        let width = if self.output == Some(Output::Utf8) {
+            1
+        } else {
+            5
+        };
+        if self.encoded.try_reserve(width * self.out.len()).is_err() {
+            self.out.clear();
+            self.error.get_or_insert(refused());
             return;
         }
         encode(self.output, &self.out, &mut self.encoded);
@@ -190,6 +219,9 @@ impl Dumper<'_> {
 
     /// `xmlSerializeText` with the HTML tables: `&`, `<`, `>`, and `"` in attributes.
     fn escape(&mut self, text: &str, attribute: bool) {
+        if !self.room(text) {
+            return;
+        }
         for c in text.bytes() {
             match c {
                 b'&' => self.write("&amp;"),
@@ -207,6 +239,9 @@ impl Dumper<'_> {
     fn uri(&mut self, text: &str) {
         let rest = text.trim_start_matches(|c: char| c.is_ascii() && blank(c as u8));
         self.write(&text[..text.len() - rest.len()]);
+        if !self.room(rest) {
+            return;
+        }
         for c in rest.bytes() {
             match c {
                 0 => return,

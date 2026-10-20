@@ -39,6 +39,8 @@ pub use stream::StreamValidator;
 #[repr(u16)]
 #[non_exhaustive]
 pub enum Code {
+    /// An allocation the document sized failed; validation stopped (`XML_ERR_NO_MEMORY`).
+    Allocation = 2,
     /// An entity reference that unread declarations could have declared.
     UndeclaredEntity = 26,
     /// A parameter entity splits a declaration, group or conditional section.

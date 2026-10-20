@@ -5,9 +5,10 @@
 //! models (rejecting those that violate Unique Particle Attribution).
 //! Phases run in libxml2's order and stop at the first phase with errors.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, TryReserveError};
 use std::sync::Arc;
 
+use crate::fallible::{TryPush, collected, filled};
 use crate::schema_types::{Comparison, Facet, Type, WhiteSpace};
 
 use super::automaton;
@@ -302,54 +303,57 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
                 "Failed to locate the main schema resource.".into(),
             );
         }
-        return Err(Error {
-            diagnostics: drafts.diagnostics,
-        });
+        return Err(drafts.failure());
     }
     let mut names = std::mem::take(&mut drafts.names);
     let mut types = builtins(&mut names);
     drafts.names = names;
-    let count = drafts.types.len();
-    types.extend(drafts.types.iter().map(|draft| TypeDef {
-        name: draft.name,
-        base: ANY_TYPE,
-        derivation: draft.derivation,
-        final_: draft.final_,
-        block: draft.block,
-        abstract_: draft.abstract_,
-        kind: Kind::Complex(ComplexType {
-            content: Content::Empty,
-            attributes: Vec::new(),
-            wildcard: None,
-        }),
-    }));
-    let all = types.len();
-    let mut fix = Fix {
-        wildcards: drafts.wildcards.iter().map(|(w, _)| w.clone()).collect(),
-        elem_types: vec![ANY_TYPE; drafts.elements.len()],
-        elem_heads: vec![None; drafts.elements.len()],
-        attr_types: vec![builtin(Type::AnySimpleType); drafts.attributes.len()],
-        attr_values: vec![None; drafts.attributes.len()],
-        group_attrs: vec![None; drafts.attr_groups.len()],
-        refers: vec![None; drafts.idcs.len()],
-        redefined: vec![None; drafts.redefines.len()],
-        d: drafts,
-        limits: *limits,
-        table: Table::new(),
-        types,
-        fixed: (0..all).map(is_builtin).collect(),
-        invalid: vec![false; all],
-        bases: vec![None; all],
-        items: HashMap::new(),
-        members: HashMap::new(),
-        notations: HashSet::new(),
-        own_facets: HashMap::new(),
-        particles: HashMap::new(),
-        elem_values: Vec::new(),
-        members_of: Vec::new(),
-        model_work: limits.max_model_work,
+    let refusal = drafts.refusal();
+    // Every table sized by the components, reserved before the build fills any.
+    let fix = || -> Result<Fix, TryReserveError> {
+        types.try_reserve(drafts.types.len())?;
+        types.extend(drafts.types.iter().map(|draft| TypeDef {
+            name: draft.name,
+            base: ANY_TYPE,
+            derivation: draft.derivation,
+            final_: draft.final_,
+            block: draft.block,
+            abstract_: draft.abstract_,
+            kind: Kind::Complex(ComplexType {
+                content: Content::Empty,
+                attributes: Vec::new(),
+                wildcard: None,
+            }),
+        }));
+        let (all, elements, attributes) =
+            (types.len(), drafts.elements.len(), drafts.attributes.len());
+        Ok(Fix {
+            wildcards: collected(drafts.wildcards.iter().map(|(w, _)| w.clone()))?,
+            elem_types: filled(ANY_TYPE, elements)?,
+            elem_heads: filled(None, elements)?,
+            attr_types: filled(builtin(Type::AnySimpleType), attributes)?,
+            attr_values: filled(None, attributes)?,
+            group_attrs: filled(None, drafts.attr_groups.len())?,
+            refers: filled(None, drafts.idcs.len())?,
+            redefined: filled(None, drafts.redefines.len())?,
+            elem_values: filled(None, elements)?,
+            members_of: filled(Vec::new(), elements)?,
+            fixed: collected((0..all).map(is_builtin))?,
+            invalid: filled(false, all)?,
+            bases: filled(None, all)?,
+            d: drafts,
+            limits: *limits,
+            table: Table::new(),
+            types,
+            items: HashMap::new(),
+            members: HashMap::new(),
+            notations: HashSet::new(),
+            own_facets: HashMap::new(),
+            particles: HashMap::new(),
+            model_work: limits.max_model_work,
+        })
     };
-    fix.elem_values = vec![None; fix.d.elements.len()];
+    let mut fix = fix().map_err(|_| refusal)?;
     let any = fix.new_wildcard(Wildcard {
         ns: NsConstraint::Any,
         process: Process::Lax,
@@ -381,8 +385,6 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
         attributes: Vec::new(),
         wildcard: Some(any),
     });
-    fix.members_of = vec![Vec::new(); fix.d.elements.len()];
-    let _ = count;
     let phases: [fn(&mut Fix); 10] = [
         Fix::redefine_first,
         Fix::resolve,
@@ -398,12 +400,11 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
     for phase in phases {
         phase(&mut fix);
         if fix.d.errors() {
-            return Err(Error {
-                diagnostics: fix.d.diagnostics,
-            });
+            return Err(fix.d.failure());
         }
     }
-    Ok(fix.finish())
+    let refusal = fix.d.refusal();
+    fix.finish().map_err(|_| refusal)
 }
 
 impl Fix {
@@ -495,14 +496,21 @@ impl Fix {
                 self.bases[redefine.id] = Some(prev);
             }
         }
-        let globals: Vec<_> = self
-            .d
-            .buckets
-            .iter()
-            .flat_map(|b| b.globals.iter().copied())
-            .collect();
+        let globals = collected(
+            self.d
+                .buckets
+                .iter()
+                .flat_map(|b| b.globals.iter().copied()),
+        );
+        let Ok(globals) = globals else {
+            return self.d.refuse();
+        };
         let mut added = HashSet::new();
         for global in globals {
+            let room = added.try_reserve(1).and(self.table.try_reserve(1));
+            if room.and(self.notations.try_reserve(1)).is_err() {
+                return self.d.refuse();
+            }
             if excluded.contains(&(global.kind, global.id))
                 || !added.insert((global.kind, global.id, global.loc.doc))
             {
@@ -571,12 +579,14 @@ impl Fix {
                 None => {}
             }
         }
-        let mut items: Vec<Vec<AttrItem>> = self
-            .d
-            .types
-            .iter_mut()
-            .map(|t| std::mem::take(&mut t.attrs))
-            .collect();
+        let Ok(mut items) = collected(
+            self.d
+                .types
+                .iter_mut()
+                .map(|t| std::mem::take(&mut t.attrs)),
+        ) else {
+            return self.d.refuse();
+        };
         for list in &mut items {
             self.resolve_attr_items(list);
         }
@@ -669,26 +679,35 @@ impl Fix {
     /// `xmlSchemaResolveTypeReferences`.
     fn resolve_type(&mut self, index: usize) {
         let id = Drafts::type_id(index);
-        let draft = self.d.types[index].clone();
+        let draft = &self.d.types[index];
+        let (base, loc, shape) = (draft.base, draft.loc, draft.shape.clone());
         if self.bases[id].is_none() {
-            match draft.base {
-                Some(r) => match self.resolve_ref(r, draft.loc, "base", false) {
+            match base {
+                Some(r) => match self.resolve_ref(r, loc, "base", false) {
                     Some(base) => self.bases[id] = Some(base),
                     None => return,
                 },
                 None => return,
             }
         }
-        match draft.shape {
+        if self
+            .items
+            .try_reserve(1)
+            .and(self.members.try_reserve(1))
+            .is_err()
+        {
+            return self.d.refuse();
+        }
+        match shape {
             Shape::List(Some(item)) => {
-                if let Some(item) = self.resolve_ref(item, draft.loc, "itemType", true) {
+                if let Some(item) = self.resolve_ref(item, loc, "itemType", true) {
                     self.items.insert(id, item);
                 }
             }
             Shape::Union(members) => {
                 let resolved: Vec<_> = members
                     .into_iter()
-                    .filter_map(|m| self.resolve_ref(m, draft.loc, "memberTypes", true))
+                    .filter_map(|m| self.resolve_ref(m, loc, "memberTypes", true))
                     .collect();
                 self.members.insert(id, resolved);
             }
@@ -1042,7 +1061,7 @@ impl Fix {
 
     /// Types in an order where bases, item, member and content types come
     /// before the types depending on them (cycles are broken arbitrarily).
-    fn type_order(&self) -> Vec<TypeId> {
+    fn type_order(&self) -> Result<Vec<TypeId>, TryReserveError> {
         let deps = |id: TypeId| -> Vec<TypeId> {
             let mut deps: Vec<TypeId> = self.bases[id].into_iter().collect();
             deps.extend(self.items.get(&id));
@@ -1053,8 +1072,9 @@ impl Fix {
             deps.retain(|&d| !is_builtin(d));
             deps
         };
-        let mut state = vec![0u8; self.types.len()];
+        let mut state = filled(0u8, self.types.len())?;
         let mut order = Vec::new();
+        order.try_reserve_exact(self.types.len())?;
         for root in Drafts::FIRST_TYPE..self.types.len() {
             if state[root] != 0 {
                 continue;
@@ -1070,15 +1090,15 @@ impl Fix {
                     continue;
                 }
                 state[id] = 1;
-                stack.push((id, true));
+                stack.try_push((id, true))?;
                 for dep in deps(id) {
                     if state[dep] == 0 {
-                        stack.push((dep, false));
+                        stack.try_push((dep, false))?;
                     }
                 }
             }
         }
-        order
+        Ok(order)
     }
 
     fn variety_of(&self, ty: TypeId) -> Option<&Variety> {
@@ -1090,7 +1110,10 @@ impl Fix {
         if self.d.errors() {
             return;
         }
-        for id in self.type_order() {
+        let Ok(order) = self.type_order() else {
+            return self.d.refuse();
+        };
+        for id in order {
             if self.is_simple(id) {
                 self.fix_simple(id);
             }
@@ -1342,6 +1365,9 @@ impl Fix {
                 enumeration,
             }),
         };
+        if self.own_facets.try_reserve(1).is_err() {
+            return self.d.refuse();
+        }
         self.own_facets.insert(
             id,
             own.iter()
@@ -1435,12 +1461,16 @@ impl Fix {
         match raw.kind {
             "pattern" => match crate::regexp::Regex::new(&raw.value) {
                 Ok(regex) => Some(FacetValue::Pattern(regex)),
-                Err(_) => {
+                Err(error) => {
                     let message = format!(
                         "The value '{}' of the facet 'pattern' is not a valid regular expression.",
                         raw.value
                     );
-                    self.report(raw.loc, Code::RegexpInvalid, message);
+                    let code = match error {
+                        crate::regexp::Error::Allocation => Code::Allocation,
+                        _ => Code::RegexpInvalid,
+                    };
+                    self.report(raw.loc, code, message);
                     None
                 }
             },
@@ -1718,17 +1748,15 @@ impl Fix {
                 }
             }
         }
-        let uses: Vec<_> = self
-            .d
-            .types
-            .iter()
-            .flat_map(|t| &t.attrs)
+        let uses = (self.d.types.iter().flat_map(|t| &t.attrs))
             .chain(self.d.attr_groups.iter().flat_map(|g| &g.attrs))
             .filter_map(|item| match item {
                 AttrItem::Use(use_) => Some(use_.clone()),
                 _ => None,
-            })
-            .collect();
+            });
+        let Ok(uses) = collected(uses) else {
+            return self.d.refuse();
+        };
         for use_ in uses {
             let (Ref::Id(decl), Some((false, _))) = (use_.decl, &use_.value) else {
                 continue;
@@ -1953,7 +1981,10 @@ impl Fix {
     }
 
     fn complex_types(&mut self) {
-        for id in self.type_order() {
+        let Ok(order) = self.type_order() else {
+            return self.d.refuse();
+        };
+        for id in order {
             if !self.is_simple(id) {
                 self.fix_complex(id);
             }
@@ -2128,6 +2159,9 @@ impl Fix {
                 elements
             }
         };
+        if self.particles.try_reserve(1).is_err() {
+            return self.d.refuse();
+        }
         if let Some(particle) = particle.clone()
             && matches!(content, Content::Elements { .. })
         {
@@ -2470,7 +2504,7 @@ impl Fix {
     /// The particle tree of `particle` for the content model builders.
     fn node(&self, particle: &Particle, depth: usize) -> Result<Node, TooComplex> {
         if depth > self.limits.max_depth {
-            return Err(TooComplex);
+            return Err(TooComplex::Work);
         }
         let kind = match &particle.term {
             Term::Element(e) if !self.members_of[*e].is_empty() => NodeKind::Leaves {
@@ -2491,10 +2525,12 @@ impl Fix {
             }
             Term::Group(..) | Term::GroupDef(_) => {
                 let (compositor, children) = self.top_group(particle).expect("group");
-                let children = children
-                    .iter()
-                    .map(|child| self.node(child, depth + 1))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let mut nodes = Vec::new();
+                nodes.try_reserve_exact(children.len())?;
+                for child in children {
+                    nodes.push(self.node(child, depth + 1)?);
+                }
+                let children = nodes;
                 match compositor {
                     Compositor::Choice => NodeKind::Choice(children),
                     _ => NodeKind::Sequence(children),
@@ -2512,22 +2548,21 @@ impl Fix {
     /// deterministic.
     fn compile(&mut self, particle: &Particle) -> Result<Option<Model>, TooComplex> {
         if let Some((Compositor::All, children)) = self.top_group(particle) {
-            let items = children
-                .iter()
-                .filter(|child| child.max != Some(0))
-                .filter_map(|child| match child.term {
-                    Term::Element(e) => Some((self.leaves(e), child.min > 0)),
-                    _ => None,
-                })
-                .collect();
+            let items = collected(
+                (children.iter())
+                    .filter(|child| child.max != Some(0))
+                    .filter_map(|child| match child.term {
+                        Term::Element(e) => Some((self.leaves(e), child.min > 0)),
+                        _ => None,
+                    }),
+            )?;
             return Ok(Some(Model::All(AllGroup {
                 items,
                 optional: particle.min == 0,
             })));
         }
         let node = self.node(particle, 0)?;
-        let (deterministic, shadowed) =
-            automaton::deterministic(&node, &mut self.model_work).map_err(|_| TooComplex)?;
+        let (deterministic, shadowed) = automaton::deterministic(&node, &mut self.model_work)?;
         if !deterministic {
             return Ok(None);
         }
@@ -2536,8 +2571,9 @@ impl Fix {
 
     /// `xmlSchemaBuildContentModel` for every complex type with element content.
     fn content_models(&mut self) {
-        let ids: Vec<TypeId> = self.particles.keys().copied().collect();
-        let mut ids = ids;
+        let Ok(mut ids) = collected(self.particles.keys().copied()) else {
+            return self.d.refuse();
+        };
         ids.sort_unstable();
         for id in ids {
             let particle = self.particles[&id].clone();
@@ -2566,85 +2602,87 @@ impl Fix {
                         format!("{what}: The content model is not determinist."),
                     );
                 }
-                Err(TooComplex) => {
+                Err(TooComplex::Work) => {
                     self.report(
                         loc,
                         Code::Internal,
                         "The content model is too complex to compile within the limits.".into(),
                     );
                 }
+                Err(TooComplex::Refused) => self.d.refuse(),
             }
         }
     }
 
     // ---- assembly ----------------------------------------------------------
 
-    fn finish(self) -> Schema {
-        let elements = self
-            .d
-            .elements
-            .iter()
-            .enumerate()
-            .map(|(e, draft)| ElementDecl {
-                ty: self.elem_types[e],
-                nillable: draft.nillable,
-                abstract_: draft.abstract_,
-                value: self.elem_values[e].clone(),
-                block: draft.block,
-                idcs: draft.idcs.clone(),
-            })
-            .collect();
-        let attributes = self
-            .d
-            .attributes
-            .iter()
-            .enumerate()
-            .map(|(a, draft)| AttributeDecl {
-                name: draft.name,
-                ty: self.attr_types[a],
-                value: self.attr_values[a].clone(),
-            })
-            .collect();
-        let idcs = self
-            .d
-            .idcs
-            .iter()
-            .enumerate()
-            .map(|(i, draft)| Idc {
-                kind: draft.kind,
-                name: draft.name,
-                selector: draft.selector.clone().unwrap_or_else(|| {
-                    crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR)
-                        .expect("pattern")
-                }),
-                fields: draft.fields.clone(),
-                refer: self.refers[i],
-            })
-            .collect();
-        let pick = |kind: GlobalKind| -> HashMap<QName, usize> {
-            self.table
-                .iter()
-                .filter(|((k, _), _)| *k == kind)
-                .map(|((_, name), &id)| (*name, id))
-                .collect()
+    fn finish(self) -> Result<Schema, TryReserveError> {
+        let elements =
+            collected(
+                self.d
+                    .elements
+                    .iter()
+                    .enumerate()
+                    .map(|(e, draft)| ElementDecl {
+                        ty: self.elem_types[e],
+                        nillable: draft.nillable,
+                        abstract_: draft.abstract_,
+                        value: self.elem_values[e].clone(),
+                        block: draft.block,
+                        idcs: draft.idcs.clone(),
+                    }),
+            )?;
+        let attributes =
+            collected(
+                self.d
+                    .attributes
+                    .iter()
+                    .enumerate()
+                    .map(|(a, draft)| AttributeDecl {
+                        name: draft.name,
+                        ty: self.attr_types[a],
+                        value: self.attr_values[a].clone(),
+                    }),
+            )?;
+        let idcs = collected(self.d.idcs.iter().enumerate().map(|(i, draft)| Idc {
+            kind: draft.kind,
+            name: draft.name,
+            selector: draft.selector.clone().unwrap_or_else(|| {
+                crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR)
+                    .expect("pattern")
+            }),
+            fields: draft.fields.clone(),
+            refer: self.refers[i],
+        }))?;
+        let pick = |kind: GlobalKind| -> Result<HashMap<QName, usize>, TryReserveError> {
+            let globals = (self.table.iter()).filter(|((k, _), _)| *k == kind);
+            let mut picked = HashMap::new();
+            picked.try_reserve(globals.clone().count())?;
+            picked.extend(globals.map(|((_, name), &id)| (*name, id)));
+            Ok(picked)
         };
-        Schema {
+        let (global_elements, global_types, global_attributes) = (
+            pick(GlobalKind::Element)?,
+            pick(GlobalKind::Type)?,
+            pick(GlobalKind::Attribute)?,
+        );
+        Ok(Schema {
             data: Arc::new(Compiled {
-                global_elements: pick(GlobalKind::Element),
-                global_types: pick(GlobalKind::Type),
-                global_attributes: pick(GlobalKind::Attribute),
-                notations: self.notations.clone(),
-                names: self.d.names.clone(),
-                types: self.types.clone(),
+                global_elements,
+                global_types,
+                global_attributes,
+                notations: self.notations,
+                names: self.d.names,
+                types: self.types,
                 elements,
                 attributes,
-                wildcards: self.wildcards.clone(),
+                wildcards: self.wildcards,
                 idcs,
-                warnings: self.d.diagnostics.clone(),
+                warnings: self.d.diagnostics,
                 max_counter_vectors: self.limits.max_counter_vectors,
                 max_idc_keys: self.limits.max_idc_keys,
             }),
-        }
+        })
     }
 }
 

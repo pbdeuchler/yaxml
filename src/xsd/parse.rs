@@ -7,13 +7,14 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
+use crate::fallible::TryPush;
 use crate::name::{name_char, name_start};
 use crate::pattern::{self, Pattern};
 use crate::xpath::tree::{Item, Navigate, attributes, namespaces};
-use crate::{OwnedDocument, OwnedNodeId, Request, Resolver, ResourceKind};
+use crate::{ErrorKind, OwnedDocument, OwnedNodeId, Request, Resolver, ResourceKind};
 
 use super::components::*;
-use super::{Code, Limits, SchemaDiagnostic};
+use super::{Code, Error, Limits, SchemaDiagnostic};
 
 pub(crate) const XS: &str = "http://www.w3.org/2001/XMLSchema";
 pub(crate) const XSI: &str = "http://www.w3.org/2001/XMLSchema-instance";
@@ -253,7 +254,35 @@ impl Drafts {
     }
 
     pub(crate) fn errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| !d.code.is_warning())
+        self.names.refused || self.diagnostics.iter().any(|d| !d.code.is_warning())
+    }
+
+    /// Reports a refused allocation.
+    pub(crate) fn refuse(&mut self) {
+        self.report(None, Code::Allocation, "Memory allocation failed".into());
+    }
+
+    /// A build that failed for a refused allocation.
+    pub(crate) fn refusal(&self) -> Error {
+        let uri = self.docs.first().map(|d| d.0.clone()).unwrap_or_default();
+        Error {
+            diagnostics: vec![SchemaDiagnostic {
+                code: Code::Allocation,
+                uri,
+                offset: None,
+                message: "Memory allocation failed".into(),
+            }],
+        }
+    }
+
+    /// The failed build: every diagnostic, and a refused name table's.
+    pub(crate) fn failure(mut self) -> Error {
+        if self.names.refused {
+            self.refuse();
+        }
+        Error {
+            diagnostics: self.diagnostics,
+        }
     }
 
     /// The in-scope namespaces of a schema element.
@@ -323,40 +352,51 @@ impl Cx {
 
 /// Element children, skipping comments, PIs and blank text as libxml2's
 /// `xmlSchemaCleanupDoc` does; other text stays and fails S4S checks.
-struct Children {
-    items: Vec<Id>,
-    at: usize,
+struct Children<'t> {
+    tree: &'t OwnedDocument,
+    next: Option<Id>,
 }
 
-impl Children {
-    fn new(tree: &OwnedDocument, node: Id) -> Self {
-        let items = std::iter::successors(tree.first_child(node), |&n| tree.next_sibling(n))
-            .filter(|&child| match tree.item(child) {
+impl<'t> Children<'t> {
+    fn new(tree: &'t OwnedDocument, node: Id) -> Self {
+        let next = Self::from(tree, tree.first_child(node));
+        Self { tree, next }
+    }
+
+    /// The first child kept from `node` on.
+    fn from(tree: &OwnedDocument, node: Option<Id>) -> Option<Id> {
+        std::iter::successors(node, |&n| tree.next_sibling(n)).find(|&child| {
+            match tree.item(child) {
                 Item::Element(_) => true,
                 Item::Text(text) => !text
                     .bytes()
                     .all(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r')),
                 _ => false,
-            })
-            .collect();
-        Self { items, at: 0 }
+            }
+        })
     }
 
     fn peek(&self) -> Option<Id> {
-        self.items.get(self.at).copied()
+        self.next
+    }
+
+    /// The next child, moving past it.
+    fn bump(&mut self) -> Option<Id> {
+        let node = self.next?;
+        self.next = Self::from(self.tree, self.tree.next_sibling(node));
+        Some(node)
     }
 
     fn take(&mut self, cx: &Cx, local: &str) -> Option<Id> {
-        let next = self.peek().filter(|&node| cx.local(node) == Some(local))?;
-        self.at += 1;
-        Some(next)
+        self.peek().filter(|&node| cx.local(node) == Some(local))?;
+        self.bump()
     }
 
     fn take_any(&mut self, cx: &Cx, locals: &[&'static str]) -> Option<(Id, &'static str)> {
         let node = self.peek()?;
         let local = cx.local(node)?;
         let found = locals.iter().copied().find(|&known| known == local)?;
-        self.at += 1;
+        self.bump();
         Some((node, found))
     }
 }
@@ -454,6 +494,14 @@ impl Parser {
     fn error(&mut self, cx: &Cx, node: Id, code: Code, message: &str) {
         let text = format!("{}: {message}", cx.display(node));
         self.drafts.report(Some(cx.loc(node)), code, text);
+    }
+
+    /// Appends `item` to the drafts' `list`, returning its index; a refused
+    /// allocation is reported, failing the build, and gives `None`.
+    fn add<T>(&mut self, list: impl FnOnce(&mut Drafts) -> &mut Vec<T>, item: T) -> Option<usize> {
+        let items = list(&mut self.drafts);
+        let added = items.try_push(item).map(|()| items.len() - 1);
+        added.map_err(|_| self.drafts.refuse()).ok()
     }
 
     fn not_allowed(&mut self, cx: &Cx, node: Id, child: Id, expected: &str) {
@@ -734,11 +782,12 @@ impl Parser {
         let tree = match OwnedDocument::parse_legacy(bytes, self.limits.xml) {
             Ok(tree) => tree,
             Err(error) => {
-                report(
-                    self,
-                    Code::SrcImport2_1,
-                    format!("Failed to parse the XML resource '{uri}': {error}."),
-                );
+                let code = match error.kind {
+                    ErrorKind::Allocation => Code::Allocation,
+                    _ => Code::SrcImport2_1,
+                };
+                let message = format!("Failed to parse the XML resource '{uri}': {error}.");
+                report(self, code, message);
                 return None;
             }
         };
@@ -917,7 +966,8 @@ impl Parser {
 
     /// `xmlSchemaParseSchemaTopLevel`.
     fn top_level(&mut self, cx: &mut Cx, root: Id) {
-        let mut children = Children::new(&cx.tree, root);
+        let tree = Rc::clone(&cx.tree);
+        let mut children = Children::new(&tree, root);
         while let Some((node, kind)) =
             children.take_any(cx, &["include", "import", "redefine", "annotation"])
         {
@@ -935,8 +985,7 @@ impl Parser {
                 return;
             }
         }
-        while let Some(node) = children.peek() {
-            children.at += 1;
+        while let Some(node) = children.bump() {
             match cx.local(node) {
                 Some("complexType") => {
                     self.complex_type(cx, node, true);
@@ -964,26 +1013,33 @@ impl Parser {
 
     fn global(&mut self, cx: &Cx, kind: GlobalKind, name: QName, id: usize, node: Id) {
         let loc = cx.loc(node);
-        self.drafts.buckets[cx.bucket].globals.push(Global {
+        let global = Global {
             kind,
             name,
             id,
             loc,
-        });
+        };
+        if self
+            .add(|d| &mut d.buckets[cx.bucket].globals, global)
+            .is_none()
+        {
+            return;
+        }
         if let Some(target) = cx.redefining
             && matches!(
                 kind,
                 GlobalKind::Type | GlobalKind::Group | GlobalKind::AttrGroup
             )
         {
-            self.drafts.redefines.push(Redefine {
+            let redefine = Redefine {
                 kind,
                 id,
                 name,
                 bucket: target,
                 self_ref: false,
                 loc,
-            });
+            };
+            self.add(|d| &mut d.redefines, redefine);
         }
     }
 
@@ -1211,7 +1267,8 @@ impl Parser {
         self.check_attrs(cx, node, &["id"]);
         self.check_id(cx, node);
         let mut barked = false;
-        for child in Children::new(&cx.tree, node).items {
+        let mut children = Children::new(&cx.tree, node);
+        while let Some(child) = children.bump() {
             match cx.local(child) {
                 Some("appinfo") => self.check_attrs(cx, child, &["source"]),
                 Some("documentation") => {
@@ -1309,10 +1366,9 @@ impl Parser {
                 NsConstraint::Set(set)
             }
         };
-        self.drafts
-            .wildcards
-            .push((Wildcard { ns, process }, cx.loc(node)));
-        self.drafts.wildcards.len() - 1
+        let wildcard = (Wildcard { ns, process }, cx.loc(node));
+        // A refusal fails the build, so the index is never read.
+        self.add(|d| &mut d.wildcards, wildcard).unwrap_or_default()
     }
 
     fn any(&mut self, cx: &Cx, node: Id) -> Option<Particle> {
@@ -1582,13 +1638,14 @@ impl Parser {
                 if let Some(child) = children.peek() {
                     self.not_allowed(cx, node, child, "(annotation?, simpleType?)");
                 }
-                self.drafts.attributes.push(AttrDraft {
+                let ty = inline.map(Ref::Id).or(ty.map(Ref::Named));
+                let draft = AttrDraft {
                     name,
                     loc,
-                    ty: inline.map(Ref::Id).or(ty.map(Ref::Named)),
+                    ty,
                     value,
-                });
-                self.drafts.attributes.len() - 1
+                };
+                self.add(|d| &mut d.attributes, draft)?
             }
         };
         Some(AttrItem::Use(UseDraft {
@@ -1649,14 +1706,15 @@ impl Parser {
             self.not_allowed(cx, node, child, "(annotation?, simpleType?)");
         }
         let name = QName { ns: cx.tns, local };
-        self.drafts.attributes.push(AttrDraft {
+        let draft = AttrDraft {
             name,
             loc: cx.loc(node),
             ty: inline.map(Ref::Id).or(ty.map(Ref::Named)),
             value,
-        });
-        let id = self.drafts.attributes.len() - 1;
-        self.global(cx, GlobalKind::Attribute, name, id, node);
+        };
+        if let Some(id) = self.add(|d| &mut d.attributes, draft) {
+            self.global(cx, GlobalKind::Attribute, name, id, node);
+        }
     }
 
     fn attribute_group_ref(&mut self, cx: &Cx, node: Id) -> Option<AttrItem> {
@@ -1703,13 +1761,15 @@ impl Parser {
             return;
         };
         let name = QName { ns: cx.tns, local };
-        let id = self.drafts.attr_groups.len();
-        self.drafts.attr_groups.push(AttrGroupDraft {
+        let draft = AttrGroupDraft {
             name,
             loc: cx.loc(node),
             attrs: Vec::new(),
             wildcard: None,
-        });
+        };
+        let Some(id) = self.add(|d| &mut d.attr_groups, draft) else {
+            return;
+        };
         self.global(cx, GlobalKind::AttrGroup, name, id, node);
         self.check_attrs(cx, node, &["name", "id"]);
         self.check_id(cx, node);
@@ -1933,8 +1993,7 @@ impl Parser {
                 "(annotation?, ((simpleType | complexType)?, (unique | key | keyref)*))",
             );
         }
-        let id = self.drafts.elements.len();
-        self.drafts.elements.push(draft);
+        let id = self.add(|d| &mut d.elements, draft)?;
         if top {
             self.global(cx, GlobalKind::Element, name, id, node);
             return None;
@@ -2020,7 +2079,7 @@ impl Parser {
             {
                 if let Some(next) = children.peek() {
                     self.not_allowed(cx, node, next, expected);
-                    children.at += 1;
+                    children.bump();
                 } else {
                     self.error(
                         cx,
@@ -2037,15 +2096,15 @@ impl Parser {
         if let Some(child) = children.peek() {
             self.not_allowed(cx, node, child, expected);
         }
-        self.drafts.idcs.push(IdcDraft {
+        let draft = IdcDraft {
             kind,
             name,
             loc: cx.loc(node),
             selector,
             fields,
             refer,
-        });
-        let id = self.drafts.idcs.len() - 1;
+        };
+        let id = self.add(|d| &mut d.idcs, draft)?;
         self.global(cx, GlobalKind::Idc, name, id, node);
         Some(id)
     }
@@ -2096,7 +2155,10 @@ impl Parser {
                         );
                         particle.max = Some(1);
                     }
-                    particles.push(particle);
+                    if particles.try_push(particle).is_err() {
+                        self.drafts.refuse();
+                        return None;
+                    }
                 }
             }
             if let Some(child) = children.peek() {
@@ -2113,6 +2175,10 @@ impl Parser {
                     "choice" => self.model_group(cx, child, Compositor::Choice, true),
                     _ => self.model_group(cx, child, Compositor::Sequence, true),
                 };
+                if particles.try_reserve(1).is_err() {
+                    self.drafts.refuse();
+                    return None;
+                }
                 particles.extend(particle);
             }
             if let Some(child) = children.peek() {
@@ -2183,12 +2249,14 @@ impl Parser {
             return;
         };
         let name = QName { ns: cx.tns, local };
-        let id = self.drafts.groups.len();
-        self.drafts.groups.push(GroupDraft {
+        let draft = GroupDraft {
             name,
             loc: cx.loc(node),
             model: None,
-        });
+        };
+        let Some(id) = self.add(|d| &mut d.groups, draft) else {
+            return;
+        };
         self.global(cx, GlobalKind::Group, name, id, node);
         self.check_attrs(cx, node, &["name", "id"]);
         self.check_id(cx, node);
@@ -2219,8 +2287,8 @@ impl Parser {
 
     // ---- type definitions ----------------------------------------------------
 
-    fn new_type(&mut self, name: Option<QName>, loc: Loc, shape: Shape) -> usize {
-        self.drafts.types.push(TypeDraft {
+    fn new_type(&mut self, name: Option<QName>, loc: Loc, shape: Shape) -> Option<usize> {
+        let draft = TypeDraft {
             name,
             loc,
             shape,
@@ -2235,8 +2303,8 @@ impl Parser {
             final_: 0,
             block: 0,
             abstract_: false,
-        });
-        self.drafts.types.len() - 1
+        };
+        self.add(|d| &mut d.types, draft)
     }
 
     /// `xmlSchemaParseSimpleType`.
@@ -2268,7 +2336,7 @@ impl Parser {
                 return Some(super::components::builtin(builtin));
             }
         }
-        let index = self.new_type(name, cx.loc(node), Shape::Restriction);
+        let index = self.new_type(name, cx.loc(node), Shape::Restriction)?;
         self.check_attrs(
             cx,
             node,
@@ -2456,8 +2524,11 @@ impl Parser {
         }
         if !complex || parent == "simpleContent" {
             while let Some((child, kind)) = children.take_any(cx, &FACETS) {
-                if let Some(facet) = self.facet(cx, child, kind) {
-                    self.drafts.types[index].facets.push(facet);
+                let facet = self.facet(cx, child, kind);
+                if facet
+                    .is_some_and(|facet| self.add(|d| &mut d.types[index].facets, facet).is_none())
+                {
+                    return;
                 }
             }
         }
@@ -2589,7 +2660,7 @@ impl Parser {
             Shape::Complex {
                 simple_content: false,
             },
-        );
+        )?;
         if let Some(name) = name {
             self.global(cx, GlobalKind::Type, name, Drafts::type_id(index), node);
         }

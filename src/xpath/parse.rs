@@ -2,6 +2,7 @@
 //! vectors addressed by `u32` indices; names and literals are source spans.
 
 use super::{Error, ErrorKind, Limit, Limits};
+use crate::fallible::TryPush;
 use crate::name::{name_char, name_start};
 
 /// A half-open `u32` range into the source text, or into an AST vector.
@@ -416,10 +417,10 @@ fn lex(source: &str) -> Result<Vec<(Tok, u32)>, Error> {
                 }
             }
         };
-        tokens.push((token, i as u32));
+        tokens.try_push((token, i as u32))?;
         i = end;
     }
-    tokens.push((Tok::End, bytes.len() as u32));
+    tokens.try_push((Tok::End, bytes.len() as u32))?;
     Ok(tokens)
 }
 
@@ -493,10 +494,11 @@ impl Parser<'_> {
         Ok(())
     }
 
-    fn list(&mut self, items: &[u32]) -> Span {
+    fn list(&mut self, items: &[u32]) -> Result<Span, Error> {
         let start = self.ast.lists.len();
+        self.ast.lists.try_reserve(items.len())?;
         self.ast.lists.extend_from_slice(items);
-        span(start, self.ast.lists.len())
+        Ok(span(start, self.ast.lists.len()))
     }
 
     fn deepest(&self, list: Span) -> usize {
@@ -529,8 +531,8 @@ impl Parser<'_> {
         if children >= self.max_depth {
             return Err(self.error(ErrorKind::LimitExceeded(Limit::Depth)));
         }
-        self.depths.push(children + 1);
-        self.ast.exprs.push(expr);
+        self.depths.try_push(children + 1)?;
+        self.ast.exprs.try_push(expr)?;
         Ok((self.ast.exprs.len() - 1) as u32)
     }
 
@@ -658,7 +660,7 @@ impl Parser<'_> {
                         ..step
                     };
                 }
-                _ => steps.push(step),
+                _ => steps.try_push(step)?,
             }
             match self.peek() {
                 Tok::Slash => {
@@ -666,12 +668,13 @@ impl Parser<'_> {
                 }
                 Tok::SlashSlash => {
                     self.bump();
-                    steps.push(self_or_descendants());
+                    steps.try_push(self_or_descendants())?;
                 }
                 _ => break,
             }
         }
         let start = self.ast.steps.len();
+        self.ast.steps.try_reserve(steps.len())?;
         self.ast.steps.extend(steps);
         Ok(span(start, self.ast.steps.len()))
     }
@@ -759,10 +762,10 @@ impl Parser<'_> {
         let mut predicates = Vec::new();
         while self.peek() == Tok::LBracket {
             self.bump();
-            predicates.push(self.expr()?);
+            predicates.try_push(self.expr()?)?;
             self.expect(Tok::RBracket, ErrorKind::InvalidPredicate)?;
         }
-        Ok(self.list(&predicates))
+        self.list(&predicates)
     }
 
     fn primary(&mut self) -> Result<u32, Error> {
@@ -780,10 +783,10 @@ impl Parser<'_> {
                 self.bump();
                 let mut args = Vec::new();
                 if self.peek() != Tok::RParen {
-                    args.push(self.expr()?);
+                    args.try_push(self.expr()?)?;
                     while self.peek() == Tok::Comma {
                         self.bump();
-                        args.push(self.expr()?);
+                        args.try_push(self.expr()?)?;
                     }
                 }
                 self.expect(Tok::RParen, ErrorKind::Unclosed)?;
@@ -797,7 +800,7 @@ impl Parser<'_> {
                     Some(&(_, core, _, _)) => Function::Core(core),
                     None => Function::Extension(name),
                 };
-                let args = self.list(&args);
+                let args = self.list(&args)?;
                 self.push(Expr::Call(function, args))
             }
             _ => Err(Error::at(ErrorKind::Expression, offset)),

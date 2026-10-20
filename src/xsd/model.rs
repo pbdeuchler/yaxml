@@ -15,9 +15,10 @@
 //! Whether a model is deterministic is decided separately, as libxml2 does,
 //! by [`super::automaton`].
 
-use std::collections::HashSet;
+use std::collections::{HashSet, TryReserveError};
 
 use super::components::{ElemId, NO_NS, NsConstraint, QName, Sym, WildId};
+use crate::fallible::{TryPush, filled};
 
 /// What a position matches.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -175,9 +176,18 @@ pub(crate) enum Model {
     All(AllGroup),
 }
 
-/// Construction ran out of work budget.
+/// Construction ran out of work budget, or an allocation was refused.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct TooComplex;
+pub(crate) enum TooComplex {
+    Work,
+    Refused,
+}
+
+impl From<TryReserveError> for TooComplex {
+    fn from(_: TryReserveError) -> Self {
+        Self::Refused
+    }
+}
 
 #[derive(Default)]
 struct Fragment {
@@ -196,7 +206,7 @@ struct Builder {
 
 impl Builder {
     fn charge(&mut self, work: usize) -> Result<(), TooComplex> {
-        self.budget = self.budget.checked_sub(work).ok_or(TooComplex)?;
+        self.budget = self.budget.checked_sub(work).ok_or(TooComplex::Work)?;
         Ok(())
     }
 
@@ -208,7 +218,8 @@ impl Builder {
         bump: bool,
     ) -> Result<(), TooComplex> {
         self.charge(from.len().saturating_mul(to.len()))?;
-        let keep = u16::try_from(keep).map_err(|_| TooComplex)?;
+        let keep = u16::try_from(keep).map_err(|_| TooComplex::Work)?;
+        self.edges.try_reserve(from.len() * to.len())?;
         for &from in from {
             for &to in to {
                 self.edges.push(Edge {
@@ -224,6 +235,7 @@ impl Builder {
 
     fn join(&mut self, mut left: Vec<u32>, right: &[u32]) -> Result<Vec<u32>, TooComplex> {
         self.charge(right.len())?;
+        left.try_reserve(right.len())?;
         left.extend_from_slice(right);
         Ok(left)
     }
@@ -243,8 +255,8 @@ impl Builder {
             Kind::Abstract | Kind::Empty => whole.nullable = true,
             Kind::Leaves { leaves, .. } => {
                 for leaf in leaves {
-                    self.leaves.push(leaf.clone());
-                    self.chains.push(chain.clone());
+                    self.leaves.try_push(leaf.clone())?;
+                    self.chains.try_push(chain.clone())?;
                     let state = self.leaves.len() as u32;
                     let next = Fragment {
                         nullable: false,
@@ -295,11 +307,11 @@ impl Builder {
         let counted = min > 1 || max.is_some_and(|max| max > 1);
         if counted {
             chain.push(self.counters.len() as u32);
-            self.counters.push(Counter {
+            self.counters.try_push(Counter {
                 min,
                 max,
                 nullable: false,
-            });
+            })?;
         }
         let inner = self.term(node, chain)?;
         if max != Some(1) {
@@ -338,14 +350,14 @@ impl Graph {
         edges.sort_unstable();
         edges.dedup();
         let states = builder.leaves.len() + 1;
-        let mut offsets = vec![0u32; states + 1];
+        let mut offsets = filled(0u32, states + 1)?;
         for edge in &edges {
             offsets[edge.from as usize + 1] += 1;
         }
         for state in 0..states {
             offsets[state + 1] += offsets[state];
         }
-        let mut accepting = vec![false; states];
+        let mut accepting = filled(false, states)?;
         accepting[0] = root.nullable;
         for state in root.last {
             accepting[state as usize] = true;

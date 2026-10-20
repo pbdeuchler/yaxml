@@ -20,6 +20,7 @@ use super::{
     AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, lexical, predefined_entity,
 };
 use crate::dtd_catalog::{EntityBody, StoredDefault};
+use crate::fallible::collected;
 use crate::xpath::tree::{Item, Navigate, QName};
 
 /// An element as diagnostics name it.
@@ -86,6 +87,8 @@ pub(crate) struct Validator<Id> {
     enumerated: HashMap<(usize, usize), HashSet<Box<str>>>,
     out: Vec<Diagnostic<Id>>,
     keys: Vec<Key>,
+    /// An allocation was refused: its diagnostic is the only one kept.
+    refused: bool,
 }
 
 impl<Id: Copy> Validator<Id> {
@@ -102,6 +105,7 @@ impl<Id: Copy> Validator<Id> {
             enumerated: HashMap::new(),
             out: Vec::new(),
             keys: Vec::new(),
+            refused: false,
         }
     }
 
@@ -114,22 +118,42 @@ impl<Id: Copy> Validator<Id> {
         self.elements
     }
 
-    /// The diagnostics in `xmlValidateDocument`'s order (a stable sort of
-    /// the report order).
+    /// The diagnostics in `xmlValidateDocument`'s order (the report order
+    /// sorted by key).
     fn sorted(self) -> Vec<Diagnostic<Id>> {
-        let mut keyed: Vec<_> = self.keys.into_iter().zip(self.out).collect();
-        keyed.sort_by_key(|&(key, _)| key);
-        keyed
-            .into_iter()
-            .map(|(_, diagnostic)| diagnostic)
-            .collect()
+        let Ok(mut keyed) = collected(self.keys.into_iter().zip(0..).zip(self.out)) else {
+            return refused();
+        };
+        keyed.sort_unstable_by_key(|&(key, _)| key);
+        collected(keyed.into_iter().map(|(_, diagnostic)| diagnostic)).unwrap_or_else(|_| refused())
     }
 
     pub(crate) fn finish(self) -> Vec<Diagnostic<Id>> {
         self.out
     }
 
+    /// Room for one more diagnostic, else validation is refused.
+    fn room(&mut self) -> bool {
+        let room =
+            !self.refused && self.keys.try_reserve(1).is_ok() && self.out.try_reserve(1).is_ok();
+        if !room {
+            self.refuse();
+        }
+        room
+    }
+
+    /// A refused allocation ends validation: its diagnostic replaces the
+    /// others, and the tables are dropped.
+    fn refuse(&mut self) {
+        self.refused = true;
+        (self.ids, self.references) = Default::default();
+        (self.keys, self.out) = (vec![(0, ROOT)], refused());
+    }
+
     fn report(&mut self, key: Key, code: Code, node: Option<Node<Id>>, message: String) {
+        if !self.room() {
+            return;
+        }
         self.keys.push(key);
         self.out.push(Diagnostic {
             code,
@@ -141,13 +165,15 @@ impl<Id: Copy> Validator<Id> {
 
     /// A document-level diagnostic, reported before any element's.
     pub(crate) fn note(&mut self, code: Code, offset: Option<usize>, message: String) {
-        self.keys.push((0, ROOT));
-        self.out.push(Diagnostic {
-            code,
-            node: None,
-            offset,
-            message,
-        });
+        if self.room() {
+            self.keys.push((0, ROOT));
+            self.out.push(Diagnostic {
+                code,
+                node: None,
+                offset,
+                message,
+            });
+        }
     }
 
     /// The parse-time issues `dtd` recorded since the last call.
@@ -494,12 +520,17 @@ impl<Id: Copy> Validator<Id> {
         match decl.kind {
             AttributeKind::Id if !namespace => {
                 // libxml2's xmlAddID refuses an empty value as a duplicate.
-                if value.is_empty() || !self.ids.insert(value.into()) {
+                if self.refused || self.ids.try_reserve(1).is_err() {
+                    self.refuse();
+                } else if value.is_empty() || !self.ids.insert(value.into()) {
                     let message = format!("ID {value} already defined");
                     self.report(key, Code::IdRedefined, Some(node), message);
                 }
             }
             AttributeKind::IdRef | AttributeKind::IdRefs if !namespace => {
+                if self.refused || self.references.try_reserve(1).is_err() {
+                    return self.refuse();
+                }
                 self.references.push(Reference {
                     node,
                     attribute: attribute.local.into(),
@@ -603,6 +634,16 @@ impl<Id: Copy> Validator<Id> {
             }
         }
     }
+}
+
+/// What a refused allocation leaves.
+fn refused<Id>() -> Vec<Diagnostic<Id>> {
+    vec![Diagnostic {
+        code: Code::Allocation,
+        node: None,
+        offset: None,
+        message: "Memory allocation failed".to_owned(),
+    }]
 }
 
 fn local(name: &str) -> &str {

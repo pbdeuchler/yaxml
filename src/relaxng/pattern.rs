@@ -6,10 +6,12 @@
 //! validation explores stays small. Derivatives are memoized and every new
 //! pattern or memo miss spends one unit of a work budget.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, TryReserveError};
+use std::hash::Hash;
 use std::sync::Arc;
 
 use super::datatype::{Datatype, ValueDef};
+use crate::fallible::TryPush;
 use crate::schema_types::{Context, Type};
 
 pub(super) type Id = u32;
@@ -129,6 +131,9 @@ pub(super) struct Store {
     own: Arena,
     /// Patterns created and choice alternatives merged.
     pub(super) work: usize,
+    /// An allocation was refused: patterns since are `NOT_ALLOWED`, and
+    /// the work is spent.
+    pub(super) refused: bool,
 }
 
 impl Store {
@@ -139,10 +144,11 @@ impl Store {
             base,
             own: Arena::default(),
             work: 0,
+            refused: false,
         };
         if empty {
             for pat in [Pat::Empty, Pat::NotAllowed, Pat::Text] {
-                store.intern(pat);
+                store.insert(pat);
             }
         }
         store
@@ -182,6 +188,17 @@ impl Store {
         {
             return id;
         }
+        let own = &mut self.own;
+        let room = (own.pats.try_reserve(1))
+            .and(own.nullable.try_reserve(1))
+            .and(own.index.try_reserve(1));
+        match self.refuses(room) {
+            true => NOT_ALLOWED,
+            false => self.insert(pat),
+        }
+    }
+
+    fn insert(&mut self, pat: Pat) -> Id {
         let nullable = match pat {
             Pat::Empty | Pat::Text => true,
             Pat::Choice(a, b) => self.nullable(a) || self.nullable(b),
@@ -207,20 +224,42 @@ impl Store {
         let mut alternatives = Vec::new();
         self.alternatives(a, &mut alternatives);
         self.alternatives(b, &mut alternatives);
+        if self.refused {
+            return NOT_ALLOWED;
+        }
         alternatives.sort_unstable();
         alternatives.dedup();
         self.work += alternatives.len();
         self.balanced(&alternatives)
     }
 
-    fn alternatives(&self, id: Id, out: &mut Vec<Id>) {
+    fn alternatives(&mut self, id: Id, out: &mut Vec<Id>) {
         match self.pat(id) {
             Pat::Choice(a, b) => {
                 self.alternatives(a, out);
                 self.alternatives(b, out);
             }
-            _ => out.push(id),
+            _ => drop(self.refuses(out.try_push(id))),
         }
+    }
+
+    /// Whether `growth` was refused, which refuses the store.
+    pub(super) fn refuses(&mut self, growth: Result<(), TryReserveError>) -> bool {
+        self.refused |= growth.is_err();
+        growth.is_err()
+    }
+
+    /// Memoizes `r` under `key`, unless the allocation is refused.
+    pub(super) fn remember<K: Eq + Hash>(
+        &mut self,
+        memo: &mut HashMap<K, Id>,
+        key: K,
+        r: Id,
+    ) -> Id {
+        if !self.refuses(memo.try_reserve(1)) {
+            memo.insert(key, r);
+        }
+        r
     }
 
     fn balanced(&mut self, alternatives: &[Id]) -> Id {
@@ -325,7 +364,7 @@ impl Deriver {
     }
 
     pub(super) fn exhausted(&self) -> bool {
-        self.store.work > self.budget
+        self.store.work > self.budget || self.store.refused
     }
 
     /// Spends one unit; false once the budget is gone.
@@ -382,8 +421,7 @@ impl Deriver {
             }
             _ => NOT_ALLOWED,
         };
-        self.open.insert((p, name.key), r);
-        r
+        self.store.remember(&mut self.open, (p, name.key), r)
     }
 
     fn apply_after(&mut self, then: Then, p: Id) -> Id {
@@ -409,8 +447,7 @@ impl Deriver {
             }
             _ => NOT_ALLOWED,
         };
-        self.then.insert((then, p), r);
-        r
+        self.store.remember(&mut self.then, (then, p), r)
     }
 
     pub(super) fn attribute(&mut self, p: Id, name: Name<'_>, value: &str, cx: &dyn Context) -> Id {
@@ -463,8 +500,7 @@ impl Deriver {
             }
             _ => NOT_ALLOWED,
         };
-        memo.insert(p, r);
-        r
+        self.store.remember(memo, p, r)
     }
 
     pub(super) fn value_matches(&mut self, p: Id, value: &str, cx: &dyn Context) -> bool {
@@ -545,8 +581,7 @@ impl Deriver {
             }
             _ => NOT_ALLOWED,
         };
-        memo.insert(p, r);
-        r
+        self.store.remember(memo, p, r)
     }
 
     /// `startTagCloseDeriv`; `relaxed` drops missing attributes for recovery.
@@ -591,8 +626,7 @@ impl Deriver {
             Pat::Attribute(..) => NOT_ALLOWED,
             _ => p,
         };
-        self.close.insert((p, relaxed), r);
-        r
+        self.store.remember(&mut self.close, (p, relaxed), r)
     }
 
     /// `endTagDeriv`; `relaxed` ends the element even if content is missing.
@@ -611,8 +645,7 @@ impl Deriver {
             Pat::After(a, b) if relaxed || self.store.nullable(a) => b,
             _ => NOT_ALLOWED,
         };
-        self.end.insert((p, relaxed), r);
-        r
+        self.store.remember(&mut self.end, (p, relaxed), r)
     }
 
     /// The leaf patterns that could match the next item of `p`, for

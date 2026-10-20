@@ -219,10 +219,10 @@ impl<R: BufRead> BufferedReader<R> {
                 Err(ReadError::Xml(error))
                     if recovers && !matches!(self.status, Status::Closing(_)) =>
                 {
-                    let Some(at) = self.session.stop(error) else {
+                    let at = self.session.stop(error).map_err(|error| {
                         self.status = Status::Xml(error);
-                        return Err(ReadError::Xml(error));
-                    };
+                        ReadError::Xml(error)
+                    })?;
                     (self.status, self.pending) = (Status::Closing(at), false);
                 }
                 Err(error) => {

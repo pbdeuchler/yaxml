@@ -9,6 +9,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
+use crate::fallible::TryPush;
 use crate::schema_types::{Type, WhiteSpace, normalize};
 use crate::valid::Dtd;
 use crate::xpath::Tree;
@@ -55,11 +56,15 @@ pub(crate) fn schema_locations<T: Tree>(tree: &T) -> Vec<(Option<String>, String
 /// attributes the parser recorded are all known before validation starts.
 pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> {
     let recorded = tree.ids();
-    let ids = recorded
-        .iter()
-        .filter_map(|&(element, index)| tree.attribute(element, index))
-        .map(|(_, value)| (normalize(value, WhiteSpace::Collapse).into_owned(), false))
-        .collect();
+    let mut ids = HashMap::new();
+    if ids.try_reserve(recorded.len()).is_err() {
+        return refusal();
+    }
+    ids.extend(
+        (recorded.iter())
+            .filter_map(|&(element, index)| tree.attribute(element, index))
+            .map(|(_, value)| (normalize(value, WhiteSpace::Collapse).into_owned(), false)),
+    );
     let mut validator = Validator::new(schema, ids);
     let node = |id| Node {
         id,
@@ -192,14 +197,31 @@ fn display(local: &str, ns: Option<&str>) -> String {
     }
 }
 
+/// What a refused allocation leaves: validation stops with this one diagnostic.
+fn refusal<Id>() -> Vec<Diagnostic<Id>> {
+    vec![Diagnostic {
+        code: Code::Allocation,
+        node: None,
+        offset: None,
+        message: "Memory allocation failed".into(),
+    }]
+}
+
+fn refused<Id>(out: &[Diagnostic<Id>]) -> bool {
+    out.first().is_some_and(|d| d.code == Code::Allocation)
+}
+
+/// Reports into `out`; an `Allocation` code, or no room, refuses validation.
 fn sink<Id>(out: &mut Vec<Diagnostic<Id>>) -> impl FnMut(Node<Id>, Code, String) + '_ {
-    |node, code, message| {
-        out.push(Diagnostic {
+    |node, code, message| match refused(out) {
+        true => {}
+        false if code == Code::Allocation || out.try_reserve(1).is_err() => *out = refusal(),
+        false => out.push(Diagnostic {
             code,
             node: Some(node.id),
             offset: node.offset,
             message,
-        })
+        }),
     }
 }
 
@@ -228,7 +250,7 @@ impl<Id: Copy> Validator<Id> {
 
     /// The diagnostics, once the document has ended.
     pub(crate) fn finish(mut self) -> Vec<Diagnostic<Id>> {
-        if !self.started {
+        if !self.started && !refused(&self.out) {
             self.out.push(Diagnostic {
                 code: Code::DocumentElementMissing,
                 node: None,
@@ -241,6 +263,11 @@ impl<Id: Copy> Validator<Id> {
 
     fn report(&mut self, node: Node<Id>, code: Code, message: String) {
         sink(&mut self.out)(node, code, message);
+    }
+
+    /// Stops validation for a refused allocation.
+    fn refuse(&mut self) {
+        self.out = refusal();
     }
 
     /// The element at `depth` as messages show it.
@@ -302,6 +329,9 @@ impl<Id: Copy> Validator<Id> {
         dtd: Option<&Dtd>,
     ) {
         self.text_run = None;
+        if refused(&self.out) {
+            return;
+        }
         let skipping = self.skipping() || (self.started && self.frames.is_empty());
         self.started = true;
         let mut attrs = Vec::new();
@@ -311,6 +341,9 @@ impl<Id: Copy> Validator<Id> {
                 // A tree registers DTD and `xml:id` IDs beforehand, a stream
                 // here; a value an earlier schema ID took is a duplicate.
                 let collapsed = normalize(value, WhiteSpace::Collapse).into_owned();
+                if self.ids.try_reserve(1).is_err() {
+                    return self.refuse();
+                }
                 if self.ids.insert(collapsed, false) == Some(true) {
                     let message = format!(
                         "Element '{}', attribute '{}': '{value}' is not a valid value of the atomic type 'xs:ID'.",
@@ -381,6 +414,9 @@ impl<Id: Copy> Validator<Id> {
     /// The current element ends.
     pub(crate) fn end(&mut self) {
         self.text_run = None;
+        if refused(&self.out) {
+            return;
+        }
         match self.ignored {
             0 if !self.frames.is_empty() => self.leave(),
             0 => {}
@@ -391,7 +427,7 @@ impl<Id: Copy> Validator<Id> {
     /// Character data; adjacent text (not CDATA) events form one text node.
     pub(crate) fn text(&mut self, text: &str, cdata: bool) {
         let run = self.text_run.take();
-        if self.frames.is_empty() || self.skipping() {
+        if self.frames.is_empty() || self.skipping() || refused(&self.out) {
             return;
         }
         let reported = self.character_data(text, cdata, run);
@@ -771,6 +807,10 @@ impl<Id: Copy> Validator<Id> {
                 .collect(),
             Typed::Atomic(_) => Vec::new(),
         };
+        if self.ids.try_reserve(tokens.len()).is_err() {
+            self.refuse();
+            return true;
+        }
         tokens.into_iter().all(|token| match self.ids.entry(token) {
             Entry::Occupied(_) => false,
             Entry::Vacant(slot) => *slot.insert(true),
@@ -877,13 +917,16 @@ impl<Id: Copy> Validator<Id> {
                 }
             }
             if resolved > 0 {
-                self.engine.process(
+                let processed = self.engine.process(
                     depth + 1,
                     node,
                     FieldValue::Simple(key.as_ref()),
                     &mut self.scopes,
                     &mut sink(&mut self.out),
                 );
+                if processed.is_err() {
+                    self.refuse();
+                }
             } else if self.engine.active() {
                 self.engine.pop();
             }
@@ -913,13 +956,16 @@ impl<Id: Copy> Validator<Id> {
                         "The default/fixed value on an attribute use was not precomputed.",
                     );
                 }
-                self.engine.process(
+                let processed = self.engine.process(
                     depth + 1,
                     node,
                     FieldValue::Simple(key.as_ref()),
                     &mut self.scopes,
                     &mut sink(&mut self.out),
                 );
+                if processed.is_err() {
+                    self.refuse();
+                }
             } else {
                 self.engine.pop();
             }
@@ -1005,7 +1051,11 @@ impl<Id: Copy> Validator<Id> {
                 if frame
                     .decl
                     .is_none_or(|d| self.schema.data.elements[d].value.is_none()) => {}
-            _ => self.frames[depth].text.push_str(text),
+            _ => {
+                if self.frames[depth].text.try_push(text).is_err() {
+                    self.refuse();
+                }
+            }
         }
         false
     }
@@ -1050,11 +1100,17 @@ impl<Id: Copy> Validator<Id> {
                 _ => FieldValue::NotSimple,
             };
             let (scopes, out) = (&mut self.scopes, &mut self.out);
-            self.engine
-                .process(depth, frame.node, value, scopes, &mut sink(out));
+            let processed = (self.engine).process(depth, frame.node, value, scopes, &mut sink(out));
+            if processed.is_err() {
+                self.refuse();
+            }
         }
-        self.engine
-            .finish(depth, &mut self.scopes, &mut sink(&mut self.out));
+        if (self.engine)
+            .finish(depth, &mut self.scopes, &mut sink(&mut self.out))
+            .is_err()
+        {
+            self.refuse();
+        }
         let frame = self.frames.pop().expect("open element");
         self.namespaces
             .truncate(self.namespaces.len() - frame.bindings);

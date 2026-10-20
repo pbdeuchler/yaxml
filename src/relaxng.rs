@@ -40,6 +40,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
+use crate::fallible::TryPush;
 use crate::schema_types::{Context, Type};
 use crate::valid::Dtd;
 use crate::xpath::tree::{self, Item, Navigate, QName, Tree, attributes, namespaces};
@@ -54,6 +55,8 @@ pub(crate) const RNG_NS: &str = "http://relaxng.org/ns/structure/1.0";
 #[repr(u16)]
 #[non_exhaustive]
 pub enum SchemaCode {
+    /// An allocation the schema sized failed (`XML_ERR_NO_MEMORY`).
+    Allocation = 2,
     /// A load or work limit was reached.
     ResourceLimit = 114,
     /// An `anyName` attribute outside `oneOrMore` (section 7.3).
@@ -218,6 +221,16 @@ pub enum SchemaCode {
     XmlnsName = 1121,
 }
 
+impl SchemaCode {
+    /// What a schema document that does not parse reports.
+    fn loading(error: crate::Error) -> Self {
+        match error.kind {
+            crate::ErrorKind::Allocation => Self::Allocation,
+            _ => Self::ParseError,
+        }
+    }
+}
+
 /// One schema error, in the schema document `uri` at the source `offset`
 /// of the offending element when it has one.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -256,6 +269,8 @@ impl std::error::Error for SchemaErrors {}
 #[repr(u16)]
 #[non_exhaustive]
 pub enum Code {
+    /// An allocation the document sized failed; validation stopped (`MEMORY`).
+    Allocation = 1,
     /// Text that its datatype does not allow (`XML_RELAXNG_ERR_TYPE`).
     Datatype = 2,
     /// An `xsd:ID` value used twice (`DUPID`).
@@ -357,7 +372,7 @@ impl Schema {
     ) -> Result<Self, SchemaErrors> {
         let document = OwnedDocument::parse_legacy(input, limits.xml).map_err(|error| {
             SchemaErrors(vec![SchemaError {
-                code: SchemaCode::ParseError,
+                code: SchemaCode::loading(error),
                 uri: base.to_owned(),
                 offset: Some(error.offset),
                 message: format!("xmlRelaxNGParse: could not load {base}: {error}"),
@@ -680,6 +695,13 @@ impl<I: Copy> Engine<I> {
         let key = match self.keys.get(self.key.as_str()) {
             Some(&key) => key,
             None => {
+                let store = &mut self.deriver.store;
+                if store.refuses(self.locals.try_reserve(1))
+                    || store.refuses(self.keys.try_reserve(1))
+                {
+                    // Validation stops: no name is looked up again.
+                    return Name { ns, local, key: 0 };
+                }
                 self.locals.push(local.into());
                 *self
                     .keys
@@ -691,6 +713,9 @@ impl<I: Copy> Engine<I> {
     }
 
     fn report(&mut self, code: Code, (element, offset): (I, Option<usize>), message: String) {
+        if self.deriver.store.refuses(self.diagnostics.try_reserve(1)) {
+            return;
+        }
         self.diagnostics.push(Diagnostic {
             code,
             node: Some(element),
@@ -796,26 +821,31 @@ impl<I: Copy> Engine<I> {
         match ty {
             Type::Id => {
                 let id = tokens.next().unwrap_or("");
-                if !self.ids.insert(id.to_owned()) {
+                let refused = self.deriver.store.refuses(self.ids.try_reserve(1));
+                if !refused && !self.ids.insert(id.to_owned()) {
                     self.report(Code::DuplicateId, at, format!("ID {id} redefined"));
                 }
             }
-            _ => self.references.extend(tokens.map(|token| {
-                let (element, offset) = at;
-                (
-                    element,
-                    offset,
-                    attribute.qualified.to_owned(),
-                    token.to_owned(),
-                )
-            })),
+            _ => {
+                for token in tokens {
+                    let (element, offset) = at;
+                    let reference = (element, offset, attribute.qualified.into(), token.into());
+                    if self
+                        .deriver
+                        .store
+                        .refuses(self.references.try_push(reference))
+                    {
+                        return;
+                    }
+                }
+            }
         }
     }
 
     /// Text inside the current element.
     fn text(&mut self, text: &str) {
         if let Some(frame) = self.stack.last_mut() {
-            frame.text.push_str(text);
+            self.deriver.store.refuses(frame.text.try_push(text));
         }
     }
 
@@ -925,6 +955,15 @@ impl<I: Copy> Engine<I> {
         let Some(root) = self.root else {
             return;
         };
+        if self.deriver.store.refused {
+            self.diagnostics = vec![Diagnostic {
+                code: Code::Allocation,
+                node: Some(root.0),
+                offset: root.1,
+                message: "Memory allocation failed".into(),
+            }];
+            return;
+        }
         if self.deriver.exhausted() {
             let message = "validation work limit exceeded".into();
             return self.report(Code::Internal, root, message);

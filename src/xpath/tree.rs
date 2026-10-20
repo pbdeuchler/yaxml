@@ -1,9 +1,10 @@
 //! The one navigation abstraction the evaluator needs, for both DOMs.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, TryReserveError};
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use crate::fallible::{TryPush, collected};
 use crate::valid::Dtd;
 
 use crate::{Document, NodeId, NodeKind, OwnedDocument, OwnedNodeId, OwnedNodeKind};
@@ -85,7 +86,7 @@ pub trait Navigate {
     /// A dense per-document slot.
     fn slot(&self, id: Self::Id) -> usize;
     /// Document-order rank per slot when slots are not already in document order.
-    fn ranks(&self) -> Option<Vec<usize>>;
+    fn ranks(&self) -> Result<Option<Vec<usize>>, TryReserveError>;
     /// `(element, attribute index)` of ID-typed attributes, sorted.
     fn ids(&self) -> &[(Self::Id, usize)];
     /// Whether a text item is a CDATA section.
@@ -152,8 +153,8 @@ impl Navigate for Document<'_> {
         id.0
     }
 
-    fn ranks(&self) -> Option<Vec<usize>> {
-        None
+    fn ranks(&self) -> Result<Option<Vec<usize>>, TryReserveError> {
+        Ok(None)
     }
 
     fn ids(&self) -> &[(NodeId, usize)] {
@@ -230,7 +231,7 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
         id.slot()
     }
 
-    fn ranks(&self) -> Option<Vec<usize>> {
+    fn ranks(&self) -> Result<Option<Vec<usize>>, TryReserveError> {
         self.preorder_ranks()
     }
 
@@ -264,12 +265,15 @@ pub(crate) fn declares_ids(dtd: Option<&Dtd>) -> bool {
 
 /// ID-typed attributes of a freshly parsed tree: `xml:id` and those declared
 /// `ID` for their element in the DTD, as libxml2's `xmlIsID`.
-pub(crate) fn find_ids<T: Navigate>(tree: &T, dtd: Option<&Dtd>) -> Vec<(T::Id, usize)> {
+pub(crate) fn find_ids<T: Navigate>(
+    tree: &T,
+    dtd: Option<&Dtd>,
+) -> Result<Vec<(T::Id, usize)>, TryReserveError> {
     let mut declared: HashMap<&str, HashSet<&str>> = HashMap::new();
     for (element, attribute) in dtd.into_iter().flat_map(Dtd::id_attributes) {
         declared.entry(element).or_default().insert(attribute);
     }
-    let mut ids: Vec<_> = preorder(tree, Some(tree.root()), None)
+    let ids = preorder(tree, Some(tree.root()), None)
         .filter_map(|id| match tree.item(id) {
             Item::Element(name) => Some((id, declared.get(name.qualified))),
             _ => None,
@@ -281,10 +285,10 @@ pub(crate) fn find_ids<T: Navigate>(tree: &T, dtd: Option<&Dtd>) -> Vec<(T::Id, 
                         || declared.is_some_and(|names| names.contains(name.qualified))
                 })
                 .map(move |(index, ..)| (id, index))
-        })
-        .collect();
+        });
+    let mut ids = collected(ids)?;
     ids.sort_unstable();
-    ids
+    Ok(ids)
 }
 
 /// The first element whose ID attribute currently has `value`.
@@ -707,7 +711,7 @@ pub(crate) fn attributes<T: Navigate>(
 /// followed by an entity reference. In `content` (parsed in a node's
 /// context), the root's children are those of libxml2's `#root` element,
 /// where blanks before the end of input stay.
-pub(crate) fn blanks<T: Navigate>(tree: &T, content: bool) -> Vec<T::Id> {
+pub(crate) fn blanks<T: Navigate>(tree: &T, content: bool) -> Result<Vec<T::Id>, TryReserveError> {
     let text = |id: T::Id| matches!(tree.item(id), Item::Text(_)) && !tree.is_cdata(id);
     let blank = |id: T::Id| {
         matches!(tree.item(id), Item::Text(value) if value.bytes().all(|b| b" \t\r\n".contains(&b)))
@@ -725,34 +729,33 @@ pub(crate) fn blanks<T: Navigate>(tree: &T, content: bool) -> Vec<T::Id> {
             continue;
         }
         let declared = name.and_then(|name| tree.dtd()?.has_element_content(name));
-        let children: Vec<_> =
-            std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id)).collect();
-        let mut kept: Vec<T::Id> = Vec::new();
+        let children = std::iter::successors(tree.first_child(parent), |&id| tree.next_sibling(id));
+        let several = children.clone().nth(1).is_some();
+        // The first and last children kept.
+        let (mut first, mut last) = (None, None);
         let mut spoken_kept = false;
-        for &child in &children {
-            let leading = kept
-                .last()
-                .is_none_or(|&last| !text(last) && !text(kept[0]));
+        for child in children {
+            let leading = first
+                .zip(last)
+                .is_none_or(|(first, last)| !text(last) && !text(first));
             // Outside declared element content, libxml2 sees the `&` of a
             // following reference: not blank.
             let next = tree.next_sibling(child);
             let reference = next.is_some_and(|next| matches!(tree.item(next), Item::EntityRef(_)))
                 || (name.is_none() && next.is_none());
             let spoken = space.is_none() && spoken_kept;
-            match blank(child)
-                && !spoken
-                && declared.unwrap_or(!reference && children.len() > 1 && leading)
-            {
-                true => found.push(child),
+            match blank(child) && !spoken && declared.unwrap_or(!reference && several && leading) {
+                true => found.try_push(child)?,
                 false => {
                     spoken_kept |= text(child) && tree.offset(child).is_some();
-                    kept.push(child);
+                    first.get_or_insert(child);
+                    last = Some(child);
                 }
             }
         }
     }
     found.sort_unstable();
-    found
+    Ok(found)
 }
 
 /// The first of `parent`'s [`flattened_children`].

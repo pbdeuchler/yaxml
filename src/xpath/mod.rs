@@ -21,8 +21,10 @@ mod eval;
 mod parse;
 pub(crate) mod tree;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, TryReserveError};
 use std::fmt;
+
+use crate::fallible::{cloned, copied};
 
 pub(crate) use eval::truthy;
 pub use tree::Tree;
@@ -61,6 +63,17 @@ pub enum Value<Id> {
     Number(f64),
     /// A string.
     String(String),
+}
+
+impl<Id: Copy> Value<Id> {
+    /// A copy that reports a refused allocation.
+    pub(crate) fn try_clone(&self) -> Result<Self, TryReserveError> {
+        Ok(match self {
+            Self::NodeSet(nodes) => Self::NodeSet(cloned(nodes)?),
+            Self::String(text) => Self::String(copied(text)?),
+            scalar => scalar.clone(),
+        })
+    }
 }
 
 /// The [`Limits`] field an XPath error exceeded.
@@ -141,6 +154,8 @@ pub enum ErrorKind {
     InvalidContext,
     /// `XPATH_OP_LIMIT_EXCEEDED` / `XPATH_RECURSION_LIMIT_EXCEEDED` and size ceilings.
     LimitExceeded(Limit),
+    /// `XPATH_MEMORY_ERROR`: an allocation the expression or tree sized failed.
+    Allocation,
 }
 
 /// An XPath compilation or evaluation error.
@@ -197,6 +212,7 @@ impl Error {
             ErrorKind::InvalidContext => (22, "Invalid or incomplete context"),
             ErrorKind::LimitExceeded(Limit::Depth) => (26, "Recursion limit exceeded"),
             ErrorKind::LimitExceeded(_) => (25, "Operation limit exceeded"),
+            ErrorKind::Allocation => (15, "Memory allocation error"),
         };
         let name = match self.kind {
             ErrorKind::UndefinedPrefix => name(false),
@@ -221,6 +237,12 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<TryReserveError> for Error {
+    fn from(_: TryReserveError) -> Self {
+        Self::new(ErrorKind::Allocation)
+    }
+}
 
 /// An extension function. It receives evaluated arguments.
 pub type Function<Id> = Box<dyn Fn(&[Value<Id>]) -> Result<Value<Id>, Error> + Send + Sync>;
@@ -336,7 +358,7 @@ impl XPath {
     pub fn compile_with_limits(expression: &str, limits: &Limits) -> Result<Self, Error> {
         Ok(Self {
             ast: parse::parse(expression, limits)?,
-            source: expression.into(),
+            source: copied(expression)?.into(),
         })
     }
 

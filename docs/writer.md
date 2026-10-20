@@ -328,8 +328,9 @@ label as given otherwise.
 Each call's output is built in memory, checked, converted and handed to the
 sink before the call returns. libxml2 failures (`InvalidState`, `InvalidName`,
 `Namespace`, `InvalidDtd`, `InvalidDeclaration`, `UnsupportedEncoding`,
-`UnsupportedOption`) are not terminal. A limit or I/O failure is: the call's
-output is dropped and later calls return `InvalidState` without I/O. From
+`UnsupportedOption`) are not terminal. A limit, `Allocation` or I/O failure
+is: the call's output is dropped and later calls return `InvalidState`
+without I/O. From
 `WriterLimits` it honors `max_output_bytes`, `max_token_bytes` (one call's
 encoded output), `max_depth` (open elements, comments, PIs, CDATA sections
 and DTD parts) and `max_attributes` (pending namespace declarations).

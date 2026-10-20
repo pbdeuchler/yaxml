@@ -26,6 +26,7 @@ use std::io::Write;
 
 use crate::allocator::Allocator;
 use crate::encoding::Output;
+use crate::fallible::Memory;
 use crate::{
     Attribute, Declaration, Doctype, Document, Error, ErrorKind, Event, Limit, Name, Node,
     NodeKind, OwnedDocument, OwnedNode, OwnedNodeKind, WriteError,
@@ -382,12 +383,12 @@ pub fn to_vec<'document, 'input: 'document>(
     tree: impl Into<Tree<'document, 'input>>,
     options: &Options<'_>,
 ) -> Result<Vec<u8>, Error> {
-    let mut bytes = Vec::new();
+    let mut bytes = Memory::default();
     match to_writer(tree, options, &mut bytes) {
-        Ok(()) => Ok(bytes),
+        Ok(()) => Ok(bytes.0),
         Err(WriteError::Xml(error)) => Err(error),
-        // Writing to a Vec cannot fail.
-        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::InvalidState, bytes.len())),
+        // Memory fails only to grow.
+        Err(WriteError::Io(_)) => Err(Error::new(ErrorKind::Allocation, bytes.0.len())),
     }
 }
 
@@ -497,7 +498,7 @@ pub fn encode_entities(text: &str, escape: Escape) -> String {
 /// controls `&#xFFFD;`; non-ASCII is kept.
 pub fn encode_special_chars(text: &str) -> String {
     let mut out = String::new();
-    escape_into(&mut out, text, &QUOT, false);
+    escape_into(text, &QUOT, false, |piece| out.push_str(piece));
     out
 }
 
@@ -505,12 +506,13 @@ pub fn encode_special_chars(text: &str) -> String {
 /// document without an encoding (`ascii`) or with one.
 pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool) {
     let table = if html { &HTML } else { &CONTENT };
-    escape_into(out, text, table, ascii && !html);
+    escape_into(text, table, ascii && !html, |piece| out.push_str(piece));
 }
 
-/// `xmlEscapeText` into UTF-8: ASCII through `table`, non-ASCII as `&#xH;`
-/// when `hex` (U+FFFE and U+FFFF as U+FFFD), otherwise as is.
-pub(crate) fn escape_into(out: &mut String, text: &str, table: &Table, hex: bool) {
+/// `xmlEscapeText` into UTF-8 pieces for `push`: ASCII through `table`,
+/// non-ASCII as `&#xH;` when `hex` (U+FFFE and U+FFFF as U+FFFD), otherwise
+/// as is.
+pub(crate) fn escape_into(text: &str, table: &Table, hex: bool, mut push: impl FnMut(&str)) {
     let mut start = 0;
     for (index, c) in text.char_indices() {
         let mut buffer = [0; 12];
@@ -522,11 +524,11 @@ pub(crate) fn escape_into(out: &mut String, text: &str, table: &Table, hex: bool
             (false, true) => char_reference(unicode_char(c), true, &mut buffer),
             (false, false) => continue,
         };
-        out.push_str(&text[start..index]);
-        out.push_str(replacement);
+        push(&text[start..index]);
+        push(replacement);
         start = index + c.len_utf8();
     }
-    out.push_str(&text[start..]);
+    push(&text[start..]);
 }
 
 /// `xmlEscapeText` writes the noncharacters U+FFFE and U+FFFF as U+FFFD.
@@ -624,7 +626,28 @@ impl<'s> Out<'s> {
         if let Some(WriteError::Xml(error)) = other.error {
             self.fail(Error::new(error.kind, self.position() + error.offset));
         }
-        self.bytes.extend_from_slice(&other.bytes);
+        if self.room(other.bytes.len()) {
+            self.bytes.extend_from_slice(&other.bytes);
+        }
+    }
+
+    /// Room for `length` more bytes of UTF-8 in the output encoding (UTF-16
+    /// at most doubles it); false, and an allocation error, when refused.
+    #[inline]
+    fn room(&mut self, length: usize) -> bool {
+        let width = 1 + usize::from(matches!(self.output, Output::Utf16 { .. }));
+        let length = length.saturating_mul(width);
+        self.bytes.capacity() - self.bytes.len() >= length || self.grow(length)
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn grow(&mut self, length: usize) -> bool {
+        let grown = self.bytes.try_reserve(length).is_ok();
+        if !grown {
+            self.fail(Error::new(ErrorKind::Allocation, self.position()));
+        }
+        grown
     }
 
     /// The output offset of the next byte.
@@ -672,8 +695,10 @@ impl<'s> Out<'s> {
     /// Markup, names, comments, PIs and CDATA, which cannot hold references.
     fn raw(&mut self, text: &str) {
         if self.output == Output::Utf8 {
-            self.bytes.extend_from_slice(text.as_bytes());
-        } else {
+            if self.bytes.capacity() - self.bytes.len() >= text.len() || self.grow(text.len()) {
+                self.bytes.extend_from_slice(text.as_bytes());
+            }
+        } else if self.room(text.len()) {
             for c in text.chars() {
                 if !self.output.push(&mut self.bytes, c) {
                     self.fail(Error::new(ErrorKind::InvalidCharacter, self.position()));
@@ -686,6 +711,9 @@ impl<'s> Out<'s> {
     /// lacks. A reference (`&` or `%` through `;`) is markup: libxml2's `&#N;`
     /// inside its name would not reparse, so that is `InvalidCharacter`.
     fn converted(&mut self, text: &str) {
+        if !self.room(text.len()) {
+            return;
+        }
         let mut reference = false;
         for c in text.chars() {
             reference |= matches!(c, '&' | '%');
@@ -703,6 +731,9 @@ impl<'s> Out<'s> {
     fn text(&mut self, text: &str, attribute: bool) {
         let table = if attribute { &ATTRIBUTE } else { &CONTENT };
         let unicode = self.output == Output::Utf8 && !self.ascii;
+        if !unicode && !self.room(text.len()) {
+            return;
+        }
         let bytes = text.as_bytes();
         let (mut start, mut index) = (0, 0);
         while index < bytes.len() {
