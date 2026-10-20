@@ -978,6 +978,12 @@ impl<A: Allocator> OwnedDocument<A> {
         self.html.as_ref()?.encoding.as_deref()
     }
 
+    /// The line the HTML parser recorded for a node slot, if any.
+    pub(crate) fn html_line(&self, slot: usize) -> Option<usize> {
+        let line = *self.html.as_ref()?.lines.get(slot)?;
+        (line != 0).then_some(line as usize)
+    }
+
     /// Opens a bounded tree editor. Owned-byte, created-node and created-attribute
     /// counters persist across editors; a ceiling below earlier expenditure is rejected.
     /// Parsed string capacity is the baseline and is not charged again.
@@ -1922,12 +1928,20 @@ fn append_record<A: Allocator>(
     Ok(id)
 }
 
+/// A line as `HtmlMeta::lines` stores it.
+fn stored_line(line: usize) -> u32 {
+    u32::try_from(line).unwrap_or(u32::MAX)
+}
+
 /// State that only HTML documents carry.
 #[derive(Clone, Debug)]
 struct HtmlMeta {
     encoding: Option<String>,
     /// Sorted attribute-arena indices of attributes written without a value.
     valueless: Vec<usize>,
+    /// libxml2's `node->line` per parsed node slot (0: none); slots past
+    /// the end are constructed nodes.
+    lines: Vec<u32>,
 }
 
 /// An element's last child other than comments, as `areBlanks` inspects it.
@@ -1948,6 +1962,7 @@ pub(crate) struct HtmlBuilder {
     pool: Pool,
     root_element: NodeId,
     valueless: Vec<usize>,
+    lines: Vec<u32>,
     budget: Budget,
 }
 
@@ -1960,15 +1975,22 @@ impl HtmlBuilder {
             pool: Pool::default(),
             root_element: NodeId(0),
             valueless: Vec::new(),
+            lines: vec![0],
             budget: Budget::new(limits),
         })
     }
 
-    fn append(&mut self, parent: NodeId, content: Content) -> Result<NodeId, Error> {
+    /// Appends a node created while the input was on `line`.
+    fn append(&mut self, parent: NodeId, content: Content, line: usize) -> Result<NodeId, Error> {
         if self.nodes.len() > self.budget.max_events() {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::Events), 0));
         }
-        append_record(&mut self.nodes, parent, content, None, 0)
+        self.lines
+            .try_reserve(1)
+            .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+        let id = append_record(&mut self.nodes, parent, content, None, 0)?;
+        self.lines.push(stored_line(line));
+        Ok(id)
     }
 
     fn name(&mut self, name: &str) -> Result<StoredName, Error> {
@@ -1984,6 +2006,7 @@ impl HtmlBuilder {
         parent: NodeId,
         name: &str,
         attributes: &[(String, Option<String>)],
+        line: usize,
     ) -> Result<NodeId, Error> {
         let allocation = Error::new(ErrorKind::Allocation, 0);
         let name = self.name(name)?;
@@ -1992,18 +2015,22 @@ impl HtmlBuilder {
             .try_reserve(attributes.len())
             .map_err(|_| allocation)?;
         for (attribute, value) in attributes {
-            if value.is_none() {
-                self.valueless.try_reserve(1).map_err(|_| allocation)?;
-                self.valueless.push(self.attributes.len());
-            }
+            // xmlSAX2HtmlAttribute: a valueless boolean attribute gets its name.
+            let value = match value {
+                Some(value) => value,
+                None if crate::html::boolean_attribute(attribute) => attribute,
+                None => {
+                    self.valueless.try_reserve(1).map_err(|_| allocation)?;
+                    self.valueless.push(self.attributes.len());
+                    ""
+                }
+            };
             let name = self.name(attribute)?;
-            let value = self
-                .pool
-                .store(value.as_deref().unwrap_or(""), 0, &mut self.budget)?;
+            let value = self.pool.store(value, 0, &mut self.budget)?;
             self.attributes.push(StoredAttribute { name, value });
         }
         let attributes = start..self.attributes.len();
-        let id = self.append(parent, Content::Element { name, attributes })?;
+        let id = self.append(parent, Content::Element { name, attributes }, line)?;
         if parent == NodeId(0) && self.root_element == NodeId(0) {
             self.root_element = id;
         }
@@ -2018,6 +2045,7 @@ impl HtmlBuilder {
         value: &str,
         cdata: bool,
         limit: usize,
+        line: usize,
     ) -> Result<bool, Error> {
         let last = self.nodes[parent.0].last_child.get();
         let merge = last.and_then(|last| match &self.nodes[last.0].content {
@@ -2032,7 +2060,7 @@ impl HtmlBuilder {
             } else {
                 Content::Text(range)
             };
-            self.append(parent, content)?;
+            self.append(parent, content, line)?;
             return Ok(true);
         };
         if value.len() > limit || range.len() > limit - value.len() {
@@ -2042,14 +2070,21 @@ impl HtmlBuilder {
         self.nodes[last.0].content = if cdata {
             Content::Cdata(range)
         } else {
+            // xmlSAX2Text moves a merged text node's line forward.
+            self.lines[last.0] = stored_line(line);
             Content::Text(range)
         };
         Ok(true)
     }
 
-    pub(crate) fn comment(&mut self, parent: NodeId, value: &str) -> Result<(), Error> {
+    pub(crate) fn comment(
+        &mut self,
+        parent: NodeId,
+        value: &str,
+        line: usize,
+    ) -> Result<(), Error> {
         let range = self.pool.store(value, 0, &mut self.budget)?;
-        self.append(parent, Content::Comment(range)).map(drop)
+        self.append(parent, Content::Comment(range), line).map(drop)
     }
 
     /// Ends an element: everything appended since it is its subtree.
@@ -2095,7 +2130,7 @@ impl HtmlBuilder {
                 internal_subset: None,
             });
             let first = self.nodes[0].first_child;
-            let id = self.append(NodeId(0), content)?;
+            let id = self.append(NodeId(0), content, 0)?;
             if let Some(first) = first.get() {
                 // Move the new last child to the front.
                 let link = Link(id.0);
@@ -2125,6 +2160,7 @@ impl HtmlBuilder {
             html: Some(Box::new(HtmlMeta {
                 encoding,
                 valueless: self.valueless,
+                lines: self.lines,
             })),
             ids: Vec::new(),
             dtd: None,

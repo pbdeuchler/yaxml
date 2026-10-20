@@ -148,6 +148,20 @@ doc = false
 bench = false
 
 [[bin]]
+name = "html_events"
+path = "fuzz_targets/html_events.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "html_fragment"
+path = "fuzz_targets/html_fragment.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "xinclude"
 path = "fuzz_targets/xinclude.rs"
 test = false

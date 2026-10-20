@@ -32,6 +32,7 @@ pub enum Domain {
     #[default]
     Parser = 1,
     Namespace = 3,
+    Html = 5,
     Io = 8,
     XInclude = 11,
     XPath = 12,
@@ -148,6 +149,7 @@ pub mod code {
     pub const NS_QNAME: u16 = 202;
     pub const NS_ATTRIBUTE_REDEFINED: u16 = 203;
     pub const NS_COLON: u16 = 205;
+    pub const HTML_STRUCTURE_ERROR: u16 = 800;
     pub const IO_LOAD_ERROR: u16 = 1549;
     pub const XINCLUDE_BUILD_FAILED: u16 = 1609;
 }
@@ -391,13 +393,17 @@ impl<'s> LineIndex<'s> {
             let parent = tree.parent(id)?;
             let siblings =
                 std::iter::successors(tree.first_child(parent), |&s| tree.next_sibling(s));
+            // Navigation hides a DOCTYPE from its siblings: it has none.
             let previous = siblings
                 .take_while(|&s| s != id)
                 .last()
-                .filter(|&s| own(s).is_some());
+                .filter(|&s| tree.next_sibling(s) == Some(id) && own(s).is_some());
             let from = previous.or((own(parent) == Some(true)).then_some(parent))?;
             return self.node_line(tree, from);
         };
+        if let Some(line) = tree.line(id) {
+            return Some(line);
+        }
         let range = tree
             .range(id)
             .filter(|range| range.start < self.input.len())?;
@@ -570,6 +576,25 @@ impl Diagnostic {
     /// MESSAGE`, then for parser, namespace and I/O errors the input's line
     /// around the position with a caret (and the bytes, for an encoding error).
     pub fn render(&self, file: &str, lines: &LineIndex<'_>) -> String {
+        let mut out = self.header(file);
+        if self.line == 0
+            || self.entity
+            || !matches!(self.domain, Domain::Parser | Domain::Namespace | Domain::Io)
+        {
+            return out;
+        }
+        let at = lines.text_at(self.line, self.column);
+        let cursor = lines.cursor(self.code, at);
+        // Only input read without a converter shows its bytes.
+        out += &lines.context(
+            cursor,
+            self.code == INVALID_ENCODING && lines.decoded.is_none(),
+        );
+        out
+    }
+
+    /// The report's first line: `FILE:LINE: [element NAME: ]DOMAIN LEVEL : MESSAGE`.
+    pub(crate) fn header(&self, file: &str) -> String {
         let mut out = match self.line {
             line if self.entity => format!("Entity: line {line}: "),
             0 => format!("{file}: "),
@@ -581,6 +606,7 @@ impl Diagnostic {
         out += match self.domain {
             Domain::Parser => "parser ",
             Domain::Namespace => "namespace ",
+            Domain::Html => "HTML parser ",
             Domain::Io => "I/O ",
             Domain::XInclude => "XInclude ",
             Domain::XPath => "XPath ",
@@ -597,24 +623,32 @@ impl Diagnostic {
         };
         out += &self.message;
         out.push('\n');
-        if self.line == 0
-            || self.entity
-            || !matches!(self.domain, Domain::Parser | Domain::Namespace | Domain::Io)
-        {
-            return out;
-        }
-        let at = lines.text_at(self.line, self.column);
-        let cursor = lines.cursor(self.code, at);
-        // Only input read without a converter shows its bytes.
-        if self.code == INVALID_ENCODING && lines.decoded.is_none() && at < lines.text.len() {
-            let bytes = lines.text()[at..].iter().take(4);
+        out
+    }
+}
+
+/// libxml2's context lines at `cur` in UTF-8 `text`, as `xmlFormatError`
+/// prints them, with the next bytes first when `bytes`.
+pub(crate) fn context(text: &[u8], cur: usize, bytes: bool) -> String {
+    LineIndex::utf8(text).context(cur, bytes)
+}
+
+impl LineIndex<'_> {
+    /// The input's bytes at `at` (for an invalid encoding), its line and a caret.
+    fn context(&self, at: usize, bytes: bool) -> String {
+        let mut out = String::new();
+        if bytes && at < self.text.len() {
             out += "Bytes:";
-            out.extend(bytes.map(|b| format!(" 0x{b:02X}")));
+            out.extend(
+                self.text()[at..]
+                    .iter()
+                    .take(4)
+                    .map(|b| format!(" 0x{b:02X}")),
+            );
             out.push('\n');
         }
-        let (content, caret) = lines.window(cursor);
-        out += &format!("{content}\n{caret}\n");
-        out
+        let (content, caret) = self.window(at);
+        out + &format!("{content}\n{caret}\n")
     }
 }
 
@@ -737,7 +771,8 @@ impl crate::Node<'_, '_> {
 // Kept here, beside `Node::line`, rather than in the owned module.
 impl<A: crate::allocator::Allocator> crate::OwnedNode<'_, A> {
     /// `xmlGetLineNo` in the input `lines` indexes, as [`crate::Node::line`];
-    /// `None` for constructed nodes.
+    /// `None` for constructed nodes. HTML nodes keep the line the parser
+    /// recorded, so `lines` is not consulted for them.
     pub fn line(self, lines: &LineIndex<'_>) -> Option<usize> {
         lines.node_line(self.document(), self.id())
     }

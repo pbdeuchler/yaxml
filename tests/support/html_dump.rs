@@ -87,15 +87,27 @@ pub fn dump(document: &OwnedDocument) -> String {
         out.push('\n');
     }
     out.push_str("standalone=true\n");
-    let root = document.root();
-    for descendant in root.descendants().skip(1) {
+    nodes(&mut out, document, 0);
+    out
+}
+
+/// `xmlDebugDumpNodeList` of the document's children: a parsed fragment.
+#[allow(dead_code, reason = "not every test target dumps fragments")]
+pub fn dump_list(document: &OwnedDocument) -> String {
+    let mut out = String::new();
+    nodes(&mut out, document, 1);
+    out
+}
+
+/// The document's descendants, `outdent` levels less deep than below it.
+fn nodes(out: &mut String, document: &OwnedDocument, outdent: usize) {
+    for descendant in document.root().descendants().skip(1) {
         let mut depth = 0;
         let mut parent = descendant.parent();
         while let Some(ancestor) = parent {
             depth += 1;
             parent = ancestor.parent();
         }
-        node(&mut out, descendant, depth);
+        node(out, descendant, depth - outdent);
     }
-    out
 }

@@ -171,7 +171,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "CATALOG_PI": ("N", "constant defined, rejected with UnsupportedOption"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
-HTML_OPT = {"HTML5": ("N", "constant defined, rejected with UnsupportedOption")}
+HTML_OPT = {"HTML5": ("I", "token-level events; trees follow them unbalanced, as in libxml2")}
 FEATURE = {
     "THREAD": "Thread", "TREE": "Tree", "OUTPUT": "Output", "PUSH": "Push", "READER": "Reader",
     "PATTERN": "Pattern", "WRITER": "Writer", "SAX1": "Sax1", "FTP": "Ftp", "HTTP": "Http",
@@ -414,7 +414,8 @@ P|xmlReadFd xmlReadIO xmlReadFile xmlParseFile xmlCtxtReadDoc xmlCtxtReadFd xmlC
 P|xmlRecoverDoc xmlRecoverMemory xmlRecoverFile|OwnedDocument::parse_with, options::RECOVER
 I|xmlParseDTD|valid::Dtd::parse
 P|xmlCtxtParseDtd xmlIOParseDTD|valid::Dtd::parse
-N|xmlCtxtParseContent xmlParseBalancedChunkMemory xmlParseBalancedChunkMemoryRecover xmlParseInNodeContext xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|fragment and in-context parsing not started (roadmap 13)
+P|xmlCtxtParseContent xmlParseInNodeContext|html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
+N|xmlParseBalancedChunkMemory xmlParseBalancedChunkMemoryRecover xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|fragment and in-context parsing not started (roadmap 13)
 N|xmlSAXParse* xmlSAXUserParse*|SAX2 handler table not started (roadmap 15)
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish
@@ -434,7 +435,7 @@ P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
 N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetStatus xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
 N|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|SAX2 handler table not started
-P|xmlStopParser|PushParser::feed - ControlFlow cancellation of the event callback
+P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate
 I|xmlHasFeature|features::has
 A|xmlInitParser xmlCleanupParser xmlInitGlobals xmlCleanupGlobals|no global state
@@ -786,11 +787,14 @@ P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtPar
 I|htmlCreatePushParserCtxt|html::PushParser::new
 I|htmlParseChunk|html::PushParser::feed, html::PushParser::finish
 P|htmlCreateFileParserCtxt htmlCreateMemoryParserCtxt htmlNewParserCtxt htmlCtxtSetOptions htmlCtxtUseOptions|html::Options::new
-N|htmlCtxtReset htmlNewSAXParserCtxt|SAX callbacks and ctxt reuse not started (docs/html.md)
+P|htmlNewSAXParserCtxt|html::parse_events, html::EventParser::new - a closure receives each callback as an html::Event
+N|htmlCtxtReset|ctxt reuse not started (docs/html.md)
 A|htmlFreeParserCtxt|Drop
 P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
-N|htmlSAXHandler htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|SAX callbacks and element/entity tables not public (docs/html.md)
+P|htmlSAXHandler|html::Event - the callbacks HTML parsing makes, as events
+I|XML_HTML_STRUCURE_ERROR|diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
+N|htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|node info and element/entity tables not public (docs/html.md)
 I|htmlDocDumpMemory htmlDocDumpMemoryFormat|html::to_html, html::save
 P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - returns bytes
 N|htmlNodeDump htmlNodeDumpFile htmlNodeDumpFileFormat htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocContentDumpFormatOutput htmlSetMetaEncoding htmlNewDoc htmlNewDocNoDtD|HTML subtree output and construction not started (docs/html.md)
@@ -1000,7 +1004,7 @@ DIAG_CODES = set(re.findall(r"pub const (\w+): u16", (SRC / "diagnostic.rs").rea
 DIAG_LEVEL = {"XML_ERR_WARNING": "Warning", "XML_ERR_ERROR": "Error", "XML_ERR_FATAL": "Fatal"}
 DIAG_DOMAIN = {
     f"XML_FROM_{c}": rust
-    for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
+    for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("HTML", "Html"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
                     ("XPATH", "XPath"), ("SCHEMASP", "SchemasParser"), ("SCHEMASV", "SchemasValidity"),
                     ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity")]
 }

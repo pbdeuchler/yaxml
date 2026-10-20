@@ -4,7 +4,7 @@ HTMLparser.h	HTML_INVALID	enum_value	not_marked	P3	not-started	https://github.co
 HTMLparser.h	HTML_NA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	HTML_PARSE_BIG_LINES	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::BIG_LINES
 HTMLparser.h	HTML_PARSE_COMPACT	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::COMPACT
-HTMLparser.h	HTML_PARSE_HTML5	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::HTML5 - constant defined, rejected with UnsupportedOption
+HTMLparser.h	HTML_PARSE_HTML5	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::HTML5 - token-level events; trees follow them unbalanced, as in libxml2
 HTMLparser.h	HTML_PARSE_HUGE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::HUGE
 HTMLparser.h	HTML_PARSE_IGNORE_ENC	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::IGNORE_ENC
 HTMLparser.h	HTML_PARSE_NOBLANKS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::NOBLANKS
@@ -18,7 +18,7 @@ HTMLparser.h	HTML_PARSE_RECOVER	enum_value	not_marked	P3	implemented	https://git
 HTMLparser.h	HTML_REQUIRED	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	HTML_VALID	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	UTF8ToHtml	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	_htmlElemDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	_htmlElemDesc.attrs_depr	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	_htmlElemDesc.attrs_opt	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	_htmlElemDesc.attrs_req	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
@@ -34,7 +34,7 @@ HTMLparser.h	_htmlElemDesc.name	field	not_marked	P3	not-started	https://github.c
 HTMLparser.h	_htmlElemDesc.saveEndTag	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	_htmlElemDesc.startTag	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	_htmlElemDesc.subelts	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlEntityDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	_htmlEntityDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	_htmlEntityDesc.desc	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
 HTMLparser.h	_htmlEntityDesc.name	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
 HTMLparser.h	_htmlEntityDesc.value	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
@@ -49,19 +49,19 @@ HTMLparser.h	htmlCtxtReadFd	function	not_marked	P3	partial	https://github.com/GN
 HTMLparser.h	htmlCtxtReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlCtxtReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlCtxtReadMemory	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReset	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and ctxt reuse not started (docs/html.md)
+HTMLparser.h	htmlCtxtReset	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	ctxt reuse not started (docs/html.md)
 HTMLparser.h	htmlCtxtSetOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlCtxtUseOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlDefaultSAXHandler	variable	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlDefaultSubelement	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	htmlDocPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlElemDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlElemDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	htmlElemDescPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlElementAllowedHere	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlElementAllowedHereDesc	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
 HTMLparser.h	htmlElementStatusHere	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlEncodeEntities	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlEntityDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlEntityDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	htmlEntityDescPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlEntityLookup	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlEntityValueLookup	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
@@ -71,7 +71,7 @@ HTMLparser.h	htmlInitAutoClose	function	yes	P3	removed-upstream	https://github.c
 HTMLparser.h	htmlIsAutoClosed	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlIsScriptAttribute	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlNewParserCtxt	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
-HTMLparser.h	htmlNewSAXParserCtxt	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and ctxt reuse not started (docs/html.md)
+HTMLparser.h	htmlNewSAXParserCtxt	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse_events, html::EventParser::new - a closure receives each callback as an html::Event
 HTMLparser.h	htmlNodePtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlNodeStatus	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlParseCharRef	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
@@ -83,9 +83,9 @@ HTMLparser.h	htmlParseEntityRef	function	yes	P3	removed-upstream	https://github.
 HTMLparser.h	htmlParseFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlParserCtxt	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser
 HTMLparser.h	htmlParserCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlParserInput	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlParserInput	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	htmlParserInputPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlParserNodeInfo	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlParserNodeInfo	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
 HTMLparser.h	htmlParserOption	enum	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options
 HTMLparser.h	htmlReadDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
 HTMLparser.h	htmlReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
@@ -93,7 +93,7 @@ HTMLparser.h	htmlReadFile	function	not_marked	P3	partial	https://github.com/GNOM
 HTMLparser.h	htmlReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlReadMemory	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
 HTMLparser.h	htmlRequiredAttrs	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	htmlSAXHandler	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	SAX callbacks and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlSAXHandler	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Event - the callbacks HTML parsing makes, as events
 HTMLparser.h	htmlSAXHandlerPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlSAXParseDoc	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlSAXParseFile	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
@@ -888,7 +888,7 @@ parser.h	xmlCtxtGetVersion	function	not_marked	P0-P3	partial	https://github.com/
 parser.h	xmlCtxtIsHtml	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsInSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsStopped	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
+parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
 parser.h	xmlCtxtParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlCtxtParseDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlCtxtReadDoc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
@@ -951,7 +951,7 @@ parser.h	xmlParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/
 parser.h	xmlParseExtParsedEnt	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
 parser.h	xmlParseExternalEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
 parser.h	xmlParseFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
-parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	fragment and in-context parsing not started (roadmap 13)
+parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	html::parse_fragment - HTML context documents only; XML fragments not started (roadmap 13)
 parser.h	xmlParseMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with
 parser.h	xmlParserAddNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
 parser.h	xmlParserFindNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
@@ -997,7 +997,7 @@ parser.h	xmlSaveNoEmptyTags	macro	not_marked	P0-P3	not-applicable	https://github
 parser.h	xmlSetExternalEntityLoader	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global loader; ParseOptions::with_resolver per parse
 parser.h	xmlSetupParserForBuffer	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlStartTag	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
-parser.h	xmlStopParser	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::feed - ControlFlow cancellation of the event callback
+parser.h	xmlStopParser	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 parser.h	xmlSubstituteEntitiesDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlSubstituteEntitiesDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlThrDefDoValidityCheckingDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
@@ -2604,7 +2604,7 @@ xmlerror.h	XML_FROM_CHECK	enum_value	not_marked	P0-P3	not-started	https://github
 xmlerror.h	XML_FROM_DATATYPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
 xmlerror.h	XML_FROM_DTD	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
 xmlerror.h	XML_FROM_FTP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
-xmlerror.h	XML_FROM_HTML	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_HTML	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Html
 xmlerror.h	XML_FROM_HTTP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
 xmlerror.h	XML_FROM_I18N	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
 xmlerror.h	XML_FROM_IO	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Io
@@ -2633,7 +2633,7 @@ xmlerror.h	XML_FTP_EPSV_ANSWER	enum_value	not_marked	P0-P3	removed-upstream	http
 xmlerror.h	XML_FTP_PASV_ANSWER	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_FTP_URL_SYNTAX	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_HTML_INCORRECTLY_OPENED_COMMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	html::DiagnosticKind has no matching variant
-xmlerror.h	XML_HTML_STRUCURE_ERROR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	html::DiagnosticKind has no matching variant
+xmlerror.h	XML_HTML_STRUCURE_ERROR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
 xmlerror.h	XML_HTML_UNKNOWN_TAG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	html::DiagnosticKind has no matching variant
 xmlerror.h	XML_HTTP_UNKNOWN_HOST	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_HTTP_URL_SYNTAX	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream

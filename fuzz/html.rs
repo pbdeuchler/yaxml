@@ -1,19 +1,23 @@
-//! HTML parsing, push chunking and serialization on arbitrary bytes. Options
-//! and a chunk schedule derive from a hash of the input, so every input is a
-//! document.
+//! HTML parsing, push chunking, events, fragments and serialization on
+//! arbitrary bytes. Options and a chunk schedule derive from a hash of the
+//! input, so every input is a document.
 
-use yaxml::html::{self, Options, Parsed, PushParser};
+use std::ops::ControlFlow;
+
+use yaxml::html::{self, Event, EventParser, Options, Parsed, PushParser};
 use yaxml::{
-    EditLimits, Error, ErrorKind, Limit, Limits, OwnedDocument, OwnedNodeKind, Writer, c14n, save,
+    EditLimits, Error, ErrorKind, Limit, Limits, LineIndex, OwnedDocument, OwnedNodeKind, Writer,
+    c14n, save,
 };
 
-const FLAGS: [u32; 7] = [
+const FLAGS: [u32; 8] = [
     html::NOBLANKS,
     html::NOIMPLIED,
     html::NODEFDTD,
     html::HUGE,
     html::IGNORE_ENC,
     html::NOERROR,
+    html::HTML5,
     // Accepted flags without effect.
     html::RECOVER
         | html::NOWARNING
@@ -59,8 +63,8 @@ fn allowed(error: Error) {
     );
 }
 
-/// Structural invariants of a parsed tree.
-fn check(document: &OwnedDocument, options: Options) {
+/// Structural invariants of a parsed tree; a fragment's text may be top-level.
+fn check(document: &OwnedDocument, options: Options, fragment: bool) {
     assert!(document.is_html());
     let root = document.root();
     let nodes: Vec<_> = root.descendants().collect();
@@ -92,7 +96,7 @@ fn check(document: &OwnedDocument, options: Options) {
             }
             OwnedNodeKind::Text | OwnedNodeKind::Cdata => {
                 assert!(!node.text().unwrap().is_empty(), "empty character data");
-                assert_eq!(parent.kind(), OwnedNodeKind::Element);
+                assert!(fragment || parent.kind() == OwnedNodeKind::Element);
                 let previous = parent
                     .children()
                     .take_while(|child| child.id() != node.id())
@@ -104,6 +108,7 @@ fn check(document: &OwnedDocument, options: Options) {
             }
             OwnedNodeKind::Comment => {}
             OwnedNodeKind::DocumentType => {
+                assert!(!fragment, "a fragment keeps no DOCTYPE");
                 assert_eq!(root.first_child().map(|first| first.id()), Some(node.id()));
             }
             kind => panic!("unexpected {kind:?}"),
@@ -111,12 +116,234 @@ fn check(document: &OwnedDocument, options: Options) {
     }
 }
 
-fn outcome(parsed: &Parsed) -> (Vec<u8>, Vec<html::Diagnostic>, bool) {
+/// No decoding makes more line feeds than the input has 0x0A bytes.
+fn last_line(input: &[u8]) -> usize {
+    1 + input.iter().filter(|&&byte| byte == b'\n').count()
+}
+
+/// Recorded lines: one per parsed element, text and comment, never past the
+/// input's last line, and non-decreasing in creation order (libxml2 records
+/// the line its input is on, which only moves forward).
+fn lines(document: &OwnedDocument, input: &[u8]) -> Vec<Option<usize>> {
+    let last = last_line(input);
+    let index = LineIndex::new(b"");
+    let lines: Vec<_> = document.nodes().map(|node| node.line(&index)).collect();
+    let mut previous = 1;
+    for (node, line) in document.nodes().zip(&lines) {
+        if matches!(
+            node.kind(),
+            OwnedNodeKind::Element | OwnedNodeKind::Text | OwnedNodeKind::Comment
+        ) {
+            let line = line.expect("parsed nodes have lines");
+            assert!(
+                (previous..=last).contains(&line),
+                "line {line} after {previous}"
+            );
+            previous = line;
+        }
+    }
+    lines
+}
+
+/// Diagnostics: a line within the input, and a report naming it.
+fn diagnosed(diagnostics: &[html::Diagnostic], input: &[u8]) {
+    let last = last_line(input);
+    for diagnostic in diagnostics {
+        assert!((1..=last).contains(&diagnostic.line), "{diagnostic:?}");
+        assert!(diagnostic.column >= 1, "{diagnostic:?}");
+        let report = diagnostic.render("f");
+        assert!(
+            report.starts_with(&format!("f:{}: ", diagnostic.line)),
+            "{report}"
+        );
+        assert!(report.ends_with("^\n"), "{report:?}");
+    }
+}
+
+/// Diagnostics as push must reproduce them: their context lines only for
+/// ASCII input, since a `<meta>` charset re-decodes text that push input
+/// shows only once it arrives.
+fn reported(diagnostics: &[html::Diagnostic], input: &[u8]) -> Vec<String> {
+    let ascii = input.is_ascii();
+    diagnostics
+        .iter()
+        .map(|d| {
+            let report = format!(
+                "{:?} {} {} {} {}",
+                d.kind, d.offset, d.line, d.column, d.message
+            );
+            if ascii {
+                report + &d.render("")
+            } else {
+                report
+            }
+        })
+        .collect()
+}
+
+fn outcome(parsed: &Parsed, input: &[u8]) -> (Vec<u8>, Vec<String>, bool, Vec<Option<usize>>) {
     (
         html::save(&parsed.document, false).expect("parsed encodings serialize"),
-        parsed.diagnostics.clone(),
+        reported(&parsed.diagnostics, input),
         parsed.stopped,
+        lines(&parsed.document, input),
     )
+}
+
+/// An event as owned data, text merged as a tree merges it.
+#[derive(Debug, PartialEq)]
+enum Owned {
+    Doctype(String),
+    Start(String, Vec<(String, Option<String>)>),
+    End(String),
+    Text(String, bool),
+    Comment(String),
+}
+
+fn record(events: &mut Vec<Owned>, event: Event<'_>) {
+    let (text, cdata) = match event {
+        Event::Text(text) => (text, false),
+        Event::Cdata(text) => (text, true),
+        Event::Doctype(doctype) => return events.push(Owned::Doctype(doctype.name.to_owned())),
+        Event::Start { name, attributes } => {
+            return events.push(Owned::Start(name.to_owned(), attributes.to_vec()));
+        }
+        Event::End(name) => return events.push(Owned::End(name.to_owned())),
+        Event::Comment(text) => return events.push(Owned::Comment(text.to_owned())),
+        _ => unreachable!("new event"),
+    };
+    assert!(!text.is_empty(), "empty character data event");
+    match events.last_mut() {
+        Some(Owned::Text(last, kind)) if *kind == cdata => last.push_str(text),
+        _ => events.push(Owned::Text(text.to_owned(), cdata)),
+    }
+}
+
+/// The tree the SAX2 builder makes from events: (depth, element name or
+/// text, cdata) in preorder, text outside any element dropped.
+fn replay(events: &[Owned]) -> Vec<(usize, String)> {
+    let (mut depth, mut out) = (0_usize, Vec::new());
+    for event in events {
+        match event {
+            Owned::Start(name, _) => {
+                out.push((depth, format!("<{name}")));
+                depth += 1;
+            }
+            Owned::End(_) => depth = depth.saturating_sub(1),
+            Owned::Text(text, cdata) if depth > 0 => match out.last_mut() {
+                Some((at, last))
+                    if *at == depth && last.starts_with(if *cdata { 'c' } else { 't' }) =>
+                {
+                    last.push_str(text);
+                }
+                _ => out.push((depth, format!("{}{text}", if *cdata { 'c' } else { 't' }))),
+            },
+            Owned::Comment(text) => out.push((depth, format!("!{text}"))),
+            _ => {}
+        }
+    }
+    out
+}
+
+/// The same signature from a parsed tree.
+fn signature(document: &OwnedDocument) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    for node in document.root().descendants().skip(1) {
+        let depth = std::iter::successors(node.parent(), |n| n.parent()).count() - 1;
+        let item = match node.kind() {
+            OwnedNodeKind::Element => format!("<{}", node.name().unwrap().qualified()),
+            OwnedNodeKind::Text => format!("t{}", node.text().unwrap()),
+            OwnedNodeKind::Cdata => format!("c{}", node.text().unwrap()),
+            OwnedNodeKind::Comment => format!("!{}", node.text().unwrap()),
+            _ => continue,
+        };
+        out.push((depth, item));
+    }
+    out
+}
+
+/// Events: push equals pull, a handler can stop, and without limits the
+/// SAX2 builder's tree is the one `parse` builds, with the same diagnostics.
+fn events(input: &[u8], options: Options, seed: u64, whole: Option<&Parsed>) {
+    let mut pulled = Vec::new();
+    let summary = html::parse_events(input, options, |event| {
+        record(&mut pulled, event);
+        ControlFlow::Continue(())
+    });
+    let mut pushed = Vec::new();
+    let mut parser = EventParser::new(options, |event| {
+        record(&mut pushed, event);
+        ControlFlow::Continue(())
+    })
+    .unwrap();
+    let mut rest = input;
+    let mut schedule = seed.rotate_left(17);
+    let streamed = loop {
+        let size = 1 + (schedule % 13) as usize;
+        schedule = schedule.rotate_right(3);
+        let (chunk, tail) = rest.split_at(size.min(rest.len()));
+        if let Err(error) = parser.feed(chunk) {
+            break Err(error);
+        }
+        rest = tail;
+        if rest.is_empty() {
+            break parser.finish();
+        }
+    };
+    let (summary, streamed) = match (summary, streamed) {
+        (Ok(summary), Ok(streamed)) => (summary, streamed),
+        (Err(error), _) | (_, Err(error)) => return allowed(error),
+    };
+    assert_eq!(pulled, pushed, "events depend on chunking");
+    assert_eq!(
+        reported(&summary.diagnostics, input),
+        reported(&streamed.diagnostics, input)
+    );
+    assert_eq!(summary.stopped, streamed.stopped);
+    diagnosed(&summary.diagnostics, input);
+    // Without a tree, areBlanks keeps what NOBLANKS drops from one.
+    if let Some(whole) = whole
+        && !whole.stopped
+        && !summary.stopped
+        && options.flags & html::NOBLANKS == 0
+    {
+        assert_eq!(
+            replay(&pulled),
+            signature(&whole.document),
+            "SAX2 tree differs"
+        );
+        assert_eq!(summary.diagnostics, whole.diagnostics);
+    }
+    // A handler that breaks gets nothing more.
+    let stop = (seed >> 53) as usize % (pulled.len() + 1);
+    let mut seen = 0;
+    let stopped = html::parse_events(input, options, |_| {
+        seen += 1;
+        if seen > stop {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    });
+    if let Ok(stopped) = stopped {
+        assert!(seen <= stop + 1);
+        assert!(stopped.stopped || seen <= stop);
+    }
+}
+
+/// Fragments: tree invariants without a DOCTYPE, and the whole input once
+/// more as content of a document in the encoding the first parse chose.
+fn fragment(input: &[u8], options: Options, whole: Option<&Parsed>) {
+    let encoding = whole.and_then(|whole| whole.document.html_encoding());
+    match html::parse_fragment(input, encoding, options) {
+        Ok(parsed) => {
+            check(&parsed.document, options, true);
+            lines(&parsed.document, input);
+            diagnosed(&parsed.diagnostics, input);
+            assert!(html::save(&parsed.document, false).is_ok());
+        }
+        Err(error) => allowed(error),
+    }
 }
 
 /// XML output of an HTML tree is well-formed XML or an error.
@@ -152,8 +379,17 @@ fn saved_as_xml(document: &OwnedDocument, seed: u64) {
         &save::Options::new(format | ((seed >> 51 & 1) as u32 * save::AS_HTML)),
     );
     assert_eq!(html, html::save(document, format != 0));
+    // libxml2 adds `<meta charset>` to the first head of a top-level `html`
+    // only, unless that head has children (`metaHead` is reset only after
+    // them), so separate subtrees can differ when an HTML5 tree has several.
+    let elements = document
+        .root()
+        .children()
+        .filter(|node| node.kind() == OwnedNodeKind::Element)
+        .count();
     if let Ok(html) = &html
         && document.root().first_child().is_some()
+        && elements <= 1
     {
         let mut subtrees = Vec::new();
         for node in document.root().children() {
@@ -212,21 +448,39 @@ fn edited(input: &[u8], options: Options) {
     xml_output(&document);
 }
 
-pub(super) fn exercise(input: &[u8]) {
-    let seed = input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
+/// The input's hash, from which options and chunk schedules derive.
+fn seed(input: &[u8]) -> u64 {
+    input.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
-    });
+    })
+}
+
+/// Target `html_events`: events against the tree (`HTML5` among the options).
+pub(super) fn exercise_events(input: &[u8]) {
+    let seed = seed(input);
+    let options = options(seed);
+    events(input, options, seed, html::parse(input, options).ok().as_ref());
+}
+
+/// Target `html_fragment`: in-context parsing.
+pub(super) fn exercise_fragment(input: &[u8]) {
+    let options = options(seed(input));
+    fragment(input, options, html::parse(input, options).ok().as_ref());
+}
+
+pub(super) fn exercise(input: &[u8]) {
+    let seed = seed(input);
     let options = options(seed);
     if seed >> 40 & 63 == 0 {
-        // libxml2's HTML5 mode is rejected up front.
-        let html5 = Options::new(options.flags | html::HTML5);
+        // Unknown option bits are rejected up front.
+        let unknown = Options::new(options.flags | 1 << 3);
         let unsupported = Err(ErrorKind::UnsupportedOption);
         assert_eq!(
-            html::parse(input, html5).map(drop).map_err(|e| e.kind),
+            html::parse(input, unknown).map(drop).map_err(|e| e.kind),
             unsupported
         );
         assert_eq!(
-            PushParser::new(html5).map(drop).map_err(|e| e.kind),
+            PushParser::new(unknown).map(drop).map_err(|e| e.kind),
             unsupported
         );
     }
@@ -252,10 +506,11 @@ pub(super) fn exercise(input: &[u8]) {
     };
     match (&whole, &pushed) {
         (Ok(whole), Ok(pushed)) => {
-            check(&whole.document, options);
+            check(&whole.document, options, false);
+            diagnosed(&whole.diagnostics, input);
             assert_eq!(
-                outcome(whole),
-                outcome(pushed),
+                outcome(whole, input),
+                outcome(pushed, input),
                 "push result depends on chunking: {:?} {options:?}",
                 String::from_utf8_lossy(input)
             );
@@ -289,13 +544,18 @@ pub(super) fn exercise(input: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use super::exercise;
+    use super::{exercise, exercise_events, exercise_fragment};
 
     /// The prescan stops at NUL, which output drops; the reparse then finds
     /// an encoding this crate rejects.
     #[test]
     fn reparse_may_meet_a_rejected_prescan_label() {
         exercise(include_bytes!("regressions/html/reparse-prescan.html"));
+    }
+
+    #[test]
+    fn html5_tree_subtrees() {
+        exercise(include_bytes!("regressions/html/html5-subtrees.html"));
     }
 
     #[test]
@@ -330,6 +590,12 @@ mod tests {
             b"<title>",
             b"<textarea>",
             b"<plaintext>",
+            b"<br/>",
+            b"</q>",
+            b"<html>",
+            b"\n",
+            b"\xff",
+            b"<meta charset=iso-8859-2>",
             b"x",
         ];
         let mut state = 0x9e37_79b9_7f4a_7c15_u64;
@@ -342,6 +608,8 @@ mod tests {
                 input.extend_from_slice(TOKENS[(state >> 33) as usize % TOKENS.len()]);
             }
             exercise(&input);
+            exercise_events(&input);
+            exercise_fragment(&input);
         }
     }
 }

@@ -122,6 +122,8 @@ pub fn exercise(input: &[u8]) -> Outcome {
     exercise_regexp(input);
     exercise_datatypes(input);
     exercise_html(input);
+    exercise_html_events(input);
+    exercise_html_fragment(input);
     exercise_xpath(input);
     exercise_pattern(input);
     exercise_xinclude(input);
@@ -285,6 +287,16 @@ pub fn exercise_datatypes(input: &[u8]) {
 /// HTML parsing, push chunk independence and serialization.
 pub fn exercise_html(input: &[u8]) {
     html::exercise(input);
+}
+
+/// HTML events (SAX callbacks, `HTML5`): push equals pull, the SAX2 tree.
+pub fn exercise_html_events(input: &[u8]) {
+    html::exercise_events(input);
+}
+
+/// HTML fragments in context.
+pub fn exercise_html_fragment(input: &[u8]) {
+    html::exercise_fragment(input);
 }
 
 /// Borrowed parse of UTF-8 input; recognized encodings have their own oracle.

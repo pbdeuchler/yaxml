@@ -148,11 +148,15 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
         let noblanks = o.noblanks || o.format == 1;
         let flags = o.html_flags | yaxml::html::COMPACT | yaxml::html::BIG_LINES;
         let flags = flags | if noblanks { yaxml::html::NOBLANKS } else { 0 };
-        return Ok(yaxml::html::parse(
+        let parsed = yaxml::html::parse(
             input,
             yaxml::html::Options::DEFAULT.flags(flags).limits(limits),
-        )?
-        .document);
+        )?;
+        // xmllint --html reports what the HTML parser recovered from.
+        for diagnostic in &parsed.diagnostics {
+            eprint!("{}", diagnostic.render(name));
+        }
+        return Ok(parsed.document);
     }
     let options = ParseOptions::new(flags(o)).with_limits(limits);
     OwnedDocument::parse_with(input, options.with_resolver(name, resolver(o)))
