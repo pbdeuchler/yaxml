@@ -6,6 +6,18 @@
 //! [`validate`] checks any tree against a separately parsed [`Dtd`]
 //! (`xmlValidateDtd`, `xmllint --dtdvalid`). Validity errors are never fatal:
 //! each is a [`Diagnostic`] whose [`Code`] carries libxml2's `XML_DTD_*` number.
+//! [`StreamValidator`] validates parser events without a tree.
+//!
+//! ```
+//! use yaxml::valid::{self, Code};
+//!
+//! let xml = "<!DOCTYPE r [<!ELEMENT r (a)><!ATTLIST r id ID #REQUIRED>]><r/>";
+//! let diagnostics = yaxml::Document::parse(xml)?.validate();
+//! let codes: Vec<_> = diagnostics.iter().map(|d| d.code).collect();
+//! assert_eq!(codes, [Code::ContentModel, Code::MissingAttribute]);
+//! assert!(!valid::is_valid(&diagnostics));
+//! # Ok::<(), yaxml::Error>(())
+//! ```
 
 mod engine;
 mod model;

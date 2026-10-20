@@ -1,25 +1,25 @@
-//! HTML parsing and serialization with libxml2 2.15.4's behavior.
+//! HTML parsing and serialization as libxml2 2.15.4's `HTMLparser.c` and
+//! `HTMLtree.c` do.
 //!
-//! The tokenizer follows libxml2's HTML5-style tokenization; tree construction
-//! is libxml2's own legacy algorithm (implied html/head/body, start-tag
-//! auto-close tables, end-tag priorities), not the WHATWG tree builder.
-//! Malformed input is recovered, as libxml2 always does for HTML, and the
-//! problems libxml2 reports are collected as [`Diagnostic`]s. Documents are
-//! [`OwnedDocument`]s marked as HTML; [`parse_events`] and [`EventParser`]
-//! deliver libxml2's SAX callbacks as [`Event`]s instead. See `docs/html.md`
-//! for the contract.
+//! Tokenization is HTML5-style; tree construction is libxml2's legacy
+//! algorithm (implied html/head/body, auto-close tables), not the WHATWG
+//! tree builder. Malformed input is always recovered, and what libxml2
+//! reports is collected as [`Diagnostic`]s. [`parse`] builds an
+//! [`OwnedDocument`] marked as HTML; [`parse_events`] and [`EventParser`]
+//! deliver libxml2's SAX callbacks as [`Event`]s instead. See the
+//! [HTML contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/html.md).
 //!
 //! ```
 //! use yaxml::html;
 //!
-//! let parsed = html::parse(b"<p class=x>Hello<br>world", html::Options::default())?;
+//! let parsed = html::parse(b"<p class=x>Hello<br>world<p>b &amp; c", html::Options::default())?;
 //! let body = parsed.document.root_element().last_child().unwrap();
 //! assert_eq!(body.name().unwrap().local(), "body");
 //! assert_eq!(
 //!     html::save(&parsed.document, false)?,
 //!     b"<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \
 //!       \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n\
-//!       <html><body><p class=\"x\">Hello<br>world</p></body></html>\n"
+//!       <html><body><p class=\"x\">Hello<br>world</p><p>b &amp; c</p></body></html>\n"
 //! );
 //! # Ok::<(), yaxml::Error>(())
 //! ```

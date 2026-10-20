@@ -1,20 +1,26 @@
 //! libxml2's structured error record (`xmlError`), built on demand.
 //!
-//! [`Error`] stays the cheap `{ kind, offset }` value the parser returns; no
-//! error site allocates or records more. [`Error::describe`] turns it into a
+//! [`Error`] is a cheap `{ kind, offset }` value; [`Error::describe`] or
+//! [`LineIndex::describe_all`] re-reads the input around the offset to build a
 //! [`Diagnostic`] with libxml2's domain, code, level, line, column and
-//! message, and the validators' diagnostics convert to the same shape.
+//! message. The validators' diagnostics convert to the same shape. Codes and
+//! domains are stable; see the
+//! [error mapping](https://github.com/pbdeuchler/yaxml/blob/main/docs/bindings.md#error-mapping).
 //!
-//! Messages need context the error does not carry (tag, attribute and entity
-//! names, the open element and its line). `describe` recovers it from the
-//! input: a forward scan of the markup skeleton finds the construct holding
-//! the offset and the open elements, and that construct is re-read the way
-//! libxml2's parser reads it, so its first error, position and wording are
-//! libxml2's. The parser accepted everything before a strict error, so the
-//! scan is exact there; after recovered errors it follows libxml2's repair in
-//! the common case (an end tag closes the innermost element). Codes, domains
-//! and the context-free fallback per [`ErrorKind`] are stable; see
-//! docs/bindings.md#error-mapping.
+//! ```
+//! use yaxml::{Document, LineIndex, ParseOptions, options};
+//!
+//! let input = b"<r><a>text</b><p:c/>";
+//! let document = Document::parse_with(input, ParseOptions::new(options::RECOVER))?;
+//! let lines = LineIndex::new(input);
+//! let messages: Vec<_> = lines.describe_all(document.errors()).into_iter().map(|d| d.message).collect();
+//! assert_eq!(messages, [
+//!     "Opening and ending tag mismatch: a line 1 and b",
+//!     "Namespace prefix p on c is not defined",
+//! ]);
+//! assert_eq!(document.root_element().line(&lines), Some(1));
+//! # Ok::<(), yaxml::Error>(())
+//! ```
 
 use std::borrow::Cow;
 

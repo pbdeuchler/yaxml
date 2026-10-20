@@ -1,8 +1,9 @@
-//! libxml2 2.15.4's `xmlTextWriter` (`xmlwriter.c`): a call-by-call writer
-//! that auto-closes open start tags, indents, and writes what it is told
-//! without validating names or structure. For the same call sequence it
-//! writes libxml2's bytes and fails exactly where libxml2 returns -1, with
-//! the same partial output and state. See `docs/writer.md`.
+//! libxml2 2.15.4's `xmlTextWriter`: a call-by-call writer that auto-closes
+//! open start tags, indents, and does not validate names or structure.
+//!
+//! The same call sequence writes libxml2's bytes and fails where libxml2
+//! returns -1, with the same partial output. See the
+//! [writer contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/writer.md#libxml2-text-writer-textwriter).
 //!
 //! ```
 //! use yaxml::TextWriter;

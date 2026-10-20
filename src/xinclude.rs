@@ -1,17 +1,29 @@
-//! XInclude 1.0 as libxml2 2.15 processes it (`xinclude.c`), over owned
-//! documents: [`process`] returns a new document and never changes its input.
+//! XInclude 1.0 as libxml2 2.15's `xinclude.c` processes it.
+//!
+//! [`process`] returns a new [`OwnedDocument`] and never changes its input.
+//! It handles XML and text inclusion, fallbacks, `xml:base` fixup, XPointer
+//! selection and loop detection; resources load only through the given
+//! [`Resolver`], within cumulative budgets. See the
+//! [XInclude contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/xinclude.md).
 //!
 //! ```
 //! use yaxml::{OwnedDocument, Request, Writer, xinclude};
 //!
 //! let main = OwnedDocument::parse(
-//!     "<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='p.xml'/></r>",
+//!     "<r xmlns:xi='http://www.w3.org/2001/XInclude'>\
+//!      <xi:include href='p.xml'/><xi:include href='a.xml' xpointer='element(/1/2)'/></r>",
 //! )?;
-//! let resolver = |request: Request<'_>| Ok((request.uri == "p.xml").then(|| b"<p/>".to_vec()));
+//! let resolver = |request: Request<'_>| {
+//!     Ok(match request.uri {
+//!         "p.xml" => Some(b"<p/>".to_vec()),
+//!         "a.xml" => Some(b"<a><b/><c/></a>".to_vec()),
+//!         _ => None,
+//!     })
+//! };
 //! let result = xinclude::process(&main, "main.xml", Box::new(resolver), &Default::default())?;
 //! let mut writer = Writer::new(Vec::new());
 //! writer.write_owned_document(&result)?;
-//! assert_eq!(writer.into_inner(), br#"<r xmlns:xi="http://www.w3.org/2001/XInclude"><p/></r>"#);
+//! assert_eq!(writer.into_inner(), br#"<r xmlns:xi="http://www.w3.org/2001/XInclude"><p/><c/></r>"#);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 

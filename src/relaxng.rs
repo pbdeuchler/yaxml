@@ -1,4 +1,33 @@
-#![doc = include_str!("../docs/relaxng.md")]
+//! RELAX NG validation (XML syntax), libxml2's `relaxng.c`.
+//!
+//! [`Schema::parse`] (`xmlRelaxNGParse`) loads a schema and any `include` or
+//! `externalRef` documents through a [`Resolver`]; [`Schema::validate`]
+//! (`xmlRelaxNGValidateDoc`) checks either DOM, and [`Schema::stream`]
+//! (`xmlRelaxNGValidatePushElement`) checks parser events without a tree.
+//! A schema is immutable, `Send + Sync` and reusable. Validation uses
+//! derivatives instead of libxml2's backtracking, bounded by
+//! [`Limits::max_work`]. Built-in and XML Schema datatypes are supported;
+//! the compact syntax is not. Details and differences:
+//! <https://github.com/pbdeuchler/yaxml/blob/main/docs/relaxng.md>.
+//!
+//! ```
+//! use yaxml::relaxng::{Code, Limits, Schema};
+//!
+//! let rng = br#"<element name="r" xmlns="http://relaxng.org/ns/structure/1.0"
+//!     datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes">
+//!   <interleave>
+//!     <oneOrMore><element name="i"><data type="int"/></element></oneOrMore>
+//!     <element name="b"><empty/></element>
+//!   </interleave>
+//! </element>"#;
+//! let none = |_: yaxml::Request<'_>| Ok(None);
+//! let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
+//! let check = |xml| schema.validate(&yaxml::Document::parse(xml).unwrap());
+//! assert!(check("<r><b/><i>1</i><i>2</i></r>").is_empty());
+//! assert_eq!(check("<r><b/><i>x</i></r>")[0].code, Code::Datatype);
+//! assert_eq!(check("<r><b/></r>")[0].code, Code::MissingElement);
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 mod check;
 mod compile;

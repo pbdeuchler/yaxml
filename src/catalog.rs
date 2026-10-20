@@ -1,18 +1,23 @@
-//! OASIS XML Catalogs and SGML catalogs as libxml2 2.15.4 resolves them
-//! (`catalog.c`), without global state: a [`Catalog`] is built from bytes or
-//! loaded through a caller's [`Resolver`], which also fetches `nextCatalog`,
-//! delegate and SGML `CATALOG` files, lazily and within [`Limits`].
-//! [`CatalogResolver`] maps identifiers before another resolver fetches them.
+//! OASIS XML and SGML catalogs, libxml2's `catalog.c`, without global state.
+//!
+//! A [`Catalog`] is built from bytes or loaded through a [`Resolver`], which
+//! also fetches `nextCatalog`, delegate and SGML `CATALOG` files lazily,
+//! within [`Limits`]. [`CatalogResolver`] maps identifiers before another
+//! resolver fetches them, so any parser gains catalog support. Details:
+//! <https://github.com/pbdeuchler/yaxml/blob/main/docs/catalog.md>.
 //!
 //! ```
 //! use yaxml::catalog::{Catalog, CatalogResolver};
 //!
 //! let xml = br#"<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
 //!   <public publicId="-//EX//DTD R//EN" uri="local/r.dtd"/>
+//!   <rewriteSystem systemIdStartString="http://example.org/" rewritePrefix="mirror/"/>
 //! </catalog>"#;
 //! let none = |_: yaxml::Request<'_>| Ok(None);
 //! let mut catalog = Catalog::parse(xml, Default::default(), "cat.xml", Box::new(none))?;
 //! assert_eq!(catalog.resolve(Some("-//EX//DTD  R//EN"), None).as_deref(), Some("local/r.dtd"));
+//! let system = catalog.resolve(None, Some("http://example.org/s.dtd"));
+//! assert_eq!(system.as_deref(), Some("mirror/s.dtd"));
 //!
 //! let dtd = |request: yaxml::Request<'_>| {
 //!     Ok((request.uri == "local/r.dtd").then(|| b"<!ENTITY e 'mapped'>".to_vec()))

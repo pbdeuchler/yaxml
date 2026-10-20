@@ -1,9 +1,18 @@
-//! XML Schema 1.0 built-in datatypes (Part 2) as libxml2 2.15.4
-//! `xmlschemastypes.c` validates, compares and constrains them, for use by
-//! XML Schema and RELAX NG validation (see `docs/schema-types.md`).
+//! The 45 XML Schema 1.0 built-in datatypes, libxml2's `xmlschemastypes.c`.
 //!
 //! [`Type::parse`] normalizes whitespace and computes a [`Value`];
 //! [`Value::compare`] orders values partially; a [`Facet`] constrains them.
+//! XML Schema and RELAX NG validation build on this module. Differences from
+//! libxml2: <https://github.com/pbdeuchler/yaxml/blob/main/docs/schema-types.md>.
+//!
+//! ```
+//! use yaxml::schema_types::{Comparison, Type};
+//!
+//! let late = Type::DateTime.parse("2001-10-26T21:32:52Z", None).unwrap();
+//! let early = Type::DateTime.parse("2001-10-26T23:32:52+04:00", None).unwrap();
+//! assert_eq!(early.compare(&late), Comparison::Less);
+//! assert!(Type::Byte.parse("128", None).is_err());
+//! ```
 
 use std::borrow::Cow;
 use std::cmp::Ordering;

@@ -1,6 +1,10 @@
-//! libxml2 `pattern.c`: the XPath subset of `xmlPatterncompile` (steps joined
-//! by `/` and `//`, `.`, `*`, `p:*`, `p:n`, `@a`, `child::`/`attribute::`, `|`),
-//! DOM matching over either tree, and the incremental `xmlStream*` matcher.
+//! XPath patterns, libxml2's `pattern.c`.
+//!
+//! [`Pattern::compile`] (`xmlPatterncompile`) accepts steps joined by `/`
+//! and `//`, `.`, `*`, `p:*`, `p:n`, `@a`, `child::`/`attribute::` and `|`. A
+//! pattern matches nodes of either DOM, or element events incrementally
+//! through a [`StreamMatcher`] (`xmlStream*`) in memory bounded by
+//! [`Limits`].
 //!
 //! ```
 //! use yaxml::{Document, pattern::Pattern};

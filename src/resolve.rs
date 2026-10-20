@@ -1,4 +1,4 @@
-//! Caller-controlled loading of external DTD subsets and parsed entities.
+//! Caller-controlled loading of external resources.
 
 use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};

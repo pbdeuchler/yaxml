@@ -1,4 +1,27 @@
-#![doc = include_str!("../docs/c14n.md")]
+//! Canonical XML 1.0 and 1.1 and Exclusive XML Canonicalization 1.0 over
+//! either DOM, with libxml2 2.15.4's `c14n.c` bytes.
+//!
+//! Where libxml2 departs from the recommendations, this module follows
+//! libxml2. A tree with kept entity references fails with
+//! [`Error::EntityReference`]; parse with `NOENT`. See the
+//! [C14N contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/c14n.md).
+//!
+//! ```
+//! use yaxml::OwnedDocument;
+//! use yaxml::c14n::{self, Mode, Options};
+//! use yaxml::xpath::{Context, XPath};
+//!
+//! let document = OwnedDocument::parse("<r xmlns:p='urn:p'><p:e b='2' a='1'/></r>")?;
+//! let whole = c14n::to_string(&document, &Options::new(Mode::Exclusive10))?;
+//! assert_eq!(whole, r#"<r><p:e xmlns:p="urn:p" a="1" b="2"></p:e></r>"#);
+//!
+//! let context = Context::new().with_namespace("p", "urn:p");
+//! let nodes = XPath::compile("(//. | //@* | //namespace::*)[ancestor-or-self::p:e]")?
+//!     .select_nodes(&document, document.root().id(), &context)?;
+//! let options = Options::new(Mode::Exclusive10).nodes(Some(&nodes));
+//! assert_eq!(c14n::to_string(&document, &options)?, r#"<p:e xmlns:p="urn:p" a="1" b="2"></p:e>"#);
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 use std::borrow::Cow;
 use std::collections::HashSet;

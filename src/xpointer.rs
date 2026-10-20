@@ -1,8 +1,7 @@
-//! XPointer as libxml2 2.15 evaluates it (`xpointer.c`): shorthand (bare)
-//! names, child sequences and the `element()` scheme, `xmlns()` prefix
-//! bindings, and the `xpointer()`/`xpath1()` schemes evaluated by
-//! [`crate::xpath`]. libxml2 2.15 removed the range and point extensions, and
-//! so does this module.
+//! XPointer as libxml2 2.15's `xpointer.c` evaluates it: shorthand names,
+//! child sequences, the `element()` and `xmlns()` schemes, and
+//! `xpointer()`/`xpath1()` through [`crate::xpath`]. Like libxml2 2.15, it
+//! has no range or point extensions.
 //!
 //! ```
 //! let document = yaxml::OwnedDocument::parse("<r><a xml:id='i'><b/><c/></a></r>")?;

@@ -1,8 +1,10 @@
-//! Tree output with libxml2 2.15.4's `xmlsave.c` behavior: `xmlSaveDoc` for
-//! a document and `xmlSaveTree`/`xmlNodeDump` for any other node of either
-//! DOM, under `xmlSaveOption` flags and an output encoding. The internal
-//! subset is regenerated from its declarations, as libxml2 dumps its parsed
-//! DTD. See `docs/writer.md` for the contract and the differences.
+//! Tree output as libxml2 2.15.4's `xmlsave.c` writes it: `xmlSaveDoc` for
+//! a document and `xmlSaveTree` for any other node of either DOM, under
+//! `xmlSaveOption` flags and an output encoding.
+//!
+//! The internal subset is regenerated from its declarations, as libxml2
+//! does. See the
+//! [writer contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/writer.md#libxml2-tree-output-save).
 //!
 //! ```
 //! use yaxml::{OwnedDocument, save};

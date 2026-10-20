@@ -10,7 +10,7 @@
 //! `Send` and `Sync`, and validates any number of documents.
 //!
 //! ```
-//! use yaxml::{Document, xsd::{Code, Schema}};
+//! use yaxml::{Document, xsd::{self, Code, Schema}};
 //!
 //! let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 //!   <xs:element name="r"><xs:complexType><xs:sequence>
@@ -19,13 +19,15 @@
 //! </xs:schema>"#, "r.xsd")?;
 //! let document = Document::parse("<r><n>1</n><n>x</n></r>")?;
 //! let diagnostics = schema.validate(&document);
+//! assert!(!xsd::is_valid(&diagnostics));
 //! assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! Validity errors are [`Diagnostic`]s; a schema that fails to build is an
 //! [`Error`] listing [`SchemaDiagnostic`]s. Codes carry libxml2's
-//! `XML_SCHEMAP_*` and `XML_SCHEMAV_*` numbers. See `docs/xsd.md`.
+//! `XML_SCHEMAP_*` and `XML_SCHEMAV_*` numbers. Differences from libxml2:
+//! <https://github.com/pbdeuchler/yaxml/blob/main/docs/xsd.md>.
 
 mod automaton;
 mod components;

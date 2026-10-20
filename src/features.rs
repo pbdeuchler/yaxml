@@ -1,7 +1,8 @@
-//! Capability and version reporting: `xmlHasFeature(XML_WITH_*)`,
-//! `LIBXML_VERSION` and `xmlCheckVersion`, so a binding can probe what this
-//! build provides. [`Feature`] keeps libxml2's `xmlFeature` numbers; unknown
-//! numbers and `XML_WITH_NONE` are unsupported, as in libxml2.
+//! Build capabilities and versions: libxml2's `xmlHasFeature`,
+//! `LIBXML_VERSION` and `xmlCheckVersion`.
+//!
+//! [`Feature`] keeps libxml2's `xmlFeature` numbers; unknown numbers and
+//! `XML_WITH_NONE` are unsupported, as in libxml2.
 //!
 //! ```
 //! use yaxml::features::{self, Feature};

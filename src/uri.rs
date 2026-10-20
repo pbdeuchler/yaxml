@@ -1,6 +1,6 @@
 //! URI parsing, serialization, escaping and reference resolution following
 //! libxml2 2.15.4 `uri.c` on Unix, including its deviations from RFC 3986
-//! (see `docs/uri.md`).
+//! ([URI differences](https://github.com/pbdeuchler/yaxml/blob/main/docs/uri.md)).
 //!
 //! Inputs end at the first NUL, as C strings do. Unescaped components must be
 //! UTF-8 (`InvalidUtf8` otherwise) and are cut at a decoded NUL.

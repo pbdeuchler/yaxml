@@ -1,22 +1,29 @@
-//! libxml2's `xmlParserOption` flags and [`ParseOptions`], the one options
-//! value every XML parser and DOM accepts.
+//! libxml2's `xmlParserOption` flags and [`ParseOptions`], which every XML
+//! parser and DOM takes.
 //!
-//! Flags carry libxml2's numeric values, so bindings can pass an `int` from
-//! existing code unchanged. Each surface accepts exactly the flags it
-//! implements and returns [`ErrorKind::UnsupportedOption`] for the rest; no
-//! flag is silently ignored unless libxml2 2.15.4 itself gives it no
-//! observable effect. See `docs/compatibility.md#option-compatibility`.
+//! Flags keep libxml2's names and numeric values, so a binding can pass an
+//! existing `int`. A surface that does not implement a flag returns
+//! [`ErrorKind::UnsupportedOption`] instead of ignoring it; flags that have no
+//! observable effect in libxml2 2.15.4 are accepted. See
+//! [option compatibility](https://github.com/pbdeuchler/yaxml/blob/main/docs/compatibility.md#option-compatibility).
+//!
+//! The default is libxml2's: entity references stay in the tree as
+//! [`NodeKind::EntityRef`](crate::NodeKind::EntityRef) nodes and no DTD
+//! defaults are added. String values see through references.
 //!
 //! ```
 //! use yaxml::{Document, ParseOptions, options};
 //!
-//! let xml = b"<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>";
-//! // libxml2's default keeps the reference as a node ...
-//! let kept = Document::parse_with(xml, ParseOptions::default())?;
+//! let xml = "<!DOCTYPE r [<!ENTITY e '<b>x</b>'><!ATTLIST r a CDATA 'd'>]><r>&e;</r>";
+//! let kept = Document::parse(xml)?;
 //! assert_eq!(kept.root_element().first_child().unwrap().entity_name(), Some("e"));
-//! // ... and XML_PARSE_NOENT substitutes it.
-//! let substituted = Document::parse_with(xml, ParseOptions::new(options::NOENT))?;
-//! assert_eq!(substituted.root_element().first_child().unwrap().text(), Some("x"));
+//! assert_eq!(kept.root_element().text_chunks().collect::<String>(), "x");
+//! assert!(kept.root_element().attributes().is_empty());
+//!
+//! let options = ParseOptions::new(options::NOENT | options::DTDATTR);
+//! let complete = Document::parse_with(xml.as_bytes(), options)?;
+//! assert_eq!(complete.root_element().first_child().unwrap().name().unwrap().local(), "b");
+//! assert_eq!(complete.root_element().attributes()[0].value, "d");
 //! # Ok::<(), yaxml::Error>(())
 //! ```
 

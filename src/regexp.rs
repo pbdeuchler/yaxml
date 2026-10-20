@@ -1,13 +1,19 @@
-//! XML Schema 1.0 regular expressions (Part 2, Appendix F) as libxml2 2.15.4
-//! `xmlregexp.c` parses them, including its extensions and quirks (see
-//! `docs/schema-types.md`). A pattern matches a whole string.
+//! XML Schema 1.0 regular expressions, libxml2's `xmlregexp.c`
+//! (`xmlRegexpCompile`, `xmlRegexpExec`), with its extensions and quirks.
 //!
-//! A pattern compiles to a Thompson NFA. Its size, including every copy of a
-//! counted repetition and every distinct character class, is charged to a
-//! budget, so `a{1000000}` is rejected rather than expanded. Matching runs a
-//! lazily built DFA with a bounded cache and never backtracks: each character
-//! costs one cached lookup, or on a miss one NFA step bounded by the
-//! automaton size.
+//! A pattern matches a whole string. Compilation is charged to a budget
+//! (every copy of a counted repetition counts), so `a{1000000}` is rejected
+//! rather than expanded; matching never backtracks and is linear in the
+//! input. Differences from libxml2:
+//! <https://github.com/pbdeuchler/yaxml/blob/main/docs/schema-types.md>.
+//!
+//! ```
+//! use yaxml::regexp::Regex;
+//!
+//! let pattern = Regex::new("[A-Z]{2}\\d{3}")?;
+//! assert!(pattern.is_match("AB123") && !pattern.is_match("AB12"));
+//! # Ok::<(), yaxml::regexp::Error>(())
+//! ```
 
 use std::collections::HashMap;
 use std::fmt;

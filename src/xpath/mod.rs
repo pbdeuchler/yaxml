@@ -1,5 +1,10 @@
-//! XPath 1.0 over the borrowed [`Document`](crate::Document) and the
-//! [`OwnedDocument`](crate::OwnedDocument).
+//! XPath 1.0 over [`Document`](crate::Document) and
+//! [`OwnedDocument`](crate::OwnedDocument), libxml2's `xpath.c`.
+//!
+//! All axes, the 27 core functions, variables and extension functions are
+//! supported; number formatting and string edge cases follow libxml2. Work
+//! is bounded by [`Limits`]. See the
+//! [XPath contract](https://github.com/pbdeuchler/yaxml/blob/main/docs/xpath.md).
 //!
 //! ```
 //! use yaxml::Document;
