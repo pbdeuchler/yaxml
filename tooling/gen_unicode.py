@@ -7,7 +7,7 @@ Usage: uv run tooling/gen_unicode.py LIBXML2_SRC > src/regexp/unicode.rs
 Categories and blocks come from codegen/unicode.inc (libxml2's Unicode 4.0.1
 tables, including its quirks: UnicodeData "First/Last" ranges contribute only
 their two endpoints). The XML 1.0 (4th edition) Letter/Digit/Combining/Extender
-classes behind \\i and \\c come from codegen/ranges.def.
+classes (behind \\i, \\c and crate::chars) come from codegen/ranges.def.
 """
 import re
 import sys
@@ -103,3 +103,13 @@ print(f"pub(super) const NAME_CHAR: &[(u32, u32)] = {table(name_char)};")
 print()
 print("/// `\\W`: categories P, Z and C.")
 print(f"pub(super) const NOT_WORD: &[(u32, u32)] = {table(not_word)};")
+for name, stem in [
+    ("BASE_CHAR", "BaseChar"),
+    ("IDEOGRAPHIC", "Ideographic"),
+    ("COMBINING", "Combining"),
+    ("DIGIT", "Digit"),
+    ("EXTENDER", "Extender"),
+]:
+    print()
+    print(f"/// XML 1.0 (4th edition) Appendix B `{stem}`, for `crate::chars`.")
+    print(f"pub(crate) const {name}: &[(u32, u32)] = {table(chvalid('xmlIs' + stem))};")

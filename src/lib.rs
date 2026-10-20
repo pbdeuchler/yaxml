@@ -7,6 +7,7 @@ mod allocator;
 mod buffered;
 pub mod c14n;
 pub mod catalog;
+pub mod chars;
 mod dom;
 mod dtd;
 mod dtd_catalog;
