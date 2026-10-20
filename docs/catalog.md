@@ -183,6 +183,20 @@ older differences in lookups, now fixed: a lookup with no usable identifier
 (an empty public identifier alone) loaded `nextCatalog` files, which libxml2
 does not, and an SGML `PUBLIC ""` added by `add` answered a query for `""`.
 
+## Fuzzing
+
+`fuzz/catalog.rs` (target `catalog`) runs the lookups over fuzz-provided
+catalogs and files, and, from `+type|orig|replace` and `-value` lines of its
+last piece, edits and dumps them: every edit sequence must dump to a catalog
+that loads and dumps the same after one reload, and edits cleaned to absolute
+names on an empty XML and an empty SGML catalog must dump, load and answer
+exactly as the edited catalog does. A 5 minute run on `nightly-2026-10-18`
+(`-fork=1 -timeout=2`, 348,000 executions, 3 seeds added to the corpus) found
+no crash, timeout or leak; its first run found two harness assumptions that do
+not hold (a repeated lookup on one catalog may answer differently, because
+lazy loads and failures change it, and a missing name dumps as `""`, which
+loads as a name).
+
 ## Differences and gaps
 
 - A malformed root XML catalog is `Error::Malformed`; libxml2 loads XML

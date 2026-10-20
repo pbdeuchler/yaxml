@@ -193,26 +193,21 @@ fn strict_round_trip(lines: &[&str], sgml: bool) {
             let mut fields = add.splitn(3, '|');
             let kind = fields.next().unwrap_or("").len();
             let (orig, replace) = (fields.next().unwrap_or(""), fields.next().unwrap_or(""));
-            // Loading drops an SGML `PUBLIC` that normalizes to nothing.
-            let orig = if sgml && clean(orig).is_empty() {
-                "x"
-            } else {
-                orig
+            // Loading drops an SGML `PUBLIC` that normalizes to nothing, and
+            // `-` is no name: a missing one dumps as `""`, which loads as a name.
+            let orig = match clean(orig).as_str() {
+                "" if sgml => "x".to_owned(),
+                "-" => "x-".to_owned(),
+                other => other.to_owned(),
             };
             let kind = if sgml {
                 ["PUBLIC", "SYSTEM"][kind % 2]
             } else {
                 XML[kind % XML.len()]
             };
-            names.push(format!("s{}", clean(orig)));
-            names.push(format!("p{}", clean(orig)));
-            names.push(format!("u{}", clean(orig)));
+            names.extend(["s", "p", "u"].map(|prefix| format!("{prefix}{orig}")));
             // Distinct replacements: loading drops a repeated `nextCatalog`.
-            format!(
-                "+{kind}|{}|http://h/{}-{index}",
-                clean(orig),
-                clean(replace)
-            )
+            format!("+{kind}|{orig}|http://h/{}-{index}", clean(replace))
         } else {
             format!("-{}", clean(&line[line.len().min(1)..]))
         };
