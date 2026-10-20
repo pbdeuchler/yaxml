@@ -28,7 +28,7 @@ pub struct QName<'a> {
 }
 
 impl<'a> QName<'a> {
-    fn new((qualified, namespace): (&'a str, Option<&'a str>)) -> Self {
+    pub(crate) fn new((qualified, namespace): (&'a str, Option<&'a str>)) -> Self {
         let namespace = namespace.filter(|uri| !uri.is_empty());
         Self {
             qualified,

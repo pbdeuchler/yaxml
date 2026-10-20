@@ -194,6 +194,55 @@ const CASES: &[(&str, &[Shown], bool)] = &[
         ],
         true,
     ),
+    // A name left in no namespace keeps its whole QName; a bound prefix is
+    // dropped, as libxml2 names them.
+    (
+        "<!DOCTYPE r [<!ELEMENT r ANY>]><r p:a='1'/>",
+        &[(
+            UnknownAttribute,
+            Some(0),
+            "No declaration for attribute p:a of element r",
+        )],
+        true,
+    ),
+    (
+        "<!DOCTYPE r [<!ELEMENT r ANY>]><r xmlns:p='u' p:a='1'/>",
+        &[
+            (
+                UnknownAttribute,
+                Some(0),
+                "No declaration for attribute a of element r",
+            ),
+            (
+                UnknownAttribute,
+                Some(0),
+                "No declaration for attribute xmlns:p of element r",
+            ),
+        ],
+        true,
+    ),
+    (
+        "<!DOCTYPE r [<!ELEMENT r ANY><!ELEMENT a EMPTY>]><r><p:a/></r>",
+        &[(UnknownElement, Some(1), "No declaration for element p:a")],
+        true,
+    ),
+    (
+        "<!DOCTYPE r [<!ELEMENT r ANY>]><r xmlns:p='u'><p:b/></r>",
+        &[
+            (
+                UnknownAttribute,
+                Some(0),
+                "No declaration for attribute xmlns:p of element r",
+            ),
+            (UnknownElement, Some(1), "No declaration for element b"),
+        ],
+        true,
+    ),
+    (
+        "<!DOCTYPE r [<!ELEMENT r ANY><!ELEMENT a EMPTY>]><r><a/></r>",
+        &[],
+        true,
+    ),
     // libxml2's parser validates nothing without a declaration; the tree
     // (`xmlValidateDocument`) checks an empty DTD.
     (
@@ -732,4 +781,19 @@ fn entity_references_are_content_of_empty_elements() {
             "{input}"
         );
     }
+}
+
+/// The fuzz finding: an undeclared attribute with an unbound prefix is named
+/// by its whole QName by both validators, as libxml2 does.
+#[test]
+fn unbound_prefix_attribute_is_named_whole_by_both_validators() {
+    let input =
+        include_bytes!("fixtures/fuzz-regressions/dtd/valid-unbound-prefix-attribute-name.xml");
+    let options = || ParseOptions::new(NOENT);
+    let tree = OwnedDocument::parse_with(input, options()).unwrap();
+    let diagnostics = stream(input, options());
+    let (tree, stream) = (tree_projection(&tree), stream_projection(&diagnostics));
+    let message = "No declaration for attribute Kxmlns:p of element r";
+    assert!(tree.iter().any(|p| p.3 == message), "{tree:?}");
+    assert!(stream.iter().any(|p| p.3 == message), "{stream:?}");
 }
