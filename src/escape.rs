@@ -18,6 +18,11 @@ const SUSPECT: [bool; 256] = {
     table
 };
 
+/// Whether `byte` can start a character outside `xml_char` in valid UTF-8.
+pub(crate) fn suspect(byte: u8) -> bool {
+    SUSPECT[usize::from(byte)]
+}
+
 /// Byte offset of the first character outside `xml_char`. In valid UTF-8
 /// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail, so
 /// 64-byte blocks are screened with a branch-free byte test first; text

@@ -141,6 +141,32 @@ fn isolated_failures_keep_global_offsets() {
     }
 }
 
+/// Short runs are screened for characters outside `Char` as they are
+/// appended, longer ones when their token completes: either way every chunk
+/// schedule finds what the slice reader finds.
+#[test]
+fn character_screen_is_chunk_independent() {
+    let long = "x".repeat(40);
+    for input in [
+        "<r>\t\n\r\u{feff}\u{fffd}</r>".into(),
+        "<r>ab\u{1}cd</r>".into(),
+        "<r a='\u{1f}'/>".into(),
+        format!("<r>{long}\u{fffe}{long}</r>"),
+        format!("<r><!--{long}\u{8}--></r>"),
+        "<r><?p \u{ffff}?></r>".into(),
+        "<r><![CDATA[a\u{1}]]></r>".into(),
+        format!("<r a='{long}' b='\u{ffff}'/>"),
+    ] {
+        let input = input.as_bytes();
+        let expected = capture::slice_events(input);
+        for size in (1..=12).chain([31, 64, input.len()]) {
+            let schedule = vec![size; input.len().div_ceil(size)];
+            let actual = capture::push_events(input, &schedule, Limits::default());
+            assert_eq!(actual, expected, "chunks of {size} for {input:?}");
+        }
+    }
+}
+
 #[test]
 fn normalization_has_independent_expected_values() {
     let input = b"<r a='\r\n\t&#xA;&#xD;&#9;'>x\r\ny\rz&#13;<![CDATA[a\r\nb]]></r>";

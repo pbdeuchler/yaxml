@@ -398,7 +398,7 @@ impl Stream {
                     let recovery = self.recovery.as_mut().expect("recovering stream");
                     parse_recovering(&self.tokenizer, &mut self.state, recovery)?
                 } else {
-                    let raw = validate(kind, bytes, span)?;
+                    let raw = validate(kind, bytes, span, self.tokenizer.screened())?;
                     let event = parse_valid(kind, raw, span, &mut self.state)?;
                     (event, SourceOrigin::input(span.source.clone()))
                 };
@@ -608,7 +608,7 @@ fn parse_event<'token>(
             tokenizer.source_position(),
         ));
     };
-    let raw = validate(kind, bytes, span)?;
+    let raw = validate(kind, bytes, span, tokenizer.screened())?;
     parse_valid(kind, raw, span, state)
 }
 
@@ -682,10 +682,14 @@ fn parse_recovering<'token>(
     Ok((event, SourceOrigin::input(span.source.start..end)))
 }
 
+/// The token's text, checked to be UTF-8 made of `Char`s; `screened` bytes
+/// are known to be `Char`s once they are UTF-8.
+#[inline(always)]
 fn validate<'token>(
     kind: TokenKind,
     bytes: &'token [u8],
     span: &TokenSpan,
+    screened: bool,
 ) -> Result<&'token str, Error> {
     // Invalid markup can be recognized on a leading UTF-8 byte, so it can end
     // inside a scalar: only its complete prefix is read (as recovered text).
@@ -699,7 +703,7 @@ fn validate<'token>(
             )
         })?
     };
-    if let Some(relative) = invalid_char(raw) {
+    if !screened && let Some(relative) = invalid_char(raw) {
         return Err(span.map_error(
             raw,
             Error::new(ErrorKind::InvalidCharacter, span.decoded.start + relative),
