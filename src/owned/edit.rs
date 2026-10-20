@@ -24,10 +24,10 @@ enum Anchor {
 
 /// A declaration reconciliation adds on `element`; prefix and URI are the
 /// pool ranges of the name that needs it (`uri` `None`: `xmlns=""`).
-struct Declare {
-    element: usize,
-    prefix: Option<Range<usize>>,
-    uri: Option<Range<usize>>,
+pub(super) struct Declare {
+    pub(super) element: usize,
+    pub(super) prefix: Option<Range<usize>>,
+    pub(super) uri: Option<Range<usize>>,
 }
 
 fn error(kind: EditErrorKind) -> EditError {
@@ -271,16 +271,18 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// The declarations `root`'s subtree needs once it stands under `context`
-    /// (`None`: where it is). Entity-reference content is not entered, as in
-    /// `xmlReconciliateNs`; it is written as the reference.
-    fn plan(
+    /// (`None`: where it is), after the `seed` declarations. Entity-reference
+    /// content is not entered, as in `xmlReconciliateNs`; it is written as
+    /// the reference.
+    pub(super) fn plan(
         &self,
         root: usize,
         context: Option<usize>,
+        seed: Vec<Declare>,
         work: &mut Work,
     ) -> Result<Vec<Declare>, EditError> {
         let pool = &self.pool.0;
-        let mut plan: Vec<Declare> = Vec::new();
+        let mut plan = seed;
         let mut current = root;
         loop {
             let record = &self.nodes[current];
@@ -396,7 +398,7 @@ fn relocate<T>(
 }
 
 impl<A: Allocator> Editor<'_, A> {
-    fn id(&self, index: usize) -> OwnedNodeId {
+    pub(super) fn id(&self, index: usize) -> OwnedNodeId {
         OwnedNodeId {
             document: self.document.identity,
             slot: NodeId(index),
@@ -613,7 +615,13 @@ impl<A: Allocator> Editor<'_, A> {
             used: 0,
             limit: self.limits.max_namespace_work,
         };
-        let plan = self.document.plan(root, context, &mut work)?;
+        let plan = self.document.plan(root, context, Vec::new(), &mut work)?;
+        self.declare(plan)
+    }
+
+    /// Charges, reserves and then adds `plan`'s declarations; nothing
+    /// changes on failure.
+    pub(super) fn declare(&mut self, plan: Vec<Declare>) -> Result<(), EditError> {
         if plan.is_empty() {
             return Ok(());
         }
@@ -844,7 +852,7 @@ impl<A: Allocator> Editor<'_, A> {
                 used: 0,
                 limit: self.limits.max_namespace_work,
             };
-            let unused = self.document.plan(index, None, &mut work);
+            let unused = self.document.plan(index, None, Vec::new(), &mut work);
             let failure = match unused {
                 Ok(plan) if plan.is_empty() => None,
                 Ok(_) => Some(error(EditErrorKind::Namespace)),
@@ -1105,7 +1113,7 @@ fn validate_value_length_sum(left: usize, right: usize, limit: usize) -> Result<
     Ok(())
 }
 
-fn reserve_attributes<A: Allocator>(
+pub(super) fn reserve_attributes<A: Allocator>(
     document: &mut OwnedDocument<A>,
     additional: usize,
 ) -> Result<(), EditError> {
@@ -1122,7 +1130,7 @@ fn reserve_attributes<A: Allocator>(
 impl<A: Allocator> OwnedDocument<A> {
     /// libxml2's `xmlIsID` for an attribute being added: `xml:id`, an HTML
     /// `id` (or `name` on `a`), or one the DTD declares `ID`.
-    fn is_id(&self, element: &str, attribute: &str) -> bool {
+    pub(super) fn is_id(&self, element: &str, attribute: &str) -> bool {
         attribute == "xml:id"
             || self.html.is_some() && (attribute == "id" || element == "a" && attribute == "name")
             || self
@@ -1133,12 +1141,6 @@ impl<A: Allocator> OwnedDocument<A> {
     /// Calls `visit` on every pool range a live record, attribute or kept
     /// form refers to, in a fixed order.
     fn visit_strings(&mut self, mut visit: impl FnMut(&mut Range<usize>)) {
-        let name = |name: &mut StoredName, visit: &mut dyn FnMut(&mut Range<usize>)| {
-            visit(&mut name.qualified);
-            if let Some(namespace) = &mut name.namespace {
-                visit(namespace);
-            }
-        };
         if let Some(declaration) = &mut self.declaration {
             visit(&mut declaration.version);
             if let Some(encoding) = &mut declaration.encoding {
@@ -1146,34 +1148,56 @@ impl<A: Allocator> OwnedDocument<A> {
             }
         }
         for record in self.nodes.iter_mut() {
-            match &mut record.content {
-                Content::DocumentType(doctype) => {
-                    visit(&mut doctype.name);
-                    let optional = [
-                        &mut doctype.public_id,
-                        &mut doctype.system_id,
-                        &mut doctype.internal_subset,
-                    ];
-                    optional.into_iter().flatten().for_each(&mut visit);
-                }
-                Content::Element { name: element, .. } => name(element, &mut visit),
-                Content::Text(range)
-                | Content::Cdata(range)
-                | Content::Comment(range)
-                | Content::EntityRef(range) => visit(range),
-                Content::ProcessingInstruction { target, data } => {
-                    visit(target);
-                    visit(data);
-                }
-                Content::Document | Content::Removed => {}
-            }
+            record.content.visit_strings(&mut visit);
         }
         for attribute in self.attributes.iter_mut() {
-            name(&mut attribute.name, &mut visit);
-            visit(&mut attribute.value);
+            attribute.visit_strings(&mut visit);
         }
         for (_, range) in self.kept.iter_mut() {
             visit(range);
+        }
+    }
+}
+
+impl StoredName {
+    fn visit_strings(&mut self, visit: &mut impl FnMut(&mut Range<usize>)) {
+        visit(&mut self.qualified);
+        if let Some(namespace) = &mut self.namespace {
+            visit(namespace);
+        }
+    }
+}
+
+impl StoredAttribute {
+    pub(super) fn visit_strings(&mut self, visit: &mut impl FnMut(&mut Range<usize>)) {
+        self.name.visit_strings(visit);
+        visit(&mut self.value);
+    }
+}
+
+impl Content {
+    /// Calls `visit` on each pool range the record holds.
+    pub(super) fn visit_strings(&mut self, visit: &mut impl FnMut(&mut Range<usize>)) {
+        match self {
+            Content::DocumentType(doctype) => {
+                visit(&mut doctype.name);
+                let optional = [
+                    &mut doctype.public_id,
+                    &mut doctype.system_id,
+                    &mut doctype.internal_subset,
+                ];
+                optional.into_iter().flatten().for_each(visit);
+            }
+            Content::Element { name, .. } => name.visit_strings(visit),
+            Content::Text(range)
+            | Content::Cdata(range)
+            | Content::Comment(range)
+            | Content::EntityRef(range) => visit(range),
+            Content::ProcessingInstruction { target, data } => {
+                visit(target);
+                visit(data);
+            }
+            Content::Document | Content::Removed => {}
         }
     }
 }

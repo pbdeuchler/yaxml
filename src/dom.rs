@@ -723,6 +723,19 @@ impl<'document, 'input> Node<'document, 'input> {
         (!doctype).then(|| self.text_chunks().collect())
     }
 
+    /// `xmlNodeListGetString`, as [`OwnedNode::list_string`](crate::OwnedNode::list_string).
+    pub fn list_string(self, substitute: bool) -> String {
+        let ascii = self
+            .document
+            .declaration()
+            .is_none_or(|declaration| declaration.encoding.is_none());
+        tree::list_string(
+            self.document,
+            self.id,
+            (!substitute).then_some((false, ascii)),
+        )
+    }
+
     /// `xmlGetNodePath`: a location path such as `/r/p:a[2]/text()`; `None`
     /// for the DOCTYPE, entity references and their content.
     pub fn path(self) -> Option<String> {

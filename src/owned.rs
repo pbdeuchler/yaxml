@@ -25,6 +25,7 @@ const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
 
 mod construction;
+mod copy;
 mod edit;
 
 static LAST_DOCUMENT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -183,7 +184,7 @@ pub enum OwnedNodeKind {
     EntityRef,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum Content {
     Document,
     DocumentType(StoredDoctype),
@@ -220,7 +221,7 @@ impl Link {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct OwnedRecord {
     // The stable slot follows the record into a view without a second arena
     // lookup. Records never move between slots or documents.
@@ -302,7 +303,7 @@ impl StoredAttribute {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct StoredDeclaration {
     version: Range<usize>,
     encoding: Option<Range<usize>>,
@@ -319,7 +320,7 @@ impl StoredDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct StoredDoctype {
     name: Range<usize>,
     public_id: Option<Range<usize>>,
@@ -792,6 +793,9 @@ impl<A: Allocator> OwnedDocument<A> {
     /// Detaches and permanently removes the node at `index` and its descendants.
     fn remove(&mut self, index: usize) {
         self.detach(index);
+        // A detached root (a fresh copy) has no parent to detach from, but
+        // its tombstones still end the all-live preorder fast path.
+        self.slots_are_preorder = false;
         // Strip rightmost leaves, then their parents. Each edge is visited a
         // constant number of times, without recursion or a temporary stack.
         let mut current = NodeId(index);
@@ -940,10 +944,9 @@ impl<A: Allocator> OwnedDocument<A> {
         self.root().children().find_map(OwnedNode::doctype)
     }
 
-    /// For an HTML document, the first content XML cannot represent: a name
-    /// that is not an NCName (or an `xmlns` attribute, which would rebind
-    /// namespaces), a character outside XML's range, or a comment XML forbids.
-    /// XML documents always pass.
+    /// For an HTML document, the first content XML cannot represent
+    /// ([`xml_problem`]) or a second top-level element. XML documents always
+    /// pass.
     pub(crate) fn xml_violation(&self) -> Option<String> {
         self.html.as_ref()?;
         let elements = self
@@ -953,40 +956,8 @@ impl<A: Allocator> OwnedDocument<A> {
         if elements.count() > 1 {
             return Some("a second top-level element is not XML".to_owned());
         }
-        let chars = |text: &str| text.chars().all(crate::escape::xml_char);
-        let ncname = |name: &str| crate::name::validate_name(name, 0, false).is_ok();
-        self.nodes().find_map(|node| {
-            let problem = match node.kind() {
-                OwnedNodeKind::Element => {
-                    let name = node.qualified_name().unwrap_or_default();
-                    if !ncname(name) {
-                        Some(format!("element name {name:?}"))
-                    } else {
-                        node.attributes().find_map(|attribute| {
-                            let name = attribute.name.qualified();
-                            if !ncname(name) || name == "xmlns" {
-                                Some(format!("attribute name {name:?}"))
-                            } else if !chars(&attribute.value) {
-                                Some(format!("attribute {name:?} value"))
-                            } else {
-                                None
-                            }
-                        })
-                    }
-                }
-                OwnedNodeKind::Comment => {
-                    let text = node.text().unwrap_or_default();
-                    (!chars(text) || text.contains("--") || text.ends_with('-'))
-                        .then(|| format!("comment {text:?}"))
-                }
-                OwnedNodeKind::Text | OwnedNodeKind::Cdata => {
-                    let text = node.text().unwrap_or_default();
-                    (!chars(text)).then(|| "character data".to_owned())
-                }
-                _ => None,
-            };
-            problem.map(|problem| format!("{problem} is not XML"))
-        })
+        self.nodes()
+            .find_map(|node| xml_problem(node).map(|(_, problem)| format!("{problem} is not XML")))
     }
 
     /// The document URL (`ParseOptions::base` or [`Editor::set_url`],
@@ -1052,6 +1023,43 @@ impl<A: Allocator> OwnedDocument<A> {
             document: self,
             limits,
         })
+    }
+}
+
+/// What XML cannot represent in an HTML node, and the edit error it is: a
+/// name that is not an NCName (or an `xmlns` attribute, which would rebind
+/// namespaces), a character outside XML's range, or a comment XML forbids.
+fn xml_problem<A: Allocator>(node: OwnedNode<'_, A>) -> Option<(EditErrorKind, String)> {
+    let chars = |text: &str| text.chars().all(crate::escape::xml_char);
+    let ncname = |name: &str| crate::name::validate_name(name, 0, false).is_ok();
+    let text = node.text().unwrap_or_default();
+    match node.kind() {
+        OwnedNodeKind::Element => {
+            let name = node.qualified_name().unwrap_or_default();
+            if !ncname(name) {
+                return Some((EditErrorKind::InvalidName, format!("element name {name:?}")));
+            }
+            node.attributes().find_map(|attribute| {
+                let name = attribute.name.qualified();
+                if !ncname(name) || name == "xmlns" {
+                    Some((
+                        EditErrorKind::InvalidName,
+                        format!("attribute name {name:?}"),
+                    ))
+                } else if !chars(&attribute.value) {
+                    let problem = format!("attribute {name:?} value");
+                    Some((EditErrorKind::InvalidCharacter, problem))
+                } else {
+                    None
+                }
+            })
+        }
+        OwnedNodeKind::Comment => (!chars(text) || text.contains("--") || text.ends_with('-'))
+            .then(|| (EditErrorKind::InvalidValue, format!("comment {text:?}"))),
+        OwnedNodeKind::Text | OwnedNodeKind::Cdata => {
+            (!chars(text)).then(|| (EditErrorKind::InvalidCharacter, "character data".to_owned()))
+        }
+        _ => None,
     }
 }
 
@@ -1908,7 +1916,7 @@ fn append_record<A: Allocator>(
 }
 
 /// State that only HTML documents carry.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct HtmlMeta {
     encoding: Option<String>,
     /// Sorted attribute-arena indices of attributes written without a value.
@@ -2418,6 +2426,18 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
     pub fn content(self) -> Option<String> {
         let doctype = self.kind() == OwnedNodeKind::DocumentType;
         (!doctype).then(|| self.text_chunks().collect())
+    }
+
+    /// `xmlNodeListGetString`: the Text and CDATA of this node and its
+    /// following siblings, other nodes skipped. With `substitute` an entity
+    /// reference adds its content; without, it is `&name;` and the text is
+    /// escaped as `xmlEscapeText` does (non-ASCII as `&#xH;` unless the
+    /// declaration names an encoding; only `&<>` in HTML).
+    pub fn list_string(self, substitute: bool) -> String {
+        let document = self.document;
+        let ascii = document.declaration().is_none_or(|d| d.encoding.is_none());
+        let escape = (!substitute).then_some((document.is_html(), ascii));
+        tree::list_string(document, self.id(), escape)
     }
 
     /// `xmlGetNodePath`: a location path such as `/r/p:a[2]/text()`; `None`
