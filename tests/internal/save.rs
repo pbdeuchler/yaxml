@@ -2,9 +2,18 @@
 
 use super::*;
 
-fn out(label: Option<&str>) -> Out {
+fn out(label: Option<&str>) -> Out<'static> {
     let output = label.map_or(Output::Utf8, |label| Output::for_label(label).unwrap());
-    Out::new(output, label.is_none())
+    Out::new(output, label.is_none(), None)
+}
+
+/// An in-memory buffer's bytes, or its first error.
+fn done(out: Out<'_>) -> Result<Vec<u8>, Error> {
+    match out.error {
+        None => Ok(out.bytes),
+        Some(WriteError::Xml(error)) => Err(error),
+        Some(WriteError::Io(error)) => panic!("memory output failed: {error}"),
+    }
 }
 
 #[test]
@@ -58,7 +67,7 @@ fn text_escapes_and_references_follow_the_encoding() {
     for (label, attribute, input, expected) in cases {
         let mut out = out(*label);
         out.text(input, *attribute);
-        assert_eq!(out.finish().unwrap(), *expected, "{label:?} {input:?}");
+        assert_eq!(done(out).unwrap(), *expected, "{label:?} {input:?}");
     }
 }
 
@@ -75,7 +84,7 @@ fn markup_fails_where_references_would_change_it() {
     for (label, markup, error) in cases {
         let mut out = out(*label);
         out.raw(markup);
-        let offset = out.finish().err().map(|error| {
+        let offset = done(out).err().map(|error| {
             assert_eq!(error.kind, ErrorKind::InvalidCharacter);
             error.offset
         });
@@ -84,7 +93,7 @@ fn markup_fails_where_references_would_change_it() {
     // Converted text uses references instead.
     let mut ascii = out(Some("ASCII"));
     ascii.converted("a\u{e9}");
-    assert_eq!(ascii.finish().unwrap(), b"a&#233;");
+    assert_eq!(done(ascii).unwrap(), b"a&#233;");
 }
 
 #[test]
@@ -98,7 +107,7 @@ fn quoted_strings_choose_a_quote_like_libxml2() {
     for (text, converted, expected) in cases {
         let mut out = out(Some("ASCII"));
         out.quoted(text, *converted);
-        assert_eq!(out.finish().unwrap(), *expected, "{text:?}");
+        assert_eq!(done(out).unwrap(), *expected, "{text:?}");
     }
 }
 
@@ -110,7 +119,7 @@ fn appended_errors_keep_their_absolute_offset() {
     sibling.raw("d\u{e9}");
     first.append(sibling);
     assert_eq!(
-        first.finish().unwrap_err(),
+        done(first).unwrap_err(),
         Error::new(ErrorKind::InvalidCharacter, 4)
     );
 
@@ -119,7 +128,7 @@ fn appended_errors_keep_their_absolute_offset() {
     let mut sibling = first.sibling();
     sibling.raw("\u{e9}");
     first.append(sibling);
-    assert_eq!(first.finish().unwrap_err().offset, 0);
+    assert_eq!(done(first).unwrap_err().offset, 0);
 }
 
 #[test]

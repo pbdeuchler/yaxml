@@ -17,7 +17,7 @@ use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::parser::Budget;
 use crate::{DecodeLimits, Doctype, Limits};
 
-pub(super) fn doctype(out: &mut Out, doctype: &Doctype<'_>) {
+pub(super) fn doctype(out: &mut Out<'_>, doctype: &Doctype<'_>) {
     out.raw("<!DOCTYPE ");
     out.raw(doctype.name);
     match (doctype.public_id, doctype.system_id) {
@@ -55,7 +55,12 @@ pub(super) fn doctype(out: &mut Out, doctype: &Doctype<'_>) {
 }
 
 /// Writes the subset's declarations; true when it declared anything.
-fn declarations(name: &str, subset: &str, notations: &mut Out, out: &mut Out) -> Option<bool> {
+fn declarations(
+    name: &str,
+    subset: &str,
+    notations: &mut Out<'_>,
+    out: &mut Out<'_>,
+) -> Option<bool> {
     // The subset is source text; parsing normalizes its line ends.
     let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
@@ -91,8 +96,8 @@ fn declaration(
     view: DtdUnitView<'_>,
     catalog: &DtdCatalog,
     seen: &mut HashSet<String>,
-    notations: &mut Out,
-    out: &mut Out,
+    notations: &mut Out<'_>,
+    out: &mut Out<'_>,
 ) -> bool {
     let mut first = |kind: &str, name: &str| seen.insert(format!("{kind} {name}"));
     match view {
@@ -229,7 +234,7 @@ fn declaration(
 }
 
 /// `PUBLIC "p" "s"` or `SYSTEM "s"`; only notations may lack the system literal.
-fn external(out: &mut Out, identifier: ExternalIdView<'_>) {
+fn external(out: &mut Out<'_>, identifier: ExternalIdView<'_>) {
     match identifier.public {
         Some(public) => {
             out.raw("PUBLIC ");
@@ -445,8 +450,8 @@ impl<'a> Model<'a> {
     }
 
     /// `xmlBufDumpElementContent`, iterative like libxml2's.
-    fn write(&self, out: &mut Out) {
-        let occur = |out: &mut Out, particle: &Particle<'_>| {
+    fn write(&self, out: &mut Out<'_>) {
+        let occur = |out: &mut Out<'_>, particle: &Particle<'_>| {
             out.raw(match particle.occur {
                 Occur::Once => "",
                 Occur::Optional => "?",

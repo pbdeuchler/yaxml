@@ -1,4 +1,5 @@
-//! Writer operations are caller input, independently of parsed XML bytes.
+//! Writer operations are caller input, independently of parsed XML bytes:
+//! `Writer` events and sinks, and `TextWriter` call scripts.
 
 use std::borrow::Cow;
 use std::cell::Cell;
@@ -16,6 +17,7 @@ pub(super) fn exercise(input: &[u8], accepted: bool) {
     }
     operations(input);
     output_schedule(input);
+    text_scripts(input);
 }
 
 fn roundtrip(input: &[u8]) {
@@ -441,4 +443,75 @@ fn output_schedule(input: &[u8]) {
     let sink = writer.into_inner();
     assert_eq!(position, sink.bytes.len());
     assert!(sink.bytes.len() <= 4);
+}
+
+#[path = "text_script.rs"]
+mod text_script;
+
+/// `TextWriter` call scripts from the input: random ones (misuse included)
+/// under small limits, or well-formed ones whose output must reparse. No
+/// call panics, output never passes `max_output_bytes`, and a limit or
+/// I/O failure is terminal.
+fn text_scripts(input: &[u8]) {
+    let Some((&mode, rest)) = input.split_first() else {
+        return;
+    };
+    let mut cursor = 0;
+    let mut next = |bound: usize| {
+        let byte = rest.get(cursor).copied().unwrap_or(0);
+        cursor += 1;
+        usize::from(byte) % bound
+    };
+    // Text arguments are slices from the end of the input.
+    let mut tail = rest.len();
+    let mut text = || {
+        let length = usize::from(*rest.get(tail.checked_sub(1)?)?) % 24;
+        let start = tail.checked_sub(1 + length)?;
+        let slice = String::from_utf8_lossy(&rest[start..tail - 1]).into_owned();
+        tail = start;
+        Some(slice)
+    };
+    let calls = 1 + usize::from(mode >> 2) % 48;
+    let well_formed = mode & 1 == 0;
+    let limits = match mode & 2 == 0 || well_formed {
+        true => WriterLimits::default(),
+        false => WriterLimits {
+            max_output_bytes: 16 + next(256) * 4,
+            max_token_bytes: 8 + next(256),
+            max_depth: 1 + next(8),
+            max_attributes: next(4),
+            ..WriterLimits::default()
+        },
+    };
+    let script = match well_formed {
+        true => text_script::well_formed(&mut next, calls),
+        false => text_script::random(&mut next, &mut text, calls),
+    };
+    let mut writer = yaxml::TextWriter::with_limits(Vec::new(), limits);
+    let mut terminal = false;
+    for call in &script {
+        let result = call.apply(&mut writer);
+        // The indent setters cannot fail.
+        if terminal && !matches!(call.code(), "IN" | "IS") {
+            assert!(
+                matches!(&result, Err(WriteError::Xml(error)) if error.kind == ErrorKind::InvalidState),
+                "{result:?} after a terminal failure"
+            );
+        }
+        if let Err(WriteError::Xml(error)) = &result
+            && matches!(error.kind, ErrorKind::LimitExceeded(_))
+        {
+            terminal = true;
+        }
+    }
+    let position = writer.position();
+    let output = writer.into_inner();
+    assert_eq!(position, output.len());
+    assert!(output.len() <= limits.max_output_bytes);
+    if well_formed && let Err(error) = yaxml::OwnedDocument::parse_bytes(&output) {
+        panic!(
+            "well-formed script output does not reparse ({error}): {script:?}\n{:?}",
+            String::from_utf8_lossy(&output)
+        );
+    }
 }
