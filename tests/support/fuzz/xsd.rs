@@ -95,6 +95,10 @@ fn built(result: Result<Schema, xsd::Error>) -> Option<Schema> {
 /// Validation invariants over both DOMs.
 fn check(schema: &Schema, owned: &OwnedDocument, instance: &[u8]) {
     let diagnostics = schema.validate(owned);
+    let lines = yaxml::LineIndex::new(instance);
+    for diagnostic in &diagnostics {
+        super::check_described(diagnostic.describe(&lines), &lines);
+    }
     let streamed = schema
         .validate_stream(instance, ParseOptions::default())
         .expect("the tree parsed");
@@ -162,6 +166,9 @@ pub fn exercise(input: &[u8]) {
     };
     assert!(*requests.lock().unwrap() <= limits.max_documents);
     let schema = built(result);
+    if schema.is_some() && control & 0x10 == 0 {
+        work_sweep(schema_text, &files, limits);
+    }
     // A recovered instance without an element reports its missing root.
     let recover = yaxml::ParseOptions::new(yaxml::options::RECOVER);
     if let (Some(schema), Ok(rootless)) = (&schema, OwnedDocument::parse_with(instance, recover))
@@ -188,4 +195,36 @@ pub fn exercise(input: &[u8]) {
             check(&schema, &owned, instance);
         }
     }
+}
+
+/// Model work is a monotone budget: of four hash-chosen budgets, every one
+/// above a budget that builds the schema builds it too, and the rest fail
+/// cleanly wherever the work runs out.
+fn work_sweep(schema: &[u8], files: &[Vec<u8>], limits: Limits) {
+    let seed = super::resolver::hash(schema);
+    let mut budgets: Vec<usize> = [64, 512, 4096, 32768]
+        .iter()
+        .enumerate()
+        .map(|(k, &range)| (seed >> (k * 13)) as usize % range)
+        .collect();
+    budgets.sort_unstable();
+    let builds: Vec<bool> = budgets
+        .iter()
+        .map(|&work| {
+            let requests = Arc::new(Mutex::new(0usize));
+            let resolver = Some(resolver(files, &requests));
+            let limits = limits.max_model_work(work);
+            built(Schema::with_resolver(
+                schema,
+                "file:///f/main.xsd",
+                resolver,
+                limits,
+            ))
+            .is_some()
+        })
+        .collect();
+    assert!(
+        builds.windows(2).all(|pair| !pair[0] || pair[1]),
+        "model work is not monotone: {budgets:?} {builds:?}"
+    );
 }

@@ -132,6 +132,10 @@ pub fn exercise(input: &[u8]) {
         return;
     };
     let borrowed = compiled.validate(&document);
+    let lines = yaxml::LineIndex::new(instance);
+    for diagnostic in &borrowed {
+        super::check_described(diagnostic.describe(&lines), &lines);
+    }
     let found = summary(&borrowed);
     assert_eq!(found, summary(&compiled.validate(&owned)), "DOMs disagree");
     assert_eq!(

@@ -104,7 +104,16 @@ fn stream(xml: &[u8], owned: &OwnedDocument) {
             validator.set_dtd(dtd);
         }
     }
+    let pending = validator.diagnostics().to_vec();
     let diagnostics = validator.finish();
+    assert!(
+        diagnostics.starts_with(&pending),
+        "finish rewrote reported diagnostics"
+    );
+    let lines = yaxml::LineIndex::new(xml);
+    for diagnostic in owned.validate().iter() {
+        super::check_described(diagnostic.describe(&lines), &lines);
+    }
     let elements: Vec<_> = (owned.nodes())
         .filter(|node| node.kind() == OwnedNodeKind::Element)
         .map(|node| node.id())

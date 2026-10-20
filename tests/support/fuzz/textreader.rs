@@ -209,6 +209,18 @@ fn probe<R: BufRead>(reader: &mut TextReader<R>) {
             }
             assert!(reader.move_to_attribute(&qualified));
             assert_eq!(reader.value(), Some(value.as_str()));
+            // The value's children: Text, or EntityReference without NOENT.
+            let mut parts = Vec::new();
+            while reader.read_attribute_value() {
+                parts.push((reader.node_type(), reader.value().map(str::to_owned)));
+            }
+            assert!(!parts.is_empty(), "an attribute value has a child");
+            if parts.iter().all(|(kind, _)| *kind == NodeType::Text) {
+                let joined: String = parts.iter().filter_map(|(_, v)| v.as_deref()).collect();
+                assert_eq!(joined, value);
+            }
+            assert!(reader.move_to_attribute(&qualified));
+            assert!(!reader.is_default() && reader.normalization());
             if !reader.move_to_next_attribute() {
                 assert!(reader.move_to_element());
             }
@@ -504,7 +516,11 @@ pub fn exercise(input: &[u8]) {
         let mut reader = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
         let mut skipped = Vec::new();
         let mut more = reader.read().expect("accepted input");
+        let lines = yaxml::LineIndex::new(document);
+        let _ = reader.standalone();
         while more {
+            assert!(reader.line_number(&lines) >= 1 && reader.column_number(&lines) >= 1);
+            assert!(reader.byte_consumed() <= document.len());
             skipped.push(reader.name().expect("named node").to_owned());
             more = reader.next().expect("accepted input");
         }
@@ -519,6 +535,14 @@ pub fn exercise(input: &[u8]) {
             .map(|node| node.name.clone())
             .collect();
         assert_eq!(skipped, top);
+        assert!(
+            reader.into_remainder().is_none(),
+            "no node is current at the end"
+        );
+        let mut first = TextReader::with_options(document, ParseOptions::new(flags)).unwrap();
+        if first.read().expect("accepted input") {
+            assert!(first.into_remainder().is_some());
+        }
     }
 }
 
@@ -597,6 +621,12 @@ fn validated(document: &[u8], control: u8) {
         reader.xsd_set_schema(Some(&schema)).unwrap();
     }
     while reader.read().unwrap_or(false) {}
+    let mut dtd = TextReader::with_options(document, ParseOptions::new(options::DTDVALID)).unwrap();
+    while dtd.read().unwrap_or(false) {}
+    assert_eq!(
+        dtd.is_valid(),
+        yaxml::valid::is_valid(dtd.dtd_diagnostics())
+    );
     let relaxng = with_rng.then(|| reader.relaxng_diagnostics().is_empty());
     let xsd = with_xsd.then(|| xsd::is_valid(reader.xsd_diagnostics()));
     let valid = relaxng.or(xsd).is_some() && relaxng != Some(false) && xsd != Some(false);

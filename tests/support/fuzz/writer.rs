@@ -18,6 +18,12 @@ pub(super) fn exercise(input: &[u8], accepted: bool) {
     operations(input);
     output_schedule(input);
     text_scripts(input);
+    // Entity boundaries write nothing: the replacement's events follow.
+    for event in [Event::EntityStart(Cow::Borrowed("e")), Event::EntityEnd] {
+        let mut writer = yaxml::Writer::new(Vec::new());
+        assert!(writer.write_event(&event).is_ok());
+        assert!(writer.into_inner().is_empty());
+    }
 }
 
 fn roundtrip(input: &[u8]) {

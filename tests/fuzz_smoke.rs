@@ -1089,6 +1089,14 @@ fn fuzz_regressions_replay() {
                 "save" => driver::exercise_save(&data),
                 "fragment" => driver::exercise_fragment(&data),
                 "textreader" => driver::exercise_textreader(&data),
+                // Injected failures need yaxml-harness's allocator; without
+                // one, the surface is deterministic and passes its own check.
+                "allocfail" => {
+                    let input = data.get(4..).unwrap_or_default();
+                    let baseline = driver::allocfail_run(input);
+                    assert_eq!(driver::allocfail_run(input), baseline);
+                    driver::allocfail_check(&baseline, &baseline);
+                }
                 _ => drop(driver::exercise(&data)),
             }
         }
@@ -1290,4 +1298,37 @@ fn domedit_corpus_and_regressions_keep_their_invariants() {
         }
     }
     assert!(replayed >= 5, "domedit seeds are missing");
+}
+
+#[test]
+fn allocfail_surfaces_are_deterministic_and_check_their_results() {
+    let documents: &[&[u8]] = &[
+        b"<r a='1'>t<c/><![CDATA[x]]><?p d?><!--c--></r>",
+        b"<!DOCTYPE r SYSTEM '0' [<!ENTITY e 'v'><!ATTLIST r a CDATA 'd'>]><r>&e;&f;</r>\0<!ENTITY f 'w'>",
+        b"<r><unclosed></r>",
+        b"<r xmlns:xi='http://www.w3.org/2001/XInclude'><xi:include href='0'/></r>\0<i/>",
+        b"",
+    ];
+    for surface in 0..10 {
+        for selector in [0, 0x01, 0x02, 0x08, 0x20, 0x83, 0xff] {
+            for document in documents {
+                let input = [&[surface, selector][..], document].concat();
+                let baseline = driver::allocfail_run(&input);
+                assert_eq!(driver::allocfail_run(&input), baseline);
+                driver::allocfail_check(&baseline, &baseline);
+                driver::allocfail_check(&baseline, &Err("Error { kind: Allocation }".into()));
+            }
+        }
+    }
+    assert_eq!(driver::allocfail_run(b"\x00"), Ok(0));
+    // Pieces after the document are served as resources.
+    let served =
+        driver::allocfail_run(b"\x00\x81<!DOCTYPE r SYSTEM '0'><r>&e;</r>\0<!ENTITY e 'v'>");
+    assert!(served.is_ok(), "{served:?}");
+    let unserved = driver::allocfail_run(b"\x00\x81<!DOCTYPE r SYSTEM '0'><r>&e;</r>");
+    assert_ne!(served, unserved);
+    let changed = std::panic::catch_unwind(|| {
+        driver::allocfail_check(&Ok(0), &Err("Error { kind: MissingRoot }".into()));
+    });
+    assert!(changed.is_err(), "a non-allocation error passed the check");
 }

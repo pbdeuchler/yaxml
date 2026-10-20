@@ -345,6 +345,41 @@ pub fn exercise(input: &[u8]) {
             .unwrap_or_else(|| (*system).to_owned());
         assert_eq!(*seen.lock().unwrap(), [expected]);
     }
+    catalog_pis(root, &resources, public, system);
+}
+
+/// `CATALOG_PI`: catalog PIs before the DOCTYPE and in content add `d/1` and
+/// `d/2` before the root catalog; the slice reader and the push parser ask
+/// the inner resolver for the same URIs and agree on acceptance.
+fn catalog_pis(root: &[u8], resources: &[&[u8]], public: &str, system: &str) {
+    let document = format!(
+        "<?oasis-xml-catalog catalog='d/1'?><!DOCTYPE r PUBLIC '{public}' '{system}'>\
+         <r><?oasis-xml-catalog catalog=\"d/2\"?></r>"
+    );
+    let run = |push: bool| {
+        let catalog = Catalog::parse(root, LIMITS, "d/root", resolver(resources, &Log::default()));
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let record = seen.clone();
+        let inner = move |request: Request<'_>| {
+            record.lock().unwrap().push(request.uri.to_owned());
+            Ok(None)
+        };
+        let resolver = CatalogResolver::new(catalog.ok()?, Box::new(inner));
+        let flags = yaxml::options::CATALOG_PI | yaxml::options::DTDLOAD;
+        let options = yaxml::ParseOptions::new(flags).with_resolver("", Box::new(resolver));
+        let accepted = match push {
+            false => Document::parse_with(document.as_bytes(), options).is_ok(),
+            true => {
+                let mut parser = yaxml::PushParser::with_options(options).ok()?;
+                let mut events = |_: &yaxml::Event<'_>, _| std::ops::ControlFlow::Continue(());
+                parser.feed(document.as_bytes(), &mut events).is_ok()
+                    && parser.finish(&mut events).is_ok()
+            }
+        };
+        let requested = seen.lock().unwrap().clone();
+        Some((accepted, requested))
+    };
+    assert_eq!(run(false), run(true), "catalog PIs differ across readers");
 }
 
 /// Complete DTD processing (`NOENT | DTDATTR | DTDLOAD`) through `resolver`.
