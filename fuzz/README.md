@@ -1,14 +1,15 @@
 # Fuzzing and replay
 
-The fuzz oracles are safe Rust with no added Cargo dependencies. They live in yaxml itself, `../yaxml/tests/support/fuzz/` (`driver.rs` and one module per surface), so yaxml's own tests share them: `tests/fuzz_smoke.rs` (deterministic smoke tests over the seeds in `tests/fixtures/fuzz-seeds/` and the regressions in `tests/fixtures/fuzz-regressions/`), `tests/stream.rs` and `tests/writer.rs`. This directory holds the cargo-fuzz targets that `#[path]`-include the driver, the corpus, the regressions, open findings and `seed.py`; `examples/fuzz_replay.rs` is the process-per-testcase replay. The release policy and coverage definitions are in [the security plan](https://github.com/pbdeuchler/yaxml/blob/main/docs/security.md).
+The fuzz oracles are safe Rust with no added Cargo dependencies. They live in the library's tests, `tests/support/fuzz/` (`driver.rs` and one module per surface), so yaxml's own tests share them: `tests/fuzz_smoke.rs` (deterministic smoke tests over the seeds in `tests/fixtures/fuzz-seeds/` and the regressions in `tests/fixtures/fuzz-regressions/`), `tests/stream.rs` and `tests/writer.rs`. This directory holds the cargo-fuzz targets that `#[path]`-include the driver, the minimized corpus, `regressions` (a link to `tests/fixtures/fuzz-regressions/`), open findings and `seed.py`; `harness/examples/fuzz_replay.rs` is the process-per-testcase replay. The release policy and coverage definitions are in [the security plan](../docs/security.md).
 
-Run the smoke tests (in `../yaxml`) and replay a testcase (here):
+Run the smoke tests (at the repository root) and replay a testcase (in `harness/`):
 
 ```sh
-(cd ../yaxml && cargo test --test fuzz_smoke)
-cargo run --release --example fuzz_replay -- ../yaxml/tests/fixtures/fuzz-seeds/minimal.xml
+cargo test --test fuzz_smoke
+cd harness
+cargo run --release --example fuzz_replay -- ../tests/fixtures/fuzz-seeds/minimal.xml
 cargo run --release --example fuzz_replay < testcase.xml
-cargo run --release --example fuzz_replay -- --libxml2 /path/to/pinned/xmllint ../yaxml/tests/fixtures/fuzz-seeds/minimal.xml
+cargo run --release --example fuzz_replay -- --libxml2 /path/to/pinned/xmllint ../tests/fixtures/fuzz-seeds/minimal.xml
 ```
 
 The example accepts each filename as a separate testcase, or one testcase from stdin when there are no arguments. It caps testcase size at one MiB before parsing. Syntax rejection is an expected result and exits successfully; an invariant violation panics. File/read errors and oversized input fail the process. Keep that distinction when configuring an external runner.
@@ -48,7 +49,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 | `catalog` | `exercise_catalog` | `catalog::Catalog::parse`, `resolve`, `resolve_uri` and `CatalogResolver` over NUL-separated pieces (root catalog, then files `0`..`9`; the last piece also lists queries) |
 | `schematron` | `exercise_schematron` | `schematron::Schema::parse`, `from_tree` and `validate` over a NUL-separated schema (a bare rule body is wrapped) and instance: both DOMs, reuse, every output mode, text and error modes agreeing, one-pass counts, operation budget |
 | `relaxng` | `exercise_relaxng` | `relaxng::Schema::parse`, `validate` and `stream` over NUL-separated pieces (schema, instance, then `include`/`externalRef` files `0`..`9`): determinism, both DOMs, reuse, offsets, load and work budgets, `Schema::stream` over `BufferedReader` and `PushParser` equal to the DOM |
-| `allocfail` | `allocfail_run`, `allocfail_check` | Allocation failure: a `#[global_allocator]` over `System` (this crate only; yaxml forbids unsafe) fails the allocation the first four input bytes choose while one surface runs (borrowed and owned DOMs with `try_clone` and `save`, slice/push/buffered/text readers, owned edits and construction, `Writer`, `XINCLUDE`, HTML parse, save and events, XPath, XML Schema, RELAX NG, Schematron, C14N, `TextWriter`, catalogs and regexps); the run must equal the unarmed one or fail with `Allocation`, and a rerun must equal it again. Infallible allocations that hit the failure unwind through `set_alloc_error_hook` and are dropped (std aborts on them by design). `YAXML_ALLOCFAIL_SWEEP=1` fails each allocation in turn (how `regressions/allocfail` replays), `YAXML_ALLOCFAIL_TRACE=1` prints the failing allocation's backtrace, `YAXML_ALLOCFAIL_MIN_SIZE=n` fails each allocation of n bytes or more in turn and crashes on an infallible one (the audit in yaxml's docs/security.md; the `infallible-*` regressions replay with n = 16384) |
+| `allocfail` | `allocfail_run`, `allocfail_check` | Allocation failure: a `#[global_allocator]` over `System` (this crate only; yaxml forbids unsafe) fails the allocation the first four input bytes choose while one surface runs (borrowed and owned DOMs with `try_clone` and `save`, slice/push/buffered/text readers, owned edits and construction, `Writer`, `XINCLUDE`, HTML parse, save and events, XPath, XML Schema, RELAX NG, Schematron, C14N, `TextWriter`, catalogs and regexps); the run must equal the unarmed one or fail with `Allocation`, and a rerun must equal it again. Infallible allocations that hit the failure unwind through `set_alloc_error_hook` and are dropped (std aborts on them by design). `YAXML_ALLOCFAIL_SWEEP=1` fails each allocation in turn (how `regressions/allocfail` replays), `YAXML_ALLOCFAIL_TRACE=1` prints the failing allocation's backtrace, `YAXML_ALLOCFAIL_MIN_SIZE=n` fails each allocation of n bytes or more in turn and crashes on an infallible one (the audit in docs/security.md; the `infallible-*` regressions replay with n = 16384) |
 
 ```sh
 cargo install cargo-fuzz --version 0.13.2 --locked
@@ -56,7 +57,7 @@ cargo install cargo-fuzz --version 0.13.2 --locked
 ./coverage.sh             # all targets; or name some
 ```
 
-New inputs go to the tracked `fuzz/corpus/<target>/`; yaxml's `tests/fixtures/fuzz-seeds/` are read-only extra seeds. Crashes land in `fuzz/artifacts/<target>/`; once fixed, keep a minimized reproducer in `fuzz/regressions/<target>/` and copy it to yaxml's `tests/fixtures/fuzz-regressions/<target>/`, where `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays each target's corpus plus the seeds with `-Z coverage-options=branch` on the pinned nightly `2026-10-18` and prints one `src/` TOTAL line per target. It exports each target against its own binary (`fuzz/coverage/<target>/{lcov.info,export.json}`) and `coverage_merge.py` unions every exported target into `fuzz/coverage/report.txt` and `merged.lcov`: line and branch hits add, and a region or function is covered when any target covers it. A single `llvm-cov report` over several `-object` binaries undercounts, because it maps each function from the first binary containing it (`XPath::as_str` read 0 with `c14n` listed first). `#[cfg(test)]` modules are not compiled into the targets and are absent from the denominator.
+New inputs go to `fuzz/corpus-full/<target>/` when `./setup.sh corpus` cloned the full corpus, else to the tracked minimized `fuzz/corpus/<target>/` (don't commit those); `tests/fixtures/fuzz-seeds/` are read-only extra seeds. Crashes land in `fuzz/artifacts/<target>/`; once fixed, keep a minimized reproducer in `tests/fixtures/fuzz-regressions/<target>/` (also reachable as `fuzz/regressions/<target>/`), where `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays every target's corpus directory plus the seeds through each target with `-Z coverage-options=branch` on the pinned nightly `2026-10-18` and prints one `src/` TOTAL line per target. It exports each target against its own binary (`fuzz/coverage/<target>/{lcov.info,export.json}`) and `coverage_merge.py` unions every exported target into `fuzz/coverage/report.txt` and `merged.lcov`: line and branch hits add, and a region or function is covered when any target covers it. A single `llvm-cov report` over several `-object` binaries undercounts, because it maps each function from the first binary containing it (`XPath::as_str` read 0 with `c14n` listed first). `#[cfg(test)]` modules are not compiled into the targets and are absent from the denominator.
 
 `fuzz/corpus/<target>/` is tracked (about 21 MiB, 46k files): the edge-only `-merge=1 -use_counters=0` set of the previous corpus plus new finds of at most 4 KiB. Regenerate with:
 
@@ -262,10 +263,10 @@ the ordinary corpus mutation schedules. Test-only counters check that empty,
 malformed, sparse-selector and encoded inputs enter construction and the binding
 catalog before grammar/encoding returns.
 
-The [original construction validation](https://github.com/pbdeuchler/yaxml/blob/main/docs/archive/validation-owned-create.md) and
-[current fuzz-gap evidence](https://github.com/pbdeuchler/yaxml/blob/main/docs/archive/validation-construction-fuzz-gaps.md) record
+The [original construction validation](../docs/archive/validation-owned-create.md) and
+[current fuzz-gap evidence](../docs/archive/validation-construction-fuzz-gaps.md) record
 separate source-complete measurements and remaining gaps.
-The [binding/limit precedence validation](https://github.com/pbdeuchler/yaxml/blob/main/docs/archive/validation-construction-binding.md)
+The [binding/limit precedence validation](../docs/archive/validation-construction-binding.md)
 records the twelve-case catalog, dispatch/encoding fault checks and its fresh
 fuzz-only measurement without production changes or exclusions.
 
@@ -388,7 +389,7 @@ and later emits `<e/>`, so byte idempotence is not assumed. Output is capped at
 64 KiB and encoded tokens at 16 KiB.
 
 `mutation-operations.bin` and `mutation-quotas.bin` retain value-edit coverage.
-[`structure-operations.bin`](corpus/structure-operations.bin) adds 13 explicit
+[`structure-operations.bin`](../tests/fixtures/fuzz-seeds/structure-operations.bin) adds 13 explicit
 structural records with header `00 02 00 00 20 01 00 0d`. It constructs the first
 tree through UTF-16LE, appends nonempty and empty Text beneath the nested element,
 and serializes their Text-run projection. It then appends empty CDATA, a
@@ -400,7 +401,7 @@ All three operation seeds are registered for ordinary prefix and byte-mutation
 smoke tests. Replay this seed directly with:
 
 ```sh
-cargo run --release --example fuzz_replay -- fuzz/corpus/structure-operations.bin
+cargo run --release --example fuzz_replay -- ../tests/fixtures/fuzz-seeds/structure-operations.bin   # in harness/
 ```
 
 Public callers cannot forge slots. Invalid slots and identity exhaustion use
@@ -410,7 +411,7 @@ builds. Simulated allocation errors and rollback tests are separate evidence;
 fuzz assertions do not exercise actual allocator exhaustion. Element/attribute
 construction, existing-node moves and namespace editing remain outside this slice.
 
-The [structural libxml2 oracle](https://github.com/pbdeuchler/yaxml/blob/main/docs/oracle-structure.md) reparses a fixed
+The [structural libxml2 oracle](../docs/oracle-structure.md) reparses a fixed
 catalog fixture and performs exactly one operation per helper invocation. It
 compares compatible C/Rust tree projections and selected bytes, and classifies
 intentional differences such as Text coalescing and root removal. It does not
@@ -452,7 +453,7 @@ to the fuzz assertions; a source-region percentage alone cannot establish them.
 
 CI instruments `fuzz_smoke` and uploads raw profiles, merged profiles, a compiler version, a revision, a library-only summary, and the complete LLVM coverage export. The summary excludes dependency/toolchain code and the test/driver source so its denominator is library code. The complete export retains those files for inspection. No production library regions are excluded by this filter. The run exercises only the default feature set and only deterministic fuzz smoke tests; it is separate from ordinary unit-test coverage.
 
-Coverage uses pinned nightly `2026-10-18` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](https://github.com/pbdeuchler/yaxml/blob/main/docs/archive/validation.md).
+Coverage uses pinned nightly `2026-10-18` with `-C instrument-coverage -Z coverage-options=branch`. The unstable branch instrumentation is documented in the [Rust Unstable Book](https://doc.rust-lang.org/unstable-book/compiler-flags/coverage-options.html). Its branch denominator covers the conditions instrumented by that compiler; it does not enumerate every parser state or boolean condition. The library itself remains stable Rust. See [measured results and gaps](../docs/archive/validation.md).
 
 Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component. A system LLVM version can reject profiles from a newer Rust compiler. If tooling is unavailable, record that coverage was not measured; do not infer it from passing tests. The workflow publishes gaps and currently imposes no percentage threshold. A release requires reviewed coverage data and the additional gates in the security plan.
 
@@ -462,7 +463,7 @@ Use LLVM tools from the matching Rust toolchain's `llvm-tools-preview` component
 `--allow-other-libxml2` explicitly selects an exploratory comparison with another
 version; it does not change the target. Tree and XPath support are required.
 Accepted fixtures compare complete, independently evaluated XPath values through
-the [bounded infoset protocol](https://github.com/pbdeuchler/yaxml/blob/main/docs/oracle.md); oracle values never pass through
+the [bounded infoset protocol](../docs/oracle.md); oracle values never pass through
 yaxml's parser. Once the original comparison succeeds, the complete-document
 helper serializes the tree and a second invocation evaluates those bytes with
 the original query and expected values. UTF-8 uses the borrowing document helper;

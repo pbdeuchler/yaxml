@@ -1,4 +1,4 @@
-//! Allocation failure. yaxml-harness's `allocfail` target runs [`run`] under a
+//! Allocation failure. The `allocfail` fuzz target (fuzz/) runs [`run`] under a
 //! global allocator that fails one chosen allocation (this crate forbids
 //! unsafe code, so the allocator lives there) and compares the result with an
 //! unarmed run through [`check`].

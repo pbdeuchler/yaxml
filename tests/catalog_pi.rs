@@ -3,7 +3,7 @@
 //! catalog to a `CatalogResolver` for the rest of that parse, on every parsing
 //! surface, and never loads anything the resolver forbids. The libxml2
 //! differential (`YAXML_CATALOG_HELPER`, see docs/catalog.md) is
-//! `catalog_pi_matches_libxml2` in yaxml-harness/tests/catalog_oracle.rs.
+//! `catalog_pi_matches_libxml2` in harness/tests/catalog_oracle.rs.
 
 use std::collections::HashMap;
 use std::io;

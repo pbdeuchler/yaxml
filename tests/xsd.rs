@@ -1,5 +1,5 @@
 //! Table-driven XML Schema cases. Each expectation is written as the
-//! libxml2 oracle helper prints it (`yaxml-harness/tooling/libxml2_xsd.c`): `S codes` for
+//! libxml2 oracle helper prints it (`harness/tooling/libxml2_xsd.c`): `S codes` for
 //! a schema that fails to build, `V codes` for validation (`V` alone is
 //! valid). Every case runs against yaxml over both DOMs; with
 //! `YAXML_XSD_HELPER` set, the ignored test checks the same expectations
@@ -1449,7 +1449,7 @@ fn libxml2_outcomes(args: &[&str]) -> Vec<String> {
 }
 
 #[test]
-#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled yaxml-harness/tooling/libxml2_xsd.c"]
+#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled harness/tooling/libxml2_xsd.c"]
 fn libxml2_agrees_with_every_expectation() {
     let mut failures = Vec::new();
     for (&(name, _, _, want), got) in CASES.iter().zip(libxml2_outcomes(&[])) {
@@ -1464,7 +1464,7 @@ fn libxml2_agrees_with_every_expectation() {
 /// it never registers an ID and rejects every `ENTITY` value; yaxml's stream
 /// validation keeps the tree's verdicts.
 #[test]
-#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled yaxml-harness/tooling/libxml2_xsd.c"]
+#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled harness/tooling/libxml2_xsd.c"]
 fn libxml2_stream_agrees_except_ids_and_entities() {
     let differences: Vec<&str> = CASES
         .iter()

@@ -179,7 +179,7 @@ These allocations stay on the global heap for every `A`:
 
 Parsing reserves two node records (200 bytes each) per `<` in the first 16 KB,
 scaled to the input and capped at 4,096; the vector then grows as usual. On
-`yaxml-harness/benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
+`harness/benches/parse.rs` fixtures, node and attribute capacity is 93–99% of
 retained document bytes (node + attribute + pool capacity) for markup-heavy
 input; one 500 KB text node reserves 92 records (18 KB), where an estimate
 from input length reserved 4,097 (800 KB, 62% of retained bytes).
@@ -648,14 +648,14 @@ is `WrongNodeKind` (`XML_ERR_INTERNAL_ERROR` in libxml2; HTML has
 - External entities are loaded only through `options.resolver`; libxml2
   tries the file system and warns (`XML_IO_LOAD_ERROR`).
 
-`yaxml-harness/tests/fragment_oracle.rs` compares `parse_content` with
+`harness/tests/fragment_oracle.rs` compares `parse_content` with
 `xmlParseInNodeContext` on every node of seven context documents (prefixes,
 default namespaces and `xmlns=""`, DTD entities with markup and nested
 references, unparsed and external entities, an unloaded external subset) and
 with `xmlParseBalancedChunkMemory`, for random chunks of well-formed and
 malformed content (top-level text, several elements, references, misplaced
 declarations, end tags with nothing open, cut-off tags) under eight option
-sets, through `yaxml-harness/tooling/libxml2_fragment.c`. It compares the
+sets, through `harness/tooling/libxml2_fragment.c`. It compares the
 node list, the document after appending it, success and the first error
 code:
 
@@ -726,11 +726,11 @@ entity declarations, which libxml2's `xmlBufGetChildContent` reaches through
 the DTD node; and a base inside an external parsed entity resolves as an
 internal entity's does, since the entity's URI is not retained.
 
-`yaxml-harness/tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
+`harness/tests/dom_edit_oracle.rs` compares these accessors on every node, and the tree
 after random `append_child`/`insert_before`/`insert_after`/`unlink`/`replace`
 and create-then-`xmlAddChild` scripts, or after copy scripts (`import` from a
 second document or `copy` within, then `append_child`, as `xmlDocCopyNode` then
-`xmlAddChild`; `try_clone` as `xmlCopyDoc`), with `yaxml-harness/tooling/libxml2_domedit.c`:
+`xmlAddChild`; `try_clone` as `xmlCopyDoc`), with `harness/tooling/libxml2_domedit.c`:
 
 ```sh
 cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Werror -I../../yaxml-oracle/build \

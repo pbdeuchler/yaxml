@@ -78,10 +78,10 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
 
 ## Agreement with libxml2
 
-- libxml2 `test/schemas` (`yaxml-harness/tests/xsd_suite.rs`, runtest protocol): verdicts
+- libxml2 `test/schemas` (`harness/tests/xsd_suite.rs`, runtest protocol): verdicts
   agree on all 233 instance tests, with equal error counts on all 233.
 - `tests/xsd.rs`: 223 table cases with exact code sequences, all
-  checked against libxml2 through `yaxml-harness/tooling/libxml2_xsd.c`.
+  checked against libxml2 through `harness/tooling/libxml2_xsd.c`.
 - `tests/xsd_random.rs`: random schemas and instances against the same
   helper; 0 differences in 20,000 cases on the default seed.
 - Stream validation equals tree validation (codes, offsets, messages) on all
@@ -93,7 +93,7 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   every table case but two (`ID` and `ENTITY`, below).
 - `TextReader::xsd_set_schema` feeds the same events as the reader takes from
   its source: its diagnostics equal `validate_stream`'s on all 233 suite
-  instances (`yaxml-harness/tests/xsd_suite.rs`), and `yaxmllint --stream --schema` ends as
+  instances (`harness/tests/xsd_suite.rs`), and `yaxmllint --stream --schema` ends as
   `xmllint --stream --schema` does (exit code, verdict line, error count) on all
   204, with identical stderr on 183; the rest differ in message wording (facet
   messages, enumeration sets, keyref element prefix) and reader line numbers.
