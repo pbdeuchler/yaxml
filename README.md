@@ -1,5 +1,7 @@
 # yaxml
 
+## YetAnotherXML Crate
+
 A safe, fast XML toolkit for Rust that behaves like libxml2.
 
 - **Safe**: `#![forbid(unsafe_code)]`, one dependency (`memchr`), every
@@ -127,13 +129,13 @@ assert_eq!(messages, ["Opening and ending tag mismatch: a line 1 and b"]);
 
 ## Security defaults
 
-| Threat | Default |
-| --- | --- |
-| External entities (XXE), external DTDs | Loaded only through a `Resolver` you supply, and only when the flags ask for them |
-| Entity expansion ("billion laughs") | Amplification and total-expansion limits, as in libxml2 |
-| Deep nesting; huge names, attributes or text | Depth, size and count limits on every surface |
-| Quadratic and backtracking inputs | Linear algorithms; regular expressions and RELAX NG run on bounded automata |
-| Memory | Every allocation that the input controls is charged to a budget |
+| Threat                                       | Default                                                                           |
+| -------------------------------------------- | --------------------------------------------------------------------------------- |
+| External entities (XXE), external DTDs       | Loaded only through a `Resolver` you supply, and only when the flags ask for them |
+| Entity expansion ("billion laughs")          | Amplification and total-expansion limits, as in libxml2                           |
+| Deep nesting; huge names, attributes or text | Depth, size and count limits on every surface                                     |
+| Quadratic and backtracking inputs            | Linear algorithms; regular expressions and RELAX NG run on bounded automata       |
+| Memory                                       | Every allocation that the input controls is charged to a budget                   |
 
 Each limit is a field of a `Limits` struct, and `options::HUGE` relaxes the
 limits as libxml2's `XML_PARSE_HUGE` does. [docs/security.md](docs/security.md)
@@ -200,12 +202,12 @@ the checkout; no iconv/ICU/zlib) and writes the suite catalog in
 `../yaxml-suites`. Set `YAXML_ORACLE` or `YAXML_SUITES` to use other
 locations; anything already present is reused.
 
-| Command | What it does | Results |
-| --- | --- | --- |
-| `./oracle.sh [step...]` | yaxml's ignored and env-gated differentials, the harness oracle tests, fuzz-seed replay, structural edits, and the conformance run, which fails on any regression of `harness/tests/fixtures/xmlconf-20130923-required.tsv` | `harness/results/oracle-<time>/`: one log per step, `xmlconf-results.tsv` |
-| `./bench.sh [fixture...]` | Matched parse benchmark, yaxml vs libxml2, in five modes; prints libxml2/yaxml time ratios (above 1 favors yaxml) | table on stdout, raw samples in `harness/results/bench-<time>.txt` |
-| `./fuzz.sh [target [seconds]]` | Lists the fuzz targets, or fuzzes one (default 60 s) | new inputs in the corpus, crashes in `fuzz/artifacts/<target>/` |
-| `./coverage.sh [target...]` | Line/branch coverage of `src/` from the corpus | `fuzz/coverage/report.txt`, `merged.lcov` |
+| Command                        | What it does                                                                                                                                                                                                                | Results                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `./oracle.sh [step...]`        | yaxml's ignored and env-gated differentials, the harness oracle tests, fuzz-seed replay, structural edits, and the conformance run, which fails on any regression of `harness/tests/fixtures/xmlconf-20130923-required.tsv` | `harness/results/oracle-<time>/`: one log per step, `xmlconf-results.tsv` |
+| `./bench.sh [fixture...]`      | Matched parse benchmark, yaxml vs libxml2, in five modes; prints libxml2/yaxml time ratios (above 1 favors yaxml)                                                                                                           | table on stdout, raw samples in `harness/results/bench-<time>.txt`        |
+| `./fuzz.sh [target [seconds]]` | Lists the fuzz targets, or fuzzes one (default 60 s)                                                                                                                                                                        | new inputs in the corpus, crashes in `fuzz/artifacts/<target>/`           |
+| `./coverage.sh [target...]`    | Line/branch coverage of `src/` from the corpus                                                                                                                                                                              | `fuzz/coverage/report.txt`, `merged.lcov`                                 |
 
 The repository carries a minimized corpus per target in `fuzz/corpus/`
 (1.65 MB, 23,244 inputs). The full corpus is a separate repository: `./setup.sh corpus`
