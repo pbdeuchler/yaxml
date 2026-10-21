@@ -1,6 +1,6 @@
 # yaxml
 
-## YetAnotherXML Crate
+#### YetAnotherXML Crate
 
 A safe, fast XML toolkit for Rust that behaves like libxml2.
 
