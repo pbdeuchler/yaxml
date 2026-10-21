@@ -69,7 +69,7 @@ errors and resource limits remain visible gaps. Worker failures
 are inconclusive and fail the run.
 
 Metadata extraction is separate from the processor under test. The optional
-`yaxml-harness/tooling/libxml2_xmlconf_catalog.c` executable uses the pinned libxml2 2.15.4
+`harness/tooling/libxml2_xmlconf_catalog.c` executable uses the pinned libxml2 2.15.4
 oracle to expand trusted catalog entities/defaults and resolve XML Base. It
 emits a strict, versioned 12-column TSV catalog. No suite fixture or C helper
 is linked into the Rust crate; Cargo still depends only on `memchr`.
@@ -91,7 +91,8 @@ The archive must have SHA-256
 `9b61db9f5dbffa545f4b8d78422167083a8568c59bd1129f94138f936cf6fc1f`
 before extraction. This is our pinned digest of the official download, not a
 claim of an upstream signature. The CI workflow contains the complete download,
-checksum, extraction, helper-test and run recipe. Given the extracted `xmlconf`
+checksum, extraction, helper-test and run recipe (`./oracle.sh xmlconf` at the
+repository root runs it). By hand, in `harness/`, given the extracted `xmlconf`
 directory:
 
 ```sh

@@ -1,0 +1,28 @@
+î<!DOCTYPE doc [
+<!ELEMENT doc (src | dest)*>
+<!ELEMENT doc (src | dest)*>
+<!ELEMENT src EMPTY>
+<!ELEMENT de0st EMPTY>]>
+<doc>
+  <src ref="foo"/>yyyyyyybar'/>
+  <| dest)*>
+<!ELEMENT doc (src | dest)*>
+<!ELEMENT src EMPTY>
+<!ELEMENT de0st EMPTY>]>
+<doc>
+  <src ref="foo"/>yyyyyyybar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreCompone:0.70" xmlns:cat="urn:oasa="1 -->
+  <norm attr='   '/>
+es:1.0:0.70" xmlns="urn:oasis:nemes:tc:ub0:0.70" xmlns:ccty=yy"nruyyyyyyyyyyyyyyyyyyyyyyyyyyyyOyyyyyyyyyyyyyyyyyyyyyyyyyyyy<!ELEMENT de0st EMPTY>]>
+<doc>
+  <src ref="foo"/>yyyyyyybar'/>
+  <norm attr=' foo bab
+'/>
+  g="UTF-7"?>
+<Invoice xmlns:ccts="urn:oasis:names:tc:ubl:CoreCompone:0.70" xmlns:cat="urn:oasa="1 -->
+  <norm attr='   '/>
+es:1.0:0.70" xmlns="urn:oasis:names:tc:ub0:0.70" xmlns:ccty=yy"nruyyyyyyyyyyyyyyyyyyyyyyyyoc>
+

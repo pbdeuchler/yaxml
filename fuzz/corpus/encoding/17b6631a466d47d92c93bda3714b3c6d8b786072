@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<?Pi?><!--combment-->
+<!ELEMENT doc EMPTY>
+<?Pi?><

@@ -1,0 +1,14 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.ert;'/>&lt;foo bar
+'/>
+  <n^rm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+-- normalmId attr='  <xi:/>
+  <normId [
+  <normId attr='
+  />,<d/>">
+]>
+<dok>
+   <ent>&test1;</  <p<xission prd" IDo

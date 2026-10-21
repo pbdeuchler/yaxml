@@ -1,0 +1,4 @@
+<!DOCTYPE toc [
+<!ELEMENT doc ((a | b)+ , c ,  d)*>
+<!ELEMENT a ( b)+ ,
+<!ELEMENT d (#PCT /doc>

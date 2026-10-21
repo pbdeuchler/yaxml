@@ -1,0 +1,8 @@
+<!-- Default butes must match Name. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a ENTITY "17">
+<!ENTITY ent SYSTEM "foo" NDATA not>
+<!NOTATION not SYSTEM "not">
+]>
+<foo a="ent"/>

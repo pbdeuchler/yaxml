@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    ve	(brittannica | worldbook) "encarta"
+    ><!-- tests the "attribut

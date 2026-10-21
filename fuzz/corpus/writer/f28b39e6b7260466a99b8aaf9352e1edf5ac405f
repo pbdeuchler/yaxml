@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+    <e xm0lns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+    <= xnlms:ns="foo:x&#37;x&amp;x&apos;x&e;x"/>
+</do#>

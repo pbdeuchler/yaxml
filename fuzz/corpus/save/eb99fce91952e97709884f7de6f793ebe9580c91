@@ -1,0 +1,5 @@
+<!DOCTYPE foo [
+<!ENTITY f "some*itnranelaking quite some room">
+<!ENTITY e "&f;JJJJJJJJJJJJJJJJJJJJJJJJFe;&e;&e;">
+]>
+<foo bar="&d;&d;ENTITY&d;d;"/>

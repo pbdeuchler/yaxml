@@ -10,7 +10,8 @@ documentation = "https://docs.rs/yaxml"
 readme = "README.md"
 keywords = ["xml", "parser", "libxml2", "xpath", "xsd"]
 categories = ["parser-implementations", "encoding"]
-# Benchmarks, fuzzing and the libxml2 differentials live in yaxml-harness.
+# Not published: harness/ (benchmarks, libxml2 differentials), fuzz/ and
+# bindings/ are separate workspaces in this repository.
 include = [
     "/src/**",
     "/Cargo.toml",

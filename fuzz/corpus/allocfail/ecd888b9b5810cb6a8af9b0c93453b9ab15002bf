@@ -1,0 +1,1 @@
+Ù£³“<!DOCTYPE r [<!ELEMENT r (a)*><!ELEMENT a EMPTY><!ATTLIST a id ID #REQUIRED r IDREF #IMPLIED>]><r><a id='x'/><a id='y' r='x'/></r>

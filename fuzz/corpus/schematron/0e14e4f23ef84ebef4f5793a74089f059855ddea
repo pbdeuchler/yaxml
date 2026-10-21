@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e "&#13;e document elemenp?>
+<!-- comment after document element-->
+<?Pelement-->	
+<?PI after document element?>
+<!-- co">
+]>
+<doc>&e;</doc>

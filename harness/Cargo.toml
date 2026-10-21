@@ -1,0 +1,58 @@
+[package]
+name = "yaxml-harness"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+description = "Benchmarks, fuzzing and libxml2 differentials for yaxml"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Its own workspace, so plain `cargo test` at the repository root never builds
+# it (and its yaxmllint bin does not collide with yaxml's).
+[workspace]
+
+[dependencies]
+yaxml = { path = ".." }
+
+# yaxml's CLI, built here so tests can use CARGO_BIN_EXE_yaxmllint.
+[[bin]]
+name = "yaxmllint"
+path = "../src/bin/yaxmllint/main.rs"
+test = false
+bench = false
+
+[[bench]]
+name = "parse"
+harness = false
+
+[[bench]]
+name = "pull"
+harness = false
+
+[[bench]]
+name = "serialize"
+harness = false
+
+[[bench]]
+name = "mutation"
+harness = false
+
+[[bench]]
+name = "structural_mutation"
+harness = false
+
+[[bench]]
+name = "regexp"
+harness = false
+
+[[bench]]
+name = "valid"
+harness = false
+
+[lints.rust]
+unsafe_code = "forbid"
+
+# Same as yaxml's, so benchmarks measure the code users get.
+[profile.release]
+lto = "thin"
+codegen-units = 1

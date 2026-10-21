@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- Has an LS an NMTO 1.1 -->
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo bar NMTOKENS #IMPLIED>
+]>
+<foo bar="abc def"/>

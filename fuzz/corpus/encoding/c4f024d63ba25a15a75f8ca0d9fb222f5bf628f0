@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+<!ENTITY e "<foo a='#38;'></foo`">
+]>
+<doc>&e;</doc>&#d8;'></foo>">
+]>
+<dÁÙe;</doc>

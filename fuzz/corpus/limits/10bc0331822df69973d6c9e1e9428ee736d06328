@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+    <!ATTLIST elem xmlns CDATA #FIXED 'usn:EEEEEEEEEEEEEEEdef4'>
+    :a CDATA #FIXED 'urn:a8'>
+]>
+
+<doc xmlns= xmlns:a="urn:a">
+   (<elem/>
+m/>
+</doc>

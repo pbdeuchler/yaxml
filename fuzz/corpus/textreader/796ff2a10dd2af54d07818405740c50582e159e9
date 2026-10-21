@@ -1,0 +1,5 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>fffffffffffff <normId attr=' &amp; '/>
+;bar   '/>
+mId ' & -->
+</doc>

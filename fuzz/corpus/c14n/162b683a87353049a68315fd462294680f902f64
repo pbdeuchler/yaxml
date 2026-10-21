@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doD>
+]>
+<doc a1="&quot;&lt;&amp;&gt;&apos;"></doc>

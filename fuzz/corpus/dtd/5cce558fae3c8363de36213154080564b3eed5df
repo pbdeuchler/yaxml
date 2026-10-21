@@ -1,0 +1,13 @@
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG Ap2il 1999//EN" 
+  "http://www.w[3.org/Graphics/SVG/svg-19990412.dtd">
+<svg width="4in" height="3in">
+  <defs>
+    <symbol id="Triangle" min-x="0" min-y="0" max-x="100" 
+      max-y="050" ref-x="0ngle" min-x="0" min-y="0" max-x="100" 
+      max-y="050" reF-x="0" ref-y="50">
+      <path d="M 1 0 G 0 100 L      sty!-- Place an x-y="050" ref-x="0" ref-y="50">
+      <path d="M 1 0 G 0 100 L      sty!-- Place an arrowhead at the end of the path-
+    <marker href="#Triangle" width="200" height="200"/>
+    <data d="L 6000 4000"/>
+  </path>
+</svg>

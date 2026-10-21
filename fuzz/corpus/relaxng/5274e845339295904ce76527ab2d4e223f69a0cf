@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersanderically (&:38;#38;p>" >
+]>
+<test>&example;</test>

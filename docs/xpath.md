@@ -66,7 +66,7 @@ stable sort, so concatenated sorted runs merge in linear time.
 
 ## Known differences from libxml2
 
-These are checked to still differ by `yaxml-harness/tests/xpath_oracle.rs`:
+These are checked to still differ by `harness/tests/xpath_oracle.rs`:
 
 - `xmllint --xpath` evaluates with an unset context size and position, so a
   top-level `last()` or `position()` fails there; yaxml returns 1.

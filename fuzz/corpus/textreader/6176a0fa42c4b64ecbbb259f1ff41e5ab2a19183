@@ -1,0 +1,6 @@
+$<?x?>
+<!DOCTYPE doc [
+ <!ENTITY newl "&#123;">
+]>
+
+<doc>&newloc>

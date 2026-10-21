@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 //! `yaxml::chars` at the class boundaries (the full differential against
-//! libxml2's `chvalid.h` is yaxml-harness/tests/dtd_oracle.rs).
+//! libxml2's `chvalid.h` is harness/tests/dtd_oracle.rs).
 
 use yaxml::chars;
 

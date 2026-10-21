@@ -1,0 +1,5 @@
+ß/Žu<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a (2|2) #IMPLIED>
+]>
+<doc><pd>c/

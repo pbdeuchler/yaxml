@@ -1,0 +1,18 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM
+
+
+
+
+
+
+
+
+
+
+
+
+
+'w'>&'d'>
+<!ATTLIST r c CD u SYSgai

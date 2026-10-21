@@ -1,0 +1,11 @@
+<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData</elem>">
+]>
+<el
+CharData
+</elem>
+]]>
+<?pi?>&ent;rData
+</elem>

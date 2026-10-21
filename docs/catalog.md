@@ -149,7 +149,7 @@ else adds nothing.
 
 Tests: `tests/catalog_pi.rs` (every surface, ordering, bounds, a root-confined
 resolver, a resolver that ignores the hook) and a differential against
-`xmlReadFile` with `XML_PARSE_CATALOG_PI` (`yaxml-harness/tooling/libxml2_catalog.c`, op
+`xmlReadFile` with `XML_PARSE_CATALOG_PI` (`harness/tooling/libxml2_catalog.c`, op
 `parse`): 800 generated parses, 93 of them changed by a document catalog,
 0 mismatches (also 0 over 15 other seeds).
 

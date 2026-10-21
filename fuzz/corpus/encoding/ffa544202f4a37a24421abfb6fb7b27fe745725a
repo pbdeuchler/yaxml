@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+    <ex mlns="foo:x&"3c [
+  <!ENTITY e "-">>/
+    <e xmlns:ns="foo:x&#38;x&amp;x&apos;x&e;x"/>
+</doc>

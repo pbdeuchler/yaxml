@@ -1,0 +1,4 @@
+<!DOCTYPE doc SYSTEM "foo">
+<doc>
+    <elem attr="&undeclared;"/>
+    <elem>&unde

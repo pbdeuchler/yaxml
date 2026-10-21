@@ -1,0 +1,89 @@
+name: Harness
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1"
+
+permissions:
+  contents: read
+
+# Every job checks out the repository into $GITHUB_WORKSPACE/yaxml, so
+# setup.sh's default ../yaxml-oracle and ../yaxml-suites stay inside the
+# workspace.
+jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: yaxml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.97.0"
+      - name: Fetch and build the pinned libxml2 oracle and the XML test suite
+        working-directory: yaxml
+        run: ./setup.sh
+      - name: Differentials and conformance
+        working-directory: yaxml
+        run: ./oracle.sh
+      - name: One matched parse benchmark row
+        working-directory: yaxml
+        run: SAMPLES=1 ITERATIONS=1 ./bench.sh mixed
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oracle
+          path: |
+            yaxml/harness/results/
+            yaxml-oracle/version.txt
+
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: yaxml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-10-18
+          components: llvm-tools-preview
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Fuzz every target for 20 seconds
+        working-directory: yaxml
+        run: |
+          set -eu
+          for target in $(./fuzz.sh); do
+            ./fuzz.sh "$target" 20
+          done
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-artifacts
+          path: yaxml/fuzz/artifacts/
+
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: yaxml
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2026-10-18
+          components: llvm-tools-preview
+      - uses: astral-sh/setup-uv@v6
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Corpus coverage of every target
+        working-directory: yaxml
+        run: ./coverage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-coverage
+          path: |
+            yaxml/fuzz/coverage/report.txt
+            yaxml/fuzz/coverage/merged.lcov

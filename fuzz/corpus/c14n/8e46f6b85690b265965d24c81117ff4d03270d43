@@ -1,0 +1,6 @@
+‚<?xml version="1.0"?>
+<XPath xmlns:bar="Http://exampln-ih">
+    -->
+              ancestor5or-self::bar:Something
+    ]
+</XPath>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE root 
+[
+<!ELEMENT root (#PCDATA)>
+<!ATTLIST root att CDATA #IMPLIED>
+
+<!--* Test all legaapt lterns derived from P70-76 *-->
+<!ENTITY % pe0 '<!ATTLIST root att3 CDATA "&ge1;">'>
+<!ENTITY ge0 "attdefaultvalue" >
+%pe1;
+<!NOTATION >

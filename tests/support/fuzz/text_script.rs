@@ -1,6 +1,6 @@
 //! `TextWriter` call scripts, shared by the `writer` fuzz target and the
-//! libxml2 differential (yaxml-harness/tests/text_writer_oracle.rs). A call is an
-//! operation code of `yaxml-harness/tooling/libxml2_textwriter.c` and its arguments.
+//! libxml2 differential (harness/tests/text_writer_oracle.rs). A call is an
+//! operation code of `harness/tooling/libxml2_textwriter.c` and its arguments.
 // Each user takes the parts it needs.
 #![allow(dead_code)]
 

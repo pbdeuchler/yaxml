@@ -1,0 +1,9 @@
+vˆ42ø<!DOCTYPE doc [
+<!ELEMENT doc (e*)>
+<!ELEMENT e EMPTY>
+<!ATTLIST e
+a001 (0) ')0' a000 (0) '0' a09 (5) '0'
+>
+]>
+<doc
+><e/><e./>(0

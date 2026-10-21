@@ -1,0 +1,4 @@
+<!DOCTYPE r [
+<!ENTITY v SYSTEM 'vgain'>
+]>
+<r i='a' f='b' s='a c'

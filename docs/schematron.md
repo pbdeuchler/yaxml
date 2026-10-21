@@ -108,7 +108,7 @@ expression fails with `Operation limit exceeded` and validation stops with
 
 The pinned oracle is libxml2 2.15.4 built with
 `-DLIBXML2_WITH_SCHEMATRON=ON` (off by default in 2.15) and
-`yaxml-harness/tooling/libxml2_schematron.c`:
+`harness/tooling/libxml2_schematron.c`:
 
 ```sh
 cmake -S ../yaxml-oracle/libxml2-2.15.4 -B /private/tmp/sch/build -DBUILD_SHARED_LIBS=OFF \
@@ -171,6 +171,6 @@ libxml2 corpus and a few hand-written cases; the tracked corpus
 (921 files of at most 4 KiB) is their edge-only merge with the campaign's
 finds. On `nightly-2026-06-06`, a 669 s run (`-fork=6 -timeout=2
 -max_len=4096`, 31.9 million executions, 7,909 edges) after a 313 s one found
-no crash, timeout or leak. Replaying the corpus with `yaxml-harness/coverage.sh
+no crash, timeout or leak. Replaying the corpus with `./coverage.sh
 schematron` covers 92.42% of `src/schematron.rs` lines, 91.60% of regions
 and 83.64% of branches.

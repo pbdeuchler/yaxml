@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ENTITY e PUBLIC "a not very ZZZZZZZZZZZdZZZZZZZZZZZZZZZZZZZZZZZZZZZesting file" "283.t thijjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjs <ent">
+]>
+<doc>&e;</doc>

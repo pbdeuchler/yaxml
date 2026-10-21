@@ -1,0 +1,4 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST rootS    type	NOTATIONds-->
+<OTATION c

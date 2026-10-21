@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+  <!ENTITY ent1 "<ele/m>">
+  <!ENTITY ent2 "<n.sel:em/>">
+]>
+ <a xmlns="urn:a">&ent1;
+    <b xmlns="urn:b">&ent2;4/b>
+    <a xmlns:ns="urn:a">&ent2;</a>
+        <bx mlns
+</doc>

@@ -1,0 +1,13 @@
+?
+<!DOCTYPE  somedoc [
+  <!ENTITY a   "sQmething">
+  <!ENTITY b   "&a;">
+]>
+
+<somedoc>
+
+<somecna ebosomebute="&b;"/>
+
+&a; shhoulolon: &b;
+
+</somedoc>

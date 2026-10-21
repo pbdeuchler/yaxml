@@ -1,0 +1,12 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (ttinput? | copyright? | 
+pbuc5Date? | tlasBuildDate? | docs? | managingEditor| item+ | ratitinput? | copvright? | 
+pbuc0Date? | tlasBuildDate? | docs? | managingE| rat| link 
+| language | item+ | rstBte? | docs? | managingEditor? | webMaster? | 
+sioukHprs? | skipDays?)*>
+<!ELEMENT title (#PCDATA)ption?)*>
+<!ELEMENT ue>
+</channel>
+</rss>

@@ -1,0 +1,7 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An d (&#38;#38;) may bexFFFD;
+11111umeri
+<&#x10000; &#x10FFF;
+<F/>" >
+]>
+<test>&example;</test>

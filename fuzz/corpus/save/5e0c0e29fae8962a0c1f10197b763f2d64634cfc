@@ -1,0 +1,9 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>An ampersamp;).</p>" >
+]>
+<A a="asdf>'&#34;>
+a+sdf
+	?>%"/>
+<Aa= '"4;&#34;'/>
+</do>
+<test>&example;</test>

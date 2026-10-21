@@ -301,7 +301,7 @@ fn hex(text: &str) -> String {
 }
 
 #[test]
-#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled yaxml-harness/tooling/libxml2_xsd.c"]
+#[ignore = "requires YAXML_XSD_HELPER pointing at the compiled harness/tooling/libxml2_xsd.c"]
 fn random_schemas_agree_with_libxml2() {
     let helper = std::env::var("YAXML_XSD_HELPER").unwrap();
     let cases: usize = std::env::var("YAXML_XSD_CASES")

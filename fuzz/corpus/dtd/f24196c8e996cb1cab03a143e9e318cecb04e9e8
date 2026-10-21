@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]:
+<root attribute="&šÄÝÁõØ  <element>&bÿÿaÿÿÿÿÿÿr;</e:opendoc</root>

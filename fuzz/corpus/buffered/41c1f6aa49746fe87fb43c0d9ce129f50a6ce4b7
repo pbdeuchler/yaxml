@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA
+<doc val="v4"></doc>

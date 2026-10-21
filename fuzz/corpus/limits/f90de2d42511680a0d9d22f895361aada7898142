@@ -1,0 +1,4 @@
+<!DOCTYPE doc SYSTEM "dtds/doc.\td" [
+<!ATTLIST zdoc id ID #IMPLIED>
+]>
+<doc val="v1"></doc>

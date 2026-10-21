@@ -1,0 +1,16 @@
+<!DOCTYPE doc [<!ATTLIST normIfd attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalization -->
+  <norm attr='   '/>
+  <norm attr=
+  'foo bar 0 '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo ba~
+'/>
+  <norm attr='foobar
+
+'/>tr=' &amp; '/>
+  >
+</doc>

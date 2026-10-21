@@ -1,0 +1,7 @@
+˜ Îœ‚<?xml version="1.0"?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc At NMTOKENS "abc|TTLISPPPPPPPP:1 a1bcn2">
+]>
+<doc val="v1"/>
+

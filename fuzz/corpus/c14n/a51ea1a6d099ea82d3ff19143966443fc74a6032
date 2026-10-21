@@ -1,0 +1,5 @@
+<!DOCTYPE foo [
+<!ELEMENT foo ANY>
+<!ATTLIST foo bar NMtO
+]>
+<foo bar="abc&#9;xyz"/>

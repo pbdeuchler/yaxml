@@ -1,0 +1,13 @@
+.D¦¹ÿ<!DOCTYPE doc [
+<!ENTITY test1 "<a/>rictio<n/rm>xI9 am8Jes Clark.ert;'/>&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&òlt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalizamId attr=' #  '/>
+  ormId attr='
+  />,<d/>">
+]>
+<dok>
+   <ent>&test1;</  <p> W   <xissLength‰‰‰‰"http://ex(mnamCjj(PaDo

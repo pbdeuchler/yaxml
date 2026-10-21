@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ELEMENT doc (更root*)>
+<!ELEMENT 更root EMPTY>
+
+<doc>&e;</doc>

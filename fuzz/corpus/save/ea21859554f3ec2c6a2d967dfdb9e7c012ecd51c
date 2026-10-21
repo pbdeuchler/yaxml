@@ -1,0 +1,4 @@
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+]>
+<foo><fOo/><!-- comment --><foo/></foo>

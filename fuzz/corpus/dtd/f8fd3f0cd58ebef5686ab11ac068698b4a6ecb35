@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+<!ELEMENT root EMPTY>
+<!ATTLIST root
+    token	NMTOKEN		#REQUIRED
+    >
+
+    <!-- -->
+]>
+<root token="devigh | copyri | link 
+| blangu@null"/>

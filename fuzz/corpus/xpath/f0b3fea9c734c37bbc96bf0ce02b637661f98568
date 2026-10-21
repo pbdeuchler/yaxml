@@ -1,0 +1,1 @@
+//a[1][last()][position()][. = 'x2'] | //node()[not(self::*)][not(self::text())]

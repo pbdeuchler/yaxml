@@ -1,0 +1,9 @@
+<!DOCTYPE test [
+<!ENTITY example "<p!~An d (&#38;#38;) may be escaped
+ 11110000008375319363688624582numerically ,,,,,,,(1111111111111111numerically ,,,,,,,,,,,,,,,,ff-򏿿 This 00;
+&#xF900; &#xFFFD;
+&#x10000; &#x10FFFF;
+<&#x10000; &#x10FFF;
+<F/>" >
+]>
+<test>&example;</test>

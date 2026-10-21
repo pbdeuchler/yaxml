@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+  <!ENTITY newline2 "/#x26;#xA#;">
+]>
+<st newlineuuuuuuuuuuuuuu="& cwline;"/>

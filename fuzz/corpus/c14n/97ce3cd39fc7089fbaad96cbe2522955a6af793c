@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ((a | b)* , PCDATA)>
+]>
+<doc><a/><b/><a/><c/><c/>><c/><c/><a/></doc>

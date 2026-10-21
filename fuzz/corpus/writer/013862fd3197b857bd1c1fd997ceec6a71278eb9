@@ -1,0 +1,8 @@
+<!DOCTYPE doc [
+<?Pi?><!--commgnt-->
+<!ELEMENT doc EMPTY>
+<?P--:
+<!NOTATION not PUBLIC "some notation">
+<?Pi?><w" a:f
+]>
+<doc/>

@@ -1,0 +1,15 @@
+<!DOCTYPE root [
+  <!ELEMENT root (#PCDATA)>
+]>
+<root>
+09;T root (#PCDATA)>
+]>
+<root>
+09;
+&#xA;&#xa;&#x0A;&#x00000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; &#xef;
+&#67; &#x000000A;
+&#x0d;
+&#xAB; &#xab; &#xCD; &#xcD; &#xEf; ;
+&#67; &#x000000A;&#xF900; &#xFFF; 66 *-->

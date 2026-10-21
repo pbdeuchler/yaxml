@@ -1,0 +1,5 @@
+<tst xmlns:a="http:/t0://example.com//example.com/"
+     a:err="1" b:err="2/"
+     a:err="1" b:err="2/example.com/" xmlns:b="htt0://example.com//example.com/"
+     a:err="1" b:err="2/"
+     a:err="1" b:err="2"/>

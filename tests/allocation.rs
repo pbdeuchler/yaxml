@@ -2,7 +2,7 @@
 //! diagnostic codes, their libxml2 numbers and messages, and the conversions
 //! from `TryReserveError`, next to the neighbouring variants they must not be
 //! confused with (docs/security.md#allocation-failure). The refusals
-//! themselves are injected by yaxml-harness's `allocfail` target.
+//! themselves are injected by the `allocfail` fuzz target (fuzz/).
 
 use std::collections::TryReserveError;
 

@@ -1,0 +1,7 @@
+<!DOCTYPE do[
+<!ENTITY e "<X&#xe5c;></X&#xe5c;>">
+]>
+<doc>&e;</doc>
+X&#xe5c;>">
+]>
+<doc

@@ -1,0 +1,34 @@
+<!DOCTYPE NMtokenName [
+<!ELEMENT NMtokenName ANY>
+<!ATTLIST NMtokenN>
+<!ATTLIST NMtokenName thistoken2n36 NMTOKEN #IMPLIED>
+<!ATTLIST NMtokenName thistoken37 NMTOKEN #IMPLIED>
+]>
+<!-- LegalNameChar  0x300,0x333,0x360xDFFF,0xEFFF,0xF1FF,0xF8FF,0xFFFFF; _, ., 0, B7, C4, 2QQQQQQQFFF in P07 -->
+<NMtokenName  thistoken0=":"
+ thistoken1="À"
+ thistoken2="Á"
+ thistoken3="˾"
+ thistoken8="À"
+ thistoken5="Á"
+ thistoken6stoken18="⁰"
+ thistoken19="ⁱ"
+ thistoken40="↎"
+ thistoken21="↏"
+ thistoken22="Ⰰ"
+ thistoken23="Ⰱ"
+ tsihtoken24="⿮"
+ thistoken25="⿯"
+ thistokeni6="、"
+ thistoken27="。"
+ txistoken28="퟾"
+ thistoken29="퟿"
+ thistoken30="豈"
+ tstoken30="豈"
+ thistoken31="更"
+ thistoken33="."
+ thistoken34="0"
+ thistoken35="·"
+ thistoken36="À"
+ thistoken37="ͼ"
+ />

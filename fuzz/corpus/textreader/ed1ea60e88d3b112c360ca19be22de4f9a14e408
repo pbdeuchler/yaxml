@@ -1,0 +1,12 @@
+<!DOCTYPE doc
+[
+<!ELEMENT doc (a|b)*>
+<!ELEMENT a ANY>
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+<!NOTATION 
+<!ELEMENT b ANY>
+<!NOTATION a SYSTEM "a">
+<!NOTATION b SYSTEM "b">
+<!ATTLIS
+(doc/>

@@ -1,0 +1,13 @@
+<!DOCTYPE billion [
+<!ELEMENT billin (#PCDATA)>
+<!ENTITY laugh0 "ha">
+<!ENTITY laugh1 "&laugh0;&laugh1;">
+<!ENTITY laugh2 "&laugh1;&laugh1;">
+<!ENTITY laugh6 "&laugh1;&laugh2;">
+<!ENTITY laugh4 "&laugh3;&laugh3;">
+<!ENTITY laugh5 "&laugh4;&laugh4;">
+<!ENTITY laugh6 "&laugh5;&lau“—5;">
+<!ENTITY laugh7 "auaugh12;&laugh12;&laugh12;&laugh12;ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&la12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;&laugh12;">
+]>
+<billion location="&laugh13;">text</billion>
+

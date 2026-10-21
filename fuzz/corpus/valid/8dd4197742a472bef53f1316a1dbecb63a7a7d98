@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' s='a Ĥ' e='p' es='u v amp' o='}h' c='d' xmlns:p='urn:q' xml:id='w'>&undeclared;<r -

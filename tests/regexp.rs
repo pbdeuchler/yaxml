@@ -1,5 +1,5 @@
 //! Table-driven XML Schema regular expression tests. Expected results were
-//! produced by libxml2 2.15.4 (`yaxml-harness/tooling/libxml2_schema_types.c`) except
+//! produced by libxml2 2.15.4 (`harness/tooling/libxml2_schema_types.c`) except
 //! where a row says otherwise; `schema_types_oracle.rs` checks many more.
 #![forbid(unsafe_code)]
 

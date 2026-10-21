@@ -1,0 +1,18 @@
+<!DOCTYPE etst [
+<!ENTITY example "<p>Anattr='
+  foo bar  ttr='
+  foo bar   '/>
+  <norm attr='
+
+foobar'/>
+  <norm attr=' foo bar
+'/>
+  <norm attr='foobar
+
+'/>
+  <norm attr=' &amp; '/>
+  <norm attr='
+  foo&amp;bar   '/>
+  <norm atp;).</p>" >
+]>
+<test>&example;</test>

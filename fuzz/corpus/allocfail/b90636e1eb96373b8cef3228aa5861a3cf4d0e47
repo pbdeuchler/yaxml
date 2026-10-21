@@ -1,0 +1,5 @@
+…`ƒð<!DOCTYPE root [
+
+<!ELEMENT woot EMPTY>
+<!ATTLIST root:    value	(borldbook) "encarta"
+    ><!-- testsibut

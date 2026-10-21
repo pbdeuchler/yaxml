@@ -1,7 +1,7 @@
 //! `Error::describe`, `LineIndex`, `Diagnostic::render`, node lines and the
 //! validators' `describe`. Expected codes, positions and messages were
-//! produced by libxml2 2.15.4 (`yaxml-harness/tooling/libxml2_errors.c` and `xmllint
-//! --noout`) for these inputs; yaxml-harness/tests/diagnostic_oracle.rs compares whole corpora.
+//! produced by libxml2 2.15.4 (`harness/tooling/libxml2_errors.c` and `xmllint
+//! --noout`) for these inputs; harness/tests/diagnostic_oracle.rs compares whole corpora.
 
 use yaxml::diagnostic::{Domain, Level};
 use yaxml::options::RECOVER;

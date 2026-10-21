@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="iso-8859-1"?>
+<!-- Has element content w<?
+versio
+version
+=
+'2.4'
+?>
+8doc/>
+production (even though re1.A. -->
+<!DOCTYPE foo [
+<!ELEMENT foo (foo*)>
+<!ENTITY e "abc&#x85;def">
+]>
+<foo>&e;</foo>

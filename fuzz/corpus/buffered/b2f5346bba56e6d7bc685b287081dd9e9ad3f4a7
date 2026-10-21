@@ -1,0 +1,8 @@
+<!DOCTYPE html [ <!ELEMENT html ANY> ]>
+<html>
+ <!DOCTYPE html [ <!ELEMENT html ANY> ]>
+<html>
+    <% @ LANGUAGE="VBSCRIPT" %>
+</html>
+   <% @ LANGUAGE="VBSCRIPT" %>
+</html>

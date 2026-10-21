@@ -1,0 +1,5 @@
+<!DOCTYPE root [
+<!NOTATION a SYSTEM 'a'>
+<!NOTATION b SYSTEM 'b'>
+]>
+&#1/b>&#10;</root>

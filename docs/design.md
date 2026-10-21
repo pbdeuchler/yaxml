@@ -328,7 +328,7 @@ anything. Tests cannot write a counting or capped allocator without unsafe
 code, so `tests/allocator.rs` proves routing through `Arc` reference counts
 and `&System` identity. The private failpoint injects reservation failure at
 each site of a `&System` document. Real allocator failure is injected by the
-`allocfail` fuzz target in yaxml-harness, whose global allocator fails one
+`allocfail` fuzz target (fuzz/), whose global allocator fails one
 chosen allocation of a parse, edit, copy or save; that subsumes a failing
 `A` for the arena, which also needs `unsafe impl Allocator`
 ([security](security.md#allocation-failure)).

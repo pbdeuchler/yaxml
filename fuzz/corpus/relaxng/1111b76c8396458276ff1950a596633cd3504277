@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY YN '"Yes"' >
+<!ENTITY WhatHeSaid "He aid &YN;" >
+]>
+<doc>&WhatHeSaid;</doc>

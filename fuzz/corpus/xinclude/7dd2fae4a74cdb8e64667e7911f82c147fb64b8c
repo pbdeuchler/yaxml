@@ -1,0 +1,6 @@
+<!DOCTYPE doc [%
+<!ELEMENT doc (tst*)>
+<!ELEMENT tst (#PCDATA)>
+<!ATTLIST tst a NMTOKENS #IM<?xml vPLIED>
+<!ATTLIST tst b CDATA #IMPLIED>
+<!ENTITerskon=Y '1d

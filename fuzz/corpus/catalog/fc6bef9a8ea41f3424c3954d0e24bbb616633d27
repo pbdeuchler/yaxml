@@ -1,0 +1,6 @@
+<?xml  version="1.0"?>
+<!-- syntuction 59-->
+<!DOCTYPE Java 
+ [
+ <!ELEMENT Java (#PCDATA|oneDATA|one|two|three|f|t_wo|three|fou)*>
+</JLEa>

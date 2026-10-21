@@ -1,0 +1,3 @@
+<root><p>An ampersand*(&amp;) may be escaped&#10;numeri[
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST doc a CDATA #IMPL/p></root>

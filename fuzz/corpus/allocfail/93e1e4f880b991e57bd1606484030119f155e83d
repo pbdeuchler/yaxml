@@ -1,0 +1,6 @@
+$G9üÿ<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'nCTYP"?>
+<d'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY><

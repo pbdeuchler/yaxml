@@ -1,0 +1,4 @@
+<!DOCTYPE test [
+<!ENTITY example "<p>AnEa).</p>" >
+]>
+<test>&example;</test>

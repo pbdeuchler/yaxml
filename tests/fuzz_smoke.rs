@@ -1082,7 +1082,7 @@ fn fuzz_regressions_replay() {
                 "save" => driver::exercise_save(&data),
                 "fragment" => driver::exercise_fragment(&data),
                 "textreader" => driver::exercise_textreader(&data),
-                // Injected failures need yaxml-harness's allocator; without
+                // Injected failures need fuzz/'s allocfail allocator; without
                 // one, the surface is deterministic and passes its own check.
                 "allocfail" => {
                     let input = data.get(4..).unwrap_or_default();
