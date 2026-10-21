@@ -1,0 +1,9 @@
+<!DOCTYPE collection [
+
+<!ELEMENT collection ANY>
+
+<!ELEMENT identifier EMPTY>
+<!ATTLIST ideer
+    value	IDREFS	"i-am!-no4-a-number"
+   
+ >& <!-- kkkkkkkkÿÿÿkkkkkkkkkkkkkAkkkkkkkon>

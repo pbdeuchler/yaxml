@@ -1,0 +1,8 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "<p>An amper]and (&#38;#38;) may be es<!--> ]> -->
+] '  >
+ eu![<r
+mi>" >
+]>
+<test>&example;</tüüüüüüüest>

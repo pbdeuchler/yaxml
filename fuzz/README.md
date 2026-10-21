@@ -20,7 +20,7 @@ The example accepts each filename as a separate testcase, or one testcase from s
 
 | Target | Driver entry | Surface |
 | --- | --- | --- |
-| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection (entity markers included); a leading high-bit byte selects parser options (`yaxml/tests/support/fuzz/options.rs`) |
+| `dom` | `exercise_dom` | `Reader`, `Document::parse{,_bytes}`, tree/stream projection (entity markers included); a leading high-bit byte selects parser options (`tests/support/fuzz/options.rs`) |
 | `owned` | `exercise_owned` | `OwnedDocument` parsing and views against the borrowed DOM; a leading high-bit byte selects parser options |
 | `push` | `exercise_push` | `PushParser` chunk schedules, `finish`, `read_from` |
 | `buffered` | `exercise_pull` | `BufferedReader` |
@@ -59,17 +59,27 @@ cargo install cargo-fuzz --version 0.13.2 --locked
 
 New inputs go to `fuzz/corpus-full/<target>/` when `./setup.sh corpus` cloned the full corpus, else to the tracked minimized `fuzz/corpus/<target>/` (don't commit those); `tests/fixtures/fuzz-seeds/` are read-only extra seeds. Crashes land in `fuzz/artifacts/<target>/`; once fixed, keep a minimized reproducer in `tests/fixtures/fuzz-regressions/<target>/` (also reachable as `fuzz/regressions/<target>/`), where `fuzz_smoke::fuzz_regressions_replay` replays every file through that target's driver entry. `coverage.sh` replays every target's corpus directory plus the seeds through each target with `-Z coverage-options=branch` on the pinned nightly `2026-10-18` and prints one `src/` TOTAL line per target. It exports each target against its own binary (`fuzz/coverage/<target>/{lcov.info,export.json}`) and `coverage_merge.py` unions every exported target into `fuzz/coverage/report.txt` and `merged.lcov`: line and branch hits add, and a region or function is covered when any target covers it. A single `llvm-cov report` over several `-object` binaries undercounts, because it maps each function from the first binary containing it (`XPath::as_str` read 0 with `c14n` listed first). `#[cfg(test)]` modules are not compiled into the targets and are absent from the denominator.
 
-`fuzz/corpus/<target>/` is tracked (about 21 MiB, 46k files): the edge-only `-merge=1 -use_counters=0` set of the previous corpus plus new finds of at most 4 KiB. Regenerate with:
+The full corpus (64,740 files of at most 4 KiB, 42 MB; 19.2 MB after a fresh edge-only cmin per target) is the separate yaxml-corpus repository; `./setup.sh corpus` clones it into `fuzz/corpus-full/<target>/`. The tracked `fuzz/corpus/<target>/` is a minimized subset (1.65 MB, 23,244 files, 2026-10-21): `cargo fuzz cmin -- -use_counters=0` of each target's full directory, then, where that is over 64 KiB (24 of 32 targets), the inputs with the most new edge features per byte up to 64 KiB (`corpus_cap.py`). The cap keeps 72-98% of the cmin set's new-edge features per target (xsd lowest, then schematron, xinclude, relaxng and allocfail near 80%); campaigns and coverage figures should use the full corpus. Regenerate with:
 
 ```sh
-fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; skips inputs over MAX_INPUT_BYTES
-for t in $(cd fuzz && cargo +nightly-2026-10-18 fuzz list); do
-  (cd fuzz && cargo +nightly-2026-10-18 fuzz run $t corpus/$t corpus -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=600 -rss_limit_mb=2048 -timeout=2)
-done                                          # <= 8 at a time
-(cd fuzz && cargo +nightly-2026-10-18 fuzz cmin $t -- -use_counters=0 -timeout=10)   # new finds over 4 KiB are dropped first
+./setup.sh corpus
+fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]   # uv run; writes to corpus-full, skips inputs over MAX_INPUT_BYTES
+cd fuzz
+for t in $(cargo fuzz list); do               # <= 8 at a time
+  cargo fuzz run $t corpus-full/$t -- -fork=1 -ignore_crashes=1 -ignore_timeouts=1 -max_total_time=600 -rss_limit_mb=2048 -timeout=2
+done
+for t in $(cargo fuzz list); do               # new finds over 4 KiB are dropped first
+  cargo fuzz cmin $t corpus-full/$t -- -use_counters=0 -timeout=10
+done                                          # then commit and push corpus-full
+# The tracked subset: cmin a copy of each target with a control file, then cap.
+for t in $(cargo fuzz list); do
+  rm -rf /tmp/min/$t; mkdir -p /tmp/min; cp -R corpus-full/$t /tmp/min/$t
+  cargo fuzz cmin $t /tmp/min/$t -- -merge_control_file=/tmp/min/$t.ctl -use_counters=0 -timeout=10
+done
+rm -rf corpus && uv run --no-project corpus_cap.py /tmp/min corpus 65536
 ```
 
-`seed.py` feeds the W3C XMLTS and libxml2 `test/` trees to the XML targets (dom, owned, push, buffered, writer, serialize, limits, encoding), DOCTYPE-leading documents and `.dtd`/`.ent` bodies (control byte 0) to `dtd`, `selector byte + XML` (15 selectors for `test/c14n`, 2 otherwise) to `c14n`, XPath expressions alone and NUL + the matching `XPath/docs` file to `xpath`, and `reference\nbase\n/:%#` lines from `test/URI` to `uri`. `mutation`, `construction` and `names` use structured bytes. Crashes found while seeding are in [`open/`](open/README.md) (unfixed) or `regressions/` (replayed by `yaxml/tests/fuzz_smoke.rs`).
+`seed.py` feeds the W3C XMLTS and libxml2 `test/` trees to the XML targets (dom, owned, push, buffered, writer, serialize, limits, encoding), DOCTYPE-leading documents and `.dtd`/`.ent` bodies (control byte 0) to `dtd`, `selector byte + XML` (15 selectors for `test/c14n`, 2 otherwise) to `c14n`, XPath expressions alone and NUL + the matching `XPath/docs` file to `xpath`, and `reference\nbase\n/:%#` lines from `test/URI` to `uri`. `mutation`, `construction` and `names` use structured bytes. Crashes found while seeding are in [`open/`](open/README.md) (unfixed) or `regressions/` (replayed by `tests/fuzz_smoke.rs`).
 
 Coverage campaign (2026-10-19). The harnesses gained structure-aware selectors so policy and limit branches are reachable: small `Limits` profiles (XML, DTD, XSD, RELAX NG, XPath, pattern, catalog, XInclude, regexp budget, `WriterLimits`), resolver behaviours (serve, missing-is-error, I/O error, UTF-16, a sandboxed `FileResolver`), and previously unused entry points (`xsd::Schema::{parse, from_instance}`, `relaxng::Schema::from_tree`, `catalog::Catalog::load`, `valid::Dtd::load`, `c14n::write`, XPath variables and extension functions, `TextReader` navigation/properties, origin and attribute accessors, every error `Display` through failing sinks). `html` and `textreader` gained corpora (both had replayed only the top-level seeds). Every target then ran 630 s in fork mode with `-timeout=2`, 8 at a time. Findings are in [`open/`](open/README.md): a UTF-16 prescan label that `html::save` rejects, a non-ASCII bracketed host kept by `Uri::parse_raw`, an escaped reference name in a saved entity value, and a 2 s billion-laughs unit in the `dtd` driver under ASan. Two OOM reports (catalog, encoding) peak at 50 MB alone and are RSS accumulation in fork mode.
 
@@ -141,11 +151,11 @@ Independent budget goldens require minima of 1, 3, 8 and 10 bytes for `<r/>`,
 These check full replacement-capacity charges as well as parser/storage sharing,
 so accepting extra documents after undercounting does not evade fuzz assertions.
 
-Streaming comparisons preserve exact logical token boundaries and raw byte spans. `yaxml/tests/stream.rs` checks every split of small valid/malformed fixtures, all prefixes, single-byte and deterministic random schedules, normalization goldens, resource boundaries, and cancellation at every event. The fuzz driver adds one bounded input-derived schedule per testcase, ordinary `Cursor` I/O, and a custom reader that interrupts once before either delivering bytes or injecting an error at a chosen read. It verifies error kind/message/source and the exact last allowed read after XML failure or cancellation. Arbitrary-input comparisons advance a borrowed slice reader inside each callback: they do not clone expanded namespace URIs into snapshots. Owned captures in `yaxml/tests/support/capture.rs` are restricted to bounded ordinary fixtures. These checks do not measure process memory or replace retention tests with a discard callback.
+Streaming comparisons preserve exact logical token boundaries and raw byte spans. `tests/stream.rs` checks every split of small valid/malformed fixtures, all prefixes, single-byte and deterministic random schedules, normalization goldens, resource boundaries, and cancellation at every event. The fuzz driver adds one bounded input-derived schedule per testcase, ordinary `Cursor` I/O, and a custom reader that interrupts once before either delivering bytes or injecting an error at a chosen read. It verifies error kind/message/source and the exact last allowed read after XML failure or cancellation. Arbitrary-input comparisons advance a borrowed slice reader inside each callback: they do not clone expanded namespace URIs into snapshots. Owned captures in `tests/support/capture.rs` are restricted to bounded ordinary fixtures. These checks do not measure process memory or replace retention tests with a discard callback.
 
 ## Writer operation format
 
-Recognized UTF-16/UTF-32 signatures take a dedicated path in `yaxml/tests/support/fuzz/encoding.rs`.
+Recognized UTF-16/UTF-32 signatures take a dedicated path in `tests/support/fuzz/encoding.rs`.
 The bounded harness independently decodes code units using `char::decode_utf16`,
 requires BOM/declaration agreement, and rewrites only a matching declaration's
 encoding value to UTF-8 for reference grammar validation. It preserves the
@@ -174,7 +184,7 @@ runs for encoded inputs; their retained UTF-16 declaration is not blindly copied
 to the UTF-8 writer. Generated fixtures cover both orders, optional/matching BOMs,
 surrogates, normalization, malformed declarations, truncations and mutations.
 
-Every testcase also enters `yaxml/tests/support/fuzz/writer.rs`. Accepted XML events are serialized with an encoded byte ceiling of `6 * input.len() + 1024`, then compared in lockstep with the original reader and reparsed by DOM and push APIs. The writer may exhaust its owned-string budget earlier than the borrowing slice reader; this outcome is explicitly checked for terminal failure. Escaping can expand output, so reader input/token ceilings are raised for the reparse. Raw markup values supplied by the reader have already undergone XML normalization.
+Every testcase also enters `tests/support/fuzz/writer.rs`. Accepted XML events are serialized with an encoded byte ceiling of `6 * input.len() + 1024`, then compared in lockstep with the original reader and reparsed by DOM and push APIs. The writer may exhaust its owned-string budget earlier than the borrowing slice reader; this outcome is explicitly checked for terminal failure. Escaping can expand output, so reader input/token ceilings are raised for the reparse. Raw markup values supplied by the reader have already undergone XML normalization.
 
 Independent operation generation interprets seven bytes as policy/I/O controls, the next byte's low five bits as an operation count (capped by available bytes), then up to 31 operation bytes and at most 96 bytes of shared logical payload. Each operation selects an event kind, name-field inconsistencies, and declaration/PI variants. The low bit of the first byte selects default versus derived limits; defaults here cap output at 16 KiB and a token at 4096 bytes. Completed sequences must reparse; rejected events leave the Vec sink position unchanged and poison subsequent calls. Deterministic seeds cover accepted nested sequences as well as invalid operations and values.
 
@@ -182,7 +192,7 @@ Reparsing alone cannot detect a raw delimiter that changes the caller's value in
 
 The first two bytes independently select a small fixed valid output operation's sink schedule: short writes, one write/flush interruption, zero/oversized counts, a failure after a chosen prefix, immediate failure, or flush failure. Checks preserve the original I/O kind/message/source, confirmed output position and no subsequent I/O. Recovered sink panics are covered by ordinary tests, not the fuzz target, since the replay harness treats unexpected panics as crashes. No output-performance claim follows from these checks.
 
-Complete-document serialization has a separate oracle in `yaxml/tests/support/fuzz/serialize.rs`.
+Complete-document serialization has a separate oracle in `tests/support/fuzz/serialize.rs`.
 Both borrowed and owned helpers serialize accepted trees, reparse the entire
 output and compare every node kind, name, namespace, ordered attribute, payload,
 PI target, declaration and navigation link. Node counts and complete DOM parsing
@@ -219,7 +229,7 @@ The same input selects a default constructor and terminal operation sequence. Su
 
 Acceptance comparisons allow streaming to exhaust its owned-byte budget earlier because it retains names that the slice parser borrows. Arbitrary malformed inputs compare acceptance rather than identical first-error precedence: slice construction validates the complete input first, while streaming validates arriving tokens. Successful inputs require exact values, namespaces, attribute order, event kinds, and spans, with no text coalescing.
 
-`yaxml/tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
+`tests/fuzz_smoke.rs` replays every seed and every prefix, replaces every seed byte with delimiter/boundary bytes, deletes every seed byte, generates deterministic arbitrary bytes, and generates accepted namespace-aware nested documents. These tests check invariants and some known acceptance outcomes. Reader/DOM agreement alone is weak because they share a parser; the structural and semantic regression checks remain necessary.
 
 ## Rooted construction model
 

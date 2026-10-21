@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ENTITY e SYSTEM "nul">
+]><!DOCTYPE doc [
+<!ENTITY e SYSTEM "nul"
+<doc a="&e;"></doc>

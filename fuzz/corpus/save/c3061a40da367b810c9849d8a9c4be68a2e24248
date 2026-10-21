@@ -1,0 +1,6 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+   1<elm xns="foo:x&#37;x&amp;xapos;x&e;x"/>
+</docB

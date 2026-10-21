@@ -1,0 +1,10 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|prxeserve) 'preservu'>
+<!ATTLIST e3 id ID #IMPLIED>
+]>
+<doc >
+<doc xmlns="http://www.ietf.org" xmlns:w2c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e1 id="E3"/>
+ reserveTLIST  ID<!eD

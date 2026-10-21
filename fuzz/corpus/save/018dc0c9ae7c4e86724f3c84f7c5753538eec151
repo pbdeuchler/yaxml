@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     defatt  (0|1)   " ID #IMPLIED f IDREF #IMPLIED s IDREFS/example.org"
+     tst:ctt (5|1)   "0">
+]>
+<doc att="1"/>

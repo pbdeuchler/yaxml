@@ -1,0 +1,2 @@
+<!DOCTYPE d [<!ENTITY e "x&#40;#s7;y"><!ENTITY q 'a"b&#39;c'>]><d a="1&e;names:tc:op"
+r3d="urn:oa`sis:nimes:tc:opendo" b="&q;"><x/>&e;</d>   

@@ -1,0 +1,6 @@
+–<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE NewkML SYSTEM "dsMLv0.2.dtd" [
+  <!ENTITY % nitf SYSTEM "dtds/nitf-2-5.dtd">
+  %nitf;
+]>
+<NewsML>talog Href="http://w.com/dtd/AFPCatTn

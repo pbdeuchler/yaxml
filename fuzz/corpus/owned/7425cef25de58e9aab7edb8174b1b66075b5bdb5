@@ -1,0 +1,6 @@
+<!-- Defes -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST foo a NMTOKEN "+">
+]>
+<foo a="34"/>

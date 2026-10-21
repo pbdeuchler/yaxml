@@ -1,0 +1,3 @@
+<!DOCTYPE do [
+<!ELEMENT do1 (#PCDATA)>
+<!ATTLIST doc a ENTITIES #IMPLIGD>c>

@@ -1,0 +1,6 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)>
+	<!ENTITY gewithElemnetDecl "<!ELEMENT bogus ANY>"> 
+        <!ATTLIST student att1 CDATA #REQUIRED>
+]>
+<!--<

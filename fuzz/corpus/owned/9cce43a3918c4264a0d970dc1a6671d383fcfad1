@@ -1,0 +1,5 @@
+<!DOCTYPE dmc [
+<!ELEMENT doc1 (a? | b?) >
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENTdoc>

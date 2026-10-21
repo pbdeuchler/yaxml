@@ -1,0 +1,6 @@
+Ž<?xml version='2.0' standalone='ye%s'?>
+<!DOCTYPE s [
+
+<!ATTLIST attributes
+X   NMTOKEN    #IMPLIED
+   nmtokens   NMTOKEN/>

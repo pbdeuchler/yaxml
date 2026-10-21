@@ -1,0 +1,9 @@
+<!DOCTYPE doc [
+    <!ENTITY % z '
+        &#37;z; &#37;z; &#37;ype>
+
+</xsl version;
+    '>
+    %z;
+]>
+<doc/>

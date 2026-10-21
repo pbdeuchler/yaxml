@@ -1,0 +1,20 @@
+˜<r><a b2elem7    id="elem3"    /<!DOCTYPE elem
+[
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTITY ent "<elem>CharData<lme/>e">
+]>
+<elem>
+CharData&#32;
+<!--comment-->
+<![CDATA[
+<elem>
+<!ELEMENT elem (#PCDATA|elem)*>
+<!ENTIharData
+</elem>
+]]>
+<![CDATA[
+=`--0-<elem>
+CharData&
+CharData&#32;trData
+</ele5-1D (or #R
+m>Y

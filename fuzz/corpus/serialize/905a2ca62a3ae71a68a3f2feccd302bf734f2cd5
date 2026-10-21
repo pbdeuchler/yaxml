@@ -1,0 +1,10 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n'>
+<!ENTITY u SYSTEM 'u' NDATA n>
+<!ENTITY v SYSTEM 'vd'>
+<!ENTITY % pe ''>
+%p33333333333'>
+<!ATTLIST r c CDATA 'again'>
+]>
+<r i='a' f='b' p='a c'q=''/></r>

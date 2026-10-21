@@ -1,0 +1,10 @@
+×<?hml version="1.0"?>
+<!DOCTYPE root [
+<!ENTITY foo 'abc'>
+<!ENTITY bar 'def'>
+]>
+<root attribute="&foo;">
+1.0"?>
+<di&bar;</element>
+</ version=ation sign &#xAroot
+

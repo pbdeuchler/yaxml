@@ -1,0 +1,9 @@
+<!--Inability olve a notated rror-->
+<!DOCTYPE doc
+[
+<!ELEMENT doc EMPTY>
+<!NOTATION not1 PUBLIC "NOPQRSTUVWXYZ">
+<!NOTATION not2 PUBLIC '01234*#@$_%'>
+<!NOTATION not3 PUBLIC "0123456789-%)+,.'-/:=?;!*#@$_%">
+}>
+<doc/>

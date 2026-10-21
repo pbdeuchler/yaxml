@@ -1,0 +1,3 @@
+<!DOCTYPE c [
+<!ELEMENT doc (a) *>
+]>

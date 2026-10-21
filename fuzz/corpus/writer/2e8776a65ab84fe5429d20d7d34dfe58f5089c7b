@@ -1,0 +1,6 @@
+<!DOCTYPE attributes [
+<!NOTATION bar SYSTEM 'ev/tty'>
+<!NOTATION foo PUBLIC '-//public id//foo' 'file:/dev/null'>
+<!NOTATION nonce SYSTEM 'fone!" entities="@unpapsed-1 unparsed-2" entitile:/dev/null'>
+]>
+<attributes cdata="nothing happens to this one!" entities="unparsed-1 unparsed-2" entity="unparse#-1" id="iets normalized" notation="foo" token="b"></attributes>

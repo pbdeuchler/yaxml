@@ -1,0 +1,13 @@
+<!DOCTYPE root [
+    <!ELEMENT root EMPTY>
+    <!--
+	S "for interopeÿÿÿÿÿÿÿ*"
+    -->
+    <!ATTLIST root
+	vtatus		(i) '0' a256 (0) '0' a257 (0) '0'
+a258 (0) '0' a259 (0) '0' a260 (0) '0' a261 (0) '0' a262 (0) '0' a263 (0) '0'
+a264 (0) '0' a265 (0) '0' a266 (0) '0' a267 (0) '0' a268 (0) '0' a269 (0al) "first"
+	>
+]>
+
+<root/>

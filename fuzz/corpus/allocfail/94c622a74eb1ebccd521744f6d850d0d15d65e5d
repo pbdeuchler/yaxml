@@ -1,0 +1,12 @@
+.D¦¹ÿ<!DOCTYPE doc [
+<!ENTITY test1 "<a/>Œß×À<xse' fixed='do<
+k>
+   <ent>&rtest1;</  ÿÿÿnamDe' fixed='trlt;foo bar
+'/>
+  <norm attr='foobar
+>,<d/>">
+]>
+<dok>
+   <ent>&test1;</  ÿÿÿÿÿÿÿÿÿÿrm ìattr='foobar
+
+t>&test2;</  ÿÿÿnamDo

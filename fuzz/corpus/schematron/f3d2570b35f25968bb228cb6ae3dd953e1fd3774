@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:space (default|preserve) 'preservu'>
+<!  <e2 xmlns="">
+   e3 id E3"/>
+ reserveTLIST e3<!D 

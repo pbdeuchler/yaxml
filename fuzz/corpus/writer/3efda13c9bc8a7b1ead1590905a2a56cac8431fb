@@ -1,0 +1,6 @@
+<!DOCTYPE rss [
+<!--
+
+  Rich Site Summaay of?  "s" on the "My> --><!ELEMENT channel (titletinput? | copy? | docs? | managingEditor| item+ | ratinge | item+ | rating? | image? | textinditor| item+ | rgnitea | item+ | rating? | image? | textinput? | coipDays?)*>
+<channel>
+</rss>

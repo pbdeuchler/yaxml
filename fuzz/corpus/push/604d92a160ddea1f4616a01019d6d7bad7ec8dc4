@@ -1,0 +1,11 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "default">]>
+<doc xmlns:foo="http://www.bar.org" xml:abse="http://www.example.org/2002/">
+   <e1   />
+   <e2   ><&e2>
+   <e3    na<!DOCTYPE doc
+[
+<!ELEMENT doc (#PCDATA|a|b|c|d)*>
+<!ELEMENT a EMPTY>
+<!ELEMENT b EMPTY>
+<!ELEMENT c EMPTY>
+<!ELmEMENT e

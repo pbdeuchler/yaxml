@@ -1,0 +1,7 @@
+<!-- DefFibutedh Ne. -->
+<!DOCTYPE foo [
+<!ELEMENT foo EMPTY>
+<!ATTLIST ffo id ID #IMPLIED>
+<!ATTLIST fxo a IDREF "68">
+]>
+<foo id="g0034" a="g0034"/>

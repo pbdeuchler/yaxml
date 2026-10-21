@@ -1,0 +1,4 @@
+k&0 <!DOCTYPE r SYSTEM 'm.dtd'[<!ENTITY ent1 "<elem/>
+">  <!ENTITY ent3 "<ns:elem/>">
+]>   <a xmlnxs="urn:a">&ent1;</a>
+. 

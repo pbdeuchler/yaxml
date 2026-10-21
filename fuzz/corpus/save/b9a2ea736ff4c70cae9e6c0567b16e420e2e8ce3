@@ -1,0 +1,5 @@
+<!DOCTYPE etst [
+<!ENTITY example "<p>An amper}and (&#38;#38;) may be escap;#38;#?38;) ortity
+  (samp;amp;).</p>" >
+]>
+<test>&example;</test>

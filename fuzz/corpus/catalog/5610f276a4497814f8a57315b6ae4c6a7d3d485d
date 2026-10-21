@@ -1,0 +1,8 @@
+<!DOCTYPE rss [
+<!--
+
+  Richte Summaay of?  "s" on the "My> --><!ELEMENT channel (titletinput? | copyri | link 
+| language | item+ | ratinage? | textijput? | copyri | link 
+| lanagegu | item+ | ratkipDays?)*>
+<channel>
+</rss>

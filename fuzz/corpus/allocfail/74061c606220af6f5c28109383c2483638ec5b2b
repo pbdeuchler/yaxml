@@ -1,0 +1,1 @@
+bk¢<!DOCTYPE r [<!ENTITY e 'v'>]><r a='x&e;y' b='&e;'><c d='&e;&e;'/></r>

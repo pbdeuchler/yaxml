@@ -1,0 +1,3 @@
+<!DOCTYPE x [
+<!ELEMENT x EMPTY>
+<!ATTLIST x xml:foo CDATA #IMPL>

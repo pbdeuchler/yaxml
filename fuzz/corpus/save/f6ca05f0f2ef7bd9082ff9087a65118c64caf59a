@@ -1,0 +1,8 @@
+<!DOCTYPE test [
+<!ENTITY example "(get?>
+<?x6m
+kkkkkkk>
+<?x6m
+kkkkkkkt.a2get?>,,,,>" >
+]>
+<test>&example;</test>

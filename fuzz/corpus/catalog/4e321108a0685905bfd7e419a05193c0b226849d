@@ -1,0 +1,6 @@
+<!DOCTYPE root [
+  <!ENTITY ha "Ha !">
+  <!ENTITY ha2 "&ha;! &ha;">
+   <!ENTITY ha48 "&ha47; &ha47;">
+]>
+<root>&ha48;</root>

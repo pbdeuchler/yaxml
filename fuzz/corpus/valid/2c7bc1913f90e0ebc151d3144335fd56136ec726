@@ -1,0 +1,30 @@
+<!DOCTYPE r SYSTEM 'm.dtd' [<!ENTITY e 'ml2	ersion="1.0" encoding="UTF-8"?>
+<grammar
+    xmlns="http://relaxng.org/ns/structure/1.0"
+  s="http://relaxng.org/ns/structure/1.0"
+    xmlns:a="http0//reccclaxng.ornity/annotations/1.0"
+    datatypeLibrary="http://w<!DOCTYPE foo [
+<!ENTITY f "some internal data">
+<!ENTITY e "&f;&f;">
+<!ENTITY d "&e;$e;">
+]>
+<foo>&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;
+/d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d;&d; (0) &d;&d;&d;&d;&d;&d;</foo>
+s/1.0"
+    datatypeLibrary="http://www.w3.org/1000/XMLSchema-datatypes">
+
+5define name=MPLIED>
+]>
+<doc xmlns="htwp://wwe.iwtf.org" xmlns:w3c="http_____tf.org" xmlns:w2c="http://www.w1.org">
+   <e1>
+   T s:foo="http://example.r?oxmloivnre s="1.0"?>
+<XPath xmlns:bar="htt:p//example.org/bar" xmlns:baz="hte>.poelrg/foo" xml:lang="en-ictu"http://www.w1.org">
+   <e">
+    (//. | //@* | ()))
+    ]
+ref name="pattern1"/>
+            </list>
+        </attribute>
+    </elem<a>xu@</Ra>'><!NOTATION n SYSTEM 'n'><!--c--><?p d?>]><r>&e;Y/r>

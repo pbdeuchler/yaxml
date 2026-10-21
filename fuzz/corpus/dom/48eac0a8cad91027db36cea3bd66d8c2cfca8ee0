@@ -1,0 +1,7 @@
+î<!DOCTYPE doc [
+<!ELEMENT doc (src | dest)*>
+<!ELEMENT src EMPTY>
+<!ELEMENT de0st EMPTY>]>
+<do.>
+  <src c>
+

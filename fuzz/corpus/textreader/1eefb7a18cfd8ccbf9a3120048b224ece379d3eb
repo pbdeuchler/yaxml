@@ -1,0 +1,5 @@
+Ž<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>fffffffffffff <normId a.ttr=' &amp; '/>
+ (<normId attr='
+- foo&amp;bar '-> :!-- PBM serializing back -->
+</doc>

@@ -1,0 +1,3 @@
+<!DOCTYPE doc [
+<!ELEMENT doc ((f | b) , (c | d))+>
+oc>

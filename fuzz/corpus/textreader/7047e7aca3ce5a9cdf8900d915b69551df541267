@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!DOCTYPE doc [
+<!ELEMENT doc (#PCDATA)>
+<!ATTLIST d octA NMTOKEN "$ri/28' xmlns:p29='http://example.org/very/long/namespace/uri/_2">
+]>
+<doc val="vÑ9-1"

@@ -168,11 +168,67 @@ and matches its output ([yaxmllint](docs/yaxmllint.md)).
 `lxml.etree`-style Python package. They are developed alongside the crate but
 not published yet.
 
-## Benchmarks and fuzzing
+## Benchmarks, differentials and fuzzing
 
-The libxml2 comparison benchmarks, fuzz targets, corpora and coverage tooling
-live in [yaxml-harness](https://github.com/pbdeuchler/yaxml-harness). Each is
-one command.
+Everything lives in this one repository. Plain `cargo test` needs only stable
+Rust: no C compiler, libxml2, test suites or nightly. The rest is driven by
+scripts at the root, which build two separate Cargo workspaces that `cargo
+test` never touches: `harness/` (benchmarks, libxml2 differentials, the W3C
+XML Test Suite run) and `fuzz/` (cargo-fuzz targets).
+
+```sh
+git clone https://github.com/pbdeuchler/yaxml && cd yaxml
+cargo test                 # the library's own tests
+./setup.sh                 # once: libxml2 2.15.4 oracle and the XML test suite
+./oracle.sh                # every differential against libxml2, then XMLTS
+./bench.sh tiny mixed      # yaxml vs libxml2 parse times
+./fuzz.sh                  # list the fuzz targets
+./fuzz.sh dom 600          # fuzz one for 10 minutes
+./coverage.sh dom          # line/branch coverage of src/ from the corpus
+```
+
+Prerequisites: Rust via [rustup](https://rustup.rs) (rust-toolchain.toml pins
+1.97.0). `setup.sh`, `oracle.sh` and `bench.sh` also need curl, cmake and a C
+compiler. `fuzz.sh` and `coverage.sh` need `rustup toolchain install
+nightly-2026-10-18 --component llvm-tools-preview` and `cargo install
+cargo-fuzz --version 0.13.2 --locked`; `coverage.sh` also needs
+[uv](https://docs.astral.sh/uv/). Every script takes `--help`.
+
+`./setup.sh` downloads and checks (sha256) libxml2 2.15.4 and the W3C XML Test
+Suite 20130923, builds the static libxml2 oracle in `../yaxml-oracle` (beside
+the checkout; no iconv/ICU/zlib) and writes the suite catalog in
+`../yaxml-suites`. Set `YAXML_ORACLE` or `YAXML_SUITES` to use other
+locations; anything already present is reused.
+
+| Command | What it does | Results |
+| --- | --- | --- |
+| `./oracle.sh [step...]` | yaxml's ignored and env-gated differentials, the harness oracle tests, fuzz-seed replay, structural edits, and the conformance run, which fails on any regression of `harness/tests/fixtures/xmlconf-20130923-required.tsv` | `harness/results/oracle-<time>/`: one log per step, `xmlconf-results.tsv` |
+| `./bench.sh [fixture...]` | Matched parse benchmark, yaxml vs libxml2, in five modes; prints libxml2/yaxml time ratios (above 1 favors yaxml) | table on stdout, raw samples in `harness/results/bench-<time>.txt` |
+| `./fuzz.sh [target [seconds]]` | Lists the fuzz targets, or fuzzes one (default 60 s) | new inputs in the corpus, crashes in `fuzz/artifacts/<target>/` |
+| `./coverage.sh [target...]` | Line/branch coverage of `src/` from the corpus | `fuzz/coverage/report.txt`, `merged.lcov` |
+
+The repository carries a minimized corpus per target in `fuzz/corpus/`
+(1.65 MB, 23,244 inputs). The full corpus is a separate repository: `./setup.sh corpus`
+clones it into `fuzz/corpus-full/` (`YAXML_CORPUS_URL` overrides the
+location), and `fuzz.sh` and `coverage.sh` use it, adding new inputs there,
+whenever it is present. Without it, new inputs land in `fuzz/corpus/`; don't
+commit those. Build output goes to `harness/target/` (`CARGO_TARGET_DIR`
+overrides it) and `fuzz/target/` (`FUZZ_TARGET_DIR`).
+
+Fuzz logic lives in the library's tests (`tests/support/fuzz/`, shared with
+`tests/fuzz_smoke.rs`); [fuzz/README.md](fuzz/README.md) lists the targets and
+campaign notes. To add a target:
+
+1. Write the checks as a `pub fn exercise_<name>(data: &[u8])` in
+   `tests/support/fuzz/` (a new module goes in `driver.rs` with a `#[path]`
+   line), and call it from `tests/fuzz_smoke.rs` with a few inputs.
+2. Add `fuzz/fuzz_targets/<name>.rs`, a copy of any other target calling your
+   function, and a `[[bin]]` entry for it in `fuzz/Cargo.toml`.
+3. Optionally add seeds to `fuzz/corpus/<name>/`, then `./fuzz.sh <name> 600`.
+4. Fixed crashes: a minimized input goes to
+   `tests/fixtures/fuzz-regressions/<name>/` (`fuzz/regressions` links there;
+   map the directory to the function in `fuzz_regressions_replay` if it is not
+   a plain XML target).
 
 ## License
 

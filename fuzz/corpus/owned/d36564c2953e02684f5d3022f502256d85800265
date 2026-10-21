@@ -1,0 +1,5 @@
+î<!DOCTYPE doc [<rmId attr='&lt;foo mId ettr='foobar
+
+&lt;'/>
+  <normId attr=' &#26=' &#13;&#xa;&#9; '/> )<!-- PBM serializing back -->
+</doc>

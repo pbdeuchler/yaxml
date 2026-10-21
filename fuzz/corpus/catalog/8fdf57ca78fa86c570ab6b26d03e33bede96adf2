@@ -1,0 +1,12 @@
+<!DOCTYPE root [
+    <!ATTLIST root
+	id2	ID	"x23"
+	>
+]>
+
+<!-- an ID a<doc><f>< oo></foo></doclared default
+    ofMENToc><f><foo></foo>is well-for #IMPLIED or #REQUIRED
+-->
+
+<rootfffffffffffffffff`ffffffffffffffffffffffffffffffffffffffffffffffffffff/>
+

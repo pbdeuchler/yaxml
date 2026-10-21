@@ -1,0 +1,4 @@
+<!DOCTYPE a [
+<!ELEMENT a (#PCDATA | b | c  |d | c)*>
+]>
+<a> vi ] <+a>

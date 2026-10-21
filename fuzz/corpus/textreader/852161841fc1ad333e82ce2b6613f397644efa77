@@ -1,0 +1,5 @@
+Ž<!DOCTYPE doc [<!ATTLIST NormId attr NMTOKENS #IMPLIED>]>
+<doc>fffffffffffff <normId attr=' &amp;oo&lt;bar   '/>
+'/>
+  nrIalizing back -->
+</doc>

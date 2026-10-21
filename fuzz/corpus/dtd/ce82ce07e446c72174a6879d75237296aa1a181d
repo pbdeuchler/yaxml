@@ -1,0 +1,2 @@
+<!DOCTYPE root [
+<!ELEMENT root  (cont1, (cont1,/root>

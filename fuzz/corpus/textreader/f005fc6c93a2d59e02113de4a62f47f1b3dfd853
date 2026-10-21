@@ -1,0 +1,7 @@
+<!DOCTYPE doc [
+<!ELEMENT doc EMPTY>
+<!ATTLIST doc
+     defa  (0A1)   "">
+]>
+<doc>
+<!ATTLIa5 

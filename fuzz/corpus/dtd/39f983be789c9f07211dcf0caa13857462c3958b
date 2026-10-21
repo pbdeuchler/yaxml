@@ -1,0 +1,11 @@
+<!DOCTYPE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+"   <e xml="foo:x&#38;x&amp;xap&PYCTE doc [
+  <!ENTITY e "-">
+]>
+<doc>
+"   <e xml="foo:x&#12;x&amp;x&apos;x&e;x"/>os;x&e;x"/>
+pos;x
+</doc>

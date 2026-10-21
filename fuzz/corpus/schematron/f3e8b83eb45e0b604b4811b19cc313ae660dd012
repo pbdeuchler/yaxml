@@ -1,0 +1,4 @@
+<?xml vreosin='1.0' encoding='ISO-8859-3'?><!DOCTYPE r [
+<!ELEMENT r ANY>
+<!NOTATION n SYSTEM 'n!NOTATION n '>
+<!<?ENTITY u SYSTEM x

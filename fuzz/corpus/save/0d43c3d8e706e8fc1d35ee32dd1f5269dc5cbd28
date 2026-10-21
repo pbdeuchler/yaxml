@@ -1,0 +1,15 @@
+<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C) 199 am8Jes Clark.  All rights rest;'/>&lt;foo bar
+'/>
+  <norm attr='foobar
+
+&lt;'/>
+  <norm attr=' &#x20;&#13;&#xa;&#9; '/>
+  <!-- normalization -->
+  <n#rmId attr='   '/>
+  AnormId attr='
+ >">
+]>
+<dok>
+   <ent>&test1;</ent>
+   <p> W  rd" IDo

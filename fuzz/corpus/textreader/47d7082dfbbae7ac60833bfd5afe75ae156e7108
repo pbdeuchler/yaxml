@@ -1,0 +1,6 @@
+Ž<?xml version="1.0"?>
+<!DOCTYPE test [
+<!ENTITY example "
+ namp;amp;).</p>" >
+]>
+<test>&example;</test>

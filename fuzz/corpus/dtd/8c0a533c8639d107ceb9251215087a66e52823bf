@@ -1,0 +1,8 @@
+<!DOCTYPE student [
+	<!ELEMENT student (#PCDATA)> 
+]>
+
+<!-- testing invalid CDSect with missing CDStart   -->
+<student>My Name is SnowMan. This is <normal> text]]></student>
+
+

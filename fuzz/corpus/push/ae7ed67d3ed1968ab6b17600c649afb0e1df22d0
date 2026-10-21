@@ -1,0 +1,13 @@
+<!DOCTYPE doc [<!ATTLIST e9 attr CDATA "defaul0t">]>
+<doc>
+   <e1   />
+   <e2   ></e2>
+<doc>
+   <e1   />
+   <e2   ></e2>
+   <e3   <?x>
+<!--
+    OASIS OpenDocumename="el
+   <e4    namema
+    
+    **e="ele

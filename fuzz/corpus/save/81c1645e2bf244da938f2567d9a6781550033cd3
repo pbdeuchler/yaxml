@@ -1,0 +1,10 @@
+<!DOCTYPE doc [<!ATTLIST normId attr NMTOKENS #IMPLIED>]>
+<doc>
+  <!-- no normalizatio"MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMn -->
+  <norm attr='   '/>
+  <norm attr='
+  foo b̀·=5z="attrValue"
+ 	attŕ̀:·0="attrVaalue"
+ 	、。퟾at?r="attrVad"eu
+ 	;&#xa;&#9; '/> <!-- PBM s_rializing back -->
+</doc>

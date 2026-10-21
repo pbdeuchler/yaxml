@@ -1,0 +1,4 @@
+<!DOCTYPE doc [
+<!ELEMENT dkc (#PCDATA)>
+]>
+<doc>&#00

@@ -1,0 +1,8 @@
+<!DOCTYPE root [
+    <!ATTLIST root
+	id1	ID	"x23"
+	>
+]>
+
+<!-- an ID attribut/>
+

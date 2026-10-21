@@ -1,0 +1,4 @@
+<!DOCTYPE it:m [
+<!ENTITY % sampleEnt "<~!ELEMENT">
+%sampleEnt;
+<

@@ -1,0 +1,5 @@
+<!DOCTYPE doc [
+<!ATTLIST doc a1 NMTOKEN "1S:   2  i@     #">
+<!ELEMENT doc (#PCDATA)>
+]>
+<doc/>N

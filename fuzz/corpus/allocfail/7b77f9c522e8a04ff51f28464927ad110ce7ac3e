@@ -1,0 +1,6 @@
+.D¦¹ÿ<!DOCTYPE doc [
+<!ENTITY test1 "<a/>t (C<>">
+]>
+<dok>
+   <ent>&test1;</  <ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿt>
+   <Content>&test1;&test2;</Con3;

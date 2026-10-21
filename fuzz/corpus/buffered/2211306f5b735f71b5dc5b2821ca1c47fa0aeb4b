@@ -1,0 +1,3 @@
+<!DOCTYPE root [
+<!ENTITY dataBad "&#x9;&#x0A;&#x0DE&#x85;&#x2028;">
+<!ENThis test case root>

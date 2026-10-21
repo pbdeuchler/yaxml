@@ -1,0 +1,4 @@
+<!DOCTYPE r [
+<!ENTITY v SYSTEM 'vgain'>
+]>
+<r i='a' f='b' s='a c' e='p' ets=' x  y ' o='m' c='d' xmlns:p='urn:q' xml:id='w'>&undeclared;<r i='a' q=''/></r>
