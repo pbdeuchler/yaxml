@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-yaxml = { path = "../../yaxml" }
+yaxml = { path = ".." }
 
 # Standalone workspace: the library's dependency graph stays memchr-only.
 [workspace]

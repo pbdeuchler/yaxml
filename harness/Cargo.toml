@@ -6,17 +6,18 @@ rust-version = "1.97"
 description = "Benchmarks, fuzzing and libxml2 differentials for yaxml"
 license = "MIT OR Apache-2.0"
 publish = false
-# fuzz/ is its own cargo-fuzz workspace.
-exclude = ["/fuzz"]
+
+# Its own workspace, so plain `cargo test` at the repository root never builds
+# it (and its yaxmllint bin does not collide with yaxml's).
+[workspace]
 
 [dependencies]
-# A sibling checkout of https://github.com/pbdeuchler/yaxml (./setup.sh clones it).
-yaxml = { path = "../yaxml" }
+yaxml = { path = ".." }
 
 # yaxml's CLI, built here so tests can use CARGO_BIN_EXE_yaxmllint.
 [[bin]]
 name = "yaxmllint"
-path = "../yaxml/src/bin/yaxmllint/main.rs"
+path = "../src/bin/yaxmllint/main.rs"
 test = false
 bench = false
 

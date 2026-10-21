@@ -1,11 +1,10 @@
-# Shared settings for the harness scripts; sourced, not run.
-# Locations can be overridden from the environment.
+# Shared settings for the root scripts (setup.sh, oracle.sh, bench.sh,
+# fuzz.sh, coverage.sh); sourced, not run. Locations can be overridden from
+# the environment.
 
-HARNESS=$(cd "$(dirname "$0")" && pwd)
-PARENT=$(dirname "$HARNESS")
-# yaxml must be the sibling ../yaxml: Cargo.toml and the #[path] includes name
-# it. A symlink to a checkout elsewhere works.
-YAXML=$PARENT/yaxml
+ROOT=$(cd "$(dirname "$0")" && pwd)
+HARNESS=$ROOT/harness
+PARENT=$(dirname "$ROOT")
 YAXML_ORACLE=${YAXML_ORACLE:-$PARENT/yaxml-oracle}
 YAXML_SUITES=${YAXML_SUITES:-$PARENT/yaxml-suites}
 FUZZ_TOOLCHAIN=${FUZZ_TOOLCHAIN:-nightly-2026-10-18}
@@ -14,7 +13,10 @@ RESULTS=${RESULTS:-$HARNESS/results}
 LIBXML2_SOURCE=$YAXML_ORACLE/libxml2-2.15.4
 LIBXML2_BUILD=$YAXML_ORACLE/build
 # shellcheck disable=SC2034 # used by the scripts that source this
-FUZZ_TARGET=${FUZZ_TARGET_DIR:-$HARNESS/fuzz/target}
+FUZZ_TARGET=${FUZZ_TARGET_DIR:-$ROOT/fuzz/target}
+# The full corpus (./setup.sh corpus) when present, else the minimized one.
+# shellcheck disable=SC2034
+if [ -d "$ROOT/fuzz/corpus-full" ]; then CORPUS=$ROOT/fuzz/corpus-full; else CORPUS=$ROOT/fuzz/corpus; fi
 export CARGO_TARGET_DIR="$TARGET"
 
 die() {
@@ -33,10 +35,6 @@ help_if() {
 
 need() {
 	command -v "$1" >/dev/null 2>&1 || die "$1 not found; $2"
-}
-
-need_yaxml() {
-	[ -f "$YAXML/Cargo.toml" ] || die "no yaxml checkout at $YAXML; run ./setup.sh"
 }
 
 need_oracle() {

@@ -13,7 +13,7 @@ use std::process::Command;
 
 use yaxml::{ErrorKind, FileResolver, Limits, OwnedDocument, save};
 
-const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
+const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 struct Mode {
     name: &'static str,

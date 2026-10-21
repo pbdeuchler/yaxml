@@ -17,7 +17,7 @@ use process::ProcessLimits;
 use yaxml::valid::{AttributeDefault, Dtd, EntityKind};
 use yaxml::{FileResolver, OwnedDocument, ParseOptions, chars, options, save};
 
-const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
+const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 
 /// A character class predicate over one argument type.
 type Class<T> = fn(T) -> bool;

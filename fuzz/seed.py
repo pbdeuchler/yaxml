@@ -1,13 +1,14 @@
 #!/usr/bin/env -S uv run --script
-"""Seed fuzz/corpus/<target>/ from the W3C XMLTS and libxml2 test inputs.
+"""Seed fuzz/corpus-full/<target>/ (fuzz/corpus/<target>/ without it) from the W3C XMLTS and libxml2 test inputs.
 Usage: fuzz/seed.py [XMLCONF_DIR LIBXML2_TEST_DIR]. Inputs over MAX_INPUT_BYTES are skipped."""
 import hashlib, os, re, sys
 from pathlib import Path
 
-W = Path(__file__).resolve().parent.parent.parent  # the directory holding yaxml-harness
+W = Path(__file__).resolve().parent.parent.parent  # the directory holding this checkout
 conf = Path(sys.argv[1] if len(sys.argv) > 2 else W / "yaxml-suites/xmlconf")
 lt = Path(sys.argv[2] if len(sys.argv) > 2 else W / "yaxml-oracle/libxml2-2.15.4/test")
-out = Path(__file__).resolve().parent / "corpus"
+out = Path(__file__).resolve().parent / "corpus-full"
+out = out if out.is_dir() else out.with_name("corpus")
 MAX = 1 << 20
 XML_TARGETS = "dom owned push buffered writer serialize limits encoding".split()
 DOCS = [lt / d for d in ("", "valid", "VC", "VCM", "dtds", "namespaces", "errors", "errors10", "recurse", "SVG", "xmlid", "XInclude/docs", "c14n")]

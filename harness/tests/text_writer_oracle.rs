@@ -8,7 +8,7 @@
 
 #[path = "../examples/support/process.rs"]
 mod process;
-#[path = "../../yaxml/tests/support/fuzz/text_script.rs"]
+#[path = "../../tests/support/fuzz/text_script.rs"]
 mod text_script;
 
 use std::path::Path;

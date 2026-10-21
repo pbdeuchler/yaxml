@@ -4,7 +4,7 @@
 //! data-state inputs of test/html-tokenizer. See docs/html.md.
 #![forbid(unsafe_code)]
 
-#[path = "../../yaxml/tests/support/html_corpus.rs"]
+#[path = "../../tests/support/html_corpus.rs"]
 mod corpus;
 #[path = "support/html_dump.rs"]
 mod dump;

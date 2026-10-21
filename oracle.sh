@@ -4,23 +4,22 @@
 # steps:
 #   core       yaxml's own tests including the ignored and env-gated
 #              differentials, with the oracle environment set
-#   harness    this repo's oracle tests (tests/*_oracle.rs, suites, CLIs)
+#   harness    harness/'s oracle tests (tests/*_oracle.rs, suites, CLIs)
 #   replay     fuzz seeds against xmllint (examples/fuzz_replay)
 #   structure  leaf insertion/removal against libxml2 (examples/structure_oracle)
 #   xmlconf    XMLTS 20130923 on five surfaces; fails on any regression of
-#              tests/fixtures/xmlconf-20130923-required.tsv
-# Logs and results go to results/oracle-<timestamp>/. Builds use the release
+#              harness/tests/fixtures/xmlconf-20130923-required.tsv
+# Logs and results go to harness/results/oracle-<timestamp>/. Builds use the release
 # profile without LTO. The schematron differential needs a libxml2 built with
 # schematron, which the pinned oracle is not: set YAXML_SCHEMATRON_HELPER to
-# enable it (see yaxml/docs/schematron.md).
+# enable it (see docs/schematron.md).
 set -eu
-. "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/harness/lib.sh"
 help_if "$@"
 [ $# -gt 0 ] || set -- core harness replay structure xmlconf
 for name in "$@"; do
 	case $name in core | harness | replay | structure | xmlconf) ;; *) die "unknown step '$name'; see --help" ;; esac
 done
-need_yaxml
 need_oracle
 [ -f "$YAXML_SUITES/xmlconf-catalog.tsv" ] && [ -d "$YAXML_SUITES/xmlconf" ] ||
 	die "no XML test suite at $YAXML_SUITES; run ./setup.sh or set YAXML_SUITES"
@@ -56,7 +55,7 @@ step() {
 }
 
 core() {
-	cd "$YAXML"
+	cd "$ROOT"
 	# shellcheck disable=SC2086 # $skips is a list of flags
 	cargo test --release --tests --no-fail-fast -- --include-ignored $skips
 }
@@ -66,7 +65,7 @@ harness() {
 }
 replay() {
 	cd "$HARNESS"
-	cargo run --release -q --example fuzz_replay -- --libxml2 "$YAXML_XMLLINT" "$YAXML"/tests/fixtures/fuzz-seeds/*.*
+	cargo run --release -q --example fuzz_replay -- --libxml2 "$YAXML_XMLLINT" "$ROOT"/tests/fixtures/fuzz-seeds/*.*
 }
 structure() {
 	cd "$HARNESS"

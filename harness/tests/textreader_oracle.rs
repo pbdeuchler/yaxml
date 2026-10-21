@@ -293,7 +293,7 @@ fn rde<R: BufRead>(mut reader: TextReader<R>) -> String {
 
 const DEFAULT_SOURCE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../yaxml-oracle/libxml2-2.15.4"
+    "/../../yaxml-oracle/libxml2-2.15.4"
 );
 
 /// Inputs whose `.rde` differs for documented reasons: EBCDIC and EUC-JP are

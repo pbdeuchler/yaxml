@@ -29,7 +29,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 
 #[allow(dead_code)]
-#[path = "../../../yaxml/tests/support/fuzz/driver.rs"]
+#[path = "../../tests/support/fuzz/driver.rs"]
 mod driver;
 
 /// Allocations of at least `MIN_SIZE` bytes since the last reset, and the

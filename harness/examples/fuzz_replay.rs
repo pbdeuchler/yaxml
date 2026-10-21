@@ -1,7 +1,7 @@
 //! Replay one testcase from stdin, or each named file. This uses no fuzz runtime.
 #![forbid(unsafe_code)]
 
-#[path = "../../yaxml/tests/support/fuzz/driver.rs"]
+#[path = "../../tests/support/fuzz/driver.rs"]
 mod driver;
 #[path = "support/infoset.rs"]
 mod infoset;

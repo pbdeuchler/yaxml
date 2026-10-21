@@ -7,13 +7,12 @@
 # alternating order and must observe identical logical values. Prints the
 # ratio table, libxml2 median / yaxml median of parse plus destruction time
 # per document (above 1 favors yaxml); raw rows and the table go to
-# results/bench-<timestamp>.txt. Settings: MODES (default "dom owned reader
+# harness/results/bench-<timestamp>.txt. Settings: MODES (default "dom owned reader
 # push buffered"), SAMPLES (5), ITERATIONS (documents per sample, 20),
 # CHUNK (push/buffered chunk bytes, 8192).
 set -eu
-. "$(dirname "$0")/lib.sh"
+. "$(dirname "$0")/harness/lib.sh"
 help_if "$@"
-need_yaxml
 need_oracle
 fixtures=${*:-tiny flat text attributes namespaces normalized unicode deep mixed dtd-decl dtd-refs dtd-nested dtd-attrs dtd}
 modes=${MODES:-dom owned reader push buffered}

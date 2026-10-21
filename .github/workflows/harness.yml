@@ -1,4 +1,4 @@
-name: CI
+name: Harness
 
 on:
   push:
@@ -9,8 +9,9 @@ on:
 permissions:
   contents: read
 
-# Every job checks out this repository and yaxml side by side, as the scripts
-# expect: $GITHUB_WORKSPACE/{yaxml-harness,yaxml}.
+# Every job checks out the repository into $GITHUB_WORKSPACE/yaxml, so
+# setup.sh's default ../yaxml-oracle and ../yaxml-suites stay inside the
+# workspace.
 jobs:
   oracle:
     runs-on: ubuntu-latest
@@ -18,29 +19,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: yaxml-harness
-      - uses: actions/checkout@v4
-        with:
-          repository: pbdeuchler/yaxml
           path: yaxml
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.97.0"
       - name: Fetch and build the pinned libxml2 oracle and the XML test suite
-        working-directory: yaxml-harness
+        working-directory: yaxml
         run: ./setup.sh
       - name: Differentials and conformance
-        working-directory: yaxml-harness
+        working-directory: yaxml
         run: ./oracle.sh
       - name: One matched parse benchmark row
-        working-directory: yaxml-harness
+        working-directory: yaxml
         run: SAMPLES=1 ITERATIONS=1 ./bench.sh mixed
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: oracle
           path: |
-            yaxml-harness/results/
+            yaxml/harness/results/
             yaxml-oracle/version.txt
 
   fuzz-smoke:
@@ -49,10 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: yaxml-harness
-      - uses: actions/checkout@v4
-        with:
-          repository: pbdeuchler/yaxml
           path: yaxml
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -60,7 +53,7 @@ jobs:
           components: llvm-tools-preview
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
       - name: Fuzz every target for 20 seconds
-        working-directory: yaxml-harness
+        working-directory: yaxml
         run: |
           set -eu
           for target in $(./fuzz.sh); do
@@ -70,7 +63,7 @@ jobs:
         if: failure()
         with:
           name: fuzz-artifacts
-          path: yaxml-harness/fuzz/artifacts/
+          path: yaxml/fuzz/artifacts/
 
   coverage:
     runs-on: ubuntu-latest
@@ -78,10 +71,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: yaxml-harness
-      - uses: actions/checkout@v4
-        with:
-          repository: pbdeuchler/yaxml
           path: yaxml
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -90,11 +79,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
       - name: Corpus coverage of every target
-        working-directory: yaxml-harness
+        working-directory: yaxml
         run: ./coverage.sh
       - uses: actions/upload-artifact@v4
         with:
           name: fuzz-coverage
           path: |
-            yaxml-harness/fuzz/coverage/report.txt
-            yaxml-harness/fuzz/coverage/merged.lcov
+            yaxml/fuzz/coverage/report.txt
+            yaxml/fuzz/coverage/merged.lcov
