@@ -293,6 +293,24 @@ fn owned_documents_validate_their_current_tree() {
     assert_eq!(codes(&document.validate()), [AttributeValue]);
 }
 
+#[test]
+fn rootless_documents_report_no_root() {
+    // xmlValidateRoot: a recovered rootless tree reports only that.
+    let options = || yaxml::ParseOptions::new(yaxml::options::RECOVER);
+    let input = b"<!DOCTYPE r [<!ELEMENT r EMPTY><!ATTLIST r i ID #IMPLIED>]><!--c-->";
+    let document = OwnedDocument::parse_with(input, options()).unwrap();
+    let dtd = document.dtd().unwrap();
+    for diagnostics in [document.validate(), valid::validate(&document, dtd)] {
+        assert_eq!(codes(&diagnostics), [NoRoot]);
+        assert_eq!(diagnostics[0].message, "no root element");
+    }
+    let borrowed = Document::parse_with(input, options()).unwrap();
+    assert_eq!(codes(&valid::validate(&borrowed, dtd)), [NoRoot]);
+    // With a root nothing is reported.
+    let rooted = OwnedDocument::parse("<!DOCTYPE r [<!ELEMENT r EMPTY>]><!--c--><r/>").unwrap();
+    assert!(rooted.validate().is_empty());
+}
+
 fn serve(files: &'static [(&'static str, &'static str)]) -> Box<dyn yaxml::Resolver> {
     Box::new(move |request: Request<'_>| {
         Ok(files

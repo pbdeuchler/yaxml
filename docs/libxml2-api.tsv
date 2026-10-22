@@ -2393,12 +2393,12 @@ xmlautomata.h	xmlAutomataStatePtr	typedef	not_marked	P2-P3	removed-upstream	http
 xmlautomata.h	xmlFreeAutomata	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlautomata.h	deprecated; LIBXML_AUTOMATA off in 2.15
 xmlautomata.h	xmlNewAutomata	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlautomata.h	deprecated; LIBXML_AUTOMATA off in 2.15
 xmlerror.h	XML_BUF_OVERFLOW	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_C14N_CREATE_CTXT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching c14n::Error
+xmlerror.h	XML_C14N_CREATE_CTXT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation
 xmlerror.h	XML_C14N_CREATE_STACK	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_C14N_INVALID_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching c14n::Error
+xmlerror.h	XML_C14N_INVALID_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	c14n::Error::EntityReference - category only
 xmlerror.h	XML_C14N_RELATIVE_NAMESPACE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	c14n::Error::RelativeNamespace - category only
-xmlerror.h	XML_C14N_REQUIRES_UTF8	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching c14n::Error
-xmlerror.h	XML_C14N_UNKNOW_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching c14n::Error
+xmlerror.h	XML_C14N_REQUIRES_UTF8	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation
+xmlerror.h	XML_C14N_UNKNOW_NODE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation
 xmlerror.h	XML_CATALOG_ENTRY_BROKEN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_CATALOG_MISSING_ATTR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_CATALOG_NOT_CATALOG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
@@ -2460,20 +2460,20 @@ xmlerror.h	XML_DTD_ID_REDEFINED	enum_value	not_marked	P0-P3	implemented	https://
 xmlerror.h	XML_DTD_ID_SUBSET	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::IdSubset
 xmlerror.h	XML_DTD_INVALID_CHILD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::InvalidChild
 xmlerror.h	XML_DTD_INVALID_DEFAULT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::InvalidDefault
-xmlerror.h	XML_DTD_LOAD_ERROR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
+xmlerror.h	XML_DTD_LOAD_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Dtd::load - a failed load is an Err, not a diagnostic
 xmlerror.h	XML_DTD_MISSING_ATTRIBUTE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::MissingAttribute
-xmlerror.h	XML_DTD_MIXED_CORRUPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
-xmlerror.h	XML_DTD_MULTIPLE_ID	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
+xmlerror.h	XML_DTD_MIXED_CORRUPT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	raised only with a NULL document, a corrupt tree or the err flag no caller sets
+xmlerror.h	XML_DTD_MULTIPLE_ID	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	raised only with a NULL document, a corrupt tree or the err flag no caller sets
 xmlerror.h	XML_DTD_NOTATION_REDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NotationRedefined
 xmlerror.h	XML_DTD_NOTATION_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NotationValue
 xmlerror.h	XML_DTD_NOT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NotEmpty
 xmlerror.h	XML_DTD_NOT_PCDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NotPcdata
 xmlerror.h	XML_DTD_NOT_STANDALONE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NotStandalone
-xmlerror.h	XML_DTD_NO_DOC	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
+xmlerror.h	XML_DTD_NO_DOC	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	raised only with a NULL document, a corrupt tree or the err flag no caller sets
 xmlerror.h	XML_DTD_NO_DTD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NoDtd
 xmlerror.h	XML_DTD_NO_ELEM_NAME	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_DTD_NO_PREFIX	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NoPrefix
-xmlerror.h	XML_DTD_NO_ROOT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
+xmlerror.h	XML_DTD_NO_ROOT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::NoRoot
 xmlerror.h	XML_DTD_ROOT_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::RootName
 xmlerror.h	XML_DTD_STANDALONE_DEFAULTED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::StandaloneDefaulted
 xmlerror.h	XML_DTD_STANDALONE_WHITE_SPACE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::StandaloneWhiteSpace

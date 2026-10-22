@@ -698,6 +698,8 @@ pub(crate) fn run<T: Navigate>(tree: &T, dtd: &Dtd, document: bool) -> Vec<Diagn
                 id = tree.parent(id).expect("inside the document element");
             }
         }
+    } else {
+        validator.note(Code::NoRoot, None, "no root element".into());
     }
     let mut out = validator.sorted();
     for diagnostic in &mut out {

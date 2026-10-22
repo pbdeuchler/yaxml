@@ -83,6 +83,9 @@ pub enum Code {
     NoDtd = 522,
     /// A required prefixed attribute appears unprefixed (a warning).
     NoPrefix = 524,
+    /// The tree has no document element (`xmlValidateRoot`); nothing else
+    /// is checked.
+    NoRoot = 525,
     /// A repeated notation declaration.
     NotationRedefined = 526,
     /// A `NOTATION` value outside its enumeration.

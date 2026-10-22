@@ -1171,6 +1171,10 @@ def error_rule(i, ctx):
         return "A", "data/except//ref to a non-element define is accepted, as the specification allows"
     if i.startswith("XML_RNGP_") or i == "XML_ERR_RESOURCE_LIMIT":
         return by_code(ctx.rngp, ctx.err[i], "relaxng::SchemaCode", "XML_RNGP")
+    if i in ("XML_DTD_MULTIPLE_ID", "XML_DTD_NO_DOC", "XML_DTD_MIXED_CORRUPT"):
+        return "A", "raised only with a NULL document, a corrupt tree or the err flag no caller sets"
+    if i == "XML_DTD_LOAD_ERROR":
+        return "P", "valid::Dtd::load - a failed load is an Err, not a diagnostic"
     if i.startswith("XML_DTD_") and (name := DIAG_NAME(i)) in DIAG_CODES:
         return "I", f"diagnostic::code::{name} - parser domain"
     if i.startswith("XML_DTD_") or i in ("XML_ERR_UNDECLARED_ENTITY", "XML_ERR_ENTITY_BOUNDARY"):
@@ -1194,6 +1198,10 @@ def error_rule(i, ctx):
         return "N", "no matching xpointer::Error"
     if i == "XML_C14N_RELATIVE_NAMESPACE":
         return "P", "c14n::Error::RelativeNamespace - category only"
+    if i == "XML_C14N_INVALID_NODE":
+        return "P", "c14n::Error::EntityReference - category only"
+    if i in ("XML_C14N_REQUIRES_UTF8", "XML_C14N_CREATE_CTXT", "XML_C14N_UNKNOW_NODE"):
+        return "A", "C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation"
     if i.startswith("XML_C14N_"):
         return "N", "no matching c14n::Error"
     if i == "XML_REGEXP_COMPILE_ERROR":
