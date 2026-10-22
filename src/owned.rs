@@ -24,7 +24,7 @@ use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, ParseOptions, Pus
 use crate::{EditComponent, EditLocation};
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
-const XML: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML;
 
 mod construction;
 mod copy;

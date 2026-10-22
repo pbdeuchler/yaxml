@@ -18,7 +18,7 @@ use super::{Code, Error, Limits, SchemaDiagnostic};
 
 pub(crate) const XS: &str = "http://www.w3.org/2001/XMLSchema";
 pub(crate) const XSI: &str = "http://www.w3.org/2001/XMLSchema-instance";
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML_NS;
 
 /// Where a component was declared.
 #[derive(Clone, Copy, Debug)]

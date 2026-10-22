@@ -11,7 +11,7 @@ use crate::name::{name_char, name_start, qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
-const XML: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML;
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 /// Namespace scopes up to this many bindings are searched linearly.
 const INDEXED_SCOPE: usize = 16;

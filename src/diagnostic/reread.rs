@@ -679,7 +679,7 @@ impl Attr<'_> {
     }
 }
 
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML_NS;
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
 
 /// The namespace-declaration checks of `xmlParseStartTag2`.

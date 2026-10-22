@@ -161,7 +161,7 @@ pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader
 pub use textwriter::TextWriter;
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};
-pub use xpath::tree::NamespaceBinding;
+pub use xpath::tree::{NamespaceBinding, XML_NAMESPACE};
 
 mod dtd_reference;
 

@@ -27,7 +27,7 @@ mod temporal;
 use decimal::Decimal;
 use temporal::{Date, Duration};
 
-const XML_NAMESPACE: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE;
 
 /// A built-in simple type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

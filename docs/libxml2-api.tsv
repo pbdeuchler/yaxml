@@ -1701,8 +1701,8 @@ tree.h	XML_PI_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GN
 tree.h	XML_TEXT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Text, OwnedNodeKind::Text
 tree.h	XML_XINCLUDE_END	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	xinclude never adds marker nodes (NOXINCNODE behaviour)
 tree.h	XML_XINCLUDE_START	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	xinclude never adds marker nodes (NOXINCNODE behaviour)
-tree.h	XML_XML_ID	macro	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	namespace constants not exported
-tree.h	XML_XML_NAMESPACE	macro	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	namespace constants not exported
+tree.h	XML_XML_ID	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	"names are (namespace, local) pairs: xml:id is (XML_NAMESPACE, ""id"")"
+tree.h	XML_XML_NAMESPACE	macro	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	XML_NAMESPACE
 tree.h	__xmlDeregisterNodeDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	__xmlRegisterNodeDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	_xmlAttr	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute
@@ -2210,10 +2210,10 @@ valid.h	xmlValidateDtd	function	not_marked	P2	partial	https://github.com/GNOME/l
 valid.h	xmlValidateDtdFinal	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateElement	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate, Document::validate, OwnedDocument::validate
 valid.h	xmlValidateElementDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidateNameValue	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlValidateNamesValue	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlValidateNmtokenValue	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlValidateNmtokensValue	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
+valid.h	xmlValidateNameValue	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::value_matches - AttributeKind::Id
+valid.h	xmlValidateNamesValue	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::value_matches - AttributeKind::IdRefs
+valid.h	xmlValidateNmtokenValue	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::value_matches - AttributeKind::NmToken
+valid.h	xmlValidateNmtokensValue	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::value_matches - AttributeKind::NmTokens
 valid.h	xmlValidateNotationDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateNotationUse	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateOneAttribute	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2225,16 +2225,16 @@ valid.h	xmlValidatePushElement	function	yes	P2	partial	https://github.com/GNOME/
 valid.h	xmlValidateRoot	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidityErrorFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlValidityWarningFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-xinclude.h	XINCLUDE_FALLBACK	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_HREF	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_NODE	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_NS	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_OLD_NS	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_PARSE	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_PARSE_ENCODING	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_PARSE_TEXT	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_PARSE_XML	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
-xinclude.h	XINCLUDE_PARSE_XPOINTER	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	namespace and attribute name constants not exported
+xinclude.h	XINCLUDE_FALLBACK	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_HREF	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_NODE	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_NS	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::NS
+xinclude.h	XINCLUDE_OLD_NS	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::OLD_NS
+xinclude.h	XINCLUDE_PARSE	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_PARSE_ENCODING	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_PARSE_TEXT	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_PARSE_XML	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
+xinclude.h	XINCLUDE_PARSE_XPOINTER	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
 xinclude.h	xmlXIncludeCtxt	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	Drop; errors returned by xinclude::process
 xinclude.h	xmlXIncludeCtxtPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	Drop; errors returned by xinclude::process
 xinclude.h	xmlXIncludeFreeContext	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	Drop; errors returned by xinclude::process

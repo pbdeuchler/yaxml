@@ -480,7 +480,8 @@ N|xmlParseContent xmlSwitchEncoding xmlSwitchEncodingName xmlSwitchToEncoding|pa
 P|xmlSplitQName|Name::new
 # ---- tree.h
 A|LIBXML2_NEW_BUFFER XML_BUFFER_ALLOC_* xmlBuf xmlBuf* xmlBuffer xmlBuffer* xmlChildrenNode xmlRootNode xmlDefaultBufferSize XML_GET_CONTENT XML_GET_LINE XML_LOCAL_NAMESPACE|Vec<u8>/String or field-alias macro
-N|XML_XML_ID XML_XML_NAMESPACE|namespace constants not exported
+I|XML_XML_NAMESPACE|XML_NAMESPACE
+A|XML_XML_ID|names are (namespace, local) pairs: xml:id is (XML_NAMESPACE, "id")
 A|xmlGetDocCompressMode xmlSetDocCompressMode|no compression
 I|xmlDoc|Document, OwnedDocument
 I|xmlNode|Node, OwnedNode
@@ -788,7 +789,7 @@ I|xmlGetDtdNotationDesc|valid::Dtd::notation
 P|xmlElementTable|valid::Dtd::elements - an iterator, no table type
 P|xmlAttributeTable|valid::Element::attributes - an iterator, no table type
 P|xmlNotationTable|valid::Dtd::notations - an iterator, no table type
-N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlValidateNameValue xmlValidateNamesValue xmlValidateNmtokenValue xmlValidateNmtokensValue xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
+N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
 N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
 # ---- encoding.h
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
@@ -821,6 +822,10 @@ I|xmlParseURIRaw|Uri::parse_raw
 I|xmlBuildURI xmlBuildURISafe|uri::resolve
 I|xmlBuildRelativeURI xmlBuildRelativeURISafe|uri::relative
 I|xmlCanonicPath|uri::canonic_path
+I|xmlValidateNameValue|valid::value_matches - AttributeKind::Id
+I|xmlValidateNamesValue|valid::value_matches - AttributeKind::IdRefs
+I|xmlValidateNmtokenValue|valid::value_matches - AttributeKind::NmToken
+I|xmlValidateNmtokensValue|valid::value_matches - AttributeKind::NmTokens
 N|xmlPathToURI|not started
 I|xmlNormalizeURIPath|uri::normalize_path
 P|xmlURIEscape|uri::escape
@@ -909,7 +914,9 @@ I|xmlXIncludeProcess xmlXIncludeProcessFlags xmlXIncludeProcessFlagsData|xinclud
 P|xmlXIncludeProcessNode xmlXIncludeProcessTree xmlXIncludeProcessTreeFlags xmlXIncludeProcessTreeFlagsData|xinclude::process - whole documents only
 P|xmlXIncludeNewContext xmlXIncludeSetFlags xmlXIncludeSetResourceLoader|xinclude::Options
 A|xmlXIncludeFreeContext xmlXIncludeCtxt xmlXIncludeCtxtPtr xmlXIncludeSetErrorHandler xmlXIncludeGetLastError|Drop; errors returned by xinclude::process
-N|XINCLUDE_*|namespace and attribute name constants not exported
+I|XINCLUDE_NS|xinclude::NS
+I|XINCLUDE_OLD_NS|xinclude::OLD_NS
+A|XINCLUDE_*|element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
 # ---- pattern.h / c14n.h / schematron.h / xpointer.h
 I|xmlPatterncompile xmlPatternCompileSafe|pattern::Pattern::compile
 I|xmlPatternMatch|pattern::Pattern::matches

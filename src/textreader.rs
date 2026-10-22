@@ -13,7 +13,7 @@ use crate::{
 };
 use crate::{relaxng, xsd};
 
-const XML: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML;
 /// Recycled node buffers kept after a subtree expansion drains.
 const SPARE_NODES: usize = 4;
 

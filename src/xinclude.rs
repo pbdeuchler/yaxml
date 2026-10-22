@@ -45,9 +45,11 @@ use crate::{
     OwnedNodeId, OwnedNodeKind, ParseOptions, Request, Resolver, ResourceKind, xpath, xpointer,
 };
 
-const NS: &str = "http://www.w3.org/2003/XInclude";
-const OLD_NS: &str = "http://www.w3.org/2001/XInclude";
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
+/// The XInclude namespace (`XINCLUDE_NS`).
+pub const NS: &str = "http://www.w3.org/2003/XInclude";
+/// The 2001 draft namespace, still recognized (`XINCLUDE_OLD_NS`).
+pub const OLD_NS: &str = "http://www.w3.org/2001/XInclude";
+use crate::XML_NAMESPACE as XML_NS;
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
 /// libxml2's `XML_MAX_URI_LENGTH`.
 const MAX_URI: usize = 2000;
