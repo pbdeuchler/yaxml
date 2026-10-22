@@ -396,7 +396,7 @@ const INCORRECT: &[(&str, SchemaCode)] = &[
     ),
     (
         "<element name='r' foo='1' xmlns='http://relaxng.org/ns/structure/1.0'><empty/></element>",
-        SchemaCode::ForbiddenAttribute,
+        SchemaCode::UnknownAttribute,
     ),
     (
         "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'/>",
@@ -557,6 +557,102 @@ const INCORRECT: &[(&str, SchemaCode)] = &[
     (
         "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><externalRef/></element>",
         SchemaCode::MissingHref,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><attribute/></element>",
+        SchemaCode::AttributeEmpty,
+    ),
+    (
+        "<element xmlns='http://relaxng.org/ns/structure/1.0'><choice/><empty/></element>",
+        SchemaCode::ChoiceEmpty,
+    ),
+    (
+        "<element xmlns='http://relaxng.org/ns/structure/1.0'><choice><text/></choice><empty/></element>",
+        SchemaCode::ChoiceContent,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><ref name='d'/></start><define name='d'></define></grammar>",
+        SchemaCode::DefineEmpty,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><ref name='d'/></start><define><empty/></define></grammar>",
+        SchemaCode::DefineNameMissing,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><ref name='d'/></start><define name='d'><text/></define><define name='1x'><empty/></define></grammar>",
+        SchemaCode::InvalidDefineName,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><data type='string'><except/></data></element>",
+        SchemaCode::ExceptNoContent,
+    ),
+    (
+        "<element xmlns='http://relaxng.org/ns/structure/1.0'><anyName><except/></anyName><empty/></element>",
+        SchemaCode::ExceptEmpty,
+    ),
+    (
+        "<element xmlns='http://relaxng.org/ns/structure/1.0'><anyName><name>a</name></anyName><empty/></element>",
+        SchemaCode::ExceptMissing,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'></grammar>",
+        SchemaCode::GrammarEmpty,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><interleave/></element>",
+        SchemaCode::InterleaveNoContent,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><mixed/></element>",
+        SchemaCode::EmptyConstruct,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0' datatypeLibrary='h ttp://x'><empty/></element>",
+        SchemaCode::InvalidUri,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><notAllowed><empty/></notAllowed></element>",
+        SchemaCode::NotAllowedNotEmpty,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><text><empty/></text></element>",
+        SchemaCode::TextHasChild,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><element name='r'><grammar><start><parentRef/></start></grammar></element></start></grammar>",
+        SchemaCode::ParentRefNoName,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><element name='r'><grammar><start><parentRef name='1x'/></start></grammar></element></start><define name='1x'><empty/></define></grammar>",
+        SchemaCode::ParentRefNameInvalid,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><element name='r'><grammar><start><parentRef name='d'><empty/></parentRef></start></grammar></element></start><define name='d'><empty/></define></grammar>",
+        SchemaCode::ParentRefNotEmpty,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><ref name='1x'/></start><define name='1x'><empty/></define></grammar>",
+        SchemaCode::RefNameInvalid,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start><ref name='d'><empty/></ref></start><define name='d'><element name='r'><empty/></element></define></grammar>",
+        SchemaCode::RefNotEmpty,
+    ),
+    (
+        "<grammar xmlns='http://relaxng.org/ns/structure/1.0'><start/></grammar>",
+        SchemaCode::StartEmpty,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><attribute name='a' ns='http://www.w3.org/2000/xmlns'><text/></attribute></element>",
+        SchemaCode::XmlNs,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><attribute><nsName ns='http://www.w3.org/2000/xmlns'/><text/></attribute></element>",
+        SchemaCode::XmlNs,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><empty name='x'/></element>",
+        SchemaCode::ForbiddenAttribute,
     ),
     (
         "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><externalRef href='x.rng#f'/></element>",

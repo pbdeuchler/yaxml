@@ -65,15 +65,25 @@ pub enum SchemaCode {
     AttrConflict = 1001,
     /// An `attribute` with more than one pattern.
     AttributeChildren = 1002,
+    /// An `attribute` with neither a name nor children.
+    AttributeEmpty = 1004,
+    /// A name class that is not `name`, `anyName`, `nsName` or `choice`.
+    ChoiceContent = 1006,
+    /// A name-class `choice` with no children.
+    ChoiceEmpty = 1007,
     /// Unexpected content in `data`.
     DataContent = 1009,
     /// A `define` combined with both `choice` and `interleave`.
     DefChoiceAndInterleave = 1010,
+    /// A `define` with no pattern.
+    DefineEmpty = 1012,
     /// An `include` overrides a `define` the included grammar lacks.
     DefineMissing = 1013,
+    /// A `define` without `name`.
+    DefineNameMissing = 1014,
     /// An element's content has no content type (section 7.2).
     ElemContentError = 1016,
-    /// An element that needs children has none.
+    /// An `element` with neither a name nor children.
     ElementEmpty = 1017,
     /// A malformed name class or name.
     ElementName = 1019,
@@ -87,16 +97,24 @@ pub enum SchemaCode {
     EmptyConstruct = 1023,
     /// An `empty` with content.
     EmptyNotEmpty = 1025,
+    /// An empty `except` in a name class.
+    ExceptEmpty = 1027,
+    /// A name class whose child is not `except`.
+    ExceptMissing = 1028,
     /// More than one `except` in a name class.
     ExceptMultiple = 1029,
+    /// An empty `except` in `data`.
+    ExceptNoContent = 1030,
     /// An `externalRef` document failed to load.
     ExternalRefFailure = 1032,
     /// An `externalRef` refers to itself.
     ExternalRefRecurse = 1033,
-    /// An attribute not allowed on this RELAX NG element.
+    /// A RELAX NG attribute on an element that does not take it.
     ForbiddenAttribute = 1034,
     /// An unexpected child of `grammar`.
     GrammarContent = 1036,
+    /// A `grammar` with no children.
+    GrammarEmpty = 1037,
     /// An included document is not a `grammar`.
     GrammarMissing = 1038,
     /// A `grammar` without `start`.
@@ -109,22 +127,34 @@ pub enum SchemaCode {
     IncludeFailure = 1043,
     /// An `include` refers to itself.
     IncludeRecurse = 1044,
+    /// An `interleave` with no children.
+    InterleaveNoContent = 1048,
     /// A `define` without an NCName `name`.
     InvalidDefineName = 1049,
+    /// A `datatypeLibrary` that is not a URI.
+    InvalidUri = 1050,
     /// A `value` its datatype does not accept.
     InvalidValue = 1051,
     /// An `include` or `externalRef` without `href`.
     MissingHref = 1052,
     /// Several `define`s (or `start`s) of one name, without `combine`.
     NeedCombine = 1054,
+    /// A `notAllowed` with content.
+    NotAllowedNotEmpty = 1055,
     /// An `nsName` attribute outside `oneOrMore` (section 7.3).
     NsNameAttrAncestor = 1056,
     /// A `param` for a datatype library that takes none.
     ParamForbidden = 1058,
     /// A `param` without `name`.
     ParamNameMissing = 1059,
+    /// A `parentRef` whose `name` is not an NCName.
+    ParentRefNameInvalid = 1061,
+    /// A `parentRef` without `name`.
+    ParentRefNoName = 1062,
     /// A `parentRef` outside a nested grammar.
     ParentRefNoParent = 1063,
+    /// A `parentRef` with content.
+    ParentRefNotEmpty = 1064,
     /// A schema document is not well-formed or nesting is too deep.
     ParseError = 1065,
     /// `anyName/except//anyName`.
@@ -189,24 +219,34 @@ pub enum SchemaCode {
     PrefixUndefined = 1097,
     /// A reference cycle not broken by an `element`.
     RefCycle = 1099,
+    /// A `ref` whose `name` is not an NCName.
+    RefNameInvalid = 1100,
     /// A `ref` naming no `define`.
     RefNoDef = 1101,
-    /// A `ref` or `parentRef` without `name`.
+    /// A `ref` without `name`.
     RefNoName = 1102,
+    /// A `ref` with content.
+    RefNotEmpty = 1103,
     /// `start` combined with both `choice` and `interleave`.
     StartChoiceAndInterleave = 1104,
     /// A `start` with more than one pattern.
     StartContent = 1105,
+    /// A `start` with no pattern.
+    StartEmpty = 1106,
     /// An `include` overrides `start` but the included grammar has none.
     StartMissing = 1107,
     /// Text where the RELAX NG syntax allows none.
     TextExpected = 1108,
+    /// A `text` with content.
+    TextHasChild = 1109,
     /// A `data` without `type`.
     TypeMissing = 1110,
     /// A datatype its library does not define.
     TypeNotFound = 1111,
     /// An invalid datatype parameter.
     TypeValue = 1112,
+    /// An attribute RELAX NG does not define.
+    UnknownAttribute = 1113,
     /// A `combine` other than `choice` or `interleave`.
     UnknownCombine = 1114,
     /// An element that is not a RELAX NG pattern.
@@ -217,8 +257,10 @@ pub enum SchemaCode {
     UriFragment = 1117,
     /// A `datatypeLibrary` that is not an absolute URI.
     UriNotAbsolute = 1118,
-    /// An attribute named `xmlns` or in the xmlns namespace.
+    /// An attribute named `xmlns`.
     XmlnsName = 1121,
+    /// An attribute name class in the xmlns namespace.
+    XmlNs = 1122,
 }
 
 impl SchemaCode {

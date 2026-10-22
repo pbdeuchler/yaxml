@@ -16,6 +16,13 @@ libxml2's backtracking.
 A `Schema` is immutable, `Send + Sync` and reusable. Schema errors are
 `SchemaErrors`, a non-empty list of `SchemaError { code, uri, offset,
 message }` whose `SchemaCode` discriminant is libxml2's `XML_RNGP_*` number.
+Only the first error is reported. Its code and message are libxml2's first
+error (`xmlRelaxNGSetParserStructuredErrors`), except in three cases:
+- libxml2 does not report its follow-on errors.
+- An included or external schema that is not XML is `IncludeFailure` or
+  `ExternalRefFailure`. libxml2 reports the XML parse error first.
+- `data/except//ref` to a define whose content is not an element is
+  accepted, as the specification allows. libxml2 rejects it.
 Validation returns `Vec<Diagnostic<Id>>`, empty when valid; each `Code`
 discriminant is libxml2's `xmlRelaxNGValidErr` (`UnknownId` is valid.c's
 `XML_DTD_UNKNOWN_ID`), with the element and its source offset.

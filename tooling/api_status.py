@@ -1117,6 +1117,9 @@ class Ctx:
         self.valid = rust_codes("valid.rs", "Code")
         self.rngp = rust_codes("relaxng.rs", "SchemaCode")
         self.rngv = rust_codes("relaxng.rs", "Code")
+        # Every identifier libxml2 itself uses (error.c only names them).
+        files = [f for f in [*src.parent.parent.glob("*.c"), *(src.parent.parent / "include" / "private").glob("*.h")] if f.name != "error.c"]
+        self.raised = {w for f in files for w in re.findall(r"\bXML_\w+", f.read_text(errors="replace"))}
 
 
 def by_code(codes, value, path, kind):
@@ -1201,14 +1204,20 @@ def error_rule(i, ctx):
         return "N", "no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource"
     if i.startswith("XML_HTML_"):
         return "N", "html::DiagnosticKind has no matching variant"
-    if i.startswith(("XML_CATALOG_", "XML_SAVE_", "XML_TREE_", "XML_BUF_", "XML_I18N_", "XML_CHECK_", "XML_WAR_")):
+    if i in ("XML_CHECK_NO_PARENT", "XML_CHECK_NOT_NCNAME"):
+        return "I", "debug::check_document - reported by number"
+    if i.startswith("XML_CHECK_"):
+        return "A", "debug::check_document - pointer-tree invariant kept by construction"
+    if i.startswith(("XML_CATALOG_", "XML_SAVE_", "XML_TREE_", "XML_BUF_", "XML_I18N_", "XML_WAR_")):
         return "N", "no per-code diagnostic"
     return None
 
 
 def header_rule(h, i, k, ctx):
     if h == "xmlerror.h":
-        return error_rule(i, ctx)
+        s, note = error_rule(i, ctx) or (None, None)
+        unused = s == "N" and k == "enum_value" and i not in ctx.raised
+        return ("A", "never raised by libxml2 2.15.4") if unused else (s, note) if s else None
     if m := re.fullmatch(r"XML_PARSE_(\w+)", i):
         n = m.group(1)
         if n in OPT_ALL:
