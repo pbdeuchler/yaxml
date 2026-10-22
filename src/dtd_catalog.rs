@@ -478,13 +478,15 @@ impl DtdCatalog {
             .iter()
     }
 
-    /// Applies one declaration. Failure offsets are relative to `unit`, or
-    /// absent inside replacement text.
+    /// Applies one declaration; `true` when it is an invalid redeclaration of
+    /// a predefined entity, dropped (libxml2's `XML_ERR_REDECL_PREDEF_ENTITY`
+    /// warning). Failure offsets are relative to `unit`, or absent inside
+    /// replacement text.
     pub(crate) fn apply(
         &mut self,
         unit: &DtdUnit<'_>,
         context: DeclarationContext,
-    ) -> Result<(), DtdError> {
+    ) -> Result<bool, DtdError> {
         let at = Some(0);
         let limits = self.limits;
         increment(
@@ -542,10 +544,10 @@ impl DtdCatalog {
                             && let Some(character) = predefined(entity.name())
                             && !valid_predefined(entity.name(), character, &result)
                         {
-                            return Err(DtdError::new(ErrorKind::InvalidDtd, Some(offset)));
+                            return Ok(true);
                         }
                         if duplicate {
-                            return Ok(());
+                            return Ok(false);
                         }
                         let bytes = result.len();
                         input = context.input.filter(|_| result == content);
@@ -557,10 +559,10 @@ impl DtdCatalog {
                         notation,
                     } => {
                         if !parameter && predefined(entity.name()).is_some() {
-                            return Err(DtdError::new(ErrorKind::InvalidDtd, at));
+                            return Ok(true);
                         }
                         if duplicate {
-                            return Ok(());
+                            return Ok(false);
                         }
                         let bytes = checked_sum(&[
                             identifier
@@ -681,7 +683,7 @@ impl DtdCatalog {
             }
             _ => {}
         }
-        Ok(())
+        Ok(false)
     }
 
     /// The index of `name`'s element declaration, created on first use.

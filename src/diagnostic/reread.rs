@@ -1977,6 +1977,36 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             past(message).strs(&value, Some(detected))
         }
         Warning::ReservedTarget => r.here(code, "xmlParsePITarget: invalid name prefix 'xml'"),
+        // Raised by the SAX handler past the declaration's value, or past the
+        // parameter-entity reference whose text declares it; libxml2's
+        // column after an entity value (or a reference) is that of its last
+        // character.
+        Warning::PredefinedEntity => {
+            let mut r = Cur { i: c.i + 1, ..*c };
+            let (text, end) = match c.b() {
+                b'%' => {
+                    let text = match declared(c, r.name(true).unwrap_or_default(), true) {
+                        Ok(Declared::Internal(text)) => text,
+                        _ => String::new(),
+                    };
+                    (text, r.i)
+                }
+                _ => {
+                    let end = unquoted(t, c.i, b">").unwrap_or(t.len());
+                    let text = String::from_utf8_lossy(&t[c.i..end]).into_owned();
+                    let literal = (text.split_ascii_whitespace().nth(2))
+                        .is_some_and(|value| value.starts_with(['"', '\'']));
+                    let last = (c.i..end).rfind(|&i| !blank(t[i])).unwrap_or(c.i);
+                    (text, last + usize::from(!literal))
+                }
+            };
+            let name = (text.split("<!ENTITY").skip(1))
+                .filter_map(|declaration| declaration.split_ascii_whitespace().next())
+                .find(|name| predefined(name).is_some())
+                .unwrap_or_default();
+            let message = format!("Invalid redeclaration of predefined entity '{name}'");
+            fail(code, end, message).strs(name, None)
+        }
         Warning::UndeclaredEntity { .. } => {
             let mut r = Cur {
                 i: c.i + usize::from(!c.eof()),

@@ -232,6 +232,10 @@ fn declaration(
         }
         DtdUnitView::Entity(entity) => {
             let parameter = entity.is_parameter();
+            // An invalid predefined-entity redeclaration was dropped.
+            if !parameter && catalog.dtd().declared(entity.name()).is_none() {
+                return false;
+            }
             if first(if parameter { "%" } else { "&" }, entity.name()) {
                 out.raw(if parameter {
                     "<!ENTITY % "

@@ -689,7 +689,9 @@ impl<'d, A: Allocator> Dump<'d, A> {
                 }
                 DtdUnitView::Entity(declaration) => {
                     let (name, parameter) = (declaration.name(), declaration.is_parameter());
-                    if !first(if parameter { "%" } else { "&" }, name) {
+                    // An invalid predefined-entity redeclaration was dropped.
+                    let dropped = !parameter && catalog.dtd().declared(name).is_none();
+                    if dropped || !first(if parameter { "%" } else { "&" }, name) {
                         return;
                     }
                     let dtd = self.document.dtd();

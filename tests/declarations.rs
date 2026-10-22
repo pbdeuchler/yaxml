@@ -713,6 +713,53 @@ fn editors_replace_and_remove_the_internal_subset() {
 }
 
 #[test]
+fn invalid_predefined_redeclarations_are_dropped_with_a_warning() {
+    use yaxml::Warning;
+    // (subset, `lt`'s stored content, warnings, saved subset), from xmllint
+    // 2.15.4: XML 1.0 section 4.6 allows only the character or its
+    // reference, double-escaped for `lt` and `amp`.
+    let cases: [(&str, Option<&str>, usize, &str); 6] = [
+        ("<!ENTITY lt \"x\">", None, 1, ">"),
+        ("<!ENTITY lt SYSTEM \"x.ent\">", None, 1, ">"),
+        ("<!ENTITY lt \"<\">", None, 1, ">"),
+        (
+            "<!ENTITY lt \"&#38;#60;\">",
+            Some("&#60;"),
+            0,
+            " [\n<!ENTITY lt \"&#38;#60;\">\n]>",
+        ),
+        (
+            "<!ENTITY lt \"x\"><!ENTITY lt \"&#38;#x3C;\">",
+            Some("&#x3C;"),
+            1,
+            " [\n<!ENTITY lt \"&#38;#x3C;\">\n]>",
+        ),
+        (
+            "<!ENTITY % lt \"x\">",
+            None,
+            0,
+            " [\n<!ENTITY % lt \"x\">\n]>",
+        ),
+    ];
+    for (subset, content, warnings, saved_subset) in cases {
+        let input = format!("<!DOCTYPE r [{subset}]><r>&lt;</r>");
+        let document = OwnedDocument::parse(&input).unwrap();
+        let entity = document.dtd().unwrap().entity("lt").unwrap();
+        let stored = (entity.kind != EntityKind::Predefined).then_some(entity.content);
+        assert_eq!(stored, content.map(Some), "{subset}");
+        let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+        let warning = ErrorKind::Warning(Warning::PredefinedEntity);
+        assert_eq!(kinds, vec![warning; warnings], "{subset}");
+        let expected = format!("<?xml version=\"1.0\"?>\n<!DOCTYPE r{saved_subset}\n<r>&lt;</r>\n");
+        assert_eq!(saved(&document), expected, "{subset}");
+        // An editor drops it the same way, without an error.
+        let mut edited = OwnedDocument::parse("<!DOCTYPE r><r>&lt;</r>").unwrap();
+        apply(&mut edited, DtdEdit::Replace(subset)).unwrap();
+        assert_eq!(saved(&edited), expected, "edited {subset}");
+    }
+}
+
+#[test]
 fn external_subset_declarations_outlive_internal_edits() {
     let input = "<!DOCTYPE r SYSTEM 'ext.dtd' [<!ENTITY outside 'in'><!ENTITY gone 'g'>]><r/>";
     let cases: [(DtdEdit, Option<&str>, bool); 3] = [

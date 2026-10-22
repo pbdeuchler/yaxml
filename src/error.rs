@@ -76,6 +76,11 @@ pub enum Warning {
         /// Reported at error level.
         error: bool,
     },
+    /// An internal-subset declaration of a predefined entity (`lt`, `gt`,
+    /// `amp`, `apos`, `quot`) with other replacement text than XML 1.0
+    /// section 4.6 allows; the declaration is dropped
+    /// (`XML_ERR_REDECL_PREDEF_ENTITY`).
+    PredefinedEntity,
 }
 
 /// What went wrong in an [`Error`].

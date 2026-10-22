@@ -8,8 +8,8 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 584 | 64 | 0 | 97 | 14 | 159 | 1047 |
-| partial | 1 | 25 | 244 | 40 | 0 | 92 | 52 | 99 | 553 |
+| implemented | 22 | 107 | 585 | 64 | 0 | 97 | 14 | 159 | 1048 |
+| partial | 1 | 25 | 243 | 40 | 0 | 92 | 52 | 99 | 552 |
 | not-started | 0 | 18 | 441 | 47 | 0 | 27 | 2 | 421 | 956 |
 | not-applicable | 24 | 21 | 530 | 32 | 75 | 181 | 85 | 256 | 1204 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
@@ -349,12 +349,15 @@ on `Diagnostic::level`.
 | `ReservedTarget` (`XML_ERR_RESERVED_XML_NAME`, warning) | a PI target starting with `xml` (not `xml-stylesheet`/`xml-model`) |
 | `EncodingMismatch` (`XML_WAR_ENCODING_MISMATCH`, warning) | a BOM or signature that disagrees with the declared label |
 | `UndeclaredEntity` (`XML_WAR_UNDECLARED_ENTITY`; error with `NOENT`/`DTDLOAD`/`DTDATTR`) | an undeclared reference libxml2 does not make fatal (unread external subset or parameter entity), in content, attribute values and the internal subset |
+| `PredefinedEntity` (`XML_ERR_REDECL_PREDEF_ENTITY`, warning) | an internal-subset declaration of `lt`, `gt`, `amp`, `apos` or `quot` with replacement text XML 1.0 section 4.6 does not allow; the declaration is dropped (not stored or saved) |
 
 Not matched: `PEDANTIC`-only warnings; the I/O warning for an external
 subset or entity that fails to load (`Ok(None)` from a resolver); warnings
 inside the external subset, ATTLIST defaults and entity values; a strict
 fatal error drops the warnings recorded before it (the parse returns only the
-error); context lines of a warning inside entity content.
+error); context lines of a warning inside entity content or a parameter
+entity's replacement text. An editor's `add_declarations`/`set_internal_subset`
+drops such a declaration without an error (libxml2's `xmlAddDocEntity` fails).
 
 ### Document properties
 

@@ -394,6 +394,13 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
          "xmlParsePITarget: invalid name prefix 'xml'"),
         ("<!DOCTYPE r SYSTEM 'x.dtd'><r>&u;</r>", Warning::UndeclaredEntity { error: true },
          Domain::Parser, 27, E, 34, "Entity 'u' not defined"),
+        ("<!DOCTYPE r [<!ENTITY gt \">x\">]><r/>", Warning::PredefinedEntity, Domain::Parser,
+         117, W, 29, "Invalid redeclaration of predefined entity 'gt'"),
+        ("<!DOCTYPE r [<!ENTITY amp SYSTEM 'x'>]><r/>", Warning::PredefinedEntity,
+         Domain::Parser, 117, W, 37, "Invalid redeclaration of predefined entity 'amp'"),
+        ("<!DOCTYPE r [<!ENTITY % e \"<!ENTITY quot 'q'>\">%e;]><r/>",
+         Warning::PredefinedEntity, Domain::Parser, 117, W, 50,
+         "Invalid redeclaration of predefined entity 'quot'"),
     ];
     for &(input, warning, domain, code, level, column, message) in cases {
         let (_, reference) = document(input.as_bytes(), 0).unwrap();

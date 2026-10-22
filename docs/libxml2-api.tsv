@@ -2572,7 +2572,7 @@ xmlerror.h	XML_ERR_PEREF_SEMICOL_MISSING	enum_value	not_marked	P0-P3	implemented
 xmlerror.h	XML_ERR_PI_NOT_FINISHED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::PI_NOT_FINISHED
 xmlerror.h	XML_ERR_PI_NOT_STARTED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::PI_NOT_STARTED
 xmlerror.h	XML_ERR_PUBID_REQUIRED	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	ErrorKind::Syntax - category only; no numeric code
-xmlerror.h	XML_ERR_REDECL_PREDEF_ENTITY	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	ErrorKind::Syntax - category only; no numeric code
+xmlerror.h	XML_ERR_REDECL_PREDEF_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::REDECL_PREDEF_ENTITY
 xmlerror.h	XML_ERR_RESERVED_XML_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::RESERVED_XML_NAME
 xmlerror.h	XML_ERR_RESOURCE_LIMIT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ResourceLimit
 xmlerror.h	XML_ERR_SEPARATOR_REQUIRED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::SEPARATOR_REQUIRED

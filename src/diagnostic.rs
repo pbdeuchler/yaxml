@@ -189,6 +189,8 @@ pub mod code {
     pub const CDATA_NOT_FINISHED: u16 = 63;
     /// `XML_ERR_RESERVED_XML_NAME`.
     pub const RESERVED_XML_NAME: u16 = 64;
+    /// `XML_ERR_REDECL_PREDEF_ENTITY`.
+    pub const REDECL_PREDEF_ENTITY: u16 = 117;
     /// `XML_ERR_SPACE_REQUIRED`.
     pub const SPACE_REQUIRED: u16 = 65;
     /// `XML_ERR_SEPARATOR_REQUIRED`.
@@ -289,6 +291,7 @@ impl Warning {
             Self::ReservedTarget => (RESERVED_XML_NAME, Domain::Parser),
             Self::EncodingMismatch => (WAR_ENCODING_MISMATCH, Domain::Parser),
             Self::UndeclaredEntity { .. } => (WAR_UNDECLARED_ENTITY, Domain::Parser),
+            Self::PredefinedEntity => (REDECL_PREDEF_ENTITY, Domain::Parser),
         };
         let level = match self {
             Self::NamespaceUri | Self::UndeclaredEntity { error: true } => Level::Error,
@@ -770,9 +773,14 @@ impl LineIndex<'_> {
     /// misplaced `]]>` the ASCII fast path of `xmlParseCharDataInternal` has
     /// not moved past the text run's start or its last `\r\n`. Character
     /// data holds no `<`, so the run starts after the `>` that ends the
-    /// markup before it.
+    /// markup before it. A predefined entity's redeclaration is reported
+    /// with the column of its value's closing quote (or of the reference's
+    /// `;`), past which the cursor is.
     fn cursor(&self, code: u16, at: usize) -> usize {
         let t = self.text();
+        if code == REDECL_PREDEF_ENTITY && matches!(t.get(at), Some(b'"' | b'\'' | b';')) {
+            return at + 1;
+        }
         if code != MISPLACED_CDATA_END {
             return at;
         }
