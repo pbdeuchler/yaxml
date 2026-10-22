@@ -272,7 +272,7 @@ READER_TYPE_UNUSED = {"DOCUMENT", "DOCUMENT_FRAGMENT", "END_ENTITY", "ENTITY", "
 READER_MODE = {"INITIAL": "Initial", "INTERACTIVE": "Interactive", "ERROR": "Error", "EOF": "Eof"}
 READER_PROP = {"LOADDTD": "LoadDtd", "DEFAULTATTRS": "DefaultAttributes", "VALIDATE": "Validate", "SUBST_ENTITIES": "SubstituteEntities"}
 RESOURCE = {"DTD": "DtdSubset", "GENERAL_ENTITY": "GeneralEntity", "PARAMETER_ENTITY": "ParameterEntity", "XINCLUDE": "XInclude", "XINCLUDE_TEXT": "XIncludeText"}
-ENC = {"UTF8", "UTF16", "UTF16LE", "UTF16BE", "ASCII", "WINDOWS_1252"} | {f"8859_{n}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16)}
+ENC = {"UTF16LE": "Utf16Le", "UTF16BE": "Utf16Be", "UCS4LE": "Ucs4Le", "UCS4BE": "Ucs4Be", "UCS4_2143": "Ucs4_2143", "UCS4_3412": "Ucs4_3412", "2022_JP": "Iso2022Jp", "WINDOWS_1252": "Windows1252"} | {f"8859_{n}": f"Iso8859_{n}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16)}
 
 # Struct fields of these libxml2 structs have no Rust counterpart by design.
 FIELD_DEFAULT = {
@@ -295,7 +295,7 @@ FIELD_DEFAULT = {
     "_xmlChLRange": ("A", "the chars predicates keep their range tables private"),
     "_xmlChSRange": ("A", "the chars predicates keep their range tables private"),
     "_xmlChRangeGroup": ("A", "the chars predicates keep their range tables private"),
-    "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
+    "_xmlCharEncodingHandler": ("A", "encoding::Handler keeps its converter private"),
     "_xmlDOMWrapCtxt": ("A", "no DOM-wrapper context; copies plan namespaces themselves"),
     "_xmlEntity": ("A", "tree links and bookkeeping; valid::Entity is a borrowed view"),
     "_xmlElement": ("A", "tree links and bookkeeping; valid::Element is a borrowed view"),
@@ -861,11 +861,30 @@ N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlVa
 P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only
 P|xmlCharEncConvFunc xmlCharEncodingInputFunc|Converter::decode - to UTF-8 only
 P|xmlRegisterCharEncodingHandler xmlCharEncNewCustomHandler|ParseOptions::converters - per parse, no global registry; input only
-P|XML_ENC_ERR_INPUT|Converter::decode - false = UnmappedByte
-P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-P|XML_CHAR_ENCODING_UCS4BE XML_CHAR_ENCODING_UCS4LE XML_CHAR_ENCODING_EBCDIC|OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
-N|XML_CHAR_ENCODING_UCS4_2143 XML_CHAR_ENCODING_UCS4_3412 XML_CHAR_ENCODING_UCS2 XML_CHAR_ENCODING_2022_JP XML_CHAR_ENCODING_SHIFT_JIS XML_CHAR_ENCODING_EUC_JP XML_CHAR_ENCODING_HTML XML_CHAR_ENCODING_NONE XML_CHAR_ENCODING_ERROR|encoding unsupported (docs/encoding.md)
-N|xmlCharEnc* xmlCharEncoding* xmlCreateCharEncodingHandler xmlDetectCharEncoding xmlFindCharEncodingHandler xmlGetCharEncodingHandler xmlGetCharEncodingName xmlLookupCharEncodingHandler xmlNewCharEncodingHandler xmlOpenCharEncodingHandler xmlParseCharEncoding xmlIsolat1ToUTF8 xmlUTF8ToIsolat1 UTF8Toisolat1 isolat1ToUTF8 XML_ENC_*|no public encoding handlers or registry (roadmap 22)
+P|xmlNewCharEncodingHandler|Converters::open - per parse, no global registry; input only
+I|xmlCharEncoding|encoding::CharEncoding
+I|xmlDetectCharEncoding|encoding::CharEncoding::detect
+I|xmlParseCharEncoding|encoding::CharEncoding::parse
+I|xmlGetCharEncodingName|encoding::CharEncoding::name
+I|xmlCharEncError|encoding::EncError
+I|XML_ENC_ERR_SUCCESS|encoding::Handler::decode, encoding::Handler::encode - Ok
+I|XML_ENC_ERR_INTERNAL|encoding::EncError::Internal - never returned
+I|XML_ENC_ERR_INPUT|encoding::EncError::Input
+I|XML_ENC_ERR_SPACE|encoding::EncError::Space - never returned: outputs grow
+I|XML_ENC_ERR_MEMORY|encoding::EncError::Memory
+I|xmlCharEncodingHandler xmlCharEncodingHandlerPtr _xmlCharEncodingHandler|encoding::Handler
+I|xmlLookupCharEncodingHandler xmlGetCharEncodingHandler|encoding::Handler::lookup - built-in charsets
+I|xmlOpenCharEncodingHandler xmlFindCharEncodingHandler|encoding::Handler::open - built-in charsets (no iconv/ICU); UTF-8 gets an identity handler
+P|xmlCreateCharEncodingHandler|encoding::Handler::open - no implementation callback or HTML flag
+I|xmlCharEncInFunc|encoding::Handler::decode
+P|xmlCharEncFirstLine|encoding::Handler::decode - no first-line cap
+I|xmlCharEncOutFunc|encoding::Handler::encode, encoding::Handler::bom
+I|xmlCharEncCloseFunc|encoding::Handler - dropped
+P|xmlCharEncodingOutputFunc|encoding::Handler::encode - built-in charsets; a Converter only decodes
+A|xmlCharEncConvCtxtDtor|a Converter drops its own state
+A|xmlCharEncFlags XML_ENC_INPUT XML_ENC_OUTPUT XML_ENC_HTML|a Handler converts both ways; the HTML parser remaps its labels itself
+P|xmlIsolat1ToUTF8 isolat1ToUTF8|encoding::Handler::decode - of the ISO-8859-1 handler
+P|xmlUTF8ToIsolat1 UTF8Toisolat1|encoding::Handler::encode - of the ISO-8859-1 handler; character references instead of XML_ENC_ERR_INPUT
 # ---- HTMLparser.h / HTMLtree.h
 I|htmlReadDoc htmlReadMemory htmlParseDoc|html::parse
 P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse - bytes in, no ctxt reuse
@@ -1285,8 +1304,10 @@ def header_rule(h, i, k, ctx):
         if m.group(1) in RESOURCE:
             return "I", f"ResourceKind::{RESOURCE[m.group(1)]}"
     if m := re.fullmatch(r"XML_CHAR_ENCODING_(\w+)", i):
-        if m.group(1) in ENC:
-            return "P", "OwnedDocument::parse_bytes - decoded by label; no public encoding enum"
+        name = ENC.get(m.group(1)) or "".join(w.capitalize() for w in m.group(1).split("_"))
+        if m.group(1) == "HTML":
+            return "P", "encoding::CharEncoding::Html - no handler: the HTML serializer writes entities"
+        return "I", f"encoding::CharEncoding::{name}"
     if h == "schemasInternals.h" and k == "enum_value" and (m := re.fullmatch(r"XML_SCHEMAS_(\w+)", i)):
         if m.group(1) in SCHEMA_TYPES:
             return "I", f"schema_types::Type::{SCHEMA_TYPES[m.group(1)]}"

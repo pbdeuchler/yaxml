@@ -613,7 +613,8 @@ fn labels_resolve_like_libxml2_without_iconv() {
         ("utf8", Some(Charset::Utf8)),
         ("UNICODE-1-1-UTF-8", Some(Charset::Utf8)),
         ("csUnicode", Some(Charset::Utf16(None))),
-        ("unicodefeff", Some(Charset::Utf16(Some(true)))),
+        // Out of order in libxml2's table: its binary search misses it.
+        ("unicodefeff", None),
         ("UTF-16BE", Some(Charset::Utf16(Some(false)))),
         // Recognized by libxml2 but only decodable through iconv/ICU.
         ("Shift_JIS", None),

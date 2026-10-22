@@ -77,7 +77,7 @@ mod dtd_controller;
 mod dtd_frames;
 mod dtd_scan;
 mod dtd_tag;
-mod encoding;
+pub mod encoding;
 mod error;
 mod escape;
 #[cfg(feature = "sax")]

@@ -1,3 +1,9 @@
+//! Input decoding and libxml2's encoding API (encoding.h): [`CharEncoding`]
+//! names and detects encodings, a [`Handler`] converts between a built-in
+//! charset and UTF-8 ([encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md)).
+//! The parsers decode by themselves; [`Converters`] plug other charsets into a
+//! parse, and [`Transcoded`] hands decoded text to the borrowing parsers.
+
 use std::borrow::Cow;
 use std::ops::Range;
 use std::sync::Arc;
@@ -239,6 +245,9 @@ fn convert(custom: &mut Custom, input: &[u8], last: bool, at: usize) -> Result<(
 }
 
 mod charsets;
+mod handler;
+
+pub use handler::{CharEncoding, EncError, Handler};
 
 /// Tables the HTML parser treats specially: libxml2 decodes ASCII and Latin-1
 /// labels as windows-1252 in HTML, and remaps C1 numeric references with it.
@@ -278,11 +287,12 @@ pub(crate) fn charset(label: &str) -> Option<Charset> {
     let optional = &iconv::LABELS;
     #[cfg(not(feature = "encodings"))]
     let optional: &[(&str, Charset)] = &[];
-    charsets::LABELS
-        .iter()
-        .chain(optional)
-        .find(|(name, _)| name.eq_ignore_ascii_case(label))
-        .map(|(_, charset)| *charset)
+    CharEncoding::labelled(label).builtin().or_else(|| {
+        optional
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(label))
+            .map(|(_, charset)| *charset)
+    })
 }
 
 /// An output converter `xmlOpenCharEncodingHandler` provides without
@@ -296,9 +306,9 @@ pub(crate) enum Output {
     Ucs4 { little_endian: bool, bom: bool },
 }
 
-impl Output {
-    pub(crate) fn for_label(label: &str) -> Option<Self> {
-        Some(match charset(label)? {
+impl From<Charset> for Output {
+    fn from(charset: Charset) -> Self {
+        match charset {
             Charset::Utf8 => Self::Utf8,
             Charset::Utf16(None) => Self::Utf16 {
                 little_endian: true,
@@ -314,7 +324,13 @@ impl Output {
                 little_endian: order == Some(true),
                 bom: order.is_none(),
             },
-        })
+        }
+    }
+}
+
+impl Output {
+    pub(crate) fn for_label(label: &str) -> Option<Self> {
+        charset(label).map(Self::from)
     }
 
     /// The byte-order mark written before any output.
@@ -928,6 +944,14 @@ impl Decoder {
         // Lone UTF-16 low surrogates and UCS-4 values past the scalars fail here.
         let scalar = char::from_u32(scalar).ok_or(Error::new(ErrorKind::InvalidUtf16, unit_offset));
         self.carry(scalar?)
+    }
+
+    /// Where a character cut off at the end of the input starts.
+    fn pending_start(&self) -> Option<usize> {
+        let (_, length, offset) = self.unit;
+        self.high
+            .map(|(_, offset)| offset)
+            .or((length > 0).then_some(offset))
     }
 
     fn carry(&mut self, character: char) -> Result<(), Error> {

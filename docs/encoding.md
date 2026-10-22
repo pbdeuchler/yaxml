@@ -139,6 +139,25 @@ unsupported); external entities, HTML and output are never converted; there is
 no global handler registry (`xmlRegisterCharEncodingHandler`), the converters
 belong to one parse.
 
+## Encoding API
+
+`yaxml::encoding` has libxml2's encoding.h names (`tests/encoding_api.rs`,
+values recorded from libxml2 2.15.4). `CharEncoding` is `xmlCharEncoding`,
+with its numbers: `detect` = `xmlDetectCharEncoding`, `parse` =
+`xmlParseCharEncoding` (libxml2's 156 reachable labels; `UTF-16` gives
+`Utf16Le`), `name` = `xmlGetCharEncodingName`. libxml2 binary-searches a
+table where `unicodefeff` is out of order, so neither it nor yaxml finds that
+label (a declaration naming it is `UnsupportedEncoding`). `Handler` is
+`xmlCharEncodingHandler` over the built-in charsets: `lookup(CharEncoding)`
+(`Ok(None)` for UTF-8), `open(label)` (named as given), `decode` =
+`xmlCharEncInFunc` (returns the bytes read, short of a character cut off at
+the end; `Err((EncError::Input, read))` at an unmapped sequence), `encode` =
+`xmlCharEncOutFunc` (a character the charset lacks becomes `&#N;`), `bom` =
+the mark its initialization call writes. Differences: the UTF-8 handler
+checks its input (libxml2 copies it), there is no `HTML` output handler, no
+iconv/ICU, and `Handler` takes no caller converter (`xmlCreateCharEncodingHandler`'s
+`impl`; parses use [caller converters](#caller-converters)).
+
 ## Transcoded input
 
 `Transcoded::new(input, &options)` decodes complete input once for

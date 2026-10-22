@@ -291,94 +291,94 @@ dict.h	xmlDictReference	function	not_marked	P3	not-applicable	https://github.com
 dict.h	xmlDictSetLimit	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 dict.h	xmlDictSize	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 dict.h	xmlInitializeDict	function	yes	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
-encoding.h	UTF8Toisolat1	macro	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_CHAR_ENCODING_2022_JP	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_8859_1	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_10	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_11	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_13	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_14	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_15	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_16	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_2	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_3	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_4	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_5	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_6	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_7	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_8	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_8859_9	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_ASCII	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_EBCDIC	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
-encoding.h	XML_CHAR_ENCODING_ERROR	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_EUC_JP	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_HTML	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_NONE	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_SHIFT_JIS	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UCS2	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UCS4BE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
-encoding.h	XML_CHAR_ENCODING_UCS4LE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
-encoding.h	XML_CHAR_ENCODING_UCS4_2143	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UCS4_3412	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UTF16	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_UTF16BE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_UTF16LE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_UTF8	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_WINDOWS_1252	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_ENC_ERR_INPUT	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	Converter::decode - false = UnmappedByte
-encoding.h	XML_ENC_ERR_INTERNAL	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_ERR_MEMORY	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_ERR_SPACE	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_ERR_SUCCESS	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_HTML	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_INPUT	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	XML_ENC_OUTPUT	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	_xmlCharEncodingHandler	struct	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	_xmlCharEncodingHandler.ctxtDtor	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.flags	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.input	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.input.func	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.input.legacyFunc	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.inputCtxt	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.name	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.output	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.output.func	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.output.legacyFunc	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	_xmlCharEncodingHandler.outputCtxt	field	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	isolat1ToUTF8	macro	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	UTF8Toisolat1	macro	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::encode - of the ISO-8859-1 handler; character references instead of XML_ENC_ERR_INPUT
+encoding.h	XML_CHAR_ENCODING_2022_JP	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso2022Jp
+encoding.h	XML_CHAR_ENCODING_8859_1	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_1
+encoding.h	XML_CHAR_ENCODING_8859_10	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_10
+encoding.h	XML_CHAR_ENCODING_8859_11	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_11
+encoding.h	XML_CHAR_ENCODING_8859_13	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_13
+encoding.h	XML_CHAR_ENCODING_8859_14	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_14
+encoding.h	XML_CHAR_ENCODING_8859_15	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_15
+encoding.h	XML_CHAR_ENCODING_8859_16	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_16
+encoding.h	XML_CHAR_ENCODING_8859_2	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_2
+encoding.h	XML_CHAR_ENCODING_8859_3	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_3
+encoding.h	XML_CHAR_ENCODING_8859_4	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_4
+encoding.h	XML_CHAR_ENCODING_8859_5	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_5
+encoding.h	XML_CHAR_ENCODING_8859_6	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_6
+encoding.h	XML_CHAR_ENCODING_8859_7	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_7
+encoding.h	XML_CHAR_ENCODING_8859_8	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_8
+encoding.h	XML_CHAR_ENCODING_8859_9	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Iso8859_9
+encoding.h	XML_CHAR_ENCODING_ASCII	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ascii
+encoding.h	XML_CHAR_ENCODING_EBCDIC	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ebcdic
+encoding.h	XML_CHAR_ENCODING_ERROR	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Error
+encoding.h	XML_CHAR_ENCODING_EUC_JP	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::EucJp
+encoding.h	XML_CHAR_ENCODING_HTML	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Html - no handler: the HTML serializer writes entities
+encoding.h	XML_CHAR_ENCODING_NONE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::None
+encoding.h	XML_CHAR_ENCODING_SHIFT_JIS	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::ShiftJis
+encoding.h	XML_CHAR_ENCODING_UCS2	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ucs2
+encoding.h	XML_CHAR_ENCODING_UCS4BE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ucs4Be
+encoding.h	XML_CHAR_ENCODING_UCS4LE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ucs4Le
+encoding.h	XML_CHAR_ENCODING_UCS4_2143	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ucs4_2143
+encoding.h	XML_CHAR_ENCODING_UCS4_3412	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Ucs4_3412
+encoding.h	XML_CHAR_ENCODING_UTF16	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Utf16
+encoding.h	XML_CHAR_ENCODING_UTF16BE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Utf16Be
+encoding.h	XML_CHAR_ENCODING_UTF16LE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Utf16Le
+encoding.h	XML_CHAR_ENCODING_UTF8	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Utf8
+encoding.h	XML_CHAR_ENCODING_WINDOWS_1252	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::Windows1252
+encoding.h	XML_ENC_ERR_INPUT	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::EncError::Input
+encoding.h	XML_ENC_ERR_INTERNAL	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::EncError::Internal - never returned
+encoding.h	XML_ENC_ERR_MEMORY	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::EncError::Memory
+encoding.h	XML_ENC_ERR_SPACE	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::EncError::Space - never returned: outputs grow
+encoding.h	XML_ENC_ERR_SUCCESS	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::decode, encoding::Handler::encode - Ok
+encoding.h	XML_ENC_HTML	enum_value	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	a Handler converts both ways; the HTML parser remaps its labels itself
+encoding.h	XML_ENC_INPUT	enum_value	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	a Handler converts both ways; the HTML parser remaps its labels itself
+encoding.h	XML_ENC_OUTPUT	enum_value	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	a Handler converts both ways; the HTML parser remaps its labels itself
+encoding.h	_xmlCharEncodingHandler	struct	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler
+encoding.h	_xmlCharEncodingHandler.ctxtDtor	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.flags	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.input	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.input.func	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.input.legacyFunc	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.inputCtxt	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.name	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.output	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.output.func	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.output.legacyFunc	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	_xmlCharEncodingHandler.outputCtxt	field	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler keeps its converter private
+encoding.h	isolat1ToUTF8	macro	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::decode - of the ISO-8859-1 handler
 encoding.h	xmlAddEncodingAlias	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	xmlCharEncCloseFunc	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncConvCtxtDtor	callback	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlCharEncCloseFunc	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler - dropped
+encoding.h	xmlCharEncConvCtxtDtor	callback	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	a Converter drops its own state
 encoding.h	xmlCharEncConvFunc	callback	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	Converter::decode - to UTF-8 only
 encoding.h	xmlCharEncConvImpl	callback	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	Converters::open - for labels without a built-in charset; input only
-encoding.h	xmlCharEncError	enum	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncFirstLine	function	yes	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncFlags	enum	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncInFunc	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlCharEncError	enum	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::EncError
+encoding.h	xmlCharEncFirstLine	function	yes	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::decode - no first-line cap
+encoding.h	xmlCharEncFlags	enum	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	a Handler converts both ways; the HTML parser remaps its labels itself
+encoding.h	xmlCharEncInFunc	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::decode
 encoding.h	xmlCharEncNewCustomHandler	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	ParseOptions::converters - per parse, no global registry; input only
-encoding.h	xmlCharEncOutFunc	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncoding	enum	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncodingHandler	typedef	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlCharEncodingHandlerPtr	typedef	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlCharEncOutFunc	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::encode, encoding::Handler::bom
+encoding.h	xmlCharEncoding	enum	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding
+encoding.h	xmlCharEncodingHandler	typedef	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler
+encoding.h	xmlCharEncodingHandlerPtr	typedef	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler
 encoding.h	xmlCharEncodingInputFunc	callback	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	Converter::decode - to UTF-8 only
-encoding.h	xmlCharEncodingOutputFunc	callback	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlCharEncodingOutputFunc	callback	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::encode - built-in charsets; a Converter only decodes
 encoding.h	xmlCleanupCharEncodingHandlers	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
 encoding.h	xmlCleanupEncodingAliases	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	xmlCreateCharEncodingHandler	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlCreateCharEncodingHandler	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::open - no implementation callback or HTML flag
 encoding.h	xmlDelEncodingAlias	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	xmlDetectCharEncoding	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlFindCharEncodingHandler	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlGetCharEncodingHandler	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlGetCharEncodingName	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlDetectCharEncoding	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::detect
+encoding.h	xmlFindCharEncodingHandler	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::open - built-in charsets (no iconv/ICU); UTF-8 gets an identity handler
+encoding.h	xmlGetCharEncodingHandler	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::lookup - built-in charsets
+encoding.h	xmlGetCharEncodingName	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::name
 encoding.h	xmlGetEncodingAlias	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
 encoding.h	xmlInitCharEncodingHandlers	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	deprecated in 2.15.4
-encoding.h	xmlIsolat1ToUTF8	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlLookupCharEncodingHandler	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlNewCharEncodingHandler	function	yes	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlOpenCharEncodingHandler	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
-encoding.h	xmlParseCharEncoding	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlIsolat1ToUTF8	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::decode - of the ISO-8859-1 handler
+encoding.h	xmlLookupCharEncodingHandler	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::lookup - built-in charsets
+encoding.h	xmlNewCharEncodingHandler	function	yes	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	Converters::open - per parse, no global registry; input only
+encoding.h	xmlOpenCharEncodingHandler	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::open - built-in charsets (no iconv/ICU); UTF-8 gets an identity handler
+encoding.h	xmlParseCharEncoding	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::CharEncoding::parse
 encoding.h	xmlRegisterCharEncodingHandler	function	yes	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	ParseOptions::converters - per parse, no global registry; input only
-encoding.h	xmlUTF8ToIsolat1	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	no public encoding handlers or registry (roadmap 22)
+encoding.h	xmlUTF8ToIsolat1	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding::Handler::encode - of the ISO-8859-1 handler; character references instead of XML_ENC_ERR_INPUT
 entities.h	XML_EXTERNAL_GENERAL_PARSED_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalParsedGeneral
 entities.h	XML_EXTERNAL_GENERAL_UNPARSED_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalUnparsedGeneral
 entities.h	XML_EXTERNAL_PARAMETER_ENTITY	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::EntityKind::ExternalParameter
