@@ -1,0 +1,10 @@
+<!DOCTYPE r [
+<!ELEMENT r (s | t)*>
+<!ATTLIST r ref IDREF #IMPLIED>
+<!ELEMENT s (u, u)>
+<!ATTLIST s id ID #REQUIRED>
+<!ELEMENT t EMPTY>
+<!ELEMENT u EMPTY>
+<!ATTLIST u n (x | y) "x">
+]>
+<r ref="missing"><s id="a"><u/><u n="y"/></s><t/><s id="b"><u/><u/></s><t></t></r>

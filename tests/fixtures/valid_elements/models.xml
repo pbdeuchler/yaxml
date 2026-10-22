@@ -1,0 +1,18 @@
+<!DOCTYPE r [
+<!ELEMENT r ANY>
+<!ELEMENT s (a, (b | c)*, d?, a+)>
+<!ELEMENT a EMPTY>
+<!ELEMENT b (#PCDATA)>
+<!ELEMENT c (#PCDATA | a | b)*>
+<!ELEMENT d ANY>
+<!ELEMENT e ((a, b) | (a, c))>
+<!ELEMENT f (a | b)+>
+<!ATTLIST f k CDATA #REQUIRED>
+<!ATTLIST g k CDATA #IMPLIED>
+<!ELEMENT h (a, b?)>
+<!ENTITY ab "<a/><b>t</b>">
+<!ENTITY text "text">
+]>
+<r><s><a/><b>x</b><!-- c --><c>t<a/>u<b/></c><a/></s><s><a/>
+<d/> <a/></s><d><a/><zz/></d><e><a/><b/></e><f><a/></f><f k="v"><b/> <a/></f><g><a/></g><h><?p?>
+<a/>&text;</h><h>&ab;</h><h>x<a/></h></r>

@@ -798,7 +798,9 @@ P|xmlNotationTable|valid::Dtd::notations - an iterator, no table type
 P|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl|Editor::add_declarations - declarations as markup, appended to the internal subset
 I|xmlIsID|OwnedDocument::is_id
 P|xmlAddID xmlAddIDSafe xmlRemoveID|Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
-N|xmlValidGetPotentialChildren xmlValidGetValidElements xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
+I|xmlValidGetPotentialChildren|valid::Element::potential_children
+I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at most 256 as libxml2
+N|xmlDumpNotationTable xmlValidState xmlValidStatePtr|xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
 N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
 # ---- encoding.h
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum

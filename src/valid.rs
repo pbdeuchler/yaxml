@@ -658,6 +658,16 @@ impl<'a> Element<'a> {
         let element = self.decl.name.as_str();
         (self.decl.attributes.iter()).map(move |decl| Attribute::new(element, decl))
     }
+
+    /// The names in the content model, each once in model order, `#PCDATA`
+    /// for mixed content (`xmlValidGetPotentialChildren`); none for `EMPTY`
+    /// and `ANY`.
+    pub fn potential_children(self) -> impl Iterator<Item = &'a str> {
+        let mut seen = std::collections::HashSet::new();
+        (self.model.unwrap_or_default())
+            .split(['(', ')', '|', ',', '?', '*', '+', ' '])
+            .filter(move |name| !name.is_empty() && seen.insert(*name))
+    }
 }
 
 impl std::fmt::Debug for Element<'_> {
@@ -924,6 +934,39 @@ pub fn value_matches(kind: AttributeKind, value: &str) -> bool {
 /// `dtd` and the DOCTYPE name are not repeated.
 pub fn validate<T: Tree>(tree: &T, dtd: &Dtd) -> Vec<Diagnostic<T::Id>> {
     engine::run(tree, dtd, false)
+}
+
+/// The element names that can be inserted between siblings `prev` and `next`
+/// keeping their parent valid (`xmlValidGetValidElements`): each of the
+/// parent declaration's [potential children](Element::potential_children),
+/// at most 256, for which the parent, with a childless element of that name
+/// in place of the nodes between `prev` and `next`, passes
+/// `xmlValidateOneElement` (its attributes and content; descendants and
+/// IDREFs are not checked). `prev` alone appends after it, `next` alone
+/// prepends before it. `None` (libxml2's -1) when both are `None` or the
+/// parent is not an element type `dtd` names.
+///
+/// ```
+/// use yaxml::{OwnedDocument, ParseOptions, valid};
+///
+/// let input = "<!DOCTYPE r [<!ELEMENT r (a, b?, c)> <!ELEMENT a EMPTY> \
+///     <!ELEMENT b EMPTY> <!ELEMENT c EMPTY>]><r><a/><c/></r>";
+/// let document = OwnedDocument::parse(input)?;
+/// let dtd = document.dtd().unwrap();
+/// let a = document.document_element().unwrap().first_child().unwrap();
+/// let c = a.next_sibling().unwrap();
+/// let between = valid::valid_elements(&document, dtd, Some(a.id()), Some(c.id()));
+/// assert_eq!(between, Some(vec!["b"]));
+/// assert_eq!(valid::valid_elements(&document, dtd, Some(c.id()), None), Some(vec![]));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub fn valid_elements<'d, T: Tree>(
+    tree: &T,
+    dtd: &'d Dtd,
+    prev: Option<T::Id>,
+    next: Option<T::Id>,
+) -> Option<Vec<&'d str>> {
+    engine::insertable(tree, dtd, prev, next)
 }
 
 /// `xmlValidateDocument` with the checks libxml2 makes while parsing.
