@@ -1773,8 +1773,8 @@ tree.h	_xmlDoc.standalone	field	not_marked	P0-P3	partial	https://github.com/GNOM
 tree.h	_xmlDoc.type	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::is_html
 tree.h	_xmlDoc.version	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Declaration
 tree.h	_xmlDtd	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
-tree.h	_xmlDtd.ExternalID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not exposed
-tree.h	_xmlDtd.SystemID	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not exposed
+tree.h	_xmlDtd.ExternalID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::public_id
+tree.h	_xmlDtd.SystemID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::system_id
 tree.h	_xmlDtd._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
 tree.h	_xmlDtd.attributes	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::attributes
 tree.h	_xmlDtd.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
@@ -1829,7 +1829,7 @@ tree.h	_xmlNode.content	field	not_marked	P0-P3	partial	https://github.com/GNOME/
 tree.h	_xmlNode.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	nodes borrow their document
 tree.h	_xmlNode.extra	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	internal
 tree.h	_xmlNode.last	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::last_child, OwnedNode::last_child
-tree.h	_xmlNode.line	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no line numbers
+tree.h	_xmlNode.line	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	diagnostic::LineIndex - computed from the node offset by Node::line and OwnedNode::line
 tree.h	_xmlNode.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::name, OwnedNode::name
 tree.h	_xmlNode.next	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::next_sibling, OwnedNode::next_sibling
 tree.h	_xmlNode.ns	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Name::namespace
@@ -3851,7 +3851,7 @@ xpath.h	xmlXPathCastStringToNumber	function	not_marked	P2	partial	https://github
 xpath.h	xmlXPathCastToBoolean	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
 xpath.h	xmlXPathCastToNumber	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
 xpath.h	xmlXPathCastToString	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
-xpath.h	xmlXPathCmpNodes	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	not started
+xpath.h	xmlXPathCmpNodes	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::compare - namespace nodes ordered by their element
 xpath.h	xmlXPathCompExpr	typedef	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath
 xpath.h	xmlXPathCompExprPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
 xpath.h	xmlXPathCompile	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::compile

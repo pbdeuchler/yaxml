@@ -54,6 +54,72 @@ impl<Id> From<Id> for Node<Id> {
     }
 }
 
+impl<Id: Copy> Node<Id> {
+    /// The tree node: the node itself, or the attribute's or namespace's element.
+    fn owner(self) -> Id {
+        match self {
+            Self::Tree(id) | Self::Attribute(id, _) | Self::Namespace(id, _) => id,
+        }
+    }
+}
+
+/// `xmlXPathCmpNodes`: how `a` and `b` of `tree` compare in document order
+/// (an element, then its namespace nodes, then its attributes, then its
+/// children). `None` when either is not in `tree` or they share no root
+/// (nodes in different detached subtrees), libxml2's -2. Takes the depth of
+/// both nodes plus the siblings between their branches; no ranking of the
+/// whole document.
+///
+/// ```
+/// use std::cmp::Ordering;
+/// use yaxml::Document;
+/// use yaxml::xpath::{Node, compare};
+/// let document = Document::parse("<r a='1'><x/><y/></r>")?;
+/// let r = document.root_element();
+/// let (x, y) = (r.first_child().unwrap().id(), r.last_child().unwrap().id());
+/// assert_eq!(compare(&document, Node::Tree(x), Node::Tree(y)), Some(Ordering::Less));
+/// assert_eq!(compare(&document, Node::Attribute(r.id(), 0), Node::Tree(x)), Some(Ordering::Less));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn compare<T: Tree>(tree: &T, a: Node<T::Id>, b: Node<T::Id>) -> Option<std::cmp::Ordering> {
+    let (x, y) = (a.owner(), b.owner());
+    if !tree.contains(x) || !tree.contains(y) {
+        return None;
+    }
+    // Within one element: the element, its namespaces, its attributes.
+    let rank = |node: Node<T::Id>| match node {
+        Node::Tree(_) => (0, 0),
+        Node::Namespace(_, index) => (1, index),
+        Node::Attribute(_, index) => (2, index),
+    };
+    if x == y {
+        return Some(rank(a).cmp(&rank(b)));
+    }
+    let chain = |id| {
+        let mut chain: Vec<T::Id> =
+            std::iter::successors(Some(id), |&id| tree.parent(id)).collect();
+        chain.reverse();
+        chain
+    };
+    let (left, right) = (chain(x), chain(y));
+    if left[0] != right[0] {
+        return None;
+    }
+    let shared = left.iter().zip(&right).take_while(|(l, r)| l == r).count();
+    // An ancestor precedes its descendants, and their attributes.
+    let (Some(&l), Some(&r)) = (left.get(shared), right.get(shared)) else {
+        return Some(left.len().cmp(&right.len()));
+    };
+    let mut sibling = tree.next_sibling(l);
+    while let Some(id) = sibling {
+        if id == r {
+            return Some(std::cmp::Ordering::Less);
+        }
+        sibling = tree.next_sibling(id);
+    }
+    Some(std::cmp::Ordering::Greater)
+}
+
 /// The four XPath 1.0 value types. Node-sets are sorted in document order
 /// without duplicates.
 #[derive(Clone, Debug, PartialEq)]

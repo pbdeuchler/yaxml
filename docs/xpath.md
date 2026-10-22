@@ -74,8 +74,9 @@ These are checked to still differ by `harness/tests/xpath_oracle.rs`:
 Not compared, and deliberately different:
 
 - libxml2's `xmlXPathCmpNodes` orders namespace nodes after every other node.
-  yaxml orders them by their element, so unions mixing namespace nodes with
-  other nodes may sort differently.
+  yaxml (evaluation and `xpath::compare`, its port) orders them by their
+  element, after it and before its attributes, so unions mixing namespace
+  nodes with other nodes may sort differently.
 - `namespace::p:x` and `namespace::p:*` select nothing, since namespace nodes
   have a null namespace URI; libxml2 ignores the test's prefix.
 

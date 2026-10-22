@@ -328,7 +328,7 @@ TREE_FIELDS = {
     "_xmlNode.properties": ("I", "Node::attributes, OwnedNode::attributes"),
     "_xmlNode.ns": ("P", "Name::namespace"),
     "_xmlNode.nsDef": ("P", "Node::namespaces, OwnedNode::namespaces"),
-    "_xmlNode.line": ("N", "no line numbers"),
+    "_xmlNode.line": ("P", "diagnostic::LineIndex - computed from the node offset by Node::line and OwnedNode::line"),
     "_xmlNode.doc": ("A", "nodes borrow their document"),
     "_xmlNode._private": ("A", "no user pointer"),
     "_xmlNode.psvi": ("A", "no schema PSVI"),
@@ -374,8 +374,8 @@ TREE_FIELDS = {
     "_xmlNs.type": ("A", "namespace nodes carry no type tag"),
     "_xmlNs._private": ("A", "no user pointer"),
     "_xmlDtd.name": ("I", "valid::Dtd::name"),
-    "_xmlDtd.ExternalID": ("N", "not exposed"),
-    "_xmlDtd.SystemID": ("N", "not exposed"),
+    "_xmlDtd.ExternalID": ("I", "reader::Doctype::public_id"),
+    "_xmlDtd.SystemID": ("I", "reader::Doctype::system_id"),
     "_xmlError.code": ("I", "diagnostic::Diagnostic::code"),
     "_xmlError.domain": ("I", "diagnostic::Diagnostic::domain"),
     "_xmlError.level": ("I", "diagnostic::Diagnostic::level"),
@@ -689,7 +689,8 @@ P|xmlXPathAddValues xmlXPathSubValues xmlXPathMultValues xmlXPathDivValues xmlXP
 A|xmlXPathIsInf xmlXPathIsNaN|f64::is_infinite, f64::is_nan
 R|xmlXPathNAN xmlXPathPINF xmlXPathNINF|deprecated; use f64::NAN and f64::INFINITY
 A|xmlXPathNodeSet* xmlXPathEmptyNodeSet xmlXPathNewNodeSet* xmlXPathNewBoolean xmlXPathNewCString xmlXPathNewFloat xmlXPathNewString xmlXPathNewValueTree xmlXPathWrap* xmlXPathReturn* xmlXPathObjectCopy xmlXPathDifference xmlXPathDistinct* xmlXPathHasSameNodes xmlXPathIntersection xmlXPathLeading* xmlXPathNodeLeading* xmlXPathNodeTrailing* xmlXPathTrailing* xmlXPathPop* xmlXPathValue* xmlXPathStackIs* xmlXPathNewParserContext xmlXPathParseNCName xmlXPathParseName xmlXPathRoot xmlXPathSetArityError xmlXPathSetError xmlXPathSetTypeError xmlXPathCheckError xmlXPathGetContextNode xmlXPathGetDocument xmlXPathGetError xmlXPathErr xmlXPatherror xmlXPathIsNodeType CAST_TO_* CHECK_* XP_ERROR XP_ERROR0 valuePop valuePush|XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
-N|xmlXPathCmpNodes xmlXPathDebugDump*|not started
+I|xmlXPathCmpNodes|xpath::compare - namespace nodes ordered by their element
+N|xmlXPathDebugDump*|not started
 A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath ranks nodes with its own order keys
 # ---- xmlreader.h
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new

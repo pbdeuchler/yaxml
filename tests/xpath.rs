@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
-use yaxml::xpath::{Context, Error, ErrorKind, Limit, Limits, Node, Value, XPath};
+use std::cmp::Ordering;
+
+use yaxml::xpath::{Context, Error, ErrorKind, Limit, Limits, Node, Tree, Value, XPath, compare};
 use yaxml::{
     Document, EditLimits, ElementSpec, NameSpec, NodeId, NodeKind, OwnedDocument, OwnedNodeId,
     OwnedNodeKind, PrefixPolicy,
@@ -1057,4 +1059,53 @@ fn errors_carry_libxml2_codes_and_messages() {
             "{expression}"
         );
     }
+}
+
+/// Every pair of a document-order node-set compares as its positions do.
+fn assert_document_order<T: Tree>(tree: &T, root: T::Id) {
+    let all = XPath::compile("//node() | //@* | //namespace::* | /")
+        .unwrap()
+        .select_nodes(tree, root, &Context::new())
+        .unwrap();
+    assert!(all.len() > 30);
+    for (i, &a) in all.iter().enumerate() {
+        for (j, &b) in all.iter().enumerate() {
+            assert_eq!(compare(tree, a, b), Some(i.cmp(&j)), "{a:?} {b:?}");
+        }
+    }
+}
+
+#[test]
+fn compare_follows_document_order_in_both_doms() {
+    let document = Document::parse(XML).unwrap();
+    assert_document_order(&document, document.root().id());
+    let owned = OwnedDocument::parse(XML).unwrap();
+    assert_document_order(&owned, owned.root().id());
+}
+
+#[test]
+fn compare_rejects_foreign_and_disconnected_nodes() {
+    let document = Document::parse("<r><x/></r>").unwrap();
+    let large = format!("<r>{}</r>", "<x/>".repeat(40));
+    let large = Document::parse(&large).unwrap();
+    let foreign = Node::Tree(large.nodes().last().unwrap().id());
+    let root = Node::Tree(document.root().id());
+    assert_eq!(compare(&document, root, foreign), None);
+    assert_eq!(compare(&document, foreign, root), None);
+
+    let mut owned = OwnedDocument::parse("<r><a><b/></a><c/></r>").unwrap();
+    let element = owned.document_element().unwrap();
+    let a = element.first_child().unwrap().id();
+    let b = owned.node(a).unwrap().first_child().unwrap().id();
+    let c = element.last_child().unwrap().id();
+    owned
+        .edit(EditLimits::default())
+        .unwrap()
+        .unlink(a)
+        .unwrap();
+    let (a, b, c) = (Node::Tree(a), Node::Tree(b), Node::Tree(c));
+    // A detached subtree is ordered within itself, never against the tree.
+    assert_eq!(compare(&owned, a, b), Some(Ordering::Less));
+    assert_eq!(compare(&owned, a, c), None);
+    assert_eq!(compare(&owned, c, b), None);
 }
