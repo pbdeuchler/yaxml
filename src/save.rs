@@ -945,7 +945,7 @@ impl<'a> Saver<'a, '_> {
         if !self.options.has(NO_XHTML)
             && let Some(doctype) = root.doctype()
         {
-            xhtml = is_xhtml(&doctype);
+            xhtml = doctype.is_xhtml();
         }
         self.xhtml_attributes |= xhtml;
         for child in root.children() {
@@ -1288,22 +1288,6 @@ fn needs_meta(node: Tree<'_, '_>) -> bool {
             named(parent, "html") && parent.parent().is_some_and(Tree::is_document)
         })
         && !node.children().any(content_type)
-}
-
-/// `xmlIsXHTML`: one of the three XHTML 1.0 public or system identifiers.
-fn is_xhtml(doctype: &Doctype<'_>) -> bool {
-    const PUBLIC: [&str; 3] = [
-        "-//W3C//DTD XHTML 1.0 Strict//EN",
-        "-//W3C//DTD XHTML 1.0 Frameset//EN",
-        "-//W3C//DTD XHTML 1.0 Transitional//EN",
-    ];
-    const SYSTEM: [&str; 3] = [
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd",
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd",
-        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
-    ];
-    doctype.public_id.is_some_and(|id| PUBLIC.contains(&id))
-        || doctype.system_id.is_some_and(|id| SYSTEM.contains(&id))
 }
 
 /// Namespaces an element subtree uses but does not declare, in first-use

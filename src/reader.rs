@@ -213,6 +213,32 @@ pub struct Doctype<'a> {
 }
 
 impl<'a> Doctype<'a> {
+    /// Whether it names XHTML 1.0 by one of the three Strict, Frameset or
+    /// Transitional public or system identifiers (`xmlIsXHTML`), which makes
+    /// [`save`](crate::save) apply XHTML rules.
+    ///
+    /// ```
+    /// let document = yaxml::Document::parse(
+    ///     "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'x.dtd'><html/>",
+    /// )?;
+    /// assert!(document.doctype().unwrap().is_xhtml());
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn is_xhtml(&self) -> bool {
+        const PUBLIC: [&str; 3] = [
+            "-//W3C//DTD XHTML 1.0 Strict//EN",
+            "-//W3C//DTD XHTML 1.0 Frameset//EN",
+            "-//W3C//DTD XHTML 1.0 Transitional//EN",
+        ];
+        const SYSTEM: [&str; 3] = [
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd",
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd",
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
+        ];
+        self.public_id.is_some_and(|id| PUBLIC.contains(&id))
+            || self.system_id.is_some_and(|id| SYSTEM.contains(&id))
+    }
+
     /// Splits a complete, already validated declaration from `<!DOCTYPE` to `>`.
     pub(crate) fn parse(raw: &'a str) -> Self {
         let (doctype, end) = Self::header(raw);

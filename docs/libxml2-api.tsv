@@ -1857,10 +1857,10 @@ tree.h	_xmlRef.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/li
 tree.h	_xmlRef.next	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlRef.value	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	xmlAddChild	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_child
-tree.h	xmlAddChildList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlAddChildList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_child - once per node of the list
 tree.h	xmlAddNextSibling	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::insert_after
 tree.h	xmlAddPrevSibling	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::insert_before
-tree.h	xmlAddSibling	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlAddSibling	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_child - on the node's parent (merges Text, as xmlAddSibling)
 tree.h	xmlAttr	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute
 tree.h	xmlAttrPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlAttrSerializeTxtContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
@@ -1900,7 +1900,7 @@ tree.h	xmlBufferShrink	function	yes	P0-P3	not-applicable	https://github.com/GNOM
 tree.h	xmlBufferWriteCHAR	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlBufferWriteChar	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlBufferWriteQuotedString	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	xmlBuildQName	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlBuildQName	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	format! of prefix and local name
 tree.h	xmlChildElementCount	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlChildrenNode	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	xmlCopyDoc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::try_clone
@@ -1978,8 +1978,8 @@ tree.h	xmlHasNsProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/l
 tree.h	xmlHasProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute_ns, OwnedNode::attribute_ns - returns the value, not the attribute node
 tree.h	xmlID	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
 tree.h	xmlIDPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlIsBlankNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlIsXHTML	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlIsBlankNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedNode::text - with chars::is_blank over a Text or CDATA value
+tree.h	xmlIsXHTML	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Doctype::is_xhtml
 tree.h	xmlLastElementChild	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlNewCDataBlock	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_cdata
 tree.h	xmlNewCharRef	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no detached nodes, entity-reference or DTD construction)
@@ -2009,8 +2009,8 @@ tree.h	xmlNewTextChild	function	not_marked	P0-P3	partial	https://github.com/GNOM
 tree.h	xmlNewTextLen	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_text
 tree.h	xmlNextElementSibling	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlNode	typedef	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node, OwnedNode
-tree.h	xmlNodeAddContent	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlNodeAddContentLen	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeAddContent	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_content
+tree.h	xmlNodeAddContentLen	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_content
 tree.h	xmlNodeBufGetContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::content, OwnedNode::content
 tree.h	xmlNodeDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
 tree.h	xmlNodeDumpOutput	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
@@ -2024,12 +2024,12 @@ tree.h	xmlNodeIsText	function	not_marked	P0-P3	partial	https://github.com/GNOME/
 tree.h	xmlNodeListGetRawString	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 tree.h	xmlNodeListGetString	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::list_string, OwnedNode::list_string
 tree.h	xmlNodePtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlNodeSetBase	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeSetBase	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute - xml:base, xml:lang, xml:space in the XML namespace; Editor::set_url for the document
 tree.h	xmlNodeSetContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_node_value
 tree.h	xmlNodeSetContentLen	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_node_value
-tree.h	xmlNodeSetLang	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeSetLang	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute - xml:base, xml:lang, xml:space in the XML namespace; Editor::set_url for the document
 tree.h	xmlNodeSetName	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_name
-tree.h	xmlNodeSetSpacePreserve	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlNodeSetSpacePreserve	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute - xml:base, xml:lang, xml:space in the XML namespace; Editor::set_url for the document
 tree.h	xmlNotation	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Notation - a borrowed view
 tree.h	xmlNotationPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlNs	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NamespaceBinding
@@ -2073,12 +2073,12 @@ tree.h	xmlSetNs	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxm
 tree.h	xmlSetNsProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
 tree.h	xmlSetProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::set_attribute
 tree.h	xmlSetTreeDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	a node belongs to its arena; Editor::import copies
-tree.h	xmlSplitQName2	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
-tree.h	xmlSplitQName3	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (Name::new parses a whole QName)
+tree.h	xmlSplitQName2	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	str::split_once on ':'; Name views carry prefix and local parts
+tree.h	xmlSplitQName3	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	str::split_once on ':'; Name views carry prefix and local parts
 tree.h	xmlStringGetNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
 tree.h	xmlStringLenGetNodeList	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlTextConcat	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
-tree.h	xmlTextMerge	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started
+tree.h	xmlTextConcat	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_content
+tree.h	xmlTextMerge	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_content - then Editor::remove_subtree on the second node
 tree.h	xmlThrDefDeregisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlThrDefRegisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlUnlinkNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::unlink

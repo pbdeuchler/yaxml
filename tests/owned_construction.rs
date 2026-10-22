@@ -5,7 +5,7 @@ use std::ops::Range;
 use yaxml::{
     AttributeSpec, EditComponent, EditError, EditErrorKind, EditLimit, EditLimits, EditLocation,
     ElementItem, ElementSpec, Name, NameSpec, NamespaceSpec, OwnedDocument, OwnedNodeId,
-    OwnedNodeKind, PrefixPolicy, Writer,
+    OwnedNodeKind, ParseOptions, PrefixPolicy, Writer,
 };
 
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
@@ -1667,4 +1667,79 @@ fn append_remove_keeps_survivor_topology_and_never_reuses_handles() {
     assert_ne!(fresh, middle_leaf);
     assert_ne!(fresh, middle_child);
     assert_eq!(output(editor.document()), "<r><first/><last/><fresh/></r>");
+}
+
+/// `add_content` (`xmlNodeAddContent`, `xmlTextConcat`): each node kind it
+/// extends, and the kinds and values it rejects without changing anything.
+#[test]
+fn add_content_extends_values_and_element_text() {
+    const INPUT: &str = "<!DOCTYPE r [<!ENTITY e 'x'>]><r>t<![CDATA[c]]><!--m--><?p d?><s/>&e;</r>";
+    // Nodes by preorder position: 0 the synthetic root, 1 the DOCTYPE, 2 the
+    // element, then its children (an entity reference's content follows it).
+    #[rustfmt::skip]
+    let cases: [(usize, &str, Result<&str, EditErrorKind>); 13] = [
+        (3, "+", Ok("<r>t+<![CDATA[c]]><!--m--><?p d?><s/>&e;</r>")),
+        (4, "+", Ok("<r>t<![CDATA[c+]]><!--m--><?p d?><s/>&e;</r>")),
+        (5, "+", Ok("<r>t<![CDATA[c]]><!--m+--><?p d?><s/>&e;</r>")),
+        (6, "+", Ok("<r>t<![CDATA[c]]><!--m--><?p d+?><s/>&e;</r>")),
+        (7, "a&b", Ok("<r>t<![CDATA[c]]><!--m--><?p d?><s>a&amp;b</s>&e;</r>")),
+        // The last child is an entity reference, not Text: a new child.
+        (2, "+", Ok("<r>t<![CDATA[c]]><!--m--><?p d?><s/>&e;+</r>")),
+        (3, "", Ok("<r>t<![CDATA[c]]><!--m--><?p d?><s/>&e;</r>")),
+        (4, "]]>", Err(EditErrorKind::InvalidValue)),
+        (5, "-", Err(EditErrorKind::InvalidValue)),
+        (8, "+", Err(EditErrorKind::WrongNodeKind)),
+        (1, "+", Err(EditErrorKind::WrongNodeKind)),
+        (0, "+", Err(EditErrorKind::WrongNodeKind)),
+        (3, "\u{1}", Err(EditErrorKind::InvalidCharacter)),
+    ];
+    // Entity references kept (no `NOENT`).
+    let parse = || OwnedDocument::parse_with(INPUT.as_bytes(), ParseOptions::new(0)).unwrap();
+    // `save` keeps the references (`Writer` writes their text).
+    let output = |document: &OwnedDocument| {
+        let saved = yaxml::save::to_vec(document, &yaxml::save::Options::default()).unwrap();
+        String::from_utf8(saved).unwrap()
+    };
+    let original = output(&parse());
+    for (position, content, expected) in cases {
+        let mut document = parse();
+        let node = document.nodes().nth(position).unwrap().id();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let result = editor
+            .add_content(node, content)
+            .map_err(|error| error.kind);
+        let saved = output(&document);
+        match expected {
+            Ok(body) => {
+                assert_eq!(result, Ok(()), "{content:?}");
+                assert!(saved.ends_with(&format!("{body}\n")), "{saved}");
+            }
+            Err(kind) => {
+                assert_eq!(result, Err(kind), "{position} {content:?}");
+                assert_eq!(saved, original, "unchanged");
+            }
+        }
+    }
+    // A Text last child takes the content: no new node.
+    let mut document = OwnedDocument::parse("<r><a/>x</r>").unwrap();
+    let root = document.root_element().id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    editor.add_content(root, "y").unwrap();
+    assert_eq!(editor.document().root_element().children().count(), 2);
+    assert_eq!(
+        output(&document),
+        "<?xml version=\"1.0\"?>\n<r><a/>xy</r>\n"
+    );
+    // Handles from another document, and value ceilings.
+    let other = OwnedDocument::parse("<o/>").unwrap().root_element().id();
+    let limits = EditLimits::DEFAULT.max_value_bytes(2);
+    let mut editor = document.edit(limits).unwrap();
+    let kind = |result: Result<(), EditError>| result.map_err(|error| error.kind);
+    assert_eq!(
+        kind(editor.add_content(other, "+")),
+        Err(EditErrorKind::InvalidHandle)
+    );
+    let text = editor.document().root_element().last_child().unwrap().id();
+    let exceeded = EditErrorKind::LimitExceeded(EditLimit::ValueBytes);
+    assert_eq!(kind(editor.add_content(text, "z")), Err(exceeded));
 }

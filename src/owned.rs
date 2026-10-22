@@ -1463,6 +1463,49 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
+    /// Appends `content` to the value of a Text, CDATA, comment or PI node
+    /// (`xmlTextConcat`), or as text to an element (`xmlNodeAddContent`): to
+    /// its last child when that is Text, as `xmlAddChild` merges, else as a
+    /// new Text child. Empty `content` changes nothing. The joined value is
+    /// checked as [`set_node_value`](Self::set_node_value) checks one.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<r>a<!--c--></r>")?;
+    /// let root = document.root_element().id();
+    /// let comment = document.root_element().last_child().unwrap().id();
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.add_content(comment, "d")?;
+    /// editor.add_content(root, "b")?; // a new Text: the last child is the comment
+    /// editor.add_content(root, "c")?; // merges into it
+    /// let root = editor.document().root_element();
+    /// let values: Vec<_> = root.children().map(|child| child.text().unwrap()).collect();
+    /// assert_eq!(values, ["a", "cd", "bc"]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_content(&mut self, node: OwnedNodeId, content: &str) -> Result<(), EditError> {
+        let view = self.document.node(node);
+        let view = view.ok_or(EditError::new(EditErrorKind::InvalidHandle, None))?;
+        let target = match view.kind() {
+            OwnedNodeKind::Element => view
+                .last_child()
+                .filter(|last| last.kind() == OwnedNodeKind::Text),
+            _ => Some(view),
+        };
+        match (target, content.is_empty()) {
+            (_, true) => Ok(()),
+            (None, false) => self.append_text(node, content).map(|_| ()),
+            (Some(target), false) => {
+                let old = target
+                    .text()
+                    .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))?;
+                let joined = crate::fallible::concat(&[old, content])
+                    .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+                self.set_node_value(target.id(), &joined)
+            }
+        }
+    }
+
     /// Replaces the value of an existing attribute, selected by expanded name
     /// (`Some("")` and `None` are different namespaces). Its spelling and
     /// position are kept.

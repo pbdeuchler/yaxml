@@ -556,7 +556,8 @@ N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd xmlCreateIntSubset|n
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
 I|xmlAddPrevSibling|Editor::insert_before
-N|xmlAddChildList xmlAddSibling|not started
+P|xmlAddSibling|Editor::append_child - on the node's parent (merges Text, as xmlAddSibling)
+P|xmlAddChildList|Editor::append_child - once per node of the list
 I|xmlUnlinkNode|Editor::unlink
 I|xmlReplaceNode|Editor::replace
 P|xmlFreeNode xmlFreeNodeList|Editor::remove_subtree
@@ -575,7 +576,9 @@ P|xmlFirstElementChild xmlLastElementChild xmlNextElementSibling xmlPreviousElem
 I|xmlNodeGetContent|Node::content, OwnedNode::content
 P|xmlNodeBufGetContent xmlBufGetNodeContent|Node::content, OwnedNode::content
 P|xmlNodeSetContent xmlNodeSetContentLen|Editor::set_node_value
-N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlStringGetNodeList xmlStringLenGetNodeList|not started
+I|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat|Editor::add_content
+P|xmlTextMerge|Editor::add_content - then Editor::remove_subtree on the second node
+N|xmlStringGetNodeList xmlStringLenGetNodeList|not started
 I|xmlNodeListGetString|Node::list_string, OwnedNode::list_string
 P|xmlNodeListGetRawString|OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 I|xmlNodeSetName|Editor::set_name
@@ -583,9 +586,11 @@ P|xmlSetNs|Editor::set_name
 I|xmlNodeGetBase xmlNodeGetBaseSafe|Node::base_uri, OwnedNode::base_uri
 I|xmlNodeGetLang|Node::lang, OwnedNode::lang
 I|xmlNodeGetSpacePreserve|Node::space_preserve, OwnedNode::space_preserve
-N|xmlNodeSetBase xmlNodeSetLang xmlNodeSetSpacePreserve|not started
+P|xmlNodeSetBase xmlNodeSetLang xmlNodeSetSpacePreserve|Editor::set_attribute - xml:base, xml:lang, xml:space in the XML namespace; Editor::set_url for the document
 P|xmlNodeIsText|Node::kind, OwnedNode::kind
-N|xmlIsBlankNode xmlIsXHTML xmlBuildQName|not started
+I|xmlIsXHTML|Doctype::is_xhtml
+P|xmlIsBlankNode|OwnedNode::text - with chars::is_blank over a Text or CDATA value
+A|xmlBuildQName|format! of prefix and local name
 I|xmlGetLineNo|diagnostic::LineIndex - Node::line and OwnedNode::line
 I|xmlGetNodePath|Node::path, OwnedNode::path
 I|xmlGetNsList xmlGetNsListSafe|Node::namespaces, OwnedNode::namespaces
@@ -612,7 +617,7 @@ P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFo
 I|xmlDocDumpMemory xmlDocDumpFormatMemory xmlDocDumpMemoryEnc xmlDocDumpFormatMemoryEnc|save::to_vec
 P|xmlNodeDump xmlElemDump xmlNodeDumpOutput xmlAttrSerializeTxtContent|save::to_vec, save::Tree
 P|xmlValidateNCName xmlValidateNMToken xmlValidateName xmlValidateQName|Name::new
-N|xmlSplitQName2 xmlSplitQName3|not started (Name::new parses a whole QName)
+A|xmlSplitQName2 xmlSplitQName3|str::split_once on ':'; Name views carry prefix and local parts
 R|xmlIsMixedElement xmlIsRef|deprecated in 2.15.4
 # ---- entities.h
 I|xmlGetDocEntity|valid::Dtd::entity

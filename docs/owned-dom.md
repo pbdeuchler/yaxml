@@ -204,6 +204,8 @@ assert_eq!(editor.document().node(text).unwrap().text(), Some("new & text"));
 ```
 
 `set_node_value` replaces Text, CDATA, Comment or PI data; PI targets stay fixed.
+`add_content` appends to that data (`xmlTextConcat`), or adds text to an
+element (`xmlNodeAddContent`): into a Text last child, else as a new one.
 `set_attribute_value` replaces one existing attribute by expanded name
 `(namespace, local)`, preserving its qualified spelling and position. Missing
 attributes are errors. The default namespace does not apply to ordinary
