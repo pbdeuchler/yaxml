@@ -1173,7 +1173,7 @@ relaxng.h	XML_RELAXNG_ERR_LIST	enum_value	not_marked	P3	implemented	https://gith
 relaxng.h	XML_RELAXNG_ERR_LISTELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_LISTEMPTY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_LISTEXTRA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_MEMORY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_MEMORY	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Allocation
 relaxng.h	XML_RELAXNG_ERR_NODEFINE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_NOELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::MissingElement
 relaxng.h	XML_RELAXNG_ERR_NOGRAMMAR	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
@@ -3116,15 +3116,15 @@ xmlerror.h	XML_TREE_INVALID_HEX	enum_value	not_marked	P0-P3	not-started	https://
 xmlerror.h	XML_TREE_NOT_UTF8	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_TREE_UNTERMINATED_ENTITY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_WAR_CATALOG_PI	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_ENCODING_MISMATCH	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
+xmlerror.h	XML_WAR_ENCODING_MISMATCH	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_ENCODING_MISMATCH
 xmlerror.h	XML_WAR_ENTITY_REDEFINED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_WAR_LANG_VALUE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
 xmlerror.h	XML_WAR_NS_COLUMN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_NS_URI	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_NS_URI_RELATIVE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_SPACE_VALUE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_UNDECLARED_ENTITY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_UNKNOWN_VERSION	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
+xmlerror.h	XML_WAR_NS_URI	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_NS_URI
+xmlerror.h	XML_WAR_NS_URI_RELATIVE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_NS_URI_RELATIVE
+xmlerror.h	XML_WAR_SPACE_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_SPACE_VALUE
+xmlerror.h	XML_WAR_UNDECLARED_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_UNDECLARED_ENTITY
+xmlerror.h	XML_WAR_UNKNOWN_VERSION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_UNKNOWN_VERSION
 xmlerror.h	XML_XINCLUDE_BUILD_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xinclude::ErrorKind
 xmlerror.h	XML_XINCLUDE_DEPRECATED_NS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xinclude::ErrorKind
 xmlerror.h	XML_XINCLUDE_ENTITY_DEF_MISMATCH	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xinclude::ErrorKind
@@ -3334,15 +3334,15 @@ xmlreader.h	xmlTextReaderBaseUri	function	not_marked	P0-P2	implemented	https://g
 xmlreader.h	xmlTextReaderByteConsumed	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
 xmlreader.h	xmlTextReaderClose	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Drop
 xmlreader.h	xmlTextReaderConstBaseUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::base_uri
-xmlreader.h	xmlTextReaderConstEncoding	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderConstEncoding	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::encoding
 xmlreader.h	xmlTextReaderConstLocalName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::local_name
 xmlreader.h	xmlTextReaderConstName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::name
 xmlreader.h	xmlTextReaderConstNamespaceUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::namespace_uri
 xmlreader.h	xmlTextReaderConstPrefix	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::prefix
-xmlreader.h	xmlTextReaderConstString	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderConstString	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	strings are borrowed &str; no reader dictionary
 xmlreader.h	xmlTextReaderConstValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
 xmlreader.h	xmlTextReaderConstXmlLang	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_lang
-xmlreader.h	xmlTextReaderConstXmlVersion	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderConstXmlVersion	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_version
 xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderDepth	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::depth
@@ -3361,11 +3361,11 @@ xmlreader.h	xmlTextReaderHasAttributes	function	not_marked	P0-P2	implemented	htt
 xmlreader.h	xmlTextReaderHasValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::has_value
 xmlreader.h	xmlTextReaderIsDefault	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_default - always false, as libxml2's
 xmlreader.h	xmlTextReaderIsEmptyElement	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_empty_element
-xmlreader.h	xmlTextReaderIsNamespaceDecl	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderIsNamespaceDecl	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_namespace_decl - false without a node (libxml2 -1)
 xmlreader.h	xmlTextReaderIsValid	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_valid
 xmlreader.h	xmlTextReaderLocalName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::local_name
-xmlreader.h	xmlTextReaderLocatorBaseURI	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
-xmlreader.h	xmlTextReaderLocatorLineNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderLocatorBaseURI	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; locators belong to xmlTextReaderSetErrorHandler
+xmlreader.h	xmlTextReaderLocatorLineNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; locators belong to xmlTextReaderSetErrorHandler
 xmlreader.h	xmlTextReaderLocatorPtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	raw pointer alias
 xmlreader.h	xmlTextReaderLookupNamespace	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::lookup_namespace
 xmlreader.h	xmlTextReaderMode	enum	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState
@@ -3378,14 +3378,14 @@ xmlreader.h	xmlTextReaderMoveToNextAttribute	function	not_marked	P0-P2	implement
 xmlreader.h	xmlTextReaderName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::name
 xmlreader.h	xmlTextReaderNamespaceUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::namespace_uri
 xmlreader.h	xmlTextReaderNext	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::next
-xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	libxml2 implements it only for xmlReaderWalker readers (-1 otherwise); walker not started
 xmlreader.h	xmlTextReaderNodeType	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::node_type
 xmlreader.h	xmlTextReaderNormalization	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::normalization
 xmlreader.h	xmlTextReaderPrefix	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::prefix
 xmlreader.h	xmlTextReaderPreserve	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderPreservePattern	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderPtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	raw pointer alias
-xmlreader.h	xmlTextReaderQuoteChar	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	not started (docs/textreader.md)
+xmlreader.h	xmlTextReaderQuoteChar	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::quote_char
 xmlreader.h	xmlTextReaderRead	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read
 xmlreader.h	xmlTextReaderReadAttributeValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_attribute_value
 xmlreader.h	xmlTextReaderReadInnerXml	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read_inner_xml

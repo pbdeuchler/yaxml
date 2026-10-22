@@ -65,9 +65,10 @@ pub enum NodeType {
 }
 
 /// `xmlTextReaderStandalone`'s result; `as i32` is the C value.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Standalone {
     /// No XML declaration, or nothing read yet.
+    #[default]
     NoDeclaration = -1,
     /// An XML declaration without a `standalone` pseudo-attribute.
     Unspecified = -2,
@@ -499,7 +500,17 @@ pub struct TextReader<R: BufRead> {
     blanks: crate::blanks::Blanks,
     /// Validation of every event read from the source.
     validators: Validators,
+    prolog: Prolog,
+}
+
+/// What the XML declaration said, once read.
+#[derive(Default)]
+struct Prolog {
     standalone: Standalone,
+    version: Option<String>,
+    /// libxml2's `doc->encoding`: the label as written, or the detected
+    /// encoding's name when a BOM overrode it.
+    encoding: Option<String>,
 }
 
 impl<R: BufRead> TextReader<R> {
@@ -548,7 +559,7 @@ impl<R: BufRead> TextReader<R> {
             scope: Scope::default(),
             blanks: crate::blanks::Blanks::default(),
             validators: Validators::new(flags),
-            standalone: Standalone::NoDeclaration,
+            prolog: Prolog::default(),
         })
     }
 
@@ -594,7 +605,7 @@ impl<R: BufRead> TextReader<R> {
         self.scope = Scope::default();
         self.blanks = crate::blanks::Blanks::default();
         self.validators = Validators::new(self.flags);
-        self.standalone = Standalone::NoDeclaration;
+        self.prolog = Prolog::default();
     }
 
     /// Moves to the next node in document order; false at the end
@@ -714,10 +725,14 @@ impl<R: BufRead> TextReader<R> {
             };
             self.validators.event(&event, origin);
             if let Event::Declaration(declaration) = &event {
-                self.standalone = match declaration.standalone {
-                    Some(true) => Standalone::Yes,
-                    Some(false) => Standalone::No,
-                    None => Standalone::Unspecified,
+                self.prolog = Prolog {
+                    standalone: match declaration.standalone {
+                        Some(true) => Standalone::Yes,
+                        Some(false) => Standalone::No,
+                        None => Standalone::Unspecified,
+                    },
+                    version: Some(declaration.version.to_owned()),
+                    encoding: declaration.encoding.map(str::to_owned),
                 };
             }
             let merge = matches!(event, Event::Text(_))
@@ -1413,7 +1428,35 @@ impl<R: BufRead> TextReader<R> {
     /// The XML declaration's `standalone`, once a node has been read
     /// (`xmlTextReaderStandalone`).
     pub fn standalone(&self) -> Standalone {
-        self.standalone
+        self.prolog.standalone
+    }
+
+    /// The XML declaration's `version`, `1.0` without one; `None` before the
+    /// first read (`xmlTextReaderConstXmlVersion`).
+    pub fn xml_version(&self) -> Option<&str> {
+        let version = self.prolog.version.as_deref();
+        (self.state != ReadState::Initial).then(|| version.unwrap_or("1.0"))
+    }
+
+    /// The declared encoding as written, or the detected encoding's name
+    /// (`UTF-8`, `UTF-16LE`, `UTF-16BE`) when a BOM overrode the label;
+    /// `None` without a label (`xmlTextReaderConstEncoding`).
+    pub fn encoding(&self) -> Option<&str> {
+        self.prolog.encoding.as_deref()
+    }
+
+    /// Whether the cursor is on a namespace declaration attribute
+    /// (`xmlTextReaderIsNamespaceDecl`; libxml2's -1 without a node is
+    /// false).
+    pub fn is_namespace_decl(&self) -> bool {
+        let index = self.attribute.filter(|_| self.value.is_none());
+        index.is_some_and(|index| self.node().is_some_and(|node| index < node.declarations))
+    }
+
+    /// The quotation mark of attribute values: always `"`, as in libxml2
+    /// (`xmlTextReaderQuoteChar`).
+    pub fn quote_char(&self) -> char {
+        '"'
     }
 
     /// Input bytes the parser has consumed, lookahead included

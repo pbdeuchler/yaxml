@@ -739,7 +739,13 @@ P|xmlTextReaderSetResourceLoader|ParseOptions::with_resolver
 P|xmlTextReaderSetMaxAmplification|Limits::max_entity_amplification
 I|xmlTextReaderGetParserLineNumber|TextReader::line_number - takes the caller's LineIndex
 I|xmlTextReaderGetParserColumnNumber|TextReader::column_number - takes the caller's LineIndex
-N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
+I|xmlTextReaderConstEncoding|TextReader::encoding
+I|xmlTextReaderConstXmlVersion|TextReader::xml_version
+I|xmlTextReaderIsNamespaceDecl|TextReader::is_namespace_decl - false without a node (libxml2 -1)
+I|xmlTextReaderQuoteChar|TextReader::quote_char
+A|xmlTextReaderConstString|strings are borrowed &str; no reader dictionary
+N|xmlTextReaderNextSibling|libxml2 implements it only for xmlReaderWalker readers (-1 otherwise); walker not started
+N|xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|no error callback; locators belong to xmlTextReaderSetErrorHandler
 N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState

@@ -1400,3 +1400,105 @@ fn node_types_carry_libxml2_values() {
         }
     }
 }
+
+/// `xmlTextReaderConstXmlVersion` and `ConstEncoding` (checked against
+/// libxml2 in harness/tests/textreader_oracle.rs): nothing before the first
+/// read, the declaration as written, a BOM's name when it overrides a label.
+#[test]
+fn version_and_encoding_follow_the_declaration() {
+    let utf16 = |text: &str, bom: bool| -> Vec<u8> {
+        let units = bom.then_some(0xfeff).into_iter().chain(text.encode_utf16());
+        units.flat_map(u16::to_le_bytes).collect()
+    };
+    let cases: [(Vec<u8>, Option<&str>, Option<&str>); 9] = [
+        (b"<r/>".to_vec(), Some("1.0"), None),
+        (b"<?xml version='1.1'?><r/>".to_vec(), Some("1.1"), None),
+        (
+            b"<?xml version='1.0' encoding='latin1'?><r>\xe9</r>".to_vec(),
+            Some("1.0"),
+            Some("latin1"),
+        ),
+        (
+            b"<?xml version='1.5' encoding='utf-8'?><r/>".to_vec(),
+            Some("1.5"),
+            Some("utf-8"),
+        ),
+        (b"\xef\xbb\xbf<r/>".to_vec(), Some("1.0"), None),
+        (
+            b"\xef\xbb\xbf<?xml version='1.0' encoding='ascii'?><r/>".to_vec(),
+            Some("1.0"),
+            Some("UTF-8"),
+        ),
+        (utf16("<r/>", true), Some("1.0"), None),
+        (
+            utf16("<?xml version='1.0' encoding='utf-16'?><r/>", true),
+            Some("1.0"),
+            Some("utf-16"),
+        ),
+        (
+            utf16("<?xml version='1.0' encoding='UTF-8'?><r/>", true),
+            Some("1.0"),
+            Some("UTF-16LE"),
+        ),
+    ];
+    for (input, version, encoding) in cases {
+        let mut reader = TextReader::new(input.as_slice());
+        assert_eq!((reader.xml_version(), reader.encoding()), (None, None));
+        assert!(reader.read().unwrap(), "{input:?}");
+        assert_eq!(
+            (reader.xml_version(), reader.encoding()),
+            (version, encoding)
+        );
+        while reader.read().unwrap() {}
+        assert_eq!(
+            (reader.xml_version(), reader.encoding()),
+            (version, encoding)
+        );
+        reader.reset(b"<s/>".as_slice());
+        assert_eq!((reader.xml_version(), reader.encoding()), (None, None));
+    }
+    // A failed first read leaves the version, as libxml2's document has one.
+    let mut reader = TextReader::new(b"<?xml version='1.0' encoding='latin1'?><r>".as_slice());
+    assert!(reader.read().unwrap());
+    assert!(reader.read().is_err());
+    assert_eq!(
+        (reader.xml_version(), reader.encoding()),
+        (Some("1.0"), Some("latin1"))
+    );
+}
+
+/// `xmlTextReaderIsNamespaceDecl` and `QuoteChar`.
+#[test]
+fn namespace_declarations_are_reported() {
+    let mut reader =
+        TextReader::new(b"<r xmlns='urn:d' xmlns:p='urn:p' a='1' p:b='2'>t</r>".as_slice());
+    assert!(!reader.is_namespace_decl(), "no node");
+    assert_eq!(reader.quote_char(), '"');
+    assert!(reader.read().unwrap());
+    assert!(!reader.is_namespace_decl(), "element");
+    let mut seen = Vec::new();
+    while reader.move_to_next_attribute() {
+        seen.push((
+            reader.name().unwrap().to_owned(),
+            reader.is_namespace_decl(),
+        ));
+        if reader.read_attribute_value() {
+            assert!(!reader.is_namespace_decl(), "value text");
+        }
+        reader.move_to_element();
+        reader.move_to_attribute(&seen.last().unwrap().0.clone());
+    }
+    let expected = [
+        ("xmlns", true),
+        ("xmlns:p", true),
+        ("a", false),
+        ("p:b", false),
+    ];
+    let expected = expected.map(|(name, decl)| (name.to_owned(), decl));
+    assert_eq!(seen, expected);
+    assert!(reader.read().unwrap());
+    assert!(!reader.is_namespace_decl(), "text");
+    while reader.read().unwrap() {}
+    assert!(!reader.is_namespace_decl(), "end");
+    assert_eq!(reader.quote_char(), '"');
+}

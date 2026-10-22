@@ -18,6 +18,7 @@ single-byte encodings from `&[u8]` or any `BufRead` in bounded memory.
 | `ReadString`, `ReadInnerXml`, `ReadOuterXml`, `Expand` | `read_string`, `read_inner_xml`, `read_outer_xml`, `expand` (an `OwnedDocument`) |
 | `ReadAttributeValue` | `read_attribute_value` |
 | `Standalone`, `IsDefault`, `Normalization` | `standalone` (`Standalone`), `is_default`, `normalization` |
+| `ConstXmlVersion`, `ConstEncoding`, `IsNamespaceDecl`, `QuoteChar` | `xml_version`, `encoding`, `is_namespace_decl`, `quote_char` |
 | `ByteConsumed`, `GetRemainder` | `byte_consumed`, `into_remainder` |
 | `GetParserProp`, `SetParserProp` | `parser_property`, `set_parser_property` |
 | `XML_PARSE_DTDVALID`, `SetParserProp(VALIDATE)` | `DTDVALID` in `with_options`, `set_parser_property(Validate, true)`, `dtd_diagnostics` |
@@ -85,6 +86,14 @@ of XMLTS not-wf. Following libxml2:
 - `standalone` is `Standalone::NoDeclaration` (-1) before the first read and
   without an XML declaration, `Unspecified` (-2) for a declaration without
   `standalone`, else `No`/`Yes`.
+- `xml_version` is `None` before the first read, then the declared version
+  as written, `1.0` without a declaration. `encoding` is libxml2's
+  `doc->encoding` (`xmlGetActualEncoding`): the declared label as written, or
+  the detected encoding's name when a BOM overrides a label it does not allow
+  (a UTF-8 BOM with `encoding='ascii'` is `UTF-8`); `None` without a label,
+  BOM or not. `is_namespace_decl` is true on an `xmlns`/`xmlns:p` attribute,
+  not on its value's text, and false without a node (libxml2's -1);
+  `quote_char` is always `"`.
 - `is_default` is false and `normalization` true for every node: libxml2
   2.15.4's `xmlTextReaderIsDefault` is `return 0` (defaulted attributes
   included, checked in the differential below) and `xmlTextReaderNormalization`
@@ -256,15 +265,17 @@ YAXML_TEXTREADER_HELPER="$PWD/target/textreader-helper" \
 ```
 
 `cases_match_the_reader_helper` dumps every node of 24 documents (cursor
-properties, `Standalone` and `IsDefault`, every attribute, the nodes of its
+properties, `Standalone`, `IsDefault`, `IsNamespaceDecl`, `QuoteChar`,
+`XmlVersion` and `Encoding` (also before the first read), every attribute, the nodes of its
 value through `ReadAttributeValue`, indexed and named lookups, base, language,
 namespace lookups, `read_string`, inner/outer XML, and at the end `Standalone`,
-`Normalization` and `ByteConsumed`) through both readers: 24 of 24 agree.
-`option_cases_match_the_reader_helper` runs 42 documents under their own
+`Normalization`, `ByteConsumed`, `XmlVersion` and `Encoding`) through both readers: 24 of 24 agree.
+`option_cases_match_the_reader_helper` runs 47 documents under their own
 flags (kept and substituted references in values, empty values and namespace
-URIs, DTD defaults with and without `DTDATTR`, XML declarations, `NOBLANKS`
-with `xml:space`, DTD content, references, comments and the text rule): 42 of
-42 agree (the helper takes the flags as a second argument). On malformed input libxml2 parses ahead in chunks and can
+URIs, DTD defaults with and without `DTDATTR`, XML declarations (versions,
+labels, BOMs), `NOBLANKS`
+with `xml:space`, DTD content, references, comments and the text rule): 47 of
+47 agree (the helper takes the flags as a second argument). On malformed input libxml2 parses ahead in chunks and can
 fail before delivering nodes, so its delivered nodes need only prefix ours.
 `rde_results_match` replays libxml2's own `result/*.rde` reader expectations
 (`NOENT`; `YAXML_LIBXML2_SRC`, default the pinned source tree): 129 of 132
@@ -309,6 +320,7 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
   libxml2 dumps the DTD or a partially freed element.
 - `expand` returns a standalone copy; its source ranges are offsets into the
   outer XML, and nodes other than elements do not expand.
-- Not started: `ConstEncoding`, `ConstXmlVersion`, `ConstString`,
-  `IsNamespaceDecl`, `QuoteChar` (always `"` in libxml2), `NextSibling`.
-  `Close` is `Drop`.
+- `ConstString` (interning into the reader's dictionary) has no use with
+  borrowed `&str`. `NextSibling` is not started: libxml2 implements it only
+  for `xmlReaderWalker` readers over an existing tree and returns -1 for
+  parsing ones. `Close` is `Drop`.
