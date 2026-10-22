@@ -215,7 +215,7 @@ XINCLUDE_ERR = {
     "UNKNOWN_ENCODING": "UnknownEncoding", "INVALID_CHAR": "InvalidCharacter", "XPTR_FAILED": "XPointer",
     "XPTR_RESULT": "XPointerResult", "NO_FALLBACK": "NoFallback", "MULTIPLE_ROOT": "MultipleRoots",
     "INCLUDE_IN_INCLUDE": "IncludeInInclude", "FALLBACKS_IN_INCLUDE": "MultipleFallbacks",
-    "FALLBACK_NOT_IN_INCLUDE": "FallbackNotInInclude",
+    "FALLBACK_NOT_IN_INCLUDE": "FallbackNotInInclude", "ENTITY_DEF_MISMATCH": "EntityMismatch",
 }
 PARSER_ERR = {  # XML_ERR_<x> -> ErrorKind (category only)
     "ATTRIBUTE_REDEFINED": "DuplicateAttribute", "TAG_NAME_MISMATCH": "MismatchedEndTag",

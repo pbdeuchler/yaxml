@@ -603,3 +603,94 @@ fn loading(
         .with_limits(limits)
         .with_resolver(base, resolver)
 }
+
+#[test]
+fn included_entities_merge_like_libxml2() {
+    // Recorded with xmllint --xinclude --loaddtd; libxml2 walks a hash table,
+    // so its order differs, and it writes `&quot;` for a quote.
+    let files: &[(&str, &[u8])] = &[
+        ("ent.xml", b"<!DOCTYPE e [<!NOTATION n SYSTEM 'n'><!ENTITY i 'a&amp;b&#37;c&#38;#38;d'><!ENTITY u SYSTEM 'u.bin' NDATA n><!ENTITY % p 'x'><!ENTITY q '\"'><!ENTITY lt '&#38;#60;'>]><e/>"),
+        ("nest.xml", b"<!DOCTYPE n [<!ENTITY mid 'm'>]><n><xi:include href='ent.xml' xmlns:xi='http://www.w3.org/2001/XInclude'/></n>"),
+        ("s.dtd", b"<!ENTITY ext 'external'>"),
+        ("es.xml", b"<!DOCTYPE e SYSTEM 's.dtd' [<!ENTITY int 'i'>]><e/>"),
+    ];
+    let ent = r#"<!ENTITY i "a&amp;b&#x25;c&#38;#38;d"><!ENTITY u SYSTEM "u.bin" NDATA n><!ENTITY q "&#34;">"#;
+    let body =
+        |content: &str| format!(r#"<r xmlns:xi="http://www.w3.org/2001/XInclude">{content}</r>"#);
+    let cases: &[(&str, String, Result<String, ErrorKind>)] = &[
+        (
+            "general entities, not parameter or predefined ones",
+            include("href='ent.xml'"),
+            Ok(format!("<!DOCTYPE r [{ent}]>{}", body("<e/>"))),
+        ),
+        (
+            "a declared name keeps its declaration",
+            format!(
+                "<!DOCTYPE r [<!ENTITY i 'mine'>]>{}",
+                include("href='ent.xml'")
+            ),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY i 'mine'><!ENTITY u SYSTEM "u.bin" NDATA n><!ENTITY q "&#34;">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "an equal unparsed entity is no mismatch",
+            format!(
+                "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u.bin' NDATA n>]>{}",
+                include("href='ent.xml'")
+            ),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u.bin' NDATA n><!ENTITY i "a&amp;b&#x25;c&#38;#38;d"><!ENTITY q "&#34;">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "another unparsed entity of that name",
+            format!(
+                "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'other.bin' NDATA n>]>{}",
+                include("href='ent.xml'")
+            ),
+            Err(ErrorKind::EntityMismatch("u".into())),
+        ),
+        (
+            "an internal entity of that name",
+            format!(
+                "<!DOCTYPE r [<!ENTITY u 'text'>]>{}",
+                include("href='ent.xml'")
+            ),
+            Err(ErrorKind::EntityMismatch("u".into())),
+        ),
+        (
+            "entities of nested inclusions stay in their includer",
+            include("href='nest.xml'"),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY mid "m">]>{}"#,
+                body("<n><e/></n>")
+            )),
+        ),
+        (
+            "the external subset merges unless an identifier matches",
+            include("href='es.xml'"),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY int "i">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "a shared external subset is not merged",
+            format!("<!DOCTYPE r SYSTEM 's.dtd'>{}", include("href='es.xml'")),
+            Ok(format!(
+                r#"<!DOCTYPE r SYSTEM "s.dtd" [<!ENTITY int "i">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+    ];
+    for (label, main, expected) in cases {
+        let result = run(main, files).map_err(|error| {
+            assert_eq!(error.uri, "ent.xml", "{label}");
+            error.kind
+        });
+        assert_eq!(&result, expected, "{label}");
+    }
+}

@@ -3127,7 +3127,7 @@ xmlerror.h	XML_WAR_UNDECLARED_ENTITY	enum_value	not_marked	P0-P3	implemented	htt
 xmlerror.h	XML_WAR_UNKNOWN_VERSION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_UNKNOWN_VERSION
 xmlerror.h	XML_XINCLUDE_BUILD_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_XINCLUDE_DEPRECATED_NS	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_XINCLUDE_ENTITY_DEF_MISMATCH	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xinclude::ErrorKind
+xmlerror.h	XML_XINCLUDE_ENTITY_DEF_MISMATCH	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xinclude::ErrorKind::EntityMismatch - category only
 xmlerror.h	XML_XINCLUDE_FALLBACKS_IN_INCLUDE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xinclude::ErrorKind::MultipleFallbacks - category only
 xmlerror.h	XML_XINCLUDE_FALLBACK_NOT_IN_INCLUDE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xinclude::ErrorKind::FallbackNotInInclude - category only
 xmlerror.h	XML_XINCLUDE_FRAGMENT_ID	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xinclude::ErrorKind::FragmentIdentifier - category only

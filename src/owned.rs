@@ -2272,7 +2272,8 @@ impl TreeBuilder {
         self.nodes[id.index()].subtree_size = self.nodes.len() - id.index();
     }
 
-    pub(crate) fn finish(self) -> Result<OwnedDocument, Error> {
+    /// The built document, with `dtd` as its declarations.
+    pub(crate) fn finish(self, dtd: Option<crate::valid::Dtd>) -> Result<OwnedDocument, Error> {
         let document = OwnedBuilder {
             nodes: self.nodes,
             xml_ids: Vec::new(),
@@ -2296,7 +2297,12 @@ impl TreeBuilder {
                 (element, index)
             })
             .collect();
-        Ok(OwnedDocument { ids, ..document })
+        let dtd = dtd.map(Box::new);
+        Ok(OwnedDocument {
+            ids,
+            dtd,
+            ..document
+        })
     }
 }
 
