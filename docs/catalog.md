@@ -208,6 +208,8 @@ loads as a name).
   (libxml2 skips catalogs for existing local files). Entities inside a mapped
   resource are based on the original URI, not the mapped one, because
   `Resolver` cannot report the URI it served.
+- `Catalog::is_empty` (`xmlCatalogIsEmpty`) is false for a loaded XML catalog
+  with entries; libxml2 returns 1 until a lookup loads the file.
 - Not ported: SGML super catalogs (`xmlLoadSGMLSuperCatalog`),
-  `xmlCatalogIsEmpty`, `xmlCatalogConvert` (declined, above) and debugging
+  `xmlCatalogConvert` (declined, above) and debugging
   output.

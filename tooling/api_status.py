@@ -687,7 +687,8 @@ P|xmlXPathAddValues xmlXPathSubValues xmlXPathMultValues xmlXPathDivValues xmlXP
 A|xmlXPathIsInf xmlXPathIsNaN|f64::is_infinite, f64::is_nan
 R|xmlXPathNAN xmlXPathPINF xmlXPathNINF|deprecated; use f64::NAN and f64::INFINITY
 A|xmlXPathNodeSet* xmlXPathEmptyNodeSet xmlXPathNewNodeSet* xmlXPathNewBoolean xmlXPathNewCString xmlXPathNewFloat xmlXPathNewString xmlXPathNewValueTree xmlXPathWrap* xmlXPathReturn* xmlXPathObjectCopy xmlXPathDifference xmlXPathDistinct* xmlXPathHasSameNodes xmlXPathIntersection xmlXPathLeading* xmlXPathNodeLeading* xmlXPathNodeTrailing* xmlXPathTrailing* xmlXPathPop* xmlXPathValue* xmlXPathStackIs* xmlXPathNewParserContext xmlXPathParseNCName xmlXPathParseName xmlXPathRoot xmlXPathSetArityError xmlXPathSetError xmlXPathSetTypeError xmlXPathCheckError xmlXPathGetContextNode xmlXPathGetDocument xmlXPathGetError xmlXPathErr xmlXPatherror xmlXPathIsNodeType CAST_TO_* CHECK_* XP_ERROR XP_ERROR0 valuePop valuePush|XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
-N|xmlXPathCmpNodes xmlXPathOrderDocElems xmlXPathDebugDump*|not started
+N|xmlXPathCmpNodes xmlXPathDebugDump*|not started
+A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath ranks nodes with its own order keys
 # ---- xmlreader.h
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new
 P|xmlReaderForFile xmlNewTextReaderFilename|TextReader::new - caller opens the file
@@ -826,7 +827,7 @@ I|xmlValidateNameValue|valid::value_matches - AttributeKind::Id
 I|xmlValidateNamesValue|valid::value_matches - AttributeKind::IdRefs
 I|xmlValidateNmtokenValue|valid::value_matches - AttributeKind::NmToken
 I|xmlValidateNmtokensValue|valid::value_matches - AttributeKind::NmTokens
-N|xmlPathToURI|not started
+I|xmlPathToURI|uri::canonic_path - xmlPathToURI is xmlCanonicPath
 I|xmlNormalizeURIPath|uri::normalize_path
 P|xmlURIEscape|uri::escape
 I|xmlURIEscapeStr|uri::escape
@@ -851,7 +852,8 @@ P|xmlCatalogAddLocal|catalog::CatalogResolver::catalog_pi - the resolver of a CA
 A|xmlCatalogFreeLocal|the resolver owns the list and drops it with the parse
 A|xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlLoadCatalogs xmlCatalogGetPublic xmlCatalogGetSystem|operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
 A|xmlCatalogConvert xmlConvertSGMLCatalog|declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
-N|xmlLoadSGMLSuperCatalog xmlCatalogIsEmpty|not started (docs/catalog.md)
+N|xmlLoadSGMLSuperCatalog|not started (docs/catalog.md)
+I|xmlCatalogIsEmpty|catalog::Catalog::is_empty - not lazy (docs/catalog.md)
 A|xmlCatalogCleanup xmlInitializeCatalog xmlCatalogSetDefaults xmlCatalogGetDefaults xmlCatalogSetDefaultPrefer xmlCatalogSetDebug xmlCatalogAllow xmlCatalogPrefer XML_CATA_ALLOW_* XML_CATA_PREFER_NONE xmlFreeCatalog|no global catalog state
 P|XML_CATA_PREFER_PUBLIC XML_CATA_PREFER_SYSTEM|catalog::Catalog::parse - read from the catalog file's prefer attribute
 A|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|private constants of catalog::Catalog and the parser

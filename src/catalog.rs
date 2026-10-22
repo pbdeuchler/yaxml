@@ -477,6 +477,16 @@ impl Catalog {
         }
     }
 
+    /// Whether the root file (XML) or the table (SGML) has no entries
+    /// (`xmlCatalogIsEmpty`). Removed XML entries still count, as in libxml2;
+    /// unlike libxml2, a loaded XML catalog is not empty before its first lookup.
+    pub fn is_empty(&self) -> bool {
+        match &self.body {
+            Body::Xml { files, .. } => files[0].is_empty(),
+            Body::Sgml(map) => map.is_empty(),
+        }
+    }
+
     /// The catalog as `xmlACatalogDump` writes it: an XML catalog document
     /// of the root file's entries (indented, with the catalog DTD's document
     /// type declaration), or one SGML entry per line in the order of their

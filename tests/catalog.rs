@@ -1213,3 +1213,20 @@ fn editing_sgml_catalogs_follows_the_sgml_branches() {
     assert_eq!(catalog.dump().lines().count(), 13);
     assert_eq!(sgml_catalog("").dump(), "");
 }
+
+#[test]
+fn emptiness_follows_entries_like_libxml2() {
+    // libxml2 reports 1 for an XML catalog with entries until a lookup loads
+    // its file; afterwards every row below matches xmlCatalogIsEmpty.
+    let xml_catalog = |body: &str| catalog(&[("cat.xml", &xml(body))]).0;
+    for (mut catalog, empty, removed) in [
+        (xml_catalog(""), true, true),
+        (xml_catalog("<system systemId='a' uri='b'/>"), false, false),
+        (sgml_catalog(""), true, true),
+        (sgml_catalog("SYSTEM \"a\" \"b\"\n"), false, true),
+    ] {
+        assert_eq!(catalog.is_empty(), empty, "{}", catalog.dump());
+        catalog.remove("a");
+        assert_eq!(catalog.is_empty(), removed, "{}", catalog.dump());
+    }
+}

@@ -196,7 +196,7 @@ catalog.h	xmlCatalogFreeLocal	function	not_marked	P2	not-applicable	https://gith
 catalog.h	xmlCatalogGetDefaults	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
 catalog.h	xmlCatalogGetPublic	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
 catalog.h	xmlCatalogGetSystem	function	yes	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
-catalog.h	xmlCatalogIsEmpty	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	not started (docs/catalog.md)
+catalog.h	xmlCatalogIsEmpty	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::is_empty - not lazy (docs/catalog.md)
 catalog.h	xmlCatalogLocalResolve	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::CatalogResolver::new
 catalog.h	xmlCatalogLocalResolveURI	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::CatalogResolver::new
 catalog.h	xmlCatalogPrefer	enum	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	no global catalog state
@@ -2112,7 +2112,7 @@ uri.h	xmlParseURI	function	not_marked	P2	implemented	https://github.com/GNOME/li
 uri.h	xmlParseURIRaw	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::parse_raw
 uri.h	xmlParseURIReference	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::parse
 uri.h	xmlParseURISafe	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::parse
-uri.h	xmlPathToURI	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	not started
+uri.h	xmlPathToURI	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	uri::canonic_path - xmlPathToURI is xmlCanonicPath
 uri.h	xmlPrintURI	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri - fmt::Display
 uri.h	xmlSaveUri	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri - fmt::Display
 uri.h	xmlURI	typedef	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri
@@ -3894,7 +3894,7 @@ xpath.h	xmlXPathObject	typedef	not_marked	P2	implemented	https://github.com/GNOM
 xpath.h	xmlXPathObjectCopy	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpath.h	xmlXPathObjectPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
 xpath.h	xmlXPathObjectType	enum	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
-xpath.h	xmlXPathOrderDocElems	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	not started
+xpath.h	xmlXPathOrderDocElems	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	caches document order in node content for speed; XPath ranks nodes with its own order keys
 xpath.h	xmlXPathPINF	variable	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	deprecated; use f64::NAN and f64::INFINITY
 xpath.h	xmlXPathParserContext	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathParserContextPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
