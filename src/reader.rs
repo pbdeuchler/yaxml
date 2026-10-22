@@ -557,6 +557,24 @@ impl<'a> Reader<'a> {
         Ok(self)
     }
 
+    /// The declarations of the document's DTD, once its DOCTYPE was read
+    /// (its internal subset); complete after the document element's start tag (the external subset
+    /// loads while it is read).
+    ///
+    /// ```
+    /// let mut reader = yaxml::Reader::new(b"<!DOCTYPE r [<!ENTITY a 'v'>]><r/>")?;
+    /// assert!(reader.dtd().is_none());
+    /// reader.read_event()?; // the DOCTYPE
+    /// assert_eq!(reader.dtd().unwrap().entity("a").unwrap().content, Some("v"));
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        match self.session.first()? {
+            Phase::Declarations { controller, .. } => Some(controller.catalog().dtd()),
+            Phase::Content(controller) => Some(controller.catalog().dtd()),
+        }
+    }
+
     /// The finished document's declarations, moved out of the reader.
     pub(crate) fn take_dtd(&mut self) -> Option<crate::valid::Dtd> {
         match self.session.first_mut() {

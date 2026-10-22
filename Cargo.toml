@@ -29,7 +29,7 @@ memchr = "2.8.0"
 # Editor, DTD processing and validation (`valid`), diagnostics, `save`,
 # `Writer`, `uri` and `chars`. README.md#features lists what each adds.
 default = ["full"]
-full = ["xpath", "c14n", "xinclude", "catalog", "schemas", "html", "textreader", "textwriter", "encodings", "debug"]
+full = ["xpath", "c14n", "xinclude", "catalog", "schemas", "html", "textreader", "textwriter", "encodings", "debug", "sax"]
 # XPath 1.0 compile/evaluate (`xpath`), `xpointer`, `pattern`.
 xpath = []
 # Canonical XML (`c14n`).
@@ -51,6 +51,8 @@ textwriter = []
 encodings = []
 # libxml2's debugging dumps (`debug`, `xmllint --debug`).
 debug = []
+# SAX2-style callbacks over the slice reader (`sax`, libxml2's `xmlSAXHandler`).
+sax = []
 # Allocator-aware OwnedDocument storage; requires Rust 1.100 (std allocator API).
 allocator_api = []
 
@@ -92,6 +94,10 @@ required-features = ["encodings"]
 [[test]]
 name = "debug"
 required-features = ["debug", "html"]
+
+[[test]]
+name = "sax"
+required-features = ["sax"]
 
 [[test]]
 name = "defaults"

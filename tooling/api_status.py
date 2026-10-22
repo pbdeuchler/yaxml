@@ -280,9 +280,6 @@ FIELD_DEFAULT = {
     "_xmlParserInput": ("A", "internal input state; std Read/BufRead replace it"),
     "_xmlParserNodeInfo": ("N", "no node-info table (Node::range gives byte ranges)"),
     "_xmlParserNodeInfoSeq": ("N", "no node-info table (Node::range gives byte ranges)"),
-    "_xmlSAXHandler": ("N", "SAX2 handler table not started (roadmap 15)"),
-    "_xmlSAXHandlerV1": ("N", "SAX1 handler table not started"),
-    "_xmlSAXLocator": ("N", "SAX locator not started (roadmap 15)"),
     "_xmlBuffer": ("A", "Vec<u8>/String replace xmlBuffer"),
     "_xmlOutputBuffer": ("A", "std::io::Write replaces xmlOutputBuffer"),
     "_xmlParserInputBuffer": ("A", "std::io::Read replaces xmlParserInputBuffer"),
@@ -418,12 +415,15 @@ P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment - no text decl
 I|xmlParseBalancedChunkMemory|Editor::parse_content - on OwnedDocument::root with default options
 P|xmlParseBalancedChunkMemoryRecover|Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
 N|xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|external parsed entities as standalone input not started
-N|xmlSAXParse* xmlSAXUserParse*|SAX2 handler table not started (roadmap 15)
+I|xmlSAXUserParseMemory|sax::parse
+P|xmlSAXUserParseFile|sax::parse - on the bytes read by the caller
+P|xmlSAXParseMemory xmlSAXParseMemoryWithData xmlSAXParseDoc xmlSAXParseFile xmlSAXParseFileWithData|sax::parse - callbacks only, no tree is built
+N|xmlSAXParseDTD xmlSAXParseEntity|standalone DTD or external parsed entity input with callbacks not started
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish
 P|xmlCtxtReset xmlCtxtResetPush xmlClearParserCtxt|PushParser::reset_with, BufferedReader::reset_with, TextReader::reset_with - not for DOM builders or Reader
 P|xmlNewParserCtxt xmlInitParserCtxt xmlCreateDocParserCtxt xmlCreateIOParserCtxt|ParseOptions::new - configuration value plus the parser type
-N|xmlNewSAXParserCtxt|SAX2 handler table not started
+P|xmlNewSAXParserCtxt|sax::parse - the handler is passed with the input
 A|xmlFreeParserCtxt xmlFreeInputStream xmlFreeParserInputBuffer|Drop
 P|xmlCtxtSetOptions xmlCtxtUseOptions xmlCtxtGetOptions|ParseOptions::new, ParseOptions::has
 I|xmlCtxtSetResourceLoader|ParseOptions::with_resolver
@@ -436,7 +436,7 @@ P|xmlCtxtGetDeclaredEncoding xmlCtxtGetStandalone xmlCtxtGetVersion|Declaration
 P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
 N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetStatus xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
-N|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|SAX2 handler table not started
+A|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|no parser context; the handler is passed to sax::parse
 P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate
 I|xmlHasFeature|features::has
@@ -446,7 +446,7 @@ A|xmlNewInputFrom* xmlNewIOInputStream xmlParserInputGrow xmlParserInputRead xml
 N|xmlInputSetEncodingHandler xmlCtxtSetCharEncConvImpl|no caller-provided encoding handler
 N|xmlParserAddNodeInfo xmlParserFindNodeInfo xmlParserFindNodeInfoIndex xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserNodeInfo xmlParserNodeInfoSeq|no node-info table; Node::range gives byte ranges
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
-N|XML_COMPLETE_ATTRS XML_DETECT_IDS|SAX2 loadsubset bits; SAX2 handler table not started
+A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
 N|xmlParserStatus XML_STATUS_*|no xmlParserStatus
 N|XML_RESOURCE_MAIN_DOCUMENT|ResourceKind has no main-document kind
 A|XML_RESOURCE_UNKNOWN|no unknown resource kind
@@ -455,8 +455,36 @@ I|xmlResourceType|ResourceKind
 P|xmlResourceLoader|Resolver
 I|xmlFeature|features::Feature
 P|xmlParserVersion|features::LIBXML2_COMPAT_VERSION
-N|*SAXFunc *SAX2Func|SAX2 handler table not started (roadmap 15)
-N|xmlDefaultSAXHandler xmlDefaultSAXLocator xmlSAXHandlerV1 xmlSAXHandlerV1Ptr xmlSAXHandler xmlSAXHandlerPtr xmlSAXLocator xmlSAXLocatorPtr|SAX2 handler table not started
+I|_xmlSAXHandler.startDocument startDocumentSAXFunc|sax::Handler::start_document
+I|_xmlSAXHandler.endDocument endDocumentSAXFunc|sax::Handler::end_document
+I|_xmlSAXHandler.internalSubset internalSubsetSAXFunc|sax::Handler::internal_subset
+I|_xmlSAXHandler.externalSubset externalSubsetSAXFunc|sax::Handler::external_subset
+I|_xmlSAXHandler.entityDecl entityDeclSAXFunc|sax::Handler::entity_decl
+I|_xmlSAXHandler.unparsedEntityDecl unparsedEntityDeclSAXFunc|sax::Handler::unparsed_entity_decl
+I|_xmlSAXHandler.notationDecl notationDeclSAXFunc|sax::Handler::notation_decl
+I|_xmlSAXHandler.elementDecl elementDeclSAXFunc|sax::Handler::element_decl
+I|_xmlSAXHandler.attributeDecl attributeDeclSAXFunc|sax::Handler::attribute_decl
+I|_xmlSAXHandler.startElementNs startElementNsSAX2Func|sax::Handler::start_element
+I|_xmlSAXHandler.endElementNs endElementNsSAX2Func|sax::Handler::end_element
+I|_xmlSAXHandler.characters charactersSAXFunc|sax::Handler::characters
+I|_xmlSAXHandler.cdataBlock cdataBlockSAXFunc|sax::Handler::cdata_block
+I|_xmlSAXHandler.comment commentSAXFunc|sax::Handler::comment
+I|_xmlSAXHandler.processingInstruction processingInstructionSAXFunc|sax::Handler::processing_instruction
+I|_xmlSAXHandler.reference referenceSAXFunc|sax::Handler::reference
+I|_xmlSAXHandler.warning warningSAXFunc|sax::Handler::warning
+I|_xmlSAXHandler.error errorSAXFunc|sax::Handler::error
+I|_xmlSAXHandler.fatalError fatalErrorSAXFunc|sax::Handler::fatal_error
+P|_xmlSAXHandler.serror|sax::Handler::error - warning, error and fatal_error receive the Error
+A|_xmlSAXHandler.startElement _xmlSAXHandler.endElement startElementSAXFunc endElementSAXFunc attributeSAXFunc|SAX1 callbacks; sax::Handler::start_element gets expanded names
+A|_xmlSAXHandler.getEntity _xmlSAXHandler.getParameterEntity _xmlSAXHandler.resolveEntity _xmlSAXHandler.isStandalone _xmlSAXHandler.hasInternalSubset _xmlSAXHandler.hasExternalSubset getEntitySAXFunc getParameterEntitySAXFunc resolveEntitySAXFunc isStandaloneSAXFunc hasInternalSubsetSAXFunc hasExternalSubsetSAXFunc|queries to the handler; the parser keeps the declarations and a Resolver loads resources
+A|_xmlSAXHandler.initialized _xmlSAXHandler._private|C handler-table bookkeeping; a Handler is a Rust value
+N|_xmlSAXHandler.setDocumentLocator setDocumentLocatorSAXFunc|no SAX locator; errors carry offsets
+N|_xmlSAXHandler.ignorableWhitespace ignorableWhitespaceSAXFunc|sax::parse reads with the slice Reader, which rejects NOBLANKS
+P|xmlSAXHandler _xmlSAXHandler|sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
+A|xmlSAXHandlerPtr|raw pointer alias
+A|xmlDefaultSAXHandler|sax::Handler - its default methods do nothing; OwnedDocument builds trees
+A|xmlSAXHandlerV1 xmlSAXHandlerV1Ptr _xmlSAXHandlerV1 _xmlSAXHandlerV1.*|SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+N|xmlDefaultSAXLocator xmlSAXLocator xmlSAXLocatorPtr _xmlSAXLocator _xmlSAXLocator.*|no SAX locator; errors carry offsets
 N|xmlExternalEntityLoader|use Resolver
 P|xmlParserCtxt|PushParser
 A|xmlParserInput xmlParserCtxtPtr xmlParserInputPtr xmlParserNodeInfoPtr xmlParserNodeInfoSeqPtr|input stream or raw pointer alias
@@ -1007,7 +1035,8 @@ R|LIBXML_HTTP_STUBS_ENABLED|HTTP/FTP stubs removed upstream
 A|LIBXML_VERSION_EXTRA LIBXML_MODULE_EXTENSION LIBXML_THREAD_ALLOC_ENABLED LIBXML_ATTR_ALLOC_SIZE LIBXML_ATTR_FORMAT LIBXML_DLL_IMPORT XMLCALL XMLCDECL XMLPUBFUN XMLPUBVAR XML_DEPRECATED XML_DEPRECATED_MEMBER|C build or ABI macro
 P|LIBXML_*_ENABLED|features::Feature - runtime query rather than a build macro
 # ---- SAX2.h xlink.h
-N|xmlSAX2* xmlSAXVersion|SAX2 handler table not started (roadmap 15)
+N|xmlSAX2GetLineNumber xmlSAX2GetColumnNumber xmlSAX2GetPublicId xmlSAX2GetSystemId xmlSAX2SetDocumentLocator|no SAX locator; errors carry offsets
+A|xmlSAX2* xmlSAXVersion|libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
 R|xlink* XLINK_* _xlinkHandler*|xlink.h is deprecated in 2.15.4 ("don't use"); the parser never calls its handlers
 # ---- xmlstring.h chvalid.h dict.h hash.h list.h debugXML.h threads.h xmlmemory.h xmlmodule.h nanohttp.h
 A|BAD_CAST xmlChar xmlStr* xmlCharStr* xmlCheckUTF8 xmlGetUTF8Char xmlUTF8*|str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)

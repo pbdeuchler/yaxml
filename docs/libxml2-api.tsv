@@ -125,40 +125,40 @@ HTMLtree.h	htmlSaveFileFormat	function	not_marked	P3	partial	https://github.com/
 HTMLtree.h	htmlSetMetaEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML construction not started (docs/html.md)
 SAX2.h	htmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
 SAX2.h	xmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
-SAX2.h	xmlSAX2AttributeDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2CDataBlock	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2Characters	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2Comment	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2ElementDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2EndDocument	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2EndElement	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2EndElementNs	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2EntityDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2ExternalSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetColumnNumber	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetLineNumber	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetParameterEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetPublicId	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2GetSystemId	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2HasExternalSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2HasInternalSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2IgnorableWhitespace	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2InitDefaultSAXHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2InitHtmlDefaultSAXHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2InternalSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2IsStandalone	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2NotationDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2ProcessingInstruction	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2Reference	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2ResolveEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2SetDocumentLocator	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2StartDocument	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2StartElement	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2StartElementNs	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
-SAX2.h	xmlSAX2UnparsedEntityDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
+SAX2.h	xmlSAX2AttributeDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2CDataBlock	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2Characters	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2Comment	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2ElementDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2EndDocument	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2EndElement	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2EndElementNs	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2EntityDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2ExternalSubset	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2GetColumnNumber	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	no SAX locator; errors carry offsets
+SAX2.h	xmlSAX2GetEntity	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2GetLineNumber	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	no SAX locator; errors carry offsets
+SAX2.h	xmlSAX2GetParameterEntity	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2GetPublicId	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	no SAX locator; errors carry offsets
+SAX2.h	xmlSAX2GetSystemId	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	no SAX locator; errors carry offsets
+SAX2.h	xmlSAX2HasExternalSubset	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2HasInternalSubset	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2IgnorableWhitespace	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2InitDefaultSAXHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2InitHtmlDefaultSAXHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2InternalSubset	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2IsStandalone	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2NotationDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2ProcessingInstruction	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2Reference	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2ResolveEntity	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2SetDocumentLocator	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	no SAX locator; errors carry offsets
+SAX2.h	xmlSAX2StartDocument	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2StartElement	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2StartElementNs	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+SAX2.h	xmlSAX2UnparsedEntityDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
 SAX2.h	xmlSAXDefaultVersion	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
-SAX2.h	xmlSAXVersion	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
+SAX2.h	xmlSAXVersion	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
 c14n.h	XML_C14N_1_0	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::Mode::C14n10
 c14n.h	XML_C14N_1_1	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::Mode::C14n11
 c14n.h	XML_C14N_EXCLUSIVE_1_0	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/c14n.h	c14n::Mode::Exclusive10
@@ -512,9 +512,9 @@ nanohttp.h	xmlNanoHTTPRedir	function	yes	P3	removed-upstream	https://github.com/
 nanohttp.h	xmlNanoHTTPReturnCode	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/nanohttp.h	HTTP/FTP clients removed upstream
 nanohttp.h	xmlNanoHTTPSave	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/nanohttp.h	HTTP/FTP clients removed upstream
 nanohttp.h	xmlNanoHTTPScanProxy	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/nanohttp.h	HTTP/FTP clients removed upstream
-parser.h	XML_COMPLETE_ATTRS	macro	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 loadsubset bits; SAX2 handler table not started
+parser.h	XML_COMPLETE_ATTRS	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
 parser.h	XML_DEFAULT_VERSION	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
-parser.h	XML_DETECT_IDS	macro	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 loadsubset bits; SAX2 handler table not started
+parser.h	XML_DETECT_IDS	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
 parser.h	XML_INPUT_BUF_STATIC	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_INPUT_BUF_ZERO_TERMINATED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_INPUT_NETWORK	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
@@ -763,103 +763,103 @@ parser.h	_xmlParserNodeInfoSeq	struct	not_marked	P0-P3	not-started	https://githu
 parser.h	_xmlParserNodeInfoSeq.buffer	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
 parser.h	_xmlParserNodeInfoSeq.length	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
 parser.h	_xmlParserNodeInfoSeq.maximum	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlSAXHandler	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	_xmlSAXHandler._private	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.attributeDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.cdataBlock	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.characters	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.comment	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.elementDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.endDocument	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.endElement	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.endElementNs	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.entityDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.error	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.externalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.fatalError	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.getEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.getParameterEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.hasExternalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.hasInternalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.ignorableWhitespace	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.initialized	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.internalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.isStandalone	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.notationDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.processingInstruction	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.reference	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.resolveEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.serror	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.setDocumentLocator	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.startDocument	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.startElement	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.startElementNs	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.unparsedEntityDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandler.warning	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	_xmlSAXHandlerV1	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	_xmlSAXHandlerV1.attributeDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.cdataBlock	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.characters	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.comment	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.elementDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.endDocument	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.endElement	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.entityDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.error	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.externalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.fatalError	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.getEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.getParameterEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.hasExternalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.hasInternalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.ignorableWhitespace	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.initialized	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.internalSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.isStandalone	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.notationDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.processingInstruction	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.reference	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.resolveEntity	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.setDocumentLocator	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.startDocument	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.startElement	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.unparsedEntityDecl	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXHandlerV1.warning	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table not started
-parser.h	_xmlSAXLocator	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	_xmlSAXLocator.getColumnNumber	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX locator not started (roadmap 15)
-parser.h	_xmlSAXLocator.getLineNumber	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX locator not started (roadmap 15)
-parser.h	_xmlSAXLocator.getPublicId	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX locator not started (roadmap 15)
-parser.h	_xmlSAXLocator.getSystemId	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX locator not started (roadmap 15)
-parser.h	attributeDeclSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	attributeSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	cdataBlockSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	charactersSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	commentSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	elementDeclSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	endDocumentSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	endElementNsSAX2Func	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	endElementSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	entityDeclSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	errorSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	externalSubsetSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	fatalErrorSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	getEntitySAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	getParameterEntitySAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	hasExternalSubsetSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	hasInternalSubsetSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	ignorableWhitespaceSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	internalSubsetSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	isStandaloneSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	notationDeclSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	processingInstructionSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	referenceSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	resolveEntitySAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	setDocumentLocatorSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	startDocumentSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	startElementNsSAX2Func	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	startElementSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	unparsedEntityDeclSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	warningSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
+parser.h	_xmlSAXHandler	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
+parser.h	_xmlSAXHandler._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	C handler-table bookkeeping; a Handler is a Rust value
+parser.h	_xmlSAXHandler.attributeDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::attribute_decl
+parser.h	_xmlSAXHandler.cdataBlock	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::cdata_block
+parser.h	_xmlSAXHandler.characters	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::characters
+parser.h	_xmlSAXHandler.comment	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::comment
+parser.h	_xmlSAXHandler.elementDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::element_decl
+parser.h	_xmlSAXHandler.endDocument	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::end_document
+parser.h	_xmlSAXHandler.endElement	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 callbacks; sax::Handler::start_element gets expanded names
+parser.h	_xmlSAXHandler.endElementNs	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::end_element
+parser.h	_xmlSAXHandler.entityDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::entity_decl
+parser.h	_xmlSAXHandler.error	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::error
+parser.h	_xmlSAXHandler.externalSubset	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::external_subset
+parser.h	_xmlSAXHandler.fatalError	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::fatal_error
+parser.h	_xmlSAXHandler.getEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.getParameterEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.hasExternalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.hasInternalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.ignorableWhitespace	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse reads with the slice Reader, which rejects NOBLANKS
+parser.h	_xmlSAXHandler.initialized	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	C handler-table bookkeeping; a Handler is a Rust value
+parser.h	_xmlSAXHandler.internalSubset	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::internal_subset
+parser.h	_xmlSAXHandler.isStandalone	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.notationDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::notation_decl
+parser.h	_xmlSAXHandler.processingInstruction	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::processing_instruction
+parser.h	_xmlSAXHandler.reference	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::reference
+parser.h	_xmlSAXHandler.resolveEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	_xmlSAXHandler.serror	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::error - warning, error and fatal_error receive the Error
+parser.h	_xmlSAXHandler.setDocumentLocator	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	_xmlSAXHandler.startDocument	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::start_document
+parser.h	_xmlSAXHandler.startElement	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 callbacks; sax::Handler::start_element gets expanded names
+parser.h	_xmlSAXHandler.startElementNs	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::start_element
+parser.h	_xmlSAXHandler.unparsedEntityDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::unparsed_entity_decl
+parser.h	_xmlSAXHandler.warning	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::warning
+parser.h	_xmlSAXHandlerV1	struct	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.attributeDecl	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.cdataBlock	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.characters	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.comment	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.elementDecl	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.endDocument	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.endElement	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.entityDecl	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.error	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.externalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.fatalError	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.getEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.getParameterEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.hasExternalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.hasInternalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.ignorableWhitespace	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.initialized	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.internalSubset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.isStandalone	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.notationDecl	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.processingInstruction	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.reference	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.resolveEntity	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.setDocumentLocator	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.startDocument	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.startElement	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.unparsedEntityDecl	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXHandlerV1.warning	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	_xmlSAXLocator	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	_xmlSAXLocator.getColumnNumber	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	_xmlSAXLocator.getLineNumber	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	_xmlSAXLocator.getPublicId	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	_xmlSAXLocator.getSystemId	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	attributeDeclSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::attribute_decl
+parser.h	attributeSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 callbacks; sax::Handler::start_element gets expanded names
+parser.h	cdataBlockSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::cdata_block
+parser.h	charactersSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::characters
+parser.h	commentSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::comment
+parser.h	elementDeclSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::element_decl
+parser.h	endDocumentSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::end_document
+parser.h	endElementNsSAX2Func	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::end_element
+parser.h	endElementSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 callbacks; sax::Handler::start_element gets expanded names
+parser.h	entityDeclSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::entity_decl
+parser.h	errorSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::error
+parser.h	externalSubsetSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::external_subset
+parser.h	fatalErrorSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::fatal_error
+parser.h	getEntitySAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	getParameterEntitySAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	hasExternalSubsetSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	hasInternalSubsetSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	ignorableWhitespaceSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse reads with the slice Reader, which rejects NOBLANKS
+parser.h	internalSubsetSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::internal_subset
+parser.h	isStandaloneSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	notationDeclSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::notation_decl
+parser.h	processingInstructionSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::processing_instruction
+parser.h	referenceSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::reference
+parser.h	resolveEntitySAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	queries to the handler; the parser keeps the declarations and a Resolver loads resources
+parser.h	setDocumentLocatorSAXFunc	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
+parser.h	startDocumentSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::start_document
+parser.h	startElementNsSAX2Func	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::start_element
+parser.h	startElementSAXFunc	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 callbacks; sax::Handler::start_element gets expanded names
+parser.h	unparsedEntityDeclSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::unparsed_entity_decl
+parser.h	warningSAXFunc	callback	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::warning
 parser.h	xmlAttrHashBucket	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	xmlByteConsumed	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::position
 parser.h	xmlCleanupGlobals	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
@@ -879,7 +879,7 @@ parser.h	xmlCtxtGetInputWindow	function	not_marked	P0-P3	not-started	https://git
 parser.h	xmlCtxtGetNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtGetOptions	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new, ParseOptions::has
 parser.h	xmlCtxtGetPrivate	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
-parser.h	xmlCtxtGetSaxHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
+parser.h	xmlCtxtGetSaxHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no parser context; the handler is passed to sax::parse
 parser.h	xmlCtxtGetStandalone	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
 parser.h	xmlCtxtGetStatus	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtGetUserData	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
@@ -906,12 +906,12 @@ parser.h	xmlCtxtSetMaxAmplification	function	not_marked	P0-P3	partial	https://gi
 parser.h	xmlCtxtSetOptions	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new, ParseOptions::has
 parser.h	xmlCtxtSetPrivate	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
 parser.h	xmlCtxtSetResourceLoader	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::with_resolver
-parser.h	xmlCtxtSetSaxHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
+parser.h	xmlCtxtSetSaxHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no parser context; the handler is passed to sax::parse
 parser.h	xmlCtxtUseOptions	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new, ParseOptions::has
 parser.h	xmlCtxtValidateDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::validate
 parser.h	xmlCtxtValidateDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::validate
-parser.h	xmlDefaultSAXHandler	variable	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	xmlDefaultSAXLocator	variable	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
+parser.h	xmlDefaultSAXHandler	variable	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler - its default methods do nothing; OwnedDocument builds trees
+parser.h	xmlDefaultSAXLocator	variable	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no SAX locator; errors carry offsets
 parser.h	xmlDoValidityCheckingDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlExternalEntityLoader	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	use Resolver
 parser.h	xmlFeature	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	features::Feature
@@ -939,7 +939,7 @@ parser.h	xmlNewInputFromMemory	function	not_marked	P0-P3	not-applicable	https://
 parser.h	xmlNewInputFromString	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlNewInputFromUrl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlNewParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
-parser.h	xmlNewSAXParserCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
+parser.h	xmlNewSAXParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - the handler is passed with the input
 parser.h	xmlParseBalancedChunkMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - on OwnedDocument::root with default options
 parser.h	xmlParseBalancedChunkMemoryRecover	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
 parser.h	xmlParseChunk	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::feed, PushParser::finish
@@ -982,17 +982,17 @@ parser.h	xmlRecoverFile	function	yes	P0-P3	partial	https://github.com/GNOME/libx
 parser.h	xmlRecoverMemory	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with, options::RECOVER
 parser.h	xmlResourceLoader	callback	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Resolver
 parser.h	xmlResourceType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind
-parser.h	xmlSAXHandlerV1	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	xmlSAXHandlerV1Ptr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started
-parser.h	xmlSAXParseDTD	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseDoc	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseFile	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseFileWithData	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseMemory	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXParseMemoryWithData	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXUserParseFile	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
-parser.h	xmlSAXUserParseMemory	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX2 handler table not started (roadmap 15)
+parser.h	xmlSAXHandlerV1	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	xmlSAXHandlerV1Ptr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+parser.h	xmlSAXParseDTD	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	standalone DTD or external parsed entity input with callbacks not started
+parser.h	xmlSAXParseDoc	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
+parser.h	xmlSAXParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	standalone DTD or external parsed entity input with callbacks not started
+parser.h	xmlSAXParseFile	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
+parser.h	xmlSAXParseFileWithData	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
+parser.h	xmlSAXParseMemory	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
+parser.h	xmlSAXParseMemoryWithData	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
+parser.h	xmlSAXUserParseFile	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - on the bytes read by the caller
+parser.h	xmlSAXUserParseMemory	function	yes	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse
 parser.h	xmlSaveNoEmptyTags	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlSetExternalEntityLoader	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global loader; ParseOptions::with_resolver per parse
 parser.h	xmlSetupParserForBuffer	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
@@ -2053,10 +2053,10 @@ tree.h	xmlRegisterNodeFunc	callback	not_marked	P0-P3	removed-upstream	https://gi
 tree.h	xmlRemoveProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::remove_attribute
 tree.h	xmlReplaceNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::replace
 tree.h	xmlRootNode	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	xmlSAXHandler	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	SAX2 handler table not started
-tree.h	xmlSAXHandlerPtr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	SAX2 handler table not started
-tree.h	xmlSAXLocator	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	SAX2 handler table not started
-tree.h	xmlSAXLocatorPtr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	SAX2 handler table not started
+tree.h	xmlSAXHandler	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
+tree.h	xmlSAXHandlerPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias
+tree.h	xmlSAXLocator	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no SAX locator; errors carry offsets
+tree.h	xmlSAXLocatorPtr	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no SAX locator; errors carry offsets
 tree.h	xmlSaveFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
 tree.h	xmlSaveFileEnc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
 tree.h	xmlSaveFileTo	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file

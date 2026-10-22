@@ -80,6 +80,8 @@ mod dtd_tag;
 mod encoding;
 mod error;
 mod escape;
+#[cfg(feature = "sax")]
+pub mod sax;
 // Shared helpers: some are unused when features are off.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
 mod fallible;
