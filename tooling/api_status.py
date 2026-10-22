@@ -1241,6 +1241,10 @@ def error_rule(i, ctx):
         return "I", "debug::check_document - reported by number"
     if i.startswith("XML_CHECK_"):
         return "A", "debug::check_document - pointer-tree invariant kept by construction"
+    if i.startswith("XML_CATALOG_") and (name := DIAG_NAME(i)) in DIAG_CODES:
+        return "I", f"diagnostic::code::{name} - catalog::Catalog::diagnostics"
+    if i == "XML_CATALOG_RECURSION":
+        return "P", "catalog::Limits::max_depth - loops and deep nesting are cut without a report"
     if i.startswith(("XML_CATALOG_", "XML_SAVE_", "XML_TREE_", "XML_BUF_", "XML_I18N_", "XML_WAR_")):
         return "N", "no per-code diagnostic"
     return None

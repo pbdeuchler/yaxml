@@ -625,7 +625,7 @@ fn building_a_catalog_fails_cleanly() {
             Error::LimitExceeded,
         ),
         ("unclosed.xml", Limits::default(), Error::Malformed),
-        ("foreign.xml", Limits::default(), Error::Malformed),
+        ("foreign.xml", Limits::default(), Error::NotCatalog),
         ("bad.sgml", Limits::default(), Error::Malformed),
     ];
     let files = [
@@ -659,9 +659,108 @@ fn building_a_catalog_fails_cleanly() {
         "catalog load limit exceeded"
     );
     assert_eq!(Error::Malformed.to_string(), "malformed catalog");
+    assert_eq!(Error::NotCatalog.to_string(), "not an XML catalog");
     let (mut empty, _) = catalog(&[("c.xml", &xml(""))]);
     assert!(format!("{empty:?}").starts_with("Catalog"));
     assert_eq!(empty.resolve(Some("p"), Some("s")), None);
+}
+
+#[test]
+fn entry_problems_are_reported_as_libxml2() {
+    use yaxml::diagnostic::{Domain, Level, code};
+    // Rows recorded from libxml2 2.15.4 (xmlLoadACatalog + xmlACatalogResolve,
+    // structured error handler); libxml2's NOT_CATALOG line is -1.
+    let text = "<catalog xmlns='urn:oasis:names:tc:entity:xmlns:xml:catalog' prefer='nope'>\n\
+        <public uri='a'/>\n<system/>\n\
+        <group prefer='x'><system systemId='s' uri='http://[bad'/></group>\n\
+        <nextCatalog catalog='next.xml'/>\n</catalog>";
+    let (mut catalog, _) = catalog(&[("c.xml", text), ("next.xml", "<other/>")]);
+    assert_eq!(catalog.resolve(None, Some("zzz")), None);
+    /// File, code, line, str1, str2, message.
+    type Row<'a> = (&'a str, u16, usize, &'a str, Option<&'a str>, &'a str);
+    let expected: &[Row<'_>] = &[
+        (
+            "c.xml",
+            code::CATALOG_PREFER_VALUE,
+            1,
+            "nope",
+            None,
+            "Invalid value for prefer: 'nope'",
+        ),
+        (
+            "c.xml",
+            code::CATALOG_MISSING_ATTR,
+            2,
+            "public",
+            Some("publicId"),
+            "public entry lacks 'publicId'",
+        ),
+        (
+            "c.xml",
+            code::CATALOG_MISSING_ATTR,
+            3,
+            "system",
+            Some("systemId"),
+            "system entry lacks 'systemId'",
+        ),
+        (
+            "c.xml",
+            code::CATALOG_MISSING_ATTR,
+            3,
+            "system",
+            Some("uri"),
+            "system entry lacks 'uri'",
+        ),
+        (
+            "c.xml",
+            code::CATALOG_PREFER_VALUE,
+            4,
+            "x",
+            None,
+            "Invalid value for prefer: 'x'",
+        ),
+        (
+            "c.xml",
+            code::CATALOG_ENTRY_BROKEN,
+            4,
+            "system",
+            Some("uri"),
+            "system entry 'uri' broken ?: http://[bad",
+        ),
+        (
+            "next.xml",
+            code::CATALOG_NOT_CATALOG,
+            0,
+            "next.xml",
+            None,
+            "File next.xml is not an XML Catalog",
+        ),
+    ];
+    let actual: Vec<_> = (catalog.diagnostics().iter())
+        .map(|(file, d)| {
+            assert_eq!((d.domain, d.level), (Domain::Catalog, Level::Error));
+            (
+                file.as_str(),
+                d.code,
+                d.line,
+                d.str1.as_deref().unwrap(),
+                d.str2.as_deref(),
+                d.message.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(actual, expected);
+    assert_eq!(
+        catalog.diagnostics()[1].1.element.as_deref(),
+        Some("public")
+    );
+    assert_eq!(catalog.diagnostics()[6].1.element, None);
+    // A clean catalog reports nothing.
+    let (clean, _) = self::catalog(&[("c.xml", &xml("<system systemId='s' uri='t'/>"))]);
+    assert!(clean.diagnostics().is_empty());
+    // At most 100 are kept.
+    let (many, _) = self::catalog(&[("c.xml", &xml(&"<system/>".repeat(80)))]);
+    assert_eq!(many.diagnostics().len(), 100);
 }
 
 #[test]

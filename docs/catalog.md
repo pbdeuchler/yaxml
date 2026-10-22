@@ -96,6 +96,20 @@ delegates or `nextCatalog`s whose file failed to load are left out), an SGML
 catalog as one line per entry. Attribute values escape as libxml2's do for a
 document without an encoding (non-ASCII as `&#xE9;`).
 
+`Catalog::diagnostics()` lists what libxml2's `xmlCatalogErr` raises while
+XML catalog files are read, in load order, each with its file's URL: an entry
+lacking its identifier or URI (`CATALOG_MISSING_ATTR`, once per missing
+attribute; the entry is skipped), a URI that does not resolve against its base
+(`CATALOG_ENTRY_BROKEN`; skipped), a `prefer` other than `public` or `system`
+(`CATALOG_PREFER_VALUE`; the inherited preference stays) and a loaded
+`nextCatalog` or delegate file whose root is not an OASIS `catalog`
+(`CATALOG_NOT_CATALOG`; line 0 where libxml2 has -1). Domain, code, level,
+line, `str1`, `str2` and message match libxml2's structured errors; at most 100
+are kept. The root file fails with `Error::NotCatalog` instead. libxml2's
+`CATALOG_RECURSION` (a per-entry depth counter, reported with the entry's
+usually NULL name) is not reported: loops and nesting past `max_depth` are cut
+silently.
+
 Differences, each measured against the oracle:
 
 - libxml2 parses an XML catalog on the first lookup, add or removal, so dumping

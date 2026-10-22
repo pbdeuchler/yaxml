@@ -2399,11 +2399,11 @@ xmlerror.h	XML_C14N_INVALID_NODE	enum_value	not_marked	P0-P3	partial	https://git
 xmlerror.h	XML_C14N_RELATIVE_NAMESPACE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	c14n::Error::RelativeNamespace - category only
 xmlerror.h	XML_C14N_REQUIRES_UTF8	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation
 xmlerror.h	XML_C14N_UNKNOW_NODE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation
-xmlerror.h	XML_CATALOG_ENTRY_BROKEN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_CATALOG_MISSING_ATTR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_CATALOG_NOT_CATALOG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_CATALOG_PREFER_VALUE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_CATALOG_RECURSION	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
+xmlerror.h	XML_CATALOG_ENTRY_BROKEN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::CATALOG_ENTRY_BROKEN
+xmlerror.h	XML_CATALOG_MISSING_ATTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::CATALOG_MISSING_ATTR
+xmlerror.h	XML_CATALOG_NOT_CATALOG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::CATALOG_NOT_CATALOG
+xmlerror.h	XML_CATALOG_PREFER_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::CATALOG_PREFER_VALUE
+xmlerror.h	XML_CATALOG_RECURSION	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	catalog::Limits::max_depth - loops and deep nesting are cut without a report
 xmlerror.h	XML_CHECK_ENTITY_TYPE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	debug::check_document - pointer-tree invariant kept by construction
 xmlerror.h	XML_CHECK_FOUND_ATTRIBUTE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	debug::check_document - pointer-tree invariant kept by construction
 xmlerror.h	XML_CHECK_FOUND_CDATA	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	debug::check_document - pointer-tree invariant kept by construction

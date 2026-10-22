@@ -251,6 +251,14 @@ pub mod code {
     pub const WAR_UNKNOWN_VERSION: u16 = 97;
     /// `XML_WAR_LANG_VALUE`.
     pub const WAR_LANG_VALUE: u16 = 98;
+    /// `XML_CATALOG_MISSING_ATTR`: an entry lacks its identifier or URI.
+    pub const CATALOG_MISSING_ATTR: u16 = 1650;
+    /// `XML_CATALOG_ENTRY_BROKEN`: an entry's URI does not resolve.
+    pub const CATALOG_ENTRY_BROKEN: u16 = 1651;
+    /// `XML_CATALOG_PREFER_VALUE`: `prefer` is neither `public` nor `system`.
+    pub const CATALOG_PREFER_VALUE: u16 = 1652;
+    /// `XML_CATALOG_NOT_CATALOG`: the root is not an OASIS `catalog`.
+    pub const CATALOG_NOT_CATALOG: u16 = 1653;
     /// `XML_WAR_NS_URI`.
     pub const WAR_NS_URI: u16 = 99;
     /// `XML_WAR_NS_URI_RELATIVE`.
