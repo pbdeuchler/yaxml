@@ -2598,11 +2598,11 @@ xmlerror.h	XML_ERR_WARNING	enum_value	not_marked	P0-P3	implemented	https://githu
 xmlerror.h	XML_ERR_XMLDECL_NOT_FINISHED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::XMLDECL_NOT_FINISHED
 xmlerror.h	XML_ERR_XMLDECL_NOT_STARTED	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	ErrorKind::Syntax - category only; no numeric code
 xmlerror.h	XML_FROM_BUFFER	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_FROM_C14N	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
-xmlerror.h	XML_FROM_CATALOG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_C14N	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::C14n
+xmlerror.h	XML_FROM_CATALOG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Catalog
 xmlerror.h	XML_FROM_CHECK	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_FROM_DATATYPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
-xmlerror.h	XML_FROM_DTD	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_DATATYPE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Datatype
+xmlerror.h	XML_FROM_DTD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Dtd
 xmlerror.h	XML_FROM_FTP	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_FROM_HTML	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Html
 xmlerror.h	XML_FROM_HTTP	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
@@ -2612,10 +2612,10 @@ xmlerror.h	XML_FROM_MEMORY	enum_value	not_marked	P0-P3	not-applicable	https://gi
 xmlerror.h	XML_FROM_MODULE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_FROM_NAMESPACE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Namespace
 xmlerror.h	XML_FROM_NONE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_FROM_OUTPUT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_OUTPUT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Output
 xmlerror.h	XML_FROM_PARSER	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Parser
-xmlerror.h	XML_FROM_REGEXP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
-xmlerror.h	XML_FROM_RELAXNGP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_REGEXP	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Regexp
+xmlerror.h	XML_FROM_RELAXNGP	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::RelaxNgParser
 xmlerror.h	XML_FROM_RELAXNGV	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::RelaxNgValidity
 xmlerror.h	XML_FROM_SCHEMASP	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::SchemasParser
 xmlerror.h	XML_FROM_SCHEMASV	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::SchemasValidity
@@ -2623,10 +2623,10 @@ xmlerror.h	XML_FROM_SCHEMATRONV	enum_value	not_marked	P0-P3	implemented	https://
 xmlerror.h	XML_FROM_TREE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_FROM_URI	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_FROM_VALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Valid
-xmlerror.h	XML_FROM_WRITER	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_WRITER	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::Writer
 xmlerror.h	XML_FROM_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::XInclude
 xmlerror.h	XML_FROM_XPATH	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::XPath
-xmlerror.h	XML_FROM_XPOINTER	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no error domain; each module has its own error type
+xmlerror.h	XML_FROM_XPOINTER	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Domain::XPointer
 xmlerror.h	XML_FROM_XSLT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_FTP_ACCNT	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_FTP_EPSV_ANSWER	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
@@ -2644,61 +2644,61 @@ xmlerror.h	XML_I18N_NO_HANDLER	enum_value	not_marked	P0-P3	not-applicable	https:
 xmlerror.h	XML_I18N_NO_NAME	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_I18N_NO_OUTPUT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_IO_BUFFER_FULL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_IO_EACCES	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EADDRINUSE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EAFNOSUPPORT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EAGAIN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EALREADY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EBADF	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EBADMSG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EBUSY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ECANCELED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ECHILD	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ECONNREFUSED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EDEADLK	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EDOM	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EEXIST	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EFAULT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EFBIG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EINPROGRESS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EINTR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EINVAL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EIO	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EISCONN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EISDIR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EMFILE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EMLINK	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EMSGSIZE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENAMETOOLONG	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENCODER	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_IO_ENETUNREACH	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENFILE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENODEV	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOEXEC	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOLCK	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOMEM	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOSPC	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOSYS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOTDIR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOTEMPTY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOTSOCK	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOTSUP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENOTTY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ENXIO	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EPERM	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EPIPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ERANGE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EROFS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ESPIPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ESRCH	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_ETIMEDOUT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
-xmlerror.h	XML_IO_EXDEV	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
+xmlerror.h	XML_IO_EACCES	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EADDRINUSE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EAFNOSUPPORT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EAGAIN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EALREADY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EBADF	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EBADMSG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EBUSY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ECANCELED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ECHILD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ECONNREFUSED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EDEADLK	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EDOM	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EEXIST	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EFAULT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EFBIG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EINPROGRESS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EINTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EINVAL	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EIO	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EISCONN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EISDIR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EMFILE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EMLINK	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EMSGSIZE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENAMETOOLONG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENCODER	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENETUNREACH	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENFILE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENODEV	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOEXEC	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOLCK	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOMEM	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOSPC	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOSYS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOTDIR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOTEMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOTSOCK	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOTSUP	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENOTTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ENXIO	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EPERM	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EPIPE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ERANGE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EROFS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ESPIPE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ESRCH	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_ETIMEDOUT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
+xmlerror.h	XML_IO_EXDEV	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
 xmlerror.h	XML_IO_FLUSH	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_IO_LOAD_ERROR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::IO_LOAD_ERROR
 xmlerror.h	XML_IO_NETWORK_ATTEMPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
 xmlerror.h	XML_IO_NO_INPUT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_IO_UNKNOWN	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
+xmlerror.h	XML_IO_UNKNOWN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
 xmlerror.h	XML_IO_UNSUPPORTED_PROTOCOL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_IO_WRITE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
 xmlerror.h	XML_MODULE_CLOSE	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
@@ -2905,7 +2905,7 @@ xmlerror.h	XML_SCHEMAP_E_PROPS_CORRECT_6	enum_value	not_marked	P0-P3	implemented
 xmlerror.h	XML_SCHEMAP_FACET_NO_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::FacetNoValue
 xmlerror.h	XML_SCHEMAP_FAILED_BUILD_IMPORT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_FAILED_LOAD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::FailedLoad
-xmlerror.h	XML_SCHEMAP_FAILED_PARSE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAP_FAILED_PARSE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	schematron::Code::FailedParse - raised by the Schematron parser
 xmlerror.h	XML_SCHEMAP_GROUP_NONAME_NOREF	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_IMPORT_NAMESPACE_NOT_URI	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_IMPORT_REDEFINE_NSNAME	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
@@ -2923,16 +2923,16 @@ xmlerror.h	XML_SCHEMAP_INVALID_ENUM	enum_value	not_marked	P0-P3	not-applicable	h
 xmlerror.h	XML_SCHEMAP_INVALID_FACET	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_INVALID_FACET_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::InvalidFacetValue
 xmlerror.h	XML_SCHEMAP_INVALID_MAXOCCURS	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_SCHEMAP_INVALID_MINOCCURS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAP_INVALID_MINOCCURS	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_INVALID_REF_AND_SUBTYPE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_SCHEMAP_INVALID_WHITE_SPACE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAP_INVALID_WHITE_SPACE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_MG_PROPS_CORRECT_1	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_MG_PROPS_CORRECT_2	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::MgPropsCorrect2
 xmlerror.h	XML_SCHEMAP_MISSING_SIMPLETYPE_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_NOATTR_NOREF	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_NOROOT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::NoRoot
 xmlerror.h	XML_SCHEMAP_NOTATION_NO_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::NotationNoName
-xmlerror.h	XML_SCHEMAP_NOTHING_TO_PARSE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAP_NOTHING_TO_PARSE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	unreachable: every parse takes input, and only known facet names are parsed as facets
 xmlerror.h	XML_SCHEMAP_NOTYPE_NOREF	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_NOT_DETERMINISTIC	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::NotDeterministic
 xmlerror.h	XML_SCHEMAP_NOT_SCHEMA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::NotSchema
@@ -3008,7 +3008,7 @@ xmlerror.h	XML_SCHEMAP_UNKNOWN_COMPLEXTYPE_CHILD	enum_value	not_marked	P0-P3	not
 xmlerror.h	XML_SCHEMAP_UNKNOWN_ELEM_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_UNKNOWN_EXTENSION_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_UNKNOWN_FACET_CHILD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::UnknownFacetChild
-xmlerror.h	XML_SCHEMAP_UNKNOWN_FACET_TYPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAP_UNKNOWN_FACET_TYPE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	unreachable: every parse takes input, and only known facet names are parsed as facets
 xmlerror.h	XML_SCHEMAP_UNKNOWN_GROUP_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_UNKNOWN_IMPORT_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAP_UNKNOWN_INCLUDE_CHILD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
@@ -3032,7 +3032,7 @@ xmlerror.h	XML_SCHEMAP_WARN_UNLOCATED_SCHEMA	enum_value	not_marked	P0-P3	impleme
 xmlerror.h	XML_SCHEMAP_WILDCARD_INVALID_NS_MEMBER	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xsd::Code::WildcardInvalidNsMember
 xmlerror.h	XML_SCHEMATRONV_ASSERT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	schematron::Code::Assert
 xmlerror.h	XML_SCHEMATRONV_REPORT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	schematron::Code::Report
-xmlerror.h	XML_SCHEMAV_ATTRINVALID	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_SCHEMA* code
+xmlerror.h	XML_SCHEMAV_ATTRINVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	schematron::Code::AttrInvalid - raised by the Schematron parser
 xmlerror.h	XML_SCHEMAV_ATTRUNKNOWN	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAV_CONSTRUCT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_SCHEMAV_CVC_ATTRIBUTE_1	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4

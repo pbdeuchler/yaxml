@@ -59,6 +59,9 @@ pub enum Code {
     Internal,
     /// `XML_SCHEMAP_FAILED_LOAD`: the schema document is not well-formed.
     FailedLoad,
+    /// `XML_SCHEMAP_FAILED_PARSE`: the schema document, given without a
+    /// URI (libxml2's memory parser context), is not well-formed.
+    FailedParse,
     /// `XML_SCHEMAP_NOROOT`, libxml2's code for every structural schema error.
     NoRoot,
     /// `XML_SCHEMAV_ATTRINVALID`: a `value-of` without a usable `select`.
@@ -78,6 +81,7 @@ impl Code {
             Self::Allocation => 2,
             Self::Internal => 1,
             Self::FailedLoad => 1757,
+            Self::FailedParse => 1766,
             Self::NoRoot => 1759,
             Self::AttrInvalid => 1821,
             Self::Assert => 4000,
@@ -270,14 +274,25 @@ impl Schema {
     /// Parses the schema document `input` at URI `base` (libxml2's
     /// `xmlSchematronNewParserCtxt` and `xmlSchematronParse`), with
     /// libxml2's `XML_PARSE_NOENT`: entities are substituted and `resolver`
-    /// loads external parsed entities, but not the external subset.
+    /// loads external parsed entities, but not the external subset. An empty
+    /// `base` is `xmlSchematronNewMemParserCtxt`'s input: a malformed schema
+    /// is then [`Code::FailedParse`].
     pub fn parse(
         input: &[u8],
         base: &str,
         resolver: Box<dyn Resolver>,
         limits: &Limits,
     ) -> Result<Self, SchemaErrors> {
-        let message = format!("xmlSchematronParse: could not load '{base}'.\n");
+        let (code, message) = match base {
+            "" => (
+                Code::FailedParse,
+                "xmlSchematronParse: could not parse.\n".into(),
+            ),
+            _ => (
+                Code::FailedLoad,
+                format!("xmlSchematronParse: could not load '{base}'.\n"),
+            ),
+        };
         let options = ParseOptions::new(options::NOENT).with_limits(limits.xml);
         let document = Document::parse_with(input, options.with_resolver(base, resolver));
         let document = document.map_err(|error| SchemaErrors {
@@ -285,7 +300,7 @@ impl Schema {
             errors: vec![Diagnostic::new(
                 match error.kind {
                     ErrorKind::Allocation => Code::Allocation,
-                    _ => Code::FailedLoad,
+                    _ => code,
                 },
                 message,
             )],

@@ -41,22 +41,40 @@ pub enum Domain {
     Parser = 1,
     /// `XML_FROM_NAMESPACE`.
     Namespace = 3,
+    /// `XML_FROM_DTD`.
+    Dtd = 4,
     /// `XML_FROM_HTML`.
     Html = 5,
+    /// `XML_FROM_OUTPUT`.
+    Output = 7,
     /// `XML_FROM_IO`.
     Io = 8,
     /// `XML_FROM_XINCLUDE`.
     XInclude = 11,
     /// `XML_FROM_XPATH`.
     XPath = 12,
+    /// `XML_FROM_XPOINTER`.
+    XPointer = 13,
+    /// `XML_FROM_REGEXP`.
+    Regexp = 14,
+    /// `XML_FROM_DATATYPE`.
+    Datatype = 15,
     /// `XML_FROM_SCHEMASP`.
     SchemasParser = 16,
     /// `XML_FROM_SCHEMASV`.
     SchemasValidity = 17,
+    /// `XML_FROM_RELAXNGP`.
+    RelaxNgParser = 18,
     /// `XML_FROM_RELAXNGV`.
     RelaxNgValidity = 19,
+    /// `XML_FROM_CATALOG`.
+    Catalog = 20,
+    /// `XML_FROM_C14N`.
+    C14n = 21,
     /// `XML_FROM_VALID`.
     Valid = 23,
+    /// `XML_FROM_WRITER`.
+    Writer = 25,
     /// `XML_FROM_SCHEMATRONV`.
     SchematronValidity = 28,
 }
@@ -278,6 +296,75 @@ pub mod code {
 }
 
 use code::*;
+
+/// libxml2's `xmlIOErr` code (`XML_IO_*`, domain I/O, level error) for an
+/// I/O failure, such as a [`ReadError::Io`](crate::ReadError::Io) or a
+/// resolver's error: by its OS error number where no [`std::io::ErrorKind`]
+/// tells it apart (`EPERM`, `EBADF`, ...), else by its kind;
+/// `XML_IO_UNKNOWN` (1500) for anything libxml2 does not name.
+///
+/// ```
+/// use std::io::{Error, ErrorKind};
+/// assert_eq!(yaxml::diagnostic::io_code(&Error::from(ErrorKind::NotFound)), 1524);
+/// assert_eq!(yaxml::diagnostic::io_code(&Error::other("refused")), 1500);
+/// ```
+pub fn io_code(error: &std::io::Error) -> u16 {
+    use std::io::ErrorKind as K;
+    // (errno, code); numbers 1-34 are the same on Linux and Apple systems.
+    #[rustfmt::skip]
+    const SHARED: [(i32, u16); 14] = [
+        (1, 1535), (3, 1540), (5, 1516), (6, 1534), (8, 1525), (9, 1503), (10, 1507),
+        (14, 1511), (19, 1523), (23, 1522), (24, 1518), (25, 1533), (33, 1509), (34, 1537),
+    ];
+    // ENOLCK, EBADMSG, ECANCELED, ENOTSUP, EALREADY, ENOTSOCK, EMSGSIZE,
+    // EAFNOSUPPORT, EISCONN, EINPROGRESS.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[rustfmt::skip]
+    const PLATFORM: [(i32, u16); 10] = [
+        (37, 1526), (74, 1504), (125, 1506), (95, 1532), (114, 1555),
+        (88, 1550), (90, 1520), (97, 1556), (106, 1551), (115, 1513),
+    ];
+    #[cfg(target_vendor = "apple")]
+    #[rustfmt::skip]
+    const PLATFORM: [(i32, u16); 10] = [
+        (77, 1526), (94, 1504), (89, 1506), (45, 1532), (37, 1555),
+        (38, 1550), (40, 1520), (47, 1556), (56, 1551), (36, 1513),
+    ];
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    const PLATFORM: [(i32, u16); 0] = [];
+    let errno = error.raw_os_error().filter(|_| cfg!(unix));
+    let named = errno.and_then(|errno| {
+        (SHARED.iter().chain(&PLATFORM)).find_map(|&(n, code)| (n == errno).then_some(code))
+    });
+    named.unwrap_or(match error.kind() {
+        K::PermissionDenied => 1501,
+        K::WouldBlock => 1502,
+        K::ResourceBusy => 1505,
+        K::Deadlock => 1508,
+        K::AlreadyExists => 1510,
+        K::FileTooLarge => 1512,
+        K::Interrupted => 1514,
+        K::InvalidInput => 1515,
+        K::IsADirectory => 1517,
+        K::TooManyLinks => 1519,
+        K::InvalidFilename => 1521,
+        K::NotFound => 1524,
+        K::OutOfMemory => 1527,
+        K::StorageFull => 1528,
+        K::Unsupported => 1529,
+        K::NotADirectory => 1530,
+        K::DirectoryNotEmpty => 1531,
+        K::BrokenPipe => 1536,
+        K::ReadOnlyFilesystem => 1538,
+        K::NotSeekable => 1539,
+        K::TimedOut => 1541,
+        K::CrossesDevices => 1542,
+        K::ConnectionRefused => 1552,
+        K::NetworkUnreachable => 1553,
+        K::AddrInUse => 1554,
+        _ => 1500,
+    })
+}
 
 /// The domain and level libxml2 raises a parser code with.
 const fn raised(code: u16) -> (Domain, Level) {
@@ -924,14 +1011,20 @@ impl Diagnostic {
             out += &format!("element {element}: ");
         }
         out += match self.domain {
-            Domain::Parser => "parser ",
+            Domain::Parser | Domain::XPointer => "parser ",
             Domain::Namespace => "namespace ",
+            Domain::Output => "output ",
+            Domain::Regexp => "regexp ",
+            Domain::RelaxNgParser => "Relax-NG parser ",
+            Domain::Catalog => "Catalog ",
+            Domain::C14n => "C14N ",
+            Domain::Datatype | Domain::Writer => "",
             Domain::Html => "HTML parser ",
             Domain::Io => "I/O ",
             Domain::XInclude => "XInclude ",
             Domain::XPath => "XPath ",
             Domain::SchemasParser => "Schemas parser ",
-            Domain::Valid => "validity ",
+            Domain::Valid | Domain::Dtd => "validity ",
             Domain::SchemasValidity => "Schemas validity ",
             Domain::RelaxNgValidity => "Relax-NG validity ",
             Domain::SchematronValidity => "schematron ",

@@ -228,7 +228,7 @@ fn parse_reports_libxml2_diagnostics_and_option_errors() {
         ..options(0)
     };
     let cases: [(&str, yaxml_parse_options, i32, i32); 4] = [
-        ("unsupported flag", options(1 << 17), ERR_XML, 115),
+        ("unsupported flag", options(1 << 20), ERR_XML, 115),
         ("struct_size too small", bad_size, ERR_ARGUMENT, 0),
         ("limit", deep, ERR_XML, 114),
         (

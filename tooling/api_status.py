@@ -1119,7 +1119,8 @@ class Ctx:
         self.rngv = rust_codes("relaxng.rs", "Code")
         # Every identifier libxml2 itself uses (error.c only names them).
         files = [f for f in [*src.parent.parent.glob("*.c"), *(src.parent.parent / "include" / "private").glob("*.h")] if f.name != "error.c"]
-        self.raised = {w for f in files for w in re.findall(r"\bXML_\w+", f.read_text(errors="replace"))}
+        code = lambda f: re.sub(r"/\*.*?\*/", "", f.read_text(errors="replace"), flags=re.S)
+        self.raised = {w for f in files for w in re.findall(r"\bXML_\w+", code(f))}
 
 
 def by_code(codes, value, path, kind):
@@ -1134,7 +1135,10 @@ DIAG_DOMAIN = {
     f"XML_FROM_{c}": rust
     for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("HTML", "Html"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
                     ("XPATH", "XPath"), ("SCHEMASP", "SchemasParser"), ("SCHEMASV", "SchemasValidity"),
-                    ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity")]
+                    ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity"),
+                    ("DTD", "Dtd"), ("OUTPUT", "Output"), ("XPOINTER", "XPointer"), ("REGEXP", "Regexp"),
+                    ("DATATYPE", "Datatype"), ("RELAXNGP", "RelaxNgParser"), ("CATALOG", "Catalog"), ("C14N", "C14n"),
+                    ("WRITER", "Writer")]
 }
 
 
@@ -1150,7 +1154,15 @@ RNGP_NEVER_FIRST = {f"XML_RNGP_{n}" for n in """ATTRIBUTE_CONTENT ATTRIBUTE_NOOP
     PARENTREF_CREATE_FAILED PAT_LIST_REF REF_CREATE_FAILED VALUE_NO_CONTENT""".split()}
 
 
+# Schematron codes in the XML_SCHEMA* range that no xsd::Code carries.
+SCHEMATRON_CODES = {"XML_SCHEMAV_ATTRINVALID": "AttrInvalid", "XML_SCHEMAP_FAILED_PARSE": "FailedParse"}
+
+
 def error_rule(i, ctx):
+    if i in SCHEMATRON_CODES:
+        return "I", f"schematron::Code::{SCHEMATRON_CODES[i]} - raised by the Schematron parser"
+    if i in ("XML_SCHEMAP_NOTHING_TO_PARSE", "XML_SCHEMAP_UNKNOWN_FACET_TYPE"):
+        return "A", "unreachable: every parse takes input, and only known facet names are parsed as facets"
     if re.fullmatch(r"XML_SCHEMA[PV]_\w+", i):
         return by_code(ctx.xsd, ctx.err[i], "xsd::Code", "XML_SCHEMA*")
     if i in RNGP_NEVER_FIRST:
@@ -1211,6 +1223,8 @@ def error_rule(i, ctx):
         return "N", "no error domain; each module has its own error type"
     if i.startswith(("XML_MODULE_", "XML_FTP_", "XML_HTTP_")):
         return "R", "dynamic modules and HTTP/FTP removed upstream"
+    if re.fullmatch(r"XML_IO_(E[A-Z]+|UNKNOWN)", i):
+        return "I", "diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error"
     if i.startswith("XML_IO_"):
         return "N", "no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource"
     if i.startswith("XML_HTML_"):

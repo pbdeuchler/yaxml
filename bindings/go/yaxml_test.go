@@ -55,7 +55,7 @@ func TestParseErrorsWrapLibxml2Diagnostics(t *testing.T) {
 		{"mismatch", "<a>\n  <b></c>\n</a>", nil, StatusXML, 76, 2},
 		{"empty", "", nil, StatusXML, 4, 1},
 		{"depth limit", "<a><b/></a>", []Option{WithLimits(Limits{MaxDepth: 1})}, StatusXML, 114, 0},
-		{"unsupported flag", "<a/>", []Option{WithFlags(1 << 17)}, StatusXML, 115, 0},
+		{"unsupported flag", "<a/>", []Option{WithFlags(1 << 20)}, StatusXML, 115, 0},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -569,6 +569,7 @@ fn codes_have_libxml2_numbers() {
     let cases = [
         (Code::Internal, 1),
         (Code::FailedLoad, 1757),
+        (Code::FailedParse, 1766),
         (Code::NoRoot, 1759),
         (Code::AttrInvalid, 1821),
         (Code::Assert, 4000),
@@ -590,6 +591,13 @@ fn schema_errors_are_structured() {
     assert_eq!(
         error.to_string(),
         "Schemas parser error : xmlSchematronParse: could not load 'bad.sct'."
+    );
+    // Without a URI, libxml2's memory parser context.
+    let error = Schema::parse(b"<s:schema", "", none(), &Limits::default()).unwrap_err();
+    assert_eq!(error.errors[0].code, Code::FailedParse);
+    assert_eq!(
+        error.to_string(),
+        "Schemas parser error : xmlSchematronParse: could not parse."
     );
     let text = format!(
         "<s:schema xmlns:s='{ISO}'><s:pattern id='p'><s:rule context='r'><s:value-of/></s:rule></s:pattern></s:schema>"

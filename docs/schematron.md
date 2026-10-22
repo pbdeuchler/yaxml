@@ -146,7 +146,8 @@ YAXML_SCHEMATRON_HELPER=/private/tmp/sch/helper cargo test --test schematron -- 
 - `XML_XPATH_CHECKNS` applies to `from_tree` too; libxml2's document and
   memory parser contexts defer unbound prefixes to validation.
 - A schema that is not well-formed gives only libxml2's `could not load`
-  error, not the parser's own messages.
+  error (`could not parse`, `FailedParse`, with an empty `base`: the memory
+  parser context), not the parser's own messages.
 - Lines count LF bytes of `source`. Elements from substituted entity
   replacement text (`XML_PARSE_NOENT`) have line 0, where libxml2 counts
   lines within the replacement text; lines above 65535 are not capped as libxml2 does without

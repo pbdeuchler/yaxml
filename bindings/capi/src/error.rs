@@ -62,7 +62,7 @@ impl Diagnostic {
 }
 
 const XPATH: i32 = Domain::XPath as i32;
-const C14N: i32 = 21;
+const C14N: i32 = Domain::C14n as i32;
 pub(crate) const EDIT: i32 = 1000;
 
 impl Fail {

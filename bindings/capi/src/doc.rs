@@ -807,7 +807,12 @@ fn compile(kind: i32, input: &[u8], base: &str) -> Result<Schema, Fail> {
             .map(Schema::RelaxNg)
             .map_err(|e| {
                 let code = e.0.first().map_or(0, |d| d.code as i32);
-                Fail::with(ERR_SCHEMA, 18, code, e.to_string())
+                Fail::with(
+                    ERR_SCHEMA,
+                    yaxml::diagnostic::Domain::RelaxNgParser as i32,
+                    code,
+                    e.to_string(),
+                )
             }),
         3 => schematron::Schema::parse(input, base, Box::new(refuse), &schematron::Limits::DEFAULT)
             .map(Schema::Schematron)
