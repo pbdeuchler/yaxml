@@ -2712,65 +2712,65 @@ xmlerror.h	XML_NS_ERR_XML_NAMESPACE	enum_value	not_marked	P0-P3	implemented	http
 xmlerror.h	XML_REGEXP_COMPILE_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	regexp::Error::Syntax - category only
 xmlerror.h	XML_RNGP_ANYNAME_ATTR_ANCESTOR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::AnyNameAttrAncestor
 xmlerror.h	XML_RNGP_ATTRIBUTE_CHILDREN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::AttributeChildren
-xmlerror.h	XML_RNGP_ATTRIBUTE_CONTENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_ATTRIBUTE_CONTENT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_ATTRIBUTE_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::AttributeEmpty
-xmlerror.h	XML_RNGP_ATTRIBUTE_NOOP	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_ATTRIBUTE_NOOP	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_ATTR_CONFLICT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::AttrConflict
 xmlerror.h	XML_RNGP_CHOICE_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ChoiceContent
 xmlerror.h	XML_RNGP_CHOICE_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ChoiceEmpty
-xmlerror.h	XML_RNGP_CREATE_FAILURE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_CREATE_FAILURE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_DATA_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::DataContent
-xmlerror.h	XML_RNGP_DEFINE_CREATE_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_DEFINE_CREATE_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_DEFINE_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::DefineEmpty
 xmlerror.h	XML_RNGP_DEFINE_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::DefineMissing
 xmlerror.h	XML_RNGP_DEFINE_NAME_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::DefineNameMissing
 xmlerror.h	XML_RNGP_DEF_CHOICE_AND_INTERLEAVE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::DefChoiceAndInterleave
-xmlerror.h	XML_RNGP_ELEMENT_CONTENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_ELEMENT_CONTENT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_ELEMENT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ElementEmpty
 xmlerror.h	XML_RNGP_ELEMENT_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ElementName
 xmlerror.h	XML_RNGP_ELEMENT_NO_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ElementNoContent
-xmlerror.h	XML_RNGP_ELEM_CONTENT_EMPTY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_ELEM_CONTENT_EMPTY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_ELEM_CONTENT_ERROR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ElemContentError
 xmlerror.h	XML_RNGP_ELEM_TEXT_CONFLICT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ElemTextConflict
 xmlerror.h	XML_RNGP_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::Empty
 xmlerror.h	XML_RNGP_EMPTY_CONSTRUCT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::EmptyConstruct
-xmlerror.h	XML_RNGP_EMPTY_CONTENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_EMPTY_CONTENT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_EMPTY_NOT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::EmptyNotEmpty
-xmlerror.h	XML_RNGP_ERROR_TYPE_LIB	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_ERROR_TYPE_LIB	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_EXCEPT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExceptEmpty
 xmlerror.h	XML_RNGP_EXCEPT_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExceptMissing
 xmlerror.h	XML_RNGP_EXCEPT_MULTIPLE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExceptMultiple
 xmlerror.h	XML_RNGP_EXCEPT_NO_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExceptNoContent
-xmlerror.h	XML_RNGP_EXTERNALREF_EMTPY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_EXTERNALREF_EMTPY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_EXTERNALREF_RECURSE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExternalRefRecurse
 xmlerror.h	XML_RNGP_EXTERNAL_REF_FAILURE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ExternalRefFailure
 xmlerror.h	XML_RNGP_FORBIDDEN_ATTRIBUTE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ForbiddenAttribute
-xmlerror.h	XML_RNGP_FOREIGN_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_FOREIGN_ELEMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ForeignElement
 xmlerror.h	XML_RNGP_GRAMMAR_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::GrammarContent
 xmlerror.h	XML_RNGP_GRAMMAR_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::GrammarEmpty
 xmlerror.h	XML_RNGP_GRAMMAR_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::GrammarMissing
 xmlerror.h	XML_RNGP_GRAMMAR_NO_START	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::GrammarNoStart
 xmlerror.h	XML_RNGP_GROUP_ATTR_CONFLICT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::GroupAttrConflict
 xmlerror.h	XML_RNGP_HREF_ERROR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::HrefError
-xmlerror.h	XML_RNGP_INCLUDE_EMPTY	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_INCLUDE_EMPTY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_INCLUDE_FAILURE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::IncludeFailure
 xmlerror.h	XML_RNGP_INCLUDE_RECURSE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::IncludeRecurse
-xmlerror.h	XML_RNGP_INTERLEAVE_ADD	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
-xmlerror.h	XML_RNGP_INTERLEAVE_CREATE_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_INTERLEAVE_ADD	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
+xmlerror.h	XML_RNGP_INTERLEAVE_CREATE_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_INTERLEAVE_EMPTY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_RNGP_INTERLEAVE_NO_CONTENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::InterleaveNoContent
 xmlerror.h	XML_RNGP_INVALID_DEFINE_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::InvalidDefineName
 xmlerror.h	XML_RNGP_INVALID_URI	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::InvalidUri
 xmlerror.h	XML_RNGP_INVALID_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::InvalidValue
 xmlerror.h	XML_RNGP_MISSING_HREF	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::MissingHref
-xmlerror.h	XML_RNGP_NAME_MISSING	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_NAME_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::NameMissing
 xmlerror.h	XML_RNGP_NEED_COMBINE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::NeedCombine
 xmlerror.h	XML_RNGP_NOTALLOWED_NOT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::NotAllowedNotEmpty
 xmlerror.h	XML_RNGP_NSNAME_ATTR_ANCESTOR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::NsNameAttrAncestor
-xmlerror.h	XML_RNGP_NSNAME_NO_NS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_NSNAME_NO_NS	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_PARAM_FORBIDDEN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ParamForbidden
 xmlerror.h	XML_RNGP_PARAM_NAME_MISSING	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ParamNameMissing
-xmlerror.h	XML_RNGP_PARENTREF_CREATE_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_PARENTREF_CREATE_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_PARENTREF_NAME_INVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ParentRefNameInvalid
 xmlerror.h	XML_RNGP_PARENTREF_NOT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ParentRefNotEmpty
 xmlerror.h	XML_RNGP_PARENTREF_NO_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::ParentRefNoName
@@ -2786,13 +2786,13 @@ xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_GROUP	enum_value	not_marked	P0-P3	implemente
 xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_INTERLEAVE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatDataExceptInterleave
 xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_LIST	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatDataExceptList
 xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_ONEMORE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatDataExceptOneMore
-xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_REF	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_REF	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	data/except//ref to a non-element define is accepted, as the specification allows
 xmlerror.h	XML_RNGP_PAT_DATA_EXCEPT_TEXT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatDataExceptText
 xmlerror.h	XML_RNGP_PAT_LIST_ATTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatListAttr
 xmlerror.h	XML_RNGP_PAT_LIST_ELEM	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatListElem
 xmlerror.h	XML_RNGP_PAT_LIST_INTERLEAVE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatListInterleave
 xmlerror.h	XML_RNGP_PAT_LIST_LIST	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatListList
-xmlerror.h	XML_RNGP_PAT_LIST_REF	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_PAT_LIST_REF	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_PAT_LIST_TEXT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatListText
 xmlerror.h	XML_RNGP_PAT_NSNAME_EXCEPT_ANYNAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatNsNameExceptAnyName
 xmlerror.h	XML_RNGP_PAT_NSNAME_EXCEPT_NSNAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatNsNameExceptNsName
@@ -2808,7 +2808,7 @@ xmlerror.h	XML_RNGP_PAT_START_ONEMORE	enum_value	not_marked	P0-P3	implemented	ht
 xmlerror.h	XML_RNGP_PAT_START_TEXT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatStartText
 xmlerror.h	XML_RNGP_PAT_START_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PatStartValue
 xmlerror.h	XML_RNGP_PREFIX_UNDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::PrefixUndefined
-xmlerror.h	XML_RNGP_REF_CREATE_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_REF_CREATE_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_REF_CYCLE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::RefCycle
 xmlerror.h	XML_RNGP_REF_NAME_INVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::RefNameInvalid
 xmlerror.h	XML_RNGP_REF_NOT_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::RefNotEmpty
@@ -2830,7 +2830,7 @@ xmlerror.h	XML_RNGP_UNKNOWN_TYPE_LIB	enum_value	not_marked	P0-P3	implemented	htt
 xmlerror.h	XML_RNGP_URI_FRAGMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::UriFragment
 xmlerror.h	XML_RNGP_URI_NOT_ABSOLUTE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::UriNotAbsolute
 xmlerror.h	XML_RNGP_VALUE_EMPTY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_RNGP_VALUE_NO_CONTENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_RNGP code
+xmlerror.h	XML_RNGP_VALUE_NO_CONTENT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	libxml2 raises it only after an earlier schema error, internally or on allocation failure
 xmlerror.h	XML_RNGP_XMLNS_NAME	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::XmlnsName
 xmlerror.h	XML_RNGP_XML_NS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	relaxng::SchemaCode::XmlNs
 xmlerror.h	XML_SAVE_CHAR_INVALID	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4

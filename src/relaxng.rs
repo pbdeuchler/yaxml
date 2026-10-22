@@ -111,6 +111,8 @@ pub enum SchemaCode {
     ExternalRefRecurse = 1033,
     /// A RELAX NG attribute on an element that does not take it.
     ForbiddenAttribute = 1034,
+    /// A foreign element inside `name`, `value` or `param`.
+    ForeignElement = 1035,
     /// An unexpected child of `grammar`.
     GrammarContent = 1036,
     /// A `grammar` with no children.
@@ -137,6 +139,8 @@ pub enum SchemaCode {
     InvalidValue = 1051,
     /// An `include` or `externalRef` without `href`.
     MissingHref = 1052,
+    /// A `define` without `name` inside an `include`.
+    NameMissing = 1053,
     /// Several `define`s (or `start`s) of one name, without `combine`.
     NeedCombine = 1054,
     /// A `notAllowed` with content.

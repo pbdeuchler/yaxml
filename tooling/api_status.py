@@ -1143,9 +1143,20 @@ def DIAG_NAME(i):
     return re.sub(r"^XML_(?:ERR_|(NS_)ERR_|)", lambda m: m.group(1) or "", i)
 
 
+# relaxng.c sites no schema reaches as its first error (yaxml reports only that).
+RNGP_NEVER_FIRST = {f"XML_RNGP_{n}" for n in """ATTRIBUTE_CONTENT ATTRIBUTE_NOOP CREATE_FAILURE
+    DEFINE_CREATE_FAILED ELEMENT_CONTENT ELEM_CONTENT_EMPTY EMPTY_CONTENT ERROR_TYPE_LIB
+    EXTERNALREF_EMTPY INCLUDE_EMPTY INTERLEAVE_ADD INTERLEAVE_CREATE_FAILED NSNAME_NO_NS
+    PARENTREF_CREATE_FAILED PAT_LIST_REF REF_CREATE_FAILED VALUE_NO_CONTENT""".split()}
+
+
 def error_rule(i, ctx):
     if re.fullmatch(r"XML_SCHEMA[PV]_\w+", i):
         return by_code(ctx.xsd, ctx.err[i], "xsd::Code", "XML_SCHEMA*")
+    if i in RNGP_NEVER_FIRST:
+        return "A", "libxml2 raises it only after an earlier schema error, internally or on allocation failure"
+    if i == "XML_RNGP_PAT_DATA_EXCEPT_REF":
+        return "A", "data/except//ref to a non-element define is accepted, as the specification allows"
     if i.startswith("XML_RNGP_") or i == "XML_ERR_RESOURCE_LIMIT":
         return by_code(ctx.rngp, ctx.err[i], "relaxng::SchemaCode", "XML_RNGP")
     if i.startswith("XML_DTD_") and (name := DIAG_NAME(i)) in DIAG_CODES:

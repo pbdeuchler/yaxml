@@ -265,12 +265,22 @@ impl<'l> Loader<'l> {
         let first = tree.first_child(id);
         for child in std::iter::successors(first, |&child| tree.next_sibling(child)) {
             match tree.item(child) {
-                Item::Element(_) if matches!(name, "value" | "param" | "name") => {
-                    return Err(self.error(
-                        SchemaCode::TextExpected,
-                        at,
-                        format!("Element {name} has element content"),
-                    ));
+                Item::Element(qname) if matches!(name, "value" | "param" | "name") => {
+                    let (code, message) = match (qname.namespace == Some(RNG_NS), name) {
+                        (false, _) => (
+                            SchemaCode::ForeignElement,
+                            format!("element {name} doesn't allow foreign elements"),
+                        ),
+                        (true, "value") => (
+                            SchemaCode::TextExpected,
+                            "Expecting a single text value for <value>content".into(),
+                        ),
+                        (true, _) => (
+                            SchemaCode::TextExpected,
+                            format!("Element {name} has element content"),
+                        ),
+                    };
+                    return Err(self.error(code, at, message));
                 }
                 Item::Element(qname) if qname.namespace == Some(RNG_NS) => {
                     let el = self.convert(tree, child, qname, &here)?;
@@ -481,6 +491,14 @@ impl<'l> Loader<'l> {
             ));
         }
         let url = &self.resources[grammar.at.resource];
+        if el
+            .children
+            .iter()
+            .any(|c| c.name == "define" && c.attr("name").is_none())
+        {
+            let message = format!("xmlRelaxNG: include {url} has define without name");
+            return Err(self.error(SchemaCode::NameMissing, el.at, message));
+        }
         let mut start = false;
         let mut defines = HashSet::new();
         overrides(&el.children, &mut start, &mut defines);

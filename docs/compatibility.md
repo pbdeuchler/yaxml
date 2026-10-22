@@ -8,10 +8,10 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 616 | 64 | 0 | 97 | 14 | 159 | 1079 |
+| implemented | 22 | 107 | 618 | 64 | 0 | 97 | 14 | 159 | 1081 |
 | partial | 1 | 25 | 249 | 46 | 0 | 92 | 52 | 99 | 564 |
-| not-started | 0 | 18 | 187 | 41 | 0 | 27 | 2 | 421 | 696 |
-| not-applicable | 24 | 21 | 747 | 32 | 75 | 181 | 85 | 256 | 1421 |
+| not-started | 0 | 18 | 167 | 41 | 0 | 27 | 2 | 421 | 676 |
+| not-applicable | 24 | 21 | 765 | 32 | 75 | 181 | 85 | 256 | 1439 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 

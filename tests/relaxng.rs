@@ -651,6 +651,18 @@ const INCORRECT: &[(&str, SchemaCode)] = &[
         SchemaCode::XmlNs,
     ),
     (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><value>a<f:x xmlns:f='u'/></value></element>",
+        SchemaCode::ForeignElement,
+    ),
+    (
+        "<element xmlns='http://relaxng.org/ns/structure/1.0'><name>a<f:x xmlns:f='u'/></name><empty/></element>",
+        SchemaCode::ForeignElement,
+    ),
+    (
+        "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><value>a<empty/></value></element>",
+        SchemaCode::TextExpected,
+    ),
+    (
         "<element name='r' xmlns='http://relaxng.org/ns/structure/1.0'><empty name='x'/></element>",
         SchemaCode::ForbiddenAttribute,
     ),
@@ -929,17 +941,22 @@ fn include_and_external_ref_load_through_the_resolver() {
     assert!(codes(&schema, "<override/>").is_empty());
     assert_eq!(codes(&schema, "<b/>"), [Code::UnexpectedElement]);
 
-    let missing = format!(
-        "<grammar xmlns='{RNG}'><include href='dir/lib.rng'><define name='zz'><empty/></define></include></grammar>"
-    );
-    let error = Schema::parse(
-        missing.as_bytes(),
-        "main.rng",
-        map_resolver(files.clone()),
-        &Limits::default(),
-    )
-    .unwrap_err();
-    assert_eq!(error.0[0].code, SchemaCode::DefineMissing);
+    let overrides = [
+        (
+            "<define name='zz'><empty/></define>",
+            SchemaCode::DefineMissing,
+        ),
+        ("<define><empty/></define>", SchemaCode::NameMissing),
+    ];
+    for (body, code) in overrides {
+        let text = format!(
+            "<grammar xmlns='{RNG}'><include href='dir/lib.rng'>{body}</include></grammar>"
+        );
+        let resolver = map_resolver(files.clone());
+        let error =
+            Schema::parse(text.as_bytes(), "main.rng", resolver, &Limits::default()).unwrap_err();
+        assert_eq!(error.0[0].code, code, "{body}");
+    }
 
     let recursive = HashMap::from([(
         "self.rng".to_owned(),
