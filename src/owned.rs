@@ -1549,6 +1549,131 @@ impl<A: Allocator> Editor<'_, A> {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn add_declarations(&mut self, markup: &str) -> Result<(), EditError> {
+        self.write_subset(markup, false)
+    }
+
+    /// Replaces the internal subset's declarations with `markup`, read as
+    /// [`add_declarations`](Self::add_declarations) reads it, to remove or
+    /// redefine declarations (libxml2 unlinks and frees declaration nodes,
+    /// then calls `xmlAddEntity` and the like). The DOCTYPE is created as
+    /// there when missing. Declarations from a loaded external subset stay,
+    /// after the new ones: a name both declare takes the internal
+    /// declaration, as libxml2 looks in `intSubset` first. An external
+    /// declaration an internal one shadowed when the document was read is not
+    /// kept (libxml2 keeps it in `extSubset`), so it does not come back.
+    ///
+    /// # Errors
+    ///
+    /// As [`add_declarations`](Self::add_declarations); nothing changes.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<!DOCTYPE r [<!ENTITY a 'x'>]><r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.set_internal_subset("<!ENTITY b 'y'>")?;
+    /// let dtd = editor.document().dtd().unwrap();
+    /// assert!(dtd.entity("a").is_none() && dtd.entity("b").is_some());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn set_internal_subset(&mut self, markup: &str) -> Result<(), EditError> {
+        self.write_subset(markup, true)
+    }
+
+    /// Removes the DOCTYPE with its internal subset's declarations
+    /// (`xmlUnlinkNode` and `xmlFreeDtd` on `intSubset`); declarations from a
+    /// loaded external subset stay, as libxml2 keeps `extSubset`.
+    ///
+    /// # Errors
+    ///
+    /// A document without a DOCTYPE is [`EditErrorKind::WrongNodeKind`].
+    pub fn remove_doctype(&mut self) -> Result<(), EditError> {
+        let index = self.doctype_slot()?;
+        let external = match self.document.dtd.as_deref() {
+            Some(old) => {
+                let fresh = crate::valid::Dtd {
+                    standalone: old.standalone,
+                    ..Default::default()
+                };
+                let fresh = (fresh.with_external(old))
+                    .map_err(|()| EditError::new(EditErrorKind::Allocation, None))?;
+                let empty = fresh.entities.is_empty()
+                    && fresh.notations.is_empty()
+                    && fresh.elements.is_empty();
+                (!empty).then(|| Box::new(fresh))
+            }
+            None => None,
+        };
+        self.document.detach(index);
+        self.document.dtd = external;
+        Ok(())
+    }
+
+    /// Sets the DOCTYPE's public and system identifiers (libxml2's
+    /// `ExternalID` and `SystemID`). Nothing is loaded or dropped: the
+    /// declarations stay as read.
+    ///
+    /// # Errors
+    ///
+    /// No DOCTYPE is [`EditErrorKind::WrongNodeKind`]; a public identifier
+    /// without a system one or with a character outside `PubidChar`, and a
+    /// system identifier with both quote characters, are `InvalidValue`.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, save};
+    /// let mut document = OwnedDocument::parse("<!DOCTYPE r><r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.set_doctype_ids(Some("-//P//EN"), Some("r.dtd"))?;
+    /// let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+    /// assert!(saved.contains(r#"<!DOCTYPE r PUBLIC "-//P//EN" "r.dtd">"#));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn set_doctype_ids(
+        &mut self,
+        public: Option<&str>,
+        system: Option<&str>,
+    ) -> Result<(), EditError> {
+        let index = self.doctype_slot()?;
+        let invalid = |offset| Err(EditError::new(EditErrorKind::InvalidValue, offset));
+        for value in public.into_iter().chain(system) {
+            validate_value_length(value, self.limits.max_value_bytes)?;
+            validate_characters(value)?;
+        }
+        if let Some(public) = public {
+            if let Some(offset) = public.find(|c: char| !crate::chars::is_pubid_char(c)) {
+                return invalid(Some(offset));
+            }
+            if system.is_none() {
+                return invalid(None);
+            }
+        }
+        if system.is_some_and(|system| system.contains('"') && system.contains('\'')) {
+            return invalid(None);
+        }
+        let (document, limit) = (&mut *self.document, self.limits.max_owned_bytes);
+        let mut store = |value: Option<&str>| {
+            let spent = &mut document.edit_owned_bytes;
+            value.map(|value| document.pool.store_edit(value, spent, limit))
+        };
+        let (public, system) = (store(public).transpose()?, store(system).transpose()?);
+        let Content::DocumentType(doctype) = &mut self.document.nodes[index].content else {
+            unreachable!("a DOCTYPE node");
+        };
+        (doctype.public_id, doctype.system_id) = (public, system);
+        Ok(())
+    }
+
+    /// The DOCTYPE node's slot; `WrongNodeKind` without one.
+    fn doctype_slot(&self) -> Result<usize, EditError> {
+        let mut children = self.document.root().children();
+        let doctype = children.find(|node| node.kind() == OwnedNodeKind::DocumentType);
+        doctype
+            .map(|node| node.id().slot.0)
+            .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))
+    }
+
+    /// `markup` appended to the internal subset, or replacing its
+    /// declarations.
+    fn write_subset(&mut self, markup: &str, replace: bool) -> Result<(), EditError> {
         validate_value_length(markup, self.limits.max_value_bytes)?;
         let document = &*self.document;
         let wrong = EditError::new(EditErrorKind::WrongNodeKind, None);
@@ -1570,7 +1695,14 @@ impl<A: Allocator> Editor<'_, A> {
             ),
         };
         let empty = crate::valid::Dtd::default();
-        let seed = document.dtd().unwrap_or(&empty);
+        let old = document.dtd().unwrap_or(&empty);
+        // A replacing subset is read from scratch: its errors stay strict.
+        let fresh = crate::valid::Dtd {
+            name: old.name.clone(),
+            standalone: old.standalone,
+            ..Default::default()
+        };
+        let seed = if replace { &fresh } else { old };
         // Offsets in markup: the subset is read as `<!DOCTYPE name [markup]>`.
         let start = "<!DOCTYPE  [".len() + name.len();
         let mut dtd =
@@ -1582,7 +1714,13 @@ impl<A: Allocator> Editor<'_, A> {
         for issue in &mut dtd.issues[seed.issues.len()..] {
             issue.1 = None;
         }
-        let joined = crate::fallible::concat(&[subset, markup])
+        let allocation = || EditError::new(EditErrorKind::Allocation, None);
+        let dtd = match replace {
+            true => dtd.with_external(old).map_err(|()| allocation())?,
+            false => dtd,
+        };
+        let kept = if replace { "" } else { subset };
+        let joined = crate::fallible::concat(&[kept, markup])
             .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
         let doctype = doctype.map(|node| node.id().slot.0);
         let name = (doctype.is_none()).then(|| name.to_owned());

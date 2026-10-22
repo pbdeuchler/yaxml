@@ -9,9 +9,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | implemented | 22 | 107 | 584 | 64 | 0 | 97 | 14 | 159 | 1047 |
-| partial | 1 | 25 | 243 | 40 | 0 | 92 | 52 | 99 | 552 |
+| partial | 1 | 25 | 244 | 40 | 0 | 92 | 52 | 99 | 553 |
 | not-started | 0 | 18 | 441 | 47 | 0 | 27 | 2 | 421 | 956 |
-| not-applicable | 24 | 21 | 531 | 32 | 75 | 181 | 85 | 256 | 1205 |
+| not-applicable | 24 | 21 | 530 | 32 | 75 | 181 | 85 | 256 | 1204 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
@@ -194,8 +194,16 @@ function, `Q` and `_ch` forms.
 `xmlAddNotationDecl`; `xmlCreateIntSubset` when there is no DOCTYPE): the
 markup is read as more of the internal subset, after the declarations the
 document has, and saved with it; `OwnedDocument::is_id` is `xmlIsID`.
-Declarations are given as markup rather than one call per C struct, and
-cannot be removed or replaced (`xmlFreeDtd`, `xmlUnlinkNode` on a declaration).
+Declarations are given as markup rather than one call per C struct.
+`Editor::set_internal_subset(markup)` replaces the internal subset's
+declarations (what freeing declaration nodes and adding new ones does),
+`Editor::remove_doctype` unlinks and frees `intSubset`, and
+`Editor::set_doctype_ids` sets `ExternalID` and `SystemID` (output pinned
+against libxml2 2.15.4 in tests/declarations.rs). Declarations from a loaded
+external subset survive these edits, after the internal ones; an external
+declaration that an internal one shadowed when the document was read was
+dropped then and does not come back (libxml2 keeps it in `extSubset`).
+Detached DTDs and declarations (`xmlNewDtd`, `xmlNewEntity`) do not exist.
 
 Differences from libxml2, by design:
 

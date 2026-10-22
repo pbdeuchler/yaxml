@@ -371,8 +371,8 @@ TREE_FIELDS = {
     "_xmlNs.type": ("A", "namespace nodes carry no type tag"),
     "_xmlNs._private": ("A", "no user pointer"),
     "_xmlDtd.name": ("I", "valid::Dtd::name"),
-    "_xmlDtd.ExternalID": ("I", "reader::Doctype::public_id"),
-    "_xmlDtd.SystemID": ("I", "reader::Doctype::system_id"),
+    "_xmlDtd.ExternalID": ("I", "reader::Doctype::public_id, Editor::set_doctype_ids"),
+    "_xmlDtd.SystemID": ("I", "reader::Doctype::system_id, Editor::set_doctype_ids"),
     "_xmlError.code": ("I", "diagnostic::Diagnostic::code"),
     "_xmlError.domain": ("I", "diagnostic::Diagnostic::domain"),
     "_xmlError.level": ("I", "diagnostic::Diagnostic::level"),
@@ -588,7 +588,7 @@ I|xmlNewNs|Editor::declare_namespace
 P|xmlNewProp xmlNewNsProp xmlNewDocProp|Editor::set_attribute
 A|xmlNewNodeEatName xmlNewNsPropEatName xmlNewDocNodeEatName|no dictionary or name ownership transfer
 N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd|not started (no detached nodes, entity-reference or DTD construction)
-P|xmlCreateIntSubset|Editor::add_declarations - created by the first declarations, named after the document element
+P|xmlCreateIntSubset|Editor::add_declarations, Editor::set_internal_subset - created by the first declarations, named after the document element
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
 I|xmlAddPrevSibling|Editor::insert_before
@@ -597,7 +597,8 @@ P|xmlAddChildList|Editor::append_child - once per node of the list
 I|xmlUnlinkNode|Editor::unlink
 I|xmlReplaceNode|Editor::replace
 P|xmlFreeNode xmlFreeNodeList|Editor::remove_subtree
-A|xmlFreeDoc xmlFreeDtd xmlFreeNs xmlFreeNsList xmlFreeProp xmlFreePropList|Drop
+P|xmlFreeDtd|Editor::remove_doctype - the internal subset with its DOCTYPE; external-subset declarations stay; a parsed valid::Dtd is Drop
+A|xmlFreeDoc xmlFreeNs xmlFreeNsList xmlFreeProp xmlFreePropList|Drop
 I|xmlSetProp xmlSetNsProp|Editor::set_attribute
 I|xmlUnsetProp xmlUnsetNsProp|Editor::remove_attribute
 P|xmlRemoveProp|Editor::remove_attribute

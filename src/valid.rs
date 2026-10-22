@@ -245,6 +245,62 @@ impl Dtd {
         (self.unbound.get(name).or_else(|| self.general.get(name))).copied()
     }
 
+    /// `self`, a freshly read internal subset, followed by `old`'s
+    /// declarations from the external subset: a name `self` declares keeps
+    /// its own, as libxml2 looks in `intSubset` before `extSubset`. Fails
+    /// without memory.
+    pub(crate) fn with_external(mut self, old: &Dtd) -> Result<Self, ()> {
+        let entities = old.entities.iter().filter(|entity| entity.external_subset);
+        (self.entities.try_reserve(entities.clone().count())).map_err(drop)?;
+        (self.elements.try_reserve(old.elements.len())).map_err(drop)?;
+        (self.element_index.try_reserve(old.elements.len())).map_err(drop)?;
+        for entity in entities {
+            let (name, parameter) = (&entity.name, entity.parameter);
+            let table = match (parameter, parameter || !self.standalone) {
+                (true, _) if self.parameter.contains_key(name) => continue,
+                (false, _) if self.declared(name).is_some() => continue,
+                (true, _) => &mut self.parameter,
+                (false, true) => &mut self.general,
+                (false, false) => &mut self.unbound,
+            };
+            table.insert(name.clone(), EntityId(self.entities.len()));
+            let input = None;
+            self.entities.push(EntityDecl {
+                input,
+                ..entity.clone()
+            });
+        }
+        for notation in old.notations.iter().filter(|notation| !notation.internal) {
+            self.declare_notation(notation.clone());
+        }
+        for old in &old.elements {
+            let content = old.content.as_ref().filter(|_| !old.internal);
+            let mut attributes = old.attributes.iter().filter(|a| !a.internal).peekable();
+            if content.is_none() && attributes.peek().is_none() {
+                continue;
+            }
+            let index = *(self.element_index)
+                .entry(old.name.clone())
+                .or_insert(self.elements.len());
+            if index == self.elements.len() {
+                self.elements.push(ElementDecl::new(old.name.clone()));
+            }
+            let element = &mut self.elements[index];
+            if element.content.is_none()
+                && let Some(content) = content
+            {
+                element.content = Some(content.clone());
+                element.model = old.model.clone();
+            }
+            for attribute in attributes {
+                if element.attribute(&attribute.name).is_none() {
+                    element.push_attribute(attribute.clone())?;
+                }
+            }
+        }
+        Ok(self)
+    }
+
     /// The first declaration of each general entity (see `declared`).
     pub(crate) fn declared_ids(&self) -> impl Iterator<Item = EntityId> {
         let bound = self.general.iter();

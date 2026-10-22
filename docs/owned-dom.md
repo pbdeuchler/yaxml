@@ -414,6 +414,9 @@ content (here `WrongNodeKind`).
 | `set_name(element, NameSpec)` | `xmlNodeSetName` + `xmlSetNs` | Renames; `Automatic` prefers the in-scope default, then a prefixed binding, then `nsN`. |
 | `set_url(url)` | `doc->URL` | The URL `base_uri` resolves against. |
 | `add_declarations(markup)` | `xmlAddEntity`, `xmlAddElementDecl`, `xmlAddAttributeDecl`, `xmlAddNotationDecl`, `xmlCreateIntSubset` | Appends markup declarations to the internal subset, read after the existing declarations (first declaration of a name wins; earlier parameter entities expand); creates a DOCTYPE named after the document element before it when there is none. Malformed markup, or markup that closes the subset, is `Parse` and changes nothing; HTML documents are `WrongNodeKind`. Attributes already in the tree are not retyped. |
+| `set_internal_subset(markup)` | freeing declaration nodes, then `xmlAddEntity` and the like | Replaces the internal subset's declarations, read as `add_declarations` reads them, from scratch. Declarations from a loaded external subset stay, after the new ones; one an internal declaration shadowed at parse time was dropped then. |
+| `remove_doctype()` | `xmlUnlinkNode` + `xmlFreeDtd` on `intSubset` | Removes the DOCTYPE and its internal declarations; loaded external-subset declarations stay (`dtd()` is `None` when there are none). No DOCTYPE is `WrongNodeKind`. |
+| `set_doctype_ids(public, system)` | `ExternalID`, `SystemID` | Sets the identifiers; nothing is loaded. A public identifier needs a system one and only `PubidChar`s; a system identifier cannot hold both quotes (`InvalidValue`). |
 
 New attributes join the ID table when libxml2's `xmlIsID` would: `xml:id`,
 HTML `id` (`name` on `a`), or a DTD-declared `ID` (`OwnedDocument::is_id`); removal drops the entry.

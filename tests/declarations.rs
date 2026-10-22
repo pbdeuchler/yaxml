@@ -635,3 +635,176 @@ fn malformed_or_misplaced_declarations_change_nothing() {
         assert_eq!(saved(&document), before, "{markup}");
     }
 }
+
+/// A DTD edit, as a test case applies it.
+#[derive(Clone, Copy, Debug)]
+enum DtdEdit {
+    Replace(&'static str),
+    Remove,
+    Ids(Option<&'static str>, Option<&'static str>),
+}
+
+fn apply(document: &mut OwnedDocument, edit: DtdEdit) -> Result<(), EditErrorKind> {
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    match edit {
+        DtdEdit::Replace(markup) => editor.set_internal_subset(markup),
+        DtdEdit::Remove => editor.remove_doctype(),
+        DtdEdit::Ids(public, system) => editor.set_doctype_ids(public, system),
+    }
+    .map_err(|error| error.kind)
+}
+
+#[test]
+fn editors_replace_and_remove_the_internal_subset() {
+    // Outputs of libxml2 2.15.4 after freeing the declaration nodes and
+    // xmlAddDocEntity, setting ExternalID/SystemID, or unlinking intSubset.
+    let input = "<!DOCTYPE r SYSTEM 'r.dtd' [<!ENTITY a 'x'><!ELEMENT r EMPTY>]><r/>";
+    let cases = [
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY b 'y'>"),
+            "<!DOCTYPE r SYSTEM \"r.dtd\" [\n<!ENTITY b \"y\">\n]>\n<r/>\n",
+        ),
+        // A name declared before is redefined.
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY a 'z'>"),
+            "<!DOCTYPE r SYSTEM \"r.dtd\" [\n<!ENTITY a \"z\">\n]>\n<r/>\n",
+        ),
+        (
+            input,
+            DtdEdit::Replace(""),
+            "<!DOCTYPE r SYSTEM \"r.dtd\">\n<r/>\n",
+        ),
+        (
+            "<r/>",
+            DtdEdit::Replace("<!ELEMENT r EMPTY>"),
+            "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n<r/>\n",
+        ),
+        (input, DtdEdit::Remove, "<r/>\n"),
+        (
+            input,
+            DtdEdit::Ids(Some("-//P//EN"), Some("r.dtd")),
+            "<!DOCTYPE r PUBLIC \"-//P//EN\" \"r.dtd\" [\n<!ENTITY a \"x\">\n<!ELEMENT r EMPTY>\n]>\n<r/>\n",
+        ),
+        (
+            "<!DOCTYPE r PUBLIC '-//P//EN' 'r.dtd'><r/>",
+            DtdEdit::Ids(None, Some("it's.dtd")),
+            "<!DOCTYPE r SYSTEM \"it's.dtd\">\n<r/>\n",
+        ),
+        (
+            "<!DOCTYPE r SYSTEM 'r.dtd'><r/>",
+            DtdEdit::Ids(None, None),
+            "<!DOCTYPE r>\n<r/>\n",
+        ),
+    ];
+    for (input, edit, expected) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        apply(&mut document, edit).unwrap();
+        let expected = format!("<?xml version=\"1.0\"?>\n{expected}");
+        assert_eq!(saved(&document), expected, "{edit:?}");
+    }
+    let mut document = OwnedDocument::parse(input).unwrap();
+    apply(&mut document, DtdEdit::Replace("<!ENTITY b 'y'>")).unwrap();
+    let dtd = document.dtd().unwrap();
+    assert!(dtd.entity("a").is_none() && dtd.element("r").is_none());
+    apply(&mut document, DtdEdit::Remove).unwrap();
+    assert!(document.dtd().is_none() && document.doctype().is_none());
+}
+
+#[test]
+fn external_subset_declarations_outlive_internal_edits() {
+    let input = "<!DOCTYPE r SYSTEM 'ext.dtd' [<!ENTITY outside 'in'><!ENTITY gone 'g'>]><r/>";
+    let cases: [(DtdEdit, Option<&str>, bool); 3] = [
+        (
+            DtdEdit::Replace("<!ENTITY outside 'new'>"),
+            Some("new"),
+            true,
+        ),
+        // The external declaration the internal one shadowed was dropped at
+        // parse time (libxml2 keeps it in extSubset).
+        (DtdEdit::Replace(""), None, true),
+        (DtdEdit::Remove, None, false),
+    ];
+    for (edit, outside, doctype) in cases {
+        let options = options(options::DTDLOAD);
+        let mut document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+        assert_eq!(
+            document.dtd().unwrap().entity("outside").unwrap().content,
+            Some("in")
+        );
+        apply(&mut document, edit).unwrap();
+        let dtd = document.dtd().unwrap();
+        let found = dtd.entity("outside").and_then(|entity| entity.content);
+        assert_eq!(found, outside, "{edit:?}");
+        assert!(dtd.entity("gone").is_none(), "{edit:?}");
+        assert_eq!(dtd.entity("other").unwrap().content, Some("ignored"));
+        assert_eq!(dtd.element("d").map(|d| d.kind), Some(ContentKind::Empty));
+        assert_eq!(document.doctype().is_some(), doctype, "{edit:?}");
+    }
+}
+
+#[test]
+fn rejected_dtd_edits_change_nothing() {
+    let input = "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>";
+    let cases = [
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY b>"),
+            EditErrorKind::Parse(ErrorKind::InvalidDtd),
+        ),
+        (
+            input,
+            DtdEdit::Replace("&a;"),
+            EditErrorKind::Parse(ErrorKind::InvalidDtd),
+        ),
+        ("<r/>", DtdEdit::Remove, EditErrorKind::WrongNodeKind),
+        (
+            "<r/>",
+            DtdEdit::Ids(None, Some("s")),
+            EditErrorKind::WrongNodeKind,
+        ),
+        (
+            input,
+            DtdEdit::Ids(Some("p"), None),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(Some("p\"q"), Some("s")),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(None, Some("'\"")),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(None, Some("\u{1}")),
+            EditErrorKind::InvalidCharacter,
+        ),
+    ];
+    for (input, edit, kind) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let before = saved(&document);
+        assert_eq!(apply(&mut document, edit), Err(kind), "{edit:?}");
+        assert_eq!(saved(&document), before, "{edit:?}");
+    }
+}
+
+#[test]
+fn external_attribute_lists_and_notations_survive_a_replaced_subset() {
+    let ext = "<!NOTATION n SYSTEM 'n'><!ATTLIST d x CDATA '1'><!ELEMENT d EMPTY>";
+    let resolver = move |_: Request<'_>| Ok(Some(ext.as_bytes().to_vec()));
+    let options = ParseOptions::new(options::DTDLOAD).with_resolver("doc.xml", Box::new(resolver));
+    let input = "<!DOCTYPE r SYSTEM 'ext.dtd' [<!ATTLIST d y CDATA 'i'><!ELEMENT d ANY>]><r/>";
+    let mut document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+    apply(&mut document, DtdEdit::Replace("<!ATTLIST d z CDATA 'n'>")).unwrap();
+    let dtd = document.dtd().unwrap();
+    let d = dtd.element("d").unwrap();
+    let names: Vec<_> = d.attributes().map(|attribute| attribute.name).collect();
+    // The external <!ELEMENT d> lost to the internal one when read.
+    assert_eq!((d.kind, names), (ContentKind::Undefined, vec!["z", "x"]));
+    assert!(dtd.notation("n").is_some());
+}

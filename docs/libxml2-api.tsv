@@ -1773,8 +1773,8 @@ tree.h	_xmlDoc.standalone	field	not_marked	P0-P3	partial	https://github.com/GNOM
 tree.h	_xmlDoc.type	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::is_html
 tree.h	_xmlDoc.version	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Declaration
 tree.h	_xmlDtd	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
-tree.h	_xmlDtd.ExternalID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::public_id
-tree.h	_xmlDtd.SystemID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::system_id
+tree.h	_xmlDtd.ExternalID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::public_id, Editor::set_doctype_ids
+tree.h	_xmlDtd.SystemID	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	reader::Doctype::system_id, Editor::set_doctype_ids
 tree.h	_xmlDtd._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
 tree.h	_xmlDtd.attributes	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::attributes
 tree.h	_xmlDtd.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
@@ -1911,7 +1911,7 @@ tree.h	xmlCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOM
 tree.h	xmlCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - one node at a time
 tree.h	xmlCopyProp	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
 tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
-tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_declarations - created by the first declarations, named after the document element
+tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_declarations, Editor::set_internal_subset - created by the first declarations, named after the document element
 tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no custom namespace callback; copies never rename
 tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
 tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
@@ -1955,7 +1955,7 @@ tree.h	xmlEnumeration	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/
 tree.h	xmlEnumerationPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlFirstElementChild	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlFreeDoc	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Drop
-tree.h	xmlFreeDtd	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Drop
+tree.h	xmlFreeDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::remove_doctype - the internal subset with its DOCTYPE; external-subset declarations stay; a parsed valid::Dtd is Drop
 tree.h	xmlFreeNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::remove_subtree
 tree.h	xmlFreeNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::remove_subtree
 tree.h	xmlFreeNs	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Drop
