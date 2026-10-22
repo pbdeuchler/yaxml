@@ -1,7 +1,8 @@
 //! `Editor::parse_content`: content parsed in a node's context
 //! (`xmlParseInNodeContext`, `xmlCtxtParseContent`,
 //! `xmlParseBalancedChunkMemory`), its errors as libxml2 codes, and the
-//! limits on parsing and inserting it.
+//! limits on parsing and inserting it; `Editor::parse_external_entity`
+//! (`xmlParseCtxtExternalEntity`).
 #![forbid(unsafe_code)]
 
 use yaxml::options::{DTDVALID, NOBLANKS, NOENT, NSCLEAN, RECOVER, XINCLUDE};
@@ -332,4 +333,56 @@ fn parse_budgets_and_edit_limits_apply() {
     let bytes = EditLimits::DEFAULT.max_owned_bytes(1);
     assert_eq!(tight(bytes), limit(EditLimit::OwnedBytes));
     assert_eq!(saved(&document), before);
+}
+
+#[test]
+fn external_entities_parse_like_xml_parse_ctxt_external_entity() {
+    // Recorded with xmlParseCtxtExternalEntity (document context: prefixes
+    // are unbound), appended to `r`.
+    type Row<'a> = (&'a [u8], Result<(&'a str, usize), ErrorKind>);
+    let rows: [Row; 11] = [
+        (b"a<p:b>x</p:b>c", Ok(("<r>a<p:b>x</p:b>c</r>", 1))),
+        (b"<?xml encoding=\"UTF-8\"?>t<e/>", Ok(("<r>t<e/></r>", 0))),
+        (
+            b"<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>caf\xe9",
+            Ok(("<r>caf&#xE9;</r>", 0)),
+        ),
+        // No version check: the parser context has no document version.
+        (
+            b"<?xml version=\"1.1\" encoding=\"UTF-8\"?>v",
+            Ok(("<r>v</r>", 0)),
+        ),
+        (b"\xff\xfe<\0e\0/\0>\0", Ok(("<r><e/></r>", 0))),
+        (b"", Ok(("<r/>", 0))),
+        (b"&amp;<q:x/>", Ok(("<r>&amp;<q:x/></r>", 1))),
+        // A text declaration needs an encoding and has no standalone.
+        (
+            b"<?xml version=\"1.0\"?>v",
+            Err(ErrorKind::InvalidDeclaration),
+        ),
+        (
+            b"<?xml encoding=\"UTF-8\" standalone=\"yes\"?>x",
+            Err(ErrorKind::InvalidDeclaration),
+        ),
+        (
+            b"<?xml  encoding=\"bogus\"?>x",
+            Err(ErrorKind::UnsupportedEncoding),
+        ),
+        (b"<a>", Err(ErrorKind::UnexpectedEof)),
+    ];
+    for (input, expected) in rows {
+        let mut document = OwnedDocument::parse("<r/>").unwrap();
+        let (root, r) = (document.root().id(), document.root_element().id());
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let parsed = editor.parse_external_entity(root, input, ParseOptions::default());
+        let found = parsed.map_err(|error| error.kind).map(|fragment| {
+            for node in fragment.nodes {
+                editor.append_child(r, node).unwrap();
+            }
+            fragment.errors.len()
+        });
+        let found = found.map(|errors| (saved(&document), errors));
+        let expected = expected.map(|(xml, errors)| (xml.to_owned(), errors));
+        assert_eq!(found, expected.map_err(EditErrorKind::Parse), "{input:?}");
+    }
 }

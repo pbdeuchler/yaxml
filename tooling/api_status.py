@@ -411,10 +411,11 @@ P|xmlRecoverDoc xmlRecoverMemory xmlRecoverFile|OwnedDocument::parse_with, optio
 I|xmlParseDTD|valid::Dtd::parse
 P|xmlCtxtParseDtd xmlIOParseDTD|valid::Dtd::parse
 I|xmlParseInNodeContext|Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
-P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment - no text declaration (hasTextDecl); UTF-8 input
+P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment, Editor::parse_external_entity - hasTextDecl is parse_external_entity; UTF-8 input
 I|xmlParseBalancedChunkMemory|Editor::parse_content - on OwnedDocument::root with default options
 P|xmlParseBalancedChunkMemoryRecover|Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
-N|xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|external parsed entities as standalone input not started
+P|xmlParseCtxtExternalEntity xmlParseExternalEntity|Editor::parse_external_entity - takes the entity bytes, not a URL; no SAX callbacks
+N|xmlParseExtParsedEnt xmlParseEntity|an external parsed entity as a standalone document not started (Editor::parse_external_entity parses one into a document)
 I|xmlSAXUserParseMemory|sax::parse
 P|xmlSAXUserParseFile|sax::parse - on the bytes read by the caller
 P|xmlSAXParseMemory xmlSAXParseMemoryWithData xmlSAXParseDoc xmlSAXParseFile xmlSAXParseFileWithData|sax::parse - callbacks only, no tree is built

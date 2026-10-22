@@ -888,7 +888,7 @@ parser.h	xmlCtxtGetVersion	function	not_marked	P0-P3	partial	https://github.com/
 parser.h	xmlCtxtIsHtml	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsInSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtIsStopped	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment - no text declaration (hasTextDecl); UTF-8 input
+parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment, Editor::parse_external_entity - hasTextDecl is parse_external_entity; UTF-8 input
 parser.h	xmlCtxtParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlCtxtParseDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlCtxtReadDoc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
@@ -943,13 +943,13 @@ parser.h	xmlNewSAXParserCtxt	function	not_marked	P0-P3	partial	https://github.co
 parser.h	xmlParseBalancedChunkMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - on OwnedDocument::root with default options
 parser.h	xmlParseBalancedChunkMemoryRecover	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
 parser.h	xmlParseChunk	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::feed, PushParser::finish
-parser.h	xmlParseCtxtExternalEntity	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
+parser.h	xmlParseCtxtExternalEntity	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_external_entity - takes the entity bytes, not a URL; no SAX callbacks
 parser.h	xmlParseDTD	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlParseDoc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with
 parser.h	xmlParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
-parser.h	xmlParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
-parser.h	xmlParseExtParsedEnt	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
-parser.h	xmlParseExternalEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	external parsed entities as standalone input not started
+parser.h	xmlParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	an external parsed entity as a standalone document not started (Editor::parse_external_entity parses one into a document)
+parser.h	xmlParseExtParsedEnt	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	an external parsed entity as a standalone document not started (Editor::parse_external_entity parses one into a document)
+parser.h	xmlParseExternalEntity	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_external_entity - takes the entity bytes, not a URL; no SAX callbacks
 parser.h	xmlParseFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
 parser.h	xmlParseMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with

@@ -577,6 +577,7 @@ visit the same tree in the same order. It fails only on allocation
 | --- | --- | --- |
 | `editor.parse_content(node, input, options)` | `xmlParseInNodeContext(node, data, len, options, &list)`, `xmlCtxtParseContent(ctxt, input, node, 0)` | The top-level nodes of `input`, parsed as content of `node`, detached in this document. |
 | `editor.parse_content(document.root().id(), input, ParseOptions::default())` | `xmlParseBalancedChunkMemory(doc, NULL, NULL, 0, string, &list)` | The same, with the document's entities and no namespaces. |
+| `editor.parse_external_entity(document.root().id(), bytes, options)` | `xmlParseCtxtExternalEntity(ctxt, URL, ID, &list)`, `xmlCtxtParseContent(ctxt, input, node, 1)` | An external parsed entity (`TextDecl? content`): a BOM or the text declaration picks the encoding, then as `parse_content`. Any context node works. |
 
 `input` is any sequence of content: text, several elements, comments, PIs,
 CDATA and references, but no XML declaration or DOCTYPE. It is parsed in the
@@ -586,6 +587,12 @@ namespaces and the document's general entities. The nodes come back in
 `Fragment::nodes`, detached like a [copy](#copying-and-importing); under the
 element they were parsed in they need no new declarations, and anywhere else
 insertion declares what the new place lacks.
+
+`parse_external_entity` takes the entity's bytes, not a URL (load them with a
+`Resolver` first). Like libxml2 it requires `encoding` in the text
+declaration, rejects `standalone`, and accepts any version, since the parser
+context has no document version. Its error offsets are into the decoded text
+after the declaration; decoding and declaration errors have none.
 
 ```rust
 use yaxml::{EditLimits, OwnedDocument, ParseOptions, save};

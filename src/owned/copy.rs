@@ -583,6 +583,28 @@ impl<A: Allocator> Editor<'_, A> {
             errors: parsed.errors,
         })
     }
+
+    /// Parses an external parsed entity (`TextDecl? content`) as content of
+    /// `context`, like `xmlParseCtxtExternalEntity` given the entity's
+    /// bytes (pass [`OwnedDocument::root`] for its document context): a BOM
+    /// or the text declaration chooses the encoding, the declaration is
+    /// removed, and the rest is [`parse_content`](Self::parse_content).
+    ///
+    /// # Errors
+    ///
+    /// As `parse_content`, with offsets into the decoded text after the
+    /// declaration; a decoding or text declaration error is
+    /// [`EditErrorKind::Parse`] without an offset.
+    pub fn parse_external_entity(
+        &mut self,
+        context: OwnedNodeId,
+        input: &[u8],
+        options: ParseOptions,
+    ) -> Result<Fragment, EditError> {
+        let text = crate::resolve::decode(input, false)
+            .map_err(|kind| EditError::new(EditErrorKind::Parse(kind), None))?;
+        self.parse_content(context, text.as_bytes(), options)
+    }
 }
 
 /// The nodes [`Editor::parse_content`] parsed.
