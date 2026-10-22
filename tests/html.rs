@@ -710,3 +710,44 @@ fn node_dumps_match_html_node_dump() {
         assert_eq!(String::from_utf8(dumped).unwrap(), expected, "{format}");
     }
 }
+
+#[test]
+fn created_documents_serialize_like_html_new_doc_no_dtd() {
+    use yaxml::EditLimits;
+    let source = html::parse(b"x", html::Options::default())
+        .unwrap()
+        .document;
+    let transitional = (
+        Some("http://www.w3.org/TR/REC-html40/loose.dtd"),
+        Some("-//W3C//DTD HTML 4.0 Transitional//EN"),
+    );
+    // Recorded with htmlNewDocNoDtD/htmlNewDoc and htmlDocDumpMemory, then
+    // with <html><body>x</body></html> added.
+    let cases = [
+        ((None, None), ""),
+        ((Some("s.dtd"), None), "<!DOCTYPE html SYSTEM \"s.dtd\">\n"),
+        ((None, Some("-//P")), "<!DOCTYPE html PUBLIC \"-//P\">\n"),
+        (
+            (Some("a\"b"), Some("-//P")),
+            "<!DOCTYPE html PUBLIC \"-//P\" 'a\"b'>\n",
+        ),
+        (
+            transitional,
+            "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n",
+        ),
+    ];
+    for ((uri, public_id), doctype) in cases {
+        let mut document = html::create(uri, public_id).unwrap();
+        assert!(document.is_html() && document.document_element().is_none());
+        let empty = String::from_utf8(html::to_html(&document).unwrap()).unwrap();
+        assert_eq!(empty, format!("{doctype}\n"), "{uri:?} {public_id:?}");
+        let root = document.root().id();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let copy = editor.import(&source, source.root_element().id(), true);
+        let element = editor.append_child(root, copy.unwrap()).unwrap();
+        assert_eq!(editor.document().root_element().id(), element);
+        let built = String::from_utf8(html::to_html(&document).unwrap()).unwrap();
+        let expected = format!("{doctype}<html><body>x</body></html>\n");
+        assert_eq!(built, expected, "{uri:?} {public_id:?}");
+    }
+}

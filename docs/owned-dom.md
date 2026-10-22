@@ -359,7 +359,10 @@ remains available under the writer's own limits.
 ## Moving, unlinking and replacing
 
 Every node except the synthetic root, the DOCTYPE and the document element can
-move; each method takes the node's handle wherever it is:
+move; each method takes the node's handle wherever it is. Under the document
+node only comments and PIs move, plus one element when the document has none
+(an HTML, `RECOVER` or `html::create` document), which becomes the document
+element; libxml2's `xmlAddChild` would accept more.
 
 | Method | libxml2 | Behavior |
 | --- | --- | --- |

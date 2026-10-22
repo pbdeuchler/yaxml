@@ -251,6 +251,31 @@ fn recovery_decodes_utf16_like_utf8() {
 }
 
 #[test]
+fn a_rootless_document_adopts_its_first_element() {
+    use yaxml::{EditErrorKind, EditLimits};
+    let source = OwnedDocument::parse("<r><a/></r>").unwrap();
+    let element = source.root_element().id();
+    let mut document = OwnedDocument::parse_with(b"<!--c-->", ParseOptions::new(RECOVER)).unwrap();
+    let (root, comment) = (
+        document.root().id(),
+        document.root().first_child().unwrap().id(),
+    );
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    let first = editor.import(&source, element, true).unwrap();
+    assert_eq!(editor.insert_before(comment, first), Ok(first));
+    assert_eq!(
+        editor.document().document_element().map(|node| node.id()),
+        Some(first)
+    );
+    // ... but only one: libxml2's xmlAddChild would add a second
+    let second = editor.import(&source, element, false).unwrap();
+    let refused = editor.append_child(root, second).unwrap_err();
+    assert_eq!(refused.kind, EditErrorKind::Hierarchy);
+    let saved = String::from_utf8(save::to_vec(&document, &save::Options::default()).unwrap());
+    assert_eq!(saved.unwrap(), format!("{DECL}<r><a/></r>\n<!--c-->\n"));
+}
+
+#[test]
 fn recovery_without_an_element_keeps_the_prolog() {
     for &(input, saved, errors) in ROOTLESS {
         let expected = (format!("{DECL}{saved}"), errors.to_vec());

@@ -12,6 +12,7 @@ the WHATWG tree builder.
 | yaxml | libxml2 |
 | --- | --- |
 | `html::parse(bytes, Options) -> Result<Parsed, Error>` | `htmlReadMemory` / `htmlCtxtReadMemory` |
+| `html::create(uri, public_id) -> Result<OwnedDocument, Error>` | `htmlNewDocNoDtD`: rootless, an `html` DOCTYPE only when an id is given; `htmlNewDoc(NULL, NULL)` = the HTML 4.0 Transitional ids. Build it with the [editor](owned-dom.md): `append_child` on the document adopts the first element (e.g. an `Editor::import`ed one) |
 | `html::PushParser::{new, feed, finish}` | `htmlCreatePushParserCtxt`, `htmlParseChunk` |
 | `html::parse_events(bytes, Options, handler) -> Result<Summary, Error>` | `htmlNewSAXParserCtxt` + `htmlCtxtReadMemory` with custom SAX callbacks |
 | `html::EventParser::{new, feed, finish}` | `htmlCreatePushParserCtxt` with custom SAX callbacks |

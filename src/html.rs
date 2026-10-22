@@ -325,6 +325,44 @@ pub fn parse(input: &[u8], options: Options) -> Result<Parsed, Error> {
     engine.document()
 }
 
+/// An empty HTML document to build with
+/// [`OwnedDocument::edit`](crate::OwnedDocument::edit), like
+/// `htmlNewDocNoDtD(uri, public_id)`: an `html` DOCTYPE when either id is
+/// given, else none. `htmlNewDoc(NULL, NULL)` passes the HTML 4.0
+/// Transitional ids that [`parse`] implies.
+///
+/// ```
+/// use yaxml::{EditLimits, html};
+/// let source = html::parse(b"<p>x", html::Options::default())?.document;
+/// let mut document = html::create(None, Some("-//P"))?;
+/// let root = document.root().id();
+/// let mut editor = document.edit(EditLimits::default())?;
+/// let copy = editor.import(&source, source.root_element().id(), true)?;
+/// editor.append_child(root, copy)?; // the document element
+/// let saved = html::to_html(&document)?;
+/// let expected = "<!DOCTYPE html PUBLIC \"-//P\">\n<html><body><p>x</p></body></html>\n";
+/// assert_eq!(saved, expected.as_bytes());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// Only allocation failure.
+pub fn create(uri: Option<&str>, public_id: Option<&str>) -> Result<OwnedDocument, Error> {
+    let doctype = (uri.is_some() || public_id.is_some()).then_some(crate::Doctype {
+        name: "html",
+        public_id,
+        system_id: uri,
+        internal_subset: None,
+    });
+    let decoding = Decoding {
+        skip: 0,
+        initial: Decoder::Utf8,
+        switch: None,
+    };
+    HtmlBuilder::new(0, Limits::default())?.finish(doctype, None, decoding)
+}
+
 /// Parses `input` as content of an HTML node, like `xmlCtxtParseContent`.
 ///
 /// Nothing is implied and a DOCTYPE is ignored; the nodes become the

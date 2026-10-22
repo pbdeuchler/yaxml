@@ -908,7 +908,9 @@ P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - retur
 I|htmlNodeDump|html::dump_node - format true
 P|htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocContentDumpFormatOutput|html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
 P|htmlNodeDumpFile htmlNodeDumpFileFormat|html::dump_node - returns bytes
-N|htmlSetMetaEncoding htmlNewDoc htmlNewDocNoDtD|HTML construction not started (docs/html.md)
+I|htmlNewDocNoDtD|html::create
+P|htmlNewDoc|html::create - pass the HTML 4.0 Transitional ids for htmlNewDoc(NULL, NULL); an explicit DOCTYPE without ids is not built
+N|htmlSetMetaEncoding|HTML meta editing not started (docs/html.md)
 P|htmlGetMetaEncoding|OwnedDocument::html_encoding
 A|HTML_COMMENT_NODE HTML_ENTITY_REF_NODE HTML_PI_NODE HTML_PRESERVE_NODE HTML_TEXT_NODE|node-type aliases
 N|HTML_DEPRECATED HTML_INVALID HTML_NA HTML_REQUIRED HTML_VALID htmlStatus htmlDefaultSubelement htmlElementAllowedHereDesc htmlRequiredAttrs UTF8ToHtml|no public HTML element table

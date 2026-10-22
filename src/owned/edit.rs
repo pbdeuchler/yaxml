@@ -517,7 +517,8 @@ impl<A: Allocator> Editor<'_, A> {
 
     /// Whether `node` can become a child of `parent`: entity content is
     /// read-only; parents are elements or the document, which takes only
-    /// comments and PIs (or the replacement document element); no cycles;
+    /// comments and PIs (or the document element: a replacement, or the
+    /// first one of a rootless document); no cycles;
     /// a move may not make the tree deeper than `max_depth`.
     fn check_target(&self, node: usize, parent: usize, root: bool) -> Result<(), EditError> {
         let document = &*self.document;
@@ -568,7 +569,11 @@ impl<A: Allocator> Editor<'_, A> {
             _ => None,
         };
         let parent = parent.ok_or(error(EditErrorKind::Hierarchy))?;
-        self.check_target(node, parent, false)?;
+        // A rootless (HTML or RECOVER) document adopts its first element.
+        let root = parent == 0
+            && self.document.root_element == NodeId::new(0)
+            && self.document.is_kind(node, OwnedNodeKind::Element);
+        self.check_target(node, parent, root)?;
         let last = self.document.nodes[parent]
             .last_child
             .get()
@@ -590,6 +595,9 @@ impl<A: Allocator> Editor<'_, A> {
             Anchor::After(reference) => self.document.nodes[reference].next_sibling,
         };
         self.document.attach(node, parent, next);
+        if root {
+            self.document.root_element = NodeId::new(node);
+        }
         Ok(self.id(node))
     }
 
