@@ -19,6 +19,7 @@ the WHATWG tree builder.
 | `Diagnostic::{describe, render}` with `LineIndex::html(input, &document)` or `Summary::line_index(input)` | `xmlError` (`describe`), `xmlFormatError`'s report as `xmllint --html` prints it (`render`) |
 | `OwnedNode::line(&LineIndex::html(input, &document))` on an HTML node | `xmlGetLineNo` |
 | `html::to_html(&OwnedDocument)` | `htmlDocDumpMemory` (formatted, `<meta>` untouched) |
+| `html::dump_node(OwnedNode, format)` | `htmlNodeDump` (format), `htmlNodeDumpFormatOutput` and `htmlDocContentDumpFormatOutput` without a converter: the subtree in UTF-8, `<meta>` untouched |
 | `html::save(&OwnedDocument, format)` | `xmlSaveDoc` on an HTML document, as `xmllint --html [--format]` prints |
 | `Parsed { document, diagnostics, stopped }` | `ctxt->myDoc`, reported errors, `XML_ERR_RESOURCE_LIMIT` halt |
 | `OwnedDocument::{is_html, doctype, html_encoding}` | `XML_DOC_HTML`, `doc->intSubset`, `doc->encoding` |

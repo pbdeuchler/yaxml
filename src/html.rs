@@ -44,7 +44,7 @@ use tokenizer::{Stop, TagEnd, Token, Tokenizer};
 use tree::{Document, Events, Place, Reaction, Settings, Sink, Tree};
 
 pub(crate) use serialize::save_node;
-pub use serialize::{save, to_html};
+pub use serialize::{dump_node, save, to_html};
 pub(crate) use tables::boolean_attribute;
 
 /// `HTML_PARSE_RECOVER`: accepted; HTML parsing always recovers.

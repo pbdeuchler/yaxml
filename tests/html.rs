@@ -667,3 +667,46 @@ fn html_ids_follow_xmlisid() {
     );
     assert_eq!(value.unwrap(), yaxml::xpath::Value::Number(3.0));
 }
+
+#[test]
+fn node_dumps_match_html_node_dump() {
+    // htmlNodeDump (format) and htmlNodeDumpFormatOutput/htmlDocContentDumpFormatOutput
+    // without a converter, from libxml2 2.15.4.
+    let page = "<!DOCTYPE html><html><head><meta charset=\"latin1\"><title>t</title></head>\
+                <body><p>\u{e9}&amp;<b>x</b> \u{20ac}</p><!--c--></body></html>";
+    let parsed = parse(page.as_bytes(), 0);
+    let document = &parsed.document;
+    let html = document.document_element().unwrap();
+    let head = html.first_child().unwrap();
+    let p = html.last_child().unwrap().first_child().unwrap();
+    let cases = [
+        (
+            head,
+            true,
+            "<head>\n<meta charset=\"latin1\">\n<title>t</title>\n</head>\n",
+        ),
+        (
+            head,
+            false,
+            "<head><meta charset=\"latin1\"><title>t</title></head>",
+        ),
+        (p, true, "<p>Ã©&amp;<b>x</b> â\u{201a}¬</p>\n"),
+        (p, false, "<p>Ã©&amp;<b>x</b> â\u{201a}¬</p>"),
+        (
+            document.root(),
+            false,
+            "<!DOCTYPE html>\n<html><head><meta charset=\"latin1\"><title>t</title></head>\
+             <body><p>Ã©&amp;<b>x</b> â\u{201a}¬</p><!--c--></body></html>\n",
+        ),
+        (
+            document.root(),
+            true,
+            "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"latin1\">\n<title>t</title>\n</head>\n\
+             <body>\n<p>Ã©&amp;<b>x</b> â\u{201a}¬</p>\n<!--c-->\n</body>\n</html>\n",
+        ),
+    ];
+    for (node, format, expected) in cases {
+        let dumped = html::dump_node(node, format).unwrap();
+        assert_eq!(String::from_utf8(dumped).unwrap(), expected, "{format}");
+    }
+}

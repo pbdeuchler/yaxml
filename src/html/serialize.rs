@@ -18,7 +18,25 @@ use crate::{
 /// `htmlDocDumpMemory`: formatted, in the document's encoding (ASCII with
 /// HTML 4 entities when it has none), leaving `<meta>` declarations alone.
 pub fn to_html(document: &OwnedDocument) -> Result<Vec<u8>, Error> {
-    to_vec(document.root(), true, None)
+    to_vec(document.root(), true, None, None)
+}
+
+/// `htmlNodeDump` (`format` true) and `htmlNodeDumpFormatOutput` into an
+/// output buffer without a converter: `node` and its subtree, or the whole
+/// document for its root (`htmlDocContentDumpFormatOutput`), in UTF-8 with
+/// `<meta>` declarations left alone.
+///
+/// ```
+/// use yaxml::html;
+/// let document = html::parse(b"<p>a&lt;<b>x</b></p>", html::Options::default())?.document;
+/// let p = document.document_element().unwrap().last_child().unwrap().first_child().unwrap();
+/// assert_eq!(html::dump_node(p, false)?, b"<p>a&lt;<b>x</b></p>");
+/// // As in libxml2, formatting adds a line end only before a next sibling.
+/// assert_eq!(html::dump_node(p, true)?, b"<p>a&lt;<b>x</b></p>");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub fn dump_node(node: OwnedNode<'_>, format: bool) -> Result<Vec<u8>, Error> {
+    to_vec(node, format, Some("UTF-8"), None)
 }
 
 /// `xmlSaveDoc` for an HTML document, which is what `xmllint --html` prints:
@@ -28,6 +46,7 @@ pub fn save(document: &OwnedDocument, format: bool) -> Result<Vec<u8>, Error> {
     to_vec(
         document.root(),
         format,
+        Some(document.html_encoding().unwrap_or("HTML")),
         Some(document.html_encoding().unwrap_or("HTML")),
     )
 }
@@ -41,12 +60,17 @@ pub(crate) fn save_node(
     label: &str,
     sink: &mut dyn Write,
 ) -> Result<(), WriteError> {
-    dump(node, format, Some(label), sink)
+    dump(node, format, Some(label), Some(label), sink)
 }
 
-fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
+fn to_vec(
+    node: OwnedNode<'_>,
+    format: bool,
+    label: Option<&str>,
+    meta: Option<&str>,
+) -> Result<Vec<u8>, Error> {
     let mut bytes = Memory::default();
-    match dump(node, format, encoding, &mut bytes) {
+    match dump(node, format, label, meta, &mut bytes) {
         Ok(()) => Ok(bytes.0),
         Err(WriteError::Xml(error)) => Err(error),
         // Memory fails only to grow.
@@ -54,13 +78,17 @@ fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<V
     }
 }
 
+/// Writes `node` converted by the `label` converter (the document's
+/// encoding when None), naming `meta` in `<meta>` declarations (None leaves
+/// them unchanged).
 fn dump(
     node: OwnedNode<'_>,
     format: bool,
-    encoding: Option<&str>,
+    label: Option<&str>,
+    meta: Option<&str>,
     sink: &mut dyn Write,
 ) -> Result<(), WriteError> {
-    let output = output(encoding.or(node.document().html_encoding())).map_err(WriteError::Xml)?;
+    let output = output(label.or(node.document().html_encoding())).map_err(WriteError::Xml)?;
     let mut dumper = Dumper {
         out: Vec::new(),
         encoded: output.map_or(&[][..], Output::bom).to_vec(),
@@ -68,7 +96,7 @@ fn dump(
         output,
         error: None,
         format,
-        encoding,
+        encoding: meta,
         meta_head: None,
     };
     dumper.node(node);

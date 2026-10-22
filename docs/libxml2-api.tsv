@@ -105,24 +105,24 @@ HTMLtree.h	HTML_ENTITY_REF_NODE	macro	not_marked	P3	not-applicable	https://githu
 HTMLtree.h	HTML_PI_NODE	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	node-type aliases
 HTMLtree.h	HTML_PRESERVE_NODE	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	node-type aliases
 HTMLtree.h	HTML_TEXT_NODE	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	node-type aliases
-HTMLtree.h	htmlDocContentDumpFormatOutput	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlDocContentDumpOutput	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
+HTMLtree.h	htmlDocContentDumpFormatOutput	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
+HTMLtree.h	htmlDocContentDumpOutput	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
 HTMLtree.h	htmlDocDump	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlDocDumpMemory	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::to_html, html::save
 HTMLtree.h	htmlDocDumpMemoryFormat	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::to_html, html::save
 HTMLtree.h	htmlGetMetaEncoding	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	OwnedDocument::html_encoding
 HTMLtree.h	htmlIsBooleanAttr	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	deprecated in 2.15.4
-HTMLtree.h	htmlNewDoc	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNewDocNoDtD	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNodeDump	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNodeDumpFile	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNodeDumpFileFormat	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNodeDumpFormatOutput	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
-HTMLtree.h	htmlNodeDumpOutput	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
+HTMLtree.h	htmlNewDoc	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML construction not started (docs/html.md)
+HTMLtree.h	htmlNewDocNoDtD	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML construction not started (docs/html.md)
+HTMLtree.h	htmlNodeDump	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - format true
+HTMLtree.h	htmlNodeDumpFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns bytes
+HTMLtree.h	htmlNodeDumpFileFormat	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns bytes
+HTMLtree.h	htmlNodeDumpFormatOutput	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
+HTMLtree.h	htmlNodeDumpOutput	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
 HTMLtree.h	htmlSaveFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlSaveFileEnc	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlSaveFileFormat	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
-HTMLtree.h	htmlSetMetaEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML subtree output and construction not started (docs/html.md)
+HTMLtree.h	htmlSetMetaEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML construction not started (docs/html.md)
 SAX2.h	htmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
 SAX2.h	xmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
 SAX2.h	xmlSAX2AttributeDecl	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	SAX2 handler table not started (roadmap 15)
