@@ -211,8 +211,8 @@ pub(super) struct Found {
     /// reports the error there rather than in the document.
     pub(super) place: Option<(usize, usize)>,
     pub(super) message: String,
-    pub(super) str1: Option<String>,
-    pub(super) str2: Option<String>,
+    /// `xmlError.str1`..`str3`.
+    pub(super) strs: [Option<Box<str>>; 3],
     pub(super) int1: i64,
 }
 
@@ -222,8 +222,7 @@ fn fail(code: u16, at: usize, message: impl Into<String>) -> Found {
         at,
         place: None,
         message: message.into(),
-        str1: None,
-        str2: None,
+        strs: [None, None, None],
         int1: 0,
     }
 }
@@ -231,8 +230,7 @@ fn fail(code: u16, at: usize, message: impl Into<String>) -> Found {
 impl Found {
     fn strs(self, str1: &str, str2: Option<&str>) -> Self {
         Self {
-            str1: Some(str1.into()),
-            str2: str2.map(Into::into),
+            strs: [Some(str1.into()), str2.map(Into::into), None],
             ..self
         }
     }
@@ -801,9 +799,13 @@ fn start_tag<'t>(
                     let message = format!(
                         "Namespace prefix {prefix} for {local} on {element} is not defined"
                     );
-                    return Err(c
-                        .here(NS_UNDEFINED_NAMESPACE, message)
-                        .strs(prefix, Some(local)));
+                    let found = c.here(NS_UNDEFINED_NAMESPACE, message);
+                    let strs = [
+                        Some(prefix.into()),
+                        Some(local.into()),
+                        Some(element.into()),
+                    ];
+                    return Err(Found { strs, ..found });
                 }
                 uri
             }

@@ -491,24 +491,26 @@ fn describe_matches_libxml2() {
 
 #[test]
 fn describe_fills_libxml2_extras() {
-    let mismatch = describe(b"<a>\n<b></c></a>");
-    assert_eq!(
+    // (input, code, str1, str2, str3, int1), recorded from libxml2's xmlError.
+    let cases: [(&[u8], u16, _, _, _, i64); 4] = [
+        (b"<a>\n<b></c></a>", 76, Some("b"), Some("c"), None, 2),
         (
-            mismatch.str1.as_deref(),
-            mismatch.str2.as_deref(),
-            mismatch.int1
+            b"<d p:a='1' p:a='2' xmlns:p='u'/>",
+            42,
+            Some("p"),
+            Some("a"),
+            None,
+            0,
         ),
-        (Some("b"), Some("c"), 2)
-    );
-    let duplicate = describe(b"<d p:a='1' p:a='2' xmlns:p='u'/>");
-    assert_eq!(
-        (
-            duplicate.code,
-            duplicate.str1.as_deref(),
-            duplicate.str2.as_deref()
-        ),
-        (42, Some("p"), Some("a"))
-    );
+        (b"<d p:a='1'/>", 201, Some("p"), Some("a"), Some("d"), 0),
+        (b"<p:d/>", 201, Some("p"), Some("d"), None, 0),
+    ];
+    for (input, code, str1, str2, str3, int1) in cases {
+        let d = describe(input);
+        let found = (d.code, d.str1.as_deref(), d.str2.as_deref());
+        let found = (found, d.str3.as_deref(), d.int1);
+        assert_eq!(found, ((code, str1, str2), str3, int1), "{input:?}");
+    }
     let reference = describe(b"<d>&#1;</d>");
     assert_eq!((reference.int1, reference.str1), (1, None));
     assert!(!reference.entity && reference.element.is_none());

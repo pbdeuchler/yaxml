@@ -112,6 +112,9 @@ pub struct Diagnostic {
     pub str1: Option<String>,
     /// libxml2's second string argument (`xmlError.str2`).
     pub str2: Option<String>,
+    /// libxml2's third string argument (`xmlError.str3`): only the element
+    /// of an undefined attribute prefix (`XML_NS_ERR_UNDEFINED_NAMESPACE`).
+    pub str3: Option<String>,
     /// libxml2's integer argument (`xmlError.int1`), such as a line.
     pub int1: i64,
     /// Local name of the element `xmlError.node` names, which
@@ -833,6 +836,7 @@ impl LineIndex<'_> {
                 .map_or(0, |()| self.text_column(found.at))
         };
         let (line, column) = found.place.unwrap_or_else(|| (line, column()));
+        let [str1, str2, str3] = found.strs.map(|s| s.map(String::from));
         Diagnostic {
             domain,
             code: found.code,
@@ -840,8 +844,9 @@ impl LineIndex<'_> {
             line,
             column,
             message: found.message,
-            str1: found.str1,
-            str2: found.str2,
+            str1,
+            str2,
+            str3,
             int1: found.int1,
             entity: found.place.is_some(),
             ..Diagnostic::default()

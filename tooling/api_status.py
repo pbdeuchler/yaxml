@@ -384,7 +384,7 @@ TREE_FIELDS = {
     "_xmlError.int1": ("I", "diagnostic::Diagnostic::int1"),
     "_xmlError.node": ("P", "diagnostic::Diagnostic::element - the element's local name"),
     "_xmlError.file": ("A", "the caller's file name, passed to Diagnostic::render"),
-    "_xmlError.str3": ("N", "no third string in the errors yaxml describes"),
+    "_xmlError.str3": ("I", "diagnostic::Diagnostic::str3"),
     "_xmlError.ctxt": ("A", "no parser context object"),
     "_xmlURI.scheme": ("I", "Uri::scheme"),
     "_xmlURI.user": ("I", "Uri::user"),
@@ -429,7 +429,7 @@ P|xmlCtxtSetOptions xmlCtxtUseOptions xmlCtxtGetOptions|ParseOptions::new, Parse
 I|xmlCtxtSetResourceLoader|ParseOptions::with_resolver
 P|xmlCtxtSetMaxAmplification|Limits::max_entity_amplification
 A|xmlSetExternalEntityLoader xmlGetExternalEntityLoader xmlLoadExternalEntity|no global loader; ParseOptions::with_resolver per parse
-N|xmlCtxtSetErrorHandler|no error callback; errors are returned (roadmap 6)
+A|xmlCtxtSetErrorHandler|no error callback: errors are returned values (Document::errors, diagnostic::LineIndex::describe_all)
 P|xmlCtxtSetCatalogs xmlCtxtGetCatalogs|catalog::CatalogResolver::new
 A|xmlCtxtGetDict xmlCtxtSetDict xmlCtxtGetPrivate xmlCtxtSetPrivate xmlCtxtGetUserData|no dictionary or user pointer
 P|xmlCtxtGetDeclaredEncoding xmlCtxtGetStandalone xmlCtxtGetVersion|Declaration
@@ -730,10 +730,12 @@ A|xmlXPathContextPtr xmlXPathCompExprPtr xmlXPathObjectPtr xmlXPathParserContext
 A|xmlNodeSet xmlXPathParserContext xmlXPathAxis xmlXPathType xmlXPathVariable xmlXPathFunct xmlXPathAxisFunc xmlXPathConvertFunc xmlXPathEvalFunc|internal XPath machinery; Vec<xpath::Node> and closures
 I|xmlXPathFunction|xpath::Function
 I|XPATH_NODESET XPATH_BOOLEAN XPATH_NUMBER XPATH_STRING|xpath::Value
-N|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|no such XPath value type (range extensions removed in 2.15)
+A|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 A|XPATH_EXPRESSION_OK|success is Ok(..)
 A|XPATH_MEMORY_ERROR|allocation failure aborts
-N|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_ENCODING_ERROR XPATH_STACK_ERROR XPTR_SYNTAX_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|no matching xpath::ErrorKind
+A|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_STACK_ERROR|C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
+A|XPATH_ENCODING_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|never raised in libxml2 2.15
+P|XPTR_SYNTAX_ERROR|xpointer::Error::Syntax - category only
 P|xmlXPathError|xpath::ErrorKind
 I|XPATH_FORBID_VARIABLE_ERROR|xpath::ErrorKind::ForbiddenVariable
 P|xmlXPathCast* xmlXPathConvert* xmlXPathStringEvalNumber|xpath::XPath::evaluate - conversions run inside evaluation
@@ -779,7 +781,7 @@ I|xmlTextReaderStandalone|TextReader::standalone
 I|xmlTextReaderByteConsumed|TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
 I|xmlTextReaderGetRemainder|TextReader::into_remainder
 P|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode|Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
-N|xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+A|xmlTextReaderPreserve xmlTextReaderPreservePattern|declined: live tree pointers and free-behind; TextReader::expand copies a subtree (docs/textreader.md)
 I|xmlTextReaderHasAttributes|TextReader::has_attributes
 I|xmlTextReaderHasValue|TextReader::has_value
 I|xmlTextReaderIsEmptyElement|TextReader::is_empty_element
@@ -810,13 +812,14 @@ I|xmlTextReaderIsNamespaceDecl|TextReader::is_namespace_decl - false without a n
 I|xmlTextReaderQuoteChar|TextReader::quote_char
 A|xmlTextReaderConstString|strings are borrowed &str; no reader dictionary
 I|xmlTextReaderNextSibling|Walker::next_sibling - walker only, as in libxml2 (-1 for parsing readers)
-N|xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|no error callback; locators belong to xmlTextReaderSetErrorHandler
-N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
+A|xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|no error callback: locators exist only inside xmlTextReaderSetErrorHandler callbacks; TextReader::line_number gives the place
+A|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler|no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
+P|xmlTextReaderGetLastError|TextReader::read - after a failure every read returns the same error (ReadState::Error); validity errors via xsd_diagnostics/relaxng_diagnostics
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState
 I|xmlParserProperties|ParserProperty
-N|xmlParserSeverities XML_PARSER_SEVERITY_*|no severity levels
-N|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|ReadState has no such variant
+A|xmlParserSeverities XML_PARSER_SEVERITY_*|argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
+A|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|READING is never set in libxml2; CLOSED only by xmlTextReaderClose, which is Drop here
 # ---- xmlsave.h
 I|xmlSaveDoc xmlSaveTree|save::to_vec
 P|xmlSaveToBuffer xmlSaveToFd xmlSaveToFilename xmlSaveToIO xmlSaveClose xmlSaveFinish xmlSaveFlush xmlSaveSetIndentString|save::to_vec, save::Options - returns a Vec; no Write sink yet
@@ -1213,6 +1216,8 @@ def error_rule(i, ctx):
     xptr = {"XML_XPTR_CHILDSEQ_START": "ChildSequenceStart", "XML_XPTR_UNKNOWN_SCHEME": "UnknownScheme", "XML_XPTR_SYNTAX_ERROR": "Syntax"}
     if i in xptr:
         return "P", f"xpointer::Error::{xptr[i]} - category only"
+    if i in ("XML_XPTR_EVAL_FAILED", "XML_XPTR_EXTRA_OBJECTS"):
+        return "A", "xmlXPtrEval stack guards: a part whose value is not a node-set is dropped before the check (xpointer::evaluate gives an empty set)"
     if i.startswith("XML_XPTR_"):
         return "N", "no matching xpointer::Error"
     if i == "XML_C14N_RELATIVE_NAMESPACE":
@@ -1252,6 +1257,10 @@ def error_rule(i, ctx):
         return "R", "dynamic modules and HTTP/FTP removed upstream"
     if re.fullmatch(r"XML_IO_(E[A-Z]+|UNKNOWN)", i):
         return "I", "diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error"
+    if i == "XML_IO_NETWORK_ATTEMPT":
+        return "A", "raised by the default entity loader under NONET; no loads without a Resolver, and FileResolver never uses the network"
+    if i == "XML_IO_WRITE":
+        return "P", "WriteError::Io - save::to_writer and TextWriter return the sink's std::io::Error"
     if i.startswith("XML_IO_"):
         return "N", "no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource"
     if i.startswith("XML_HTML_"):

@@ -107,7 +107,7 @@ assert_eq!(d.render("a.xml", &lines).lines().next(),
 `Diagnostic` is `xmlError` field for field: `domain` (`xmlErrorDomain`),
 `code` (`xmlParserErrors`; the numbers yaxml produces are named in
 `yaxml::diagnostic::code`), `level` (`xmlErrorLevel`), `line`, `column`
-(`int2`), `message` (without libxml2's trailing newline), `str1`, `str2`,
+(`int2`), `message` (without libxml2's trailing newline), `str1`, `str2`, `str3`,
 `int1`, and `element` for the element `xmlError.node` names. `entity` marks
 an error libxml2 raises in a nested entity's replacement text, where it has
 no file and counts lines in that text. The file is the caller's, as is the

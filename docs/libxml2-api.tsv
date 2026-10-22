@@ -901,7 +901,7 @@ parser.h	xmlCtxtResetPush	function	not_marked	P0-P3	partial	https://github.com/G
 parser.h	xmlCtxtSetCatalogs	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	catalog::CatalogResolver::new
 parser.h	xmlCtxtSetCharEncConvImpl	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::converters - input of the document only (not HTML, external entities or output)
 parser.h	xmlCtxtSetDict	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
-parser.h	xmlCtxtSetErrorHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no error callback; errors are returned (roadmap 6)
+parser.h	xmlCtxtSetErrorHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no error callback: errors are returned values (Document::errors, diagnostic::LineIndex::describe_all)
 parser.h	xmlCtxtSetMaxAmplification	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Limits::max_entity_amplification
 parser.h	xmlCtxtSetOptions	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new, ParseOptions::has
 parser.h	xmlCtxtSetPrivate	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
@@ -2696,11 +2696,11 @@ xmlerror.h	XML_IO_ETIMEDOUT	enum_value	not_marked	P0-P3	implemented	https://gith
 xmlerror.h	XML_IO_EXDEV	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
 xmlerror.h	XML_IO_FLUSH	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_IO_LOAD_ERROR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::IO_LOAD_ERROR
-xmlerror.h	XML_IO_NETWORK_ATTEMPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
+xmlerror.h	XML_IO_NETWORK_ATTEMPT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	raised by the default entity loader under NONET; no loads without a Resolver, and FileResolver never uses the network
 xmlerror.h	XML_IO_NO_INPUT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_IO_UNKNOWN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error
 xmlerror.h	XML_IO_UNSUPPORTED_PROTOCOL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_IO_WRITE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource
+xmlerror.h	XML_IO_WRITE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	WriteError::Io - save::to_writer and TextWriter return the sink's std::io::Error
 xmlerror.h	XML_MODULE_CLOSE	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_MODULE_OPEN	enum_value	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	dynamic modules and HTTP/FTP removed upstream
 xmlerror.h	XML_NS_ERR_ATTRIBUTE_REDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::NS_ATTRIBUTE_REDEFINED
@@ -3164,8 +3164,8 @@ xmlerror.h	XML_XPATH_UNFINISHED_LITERAL_ERROR	enum_value	not_marked	P0-P3	partia
 xmlerror.h	XML_XPATH_UNKNOWN_FUNC_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xpath::ErrorKind::UnknownFunction - category only; no numeric code
 xmlerror.h	XML_XPATH_VARIABLE_REF_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xpath::ErrorKind::VariableRef - category only; no numeric code
 xmlerror.h	XML_XPTR_CHILDSEQ_START	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xpointer::Error::ChildSequenceStart - category only
-xmlerror.h	XML_XPTR_EVAL_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xpointer::Error
-xmlerror.h	XML_XPTR_EXTRA_OBJECTS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no matching xpointer::Error
+xmlerror.h	XML_XPTR_EVAL_FAILED	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xmlXPtrEval stack guards: a part whose value is not a node-set is dropped before the check (xpointer::evaluate gives an empty set)
+xmlerror.h	XML_XPTR_EXTRA_OBJECTS	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xmlXPtrEval stack guards: a part whose value is not a node-set is dropped before the check (xpointer::evaluate gives an empty set)
 xmlerror.h	XML_XPTR_RESOURCE_ERROR	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_XPTR_SUB_RESOURCE_ERROR	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_XPTR_SYNTAX_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	xpointer::Error::Syntax - category only
@@ -3188,7 +3188,7 @@ xmlerror.h	_xmlError.message	field	not_marked	P0-P3	implemented	https://github.c
 xmlerror.h	_xmlError.node	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Diagnostic::element - the element's local name
 xmlerror.h	_xmlError.str1	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Diagnostic::str1
 xmlerror.h	_xmlError.str2	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Diagnostic::str2
-xmlerror.h	_xmlError.str3	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no third string in the errors yaxml describes
+xmlerror.h	_xmlError.str3	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::Diagnostic::str3
 xmlerror.h	initGenericErrorDefaultFunc	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no global error state or printing; diagnostics are returned values
 xmlerror.h	xmlCopyError	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no global error state or printing; diagnostics are returned values
 xmlerror.h	xmlCtxtGetLastError	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	Document::errors, OwnedDocument::errors, diagnostic::LineIndex::describe_all
@@ -3280,10 +3280,10 @@ xmlmodule.h	xmlModulePtr	typedef	not_marked	P3	removed-upstream	https://github.c
 xmlmodule.h	xmlModuleSymbol	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlmodule.h	dynamic modules removed from default builds (Feature::Modules is false)
 xmlreader.h	XML_PARSER_DEFAULTATTRS	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParserProperty::DefaultAttributes
 xmlreader.h	XML_PARSER_LOADDTD	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParserProperty::LoadDtd
-xmlreader.h	XML_PARSER_SEVERITY_ERROR	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no severity levels
-xmlreader.h	XML_PARSER_SEVERITY_VALIDITY_ERROR	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no severity levels
-xmlreader.h	XML_PARSER_SEVERITY_VALIDITY_WARNING	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no severity levels
-xmlreader.h	XML_PARSER_SEVERITY_WARNING	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no severity levels
+xmlreader.h	XML_PARSER_SEVERITY_ERROR	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
+xmlreader.h	XML_PARSER_SEVERITY_VALIDITY_ERROR	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
+xmlreader.h	XML_PARSER_SEVERITY_VALIDITY_WARNING	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
+xmlreader.h	XML_PARSER_SEVERITY_WARNING	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
 xmlreader.h	XML_PARSER_SUBST_ENTITIES	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParserProperty::SubstituteEntities
 xmlreader.h	XML_PARSER_VALIDATE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParserProperty::Validate
 xmlreader.h	XML_READER_TYPE_ATTRIBUTE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Attribute
@@ -3304,17 +3304,17 @@ xmlreader.h	XML_READER_TYPE_SIGNIFICANT_WHITESPACE	enum_value	not_marked	P0-P2	i
 xmlreader.h	XML_READER_TYPE_TEXT	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Text
 xmlreader.h	XML_READER_TYPE_WHITESPACE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::Whitespace - never reported, as by libxml2's reader
 xmlreader.h	XML_READER_TYPE_XML_DECLARATION	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType::XmlDeclaration - never reported, as by libxml2's reader
-xmlreader.h	XML_TEXTREADER_MODE_CLOSED	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState has no such variant
+xmlreader.h	XML_TEXTREADER_MODE_CLOSED	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	READING is never set in libxml2; CLOSED only by xmlTextReaderClose, which is Drop here
 xmlreader.h	XML_TEXTREADER_MODE_EOF	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Eof
 xmlreader.h	XML_TEXTREADER_MODE_ERROR	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Error
 xmlreader.h	XML_TEXTREADER_MODE_INITIAL	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Initial
 xmlreader.h	XML_TEXTREADER_MODE_INTERACTIVE	enum_value	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState::Interactive
-xmlreader.h	XML_TEXTREADER_MODE_READING	enum_value	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState has no such variant
+xmlreader.h	XML_TEXTREADER_MODE_READING	enum_value	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	READING is never set in libxml2; CLOSED only by xmlTextReaderClose, which is Drop here
 xmlreader.h	xmlFreeTextReader	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Drop
 xmlreader.h	xmlNewTextReader	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::with_options, TextReader::new
 xmlreader.h	xmlNewTextReaderFilename	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::new - caller opens the file
 xmlreader.h	xmlParserProperties	enum	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParserProperty
-xmlreader.h	xmlParserSeverities	enum	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no severity levels
+xmlreader.h	xmlParserSeverities	enum	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
 xmlreader.h	xmlReaderForDoc	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::with_options, TextReader::new
 xmlreader.h	xmlReaderForFd	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::with_options, TextReader::new
 xmlreader.h	xmlReaderForFile	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::new - caller opens the file
@@ -3346,13 +3346,13 @@ xmlreader.h	xmlTextReaderConstXmlVersion	function	not_marked	P0-P2	implemented	h
 xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
 xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
 xmlreader.h	xmlTextReaderDepth	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::depth
-xmlreader.h	xmlTextReaderErrorFunc	callback	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
+xmlreader.h	xmlTextReaderErrorFunc	callback	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
 xmlreader.h	xmlTextReaderExpand	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::expand
 xmlreader.h	xmlTextReaderGetAttribute	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::get_attribute
 xmlreader.h	xmlTextReaderGetAttributeNo	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::get_attribute_no
 xmlreader.h	xmlTextReaderGetAttributeNs	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::get_attribute_ns
-xmlreader.h	xmlTextReaderGetErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
-xmlreader.h	xmlTextReaderGetLastError	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
+xmlreader.h	xmlTextReaderGetErrorHandler	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
+xmlreader.h	xmlTextReaderGetLastError	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read - after a failure every read returns the same error (ReadState::Error); validity errors via xsd_diagnostics/relaxng_diagnostics
 xmlreader.h	xmlTextReaderGetParserColumnNumber	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::column_number - takes the caller's LineIndex
 xmlreader.h	xmlTextReaderGetParserLineNumber	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::line_number - takes the caller's LineIndex
 xmlreader.h	xmlTextReaderGetParserProp	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::parser_property
@@ -3364,8 +3364,8 @@ xmlreader.h	xmlTextReaderIsEmptyElement	function	not_marked	P0-P2	implemented	ht
 xmlreader.h	xmlTextReaderIsNamespaceDecl	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_namespace_decl - false without a node (libxml2 -1)
 xmlreader.h	xmlTextReaderIsValid	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::is_valid
 xmlreader.h	xmlTextReaderLocalName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::local_name
-xmlreader.h	xmlTextReaderLocatorBaseURI	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; locators belong to xmlTextReaderSetErrorHandler
-xmlreader.h	xmlTextReaderLocatorLineNumber	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; locators belong to xmlTextReaderSetErrorHandler
+xmlreader.h	xmlTextReaderLocatorBaseURI	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: locators exist only inside xmlTextReaderSetErrorHandler callbacks; TextReader::line_number gives the place
+xmlreader.h	xmlTextReaderLocatorLineNumber	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: locators exist only inside xmlTextReaderSetErrorHandler callbacks; TextReader::line_number gives the place
 xmlreader.h	xmlTextReaderLocatorPtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	raw pointer alias
 xmlreader.h	xmlTextReaderLookupNamespace	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::lookup_namespace
 xmlreader.h	xmlTextReaderMode	enum	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ReadState
@@ -3382,8 +3382,8 @@ xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	implemented	https
 xmlreader.h	xmlTextReaderNodeType	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::node_type
 xmlreader.h	xmlTextReaderNormalization	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::normalization
 xmlreader.h	xmlTextReaderPrefix	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::prefix
-xmlreader.h	xmlTextReaderPreserve	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
-xmlreader.h	xmlTextReaderPreservePattern	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+xmlreader.h	xmlTextReaderPreserve	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	declined: live tree pointers and free-behind; TextReader::expand copies a subtree (docs/textreader.md)
+xmlreader.h	xmlTextReaderPreservePattern	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	declined: live tree pointers and free-behind; TextReader::expand copies a subtree (docs/textreader.md)
 xmlreader.h	xmlTextReaderPtr	typedef	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	raw pointer alias
 xmlreader.h	xmlTextReaderQuoteChar	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::quote_char
 xmlreader.h	xmlTextReaderRead	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::read
@@ -3397,12 +3397,12 @@ xmlreader.h	xmlTextReaderRelaxNGValidate	function	not_marked	P0-P2	partial	https
 xmlreader.h	xmlTextReaderRelaxNGValidateCtxt	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::relaxng_set_schema - schema is compiled by the caller
 xmlreader.h	xmlTextReaderSchemaValidate	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema - schema is compiled by the caller
 xmlreader.h	xmlTextReaderSchemaValidateCtxt	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema - schema is compiled by the caller
-xmlreader.h	xmlTextReaderSetErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
+xmlreader.h	xmlTextReaderSetErrorHandler	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
 xmlreader.h	xmlTextReaderSetMaxAmplification	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Limits::max_entity_amplification
 xmlreader.h	xmlTextReaderSetParserProp	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::set_parser_property - only before the first read (docs/textreader.md)
 xmlreader.h	xmlTextReaderSetResourceLoader	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	ParseOptions::with_resolver
 xmlreader.h	xmlTextReaderSetSchema	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xsd_set_schema
-xmlreader.h	xmlTextReaderSetStructuredErrorHandler	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
+xmlreader.h	xmlTextReaderSetStructuredErrorHandler	function	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
 xmlreader.h	xmlTextReaderSetup	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::reset_with
 xmlreader.h	xmlTextReaderStandalone	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::standalone
 xmlreader.h	xmlTextReaderValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
@@ -3714,42 +3714,42 @@ xmlwriter.h	xmlTextWriterWriteVFormatString	function	not_marked	P1	not-applicabl
 xpath.h	XML_XPATH_CHECKNS	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
 xpath.h	XML_XPATH_NOVAR	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
 xpath.h	XPATH_BOOLEAN	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
-xpath.h	XPATH_ENCODING_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_ENCODING_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never raised in libxml2 2.15
 xpath.h	XPATH_EXPRESSION_OK	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	success is Ok(..)
 xpath.h	XPATH_EXPR_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::Expression - category only; no numeric code
 xpath.h	XPATH_FORBID_VARIABLE_ERROR	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::ForbiddenVariable
 xpath.h	XPATH_INVALID_ARITY	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidArity - category only; no numeric code
 xpath.h	XPATH_INVALID_CHAR_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidChar - category only; no numeric code
 xpath.h	XPATH_INVALID_CTXT	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidContext - category only; no numeric code
-xpath.h	XPATH_INVALID_CTXT_POSITION	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
-xpath.h	XPATH_INVALID_CTXT_SIZE	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
-xpath.h	XPATH_INVALID_OPERAND	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_INVALID_CTXT_POSITION	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
+xpath.h	XPATH_INVALID_CTXT_SIZE	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
+xpath.h	XPATH_INVALID_OPERAND	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
 xpath.h	XPATH_INVALID_PREDICATE_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidPredicate - category only; no numeric code
 xpath.h	XPATH_INVALID_TYPE	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidType - category only; no numeric code
-xpath.h	XPATH_LOCATIONSET	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
+xpath.h	XPATH_LOCATIONSET	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 xpath.h	XPATH_MEMORY_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	allocation failure aborts
 xpath.h	XPATH_NODESET	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
 xpath.h	XPATH_NUMBER	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
-xpath.h	XPATH_NUMBER_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_NUMBER_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
 xpath.h	XPATH_OP_LIMIT_EXCEEDED	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::LimitExceeded - category only; no numeric code
-xpath.h	XPATH_POINT	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
-xpath.h	XPATH_RANGE	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
+xpath.h	XPATH_POINT	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
+xpath.h	XPATH_RANGE	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 xpath.h	XPATH_RECURSION_LIMIT_EXCEEDED	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::LimitExceeded - category only; no numeric code
-xpath.h	XPATH_STACK_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_STACK_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
 xpath.h	XPATH_START_LITERAL_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::StartLiteral - category only; no numeric code
 xpath.h	XPATH_STRING	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
 xpath.h	XPATH_UNCLOSED_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::Unclosed - category only; no numeric code
-xpath.h	XPATH_UNDEFINED	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
+xpath.h	XPATH_UNDEFINED	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 xpath.h	XPATH_UNDEF_PREFIX_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::UndefinedPrefix - category only; no numeric code
 xpath.h	XPATH_UNDEF_VARIABLE_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::UndefinedVariable - category only; no numeric code
 xpath.h	XPATH_UNFINISHED_LITERAL_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::UnfinishedLiteral - category only; no numeric code
 xpath.h	XPATH_UNKNOWN_FUNC_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::UnknownFunction - category only; no numeric code
-xpath.h	XPATH_USERS	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
+xpath.h	XPATH_USERS	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 xpath.h	XPATH_VARIABLE_REF_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::VariableRef - category only; no numeric code
-xpath.h	XPATH_XSLT_TREE	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no such XPath value type (range extensions removed in 2.15)
-xpath.h	XPTR_RESOURCE_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
-xpath.h	XPTR_SUB_RESOURCE_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
-xpath.h	XPTR_SYNTAX_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_XSLT_TREE	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
+xpath.h	XPTR_RESOURCE_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never raised in libxml2 2.15
+xpath.h	XPTR_SUB_RESOURCE_ERROR	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	never raised in libxml2 2.15
+xpath.h	XPTR_SYNTAX_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpointer::Error::Syntax - category only
 xpath.h	_xmlNodeSet	struct	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	_xmlNodeSet.nodeMax	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	Vec<xpath::Node> replaces xmlNodeSet
 xpath.h	_xmlNodeSet.nodeNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	Vec<xpath::Node> replaces xmlNodeSet
