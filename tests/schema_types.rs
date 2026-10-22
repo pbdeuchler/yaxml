@@ -778,6 +778,43 @@ fn facet_construction_errors() {
 }
 
 #[test]
+fn facet_metadata() {
+    use Type::*;
+    // xmlSchemaIsBuiltInTypeFacet: only primitive types answer yes.
+    for (ty, name, expected) in [
+        (Boolean, "pattern", true),
+        (Boolean, "enumeration", false),
+        (String, "maxLength", true),
+        (String, "totalDigits", false),
+        (HexBinary, "length", true),
+        (Decimal, "fractionDigits", true),
+        (Decimal, "length", false),
+        (Date, "minExclusive", true),
+        (Double, "maxLength", false),
+        (Integer, "pattern", false),
+        (AnySimpleType, "pattern", false),
+        (String, "bogus", false),
+    ] {
+        assert_eq!(ty.allows_facet(name), expected, "{ty:?} {name}");
+    }
+    // xmlSchemaGetFacetValueAsULong for length and digits facets.
+    for (name, value, base, count) in [
+        ("length", "3", String, Some(3)),
+        ("minLength", "0", String, Some(0)),
+        ("maxLength", "18446744073709551615", String, Some(u64::MAX)),
+        ("totalDigits", "5", Decimal, Some(5)),
+        ("fractionDigits", "2", Decimal, Some(2)),
+        ("maxInclusive", "7", Integer, None),
+        ("pattern", "a", String, None),
+        ("enumeration", "a", String, None),
+        ("whiteSpace", "collapse", String, None),
+    ] {
+        let facet = Facet::new(name, value, base, None).unwrap();
+        assert_eq!((facet.name(), facet.count()), (name, count), "{name}");
+    }
+}
+
+#[test]
 fn canonical_values() {
     // xmlSchemaGetCanonValue; `fixed` rows differ from libxml2, which writes
     // the bracketed form (docs/schema-types.md).

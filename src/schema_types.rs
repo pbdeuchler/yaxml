@@ -301,6 +301,33 @@ impl Type {
         }
     }
 
+    /// Whether facet `name` constrains this primitive type, like
+    /// `xmlSchemaIsBuiltInTypeFacet`: false for derived built-in types.
+    pub fn allows_facet(self, name: &str) -> bool {
+        use Type::*;
+        let bounds = [
+            "maxInclusive",
+            "maxExclusive",
+            "minInclusive",
+            "minExclusive",
+        ];
+        let common = ["pattern", "enumeration", "whiteSpace"];
+        match self {
+            Boolean => ["pattern", "whiteSpace"].contains(&name),
+            String | Notation | QName | AnyUri | Base64Binary | HexBinary => {
+                ["length", "minLength", "maxLength"].contains(&name) || common.contains(&name)
+            }
+            Decimal => {
+                ["totalDigits", "fractionDigits"].contains(&name)
+                    || common.contains(&name)
+                    || bounds.contains(&name)
+            }
+            Time | GDay | GMonth | GMonthDay | GYear | GYearMonth | Date | DateTime | Duration
+            | Float | Double => common.contains(&name) || bounds.contains(&name),
+            _ => false,
+        }
+    }
+
     /// The whitespace handling `parse` applies.
     pub fn whitespace(self) -> WhiteSpace {
         match self {
@@ -936,6 +963,36 @@ impl Facet {
             "fractionDigits" => Facet::FractionDigits(count(Type::NonNegativeInteger)?),
             _ => return Err(FacetError::Unknown),
         })
+    }
+
+    /// The facet's XML Schema element name, as `new` takes it.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Facet::Length(_) => "length",
+            Facet::MinLength(_) => "minLength",
+            Facet::MaxLength(_) => "maxLength",
+            Facet::Pattern(_) => "pattern",
+            Facet::Enumeration(_) => "enumeration",
+            Facet::WhiteSpace(_) => "whiteSpace",
+            Facet::MinInclusive(_) => "minInclusive",
+            Facet::MaxInclusive(_) => "maxInclusive",
+            Facet::MinExclusive(_) => "minExclusive",
+            Facet::MaxExclusive(_) => "maxExclusive",
+            Facet::TotalDigits(_) => "totalDigits",
+            Facet::FractionDigits(_) => "fractionDigits",
+        }
+    }
+
+    /// The value of a length or digits facet, like
+    /// `xmlSchemaGetFacetValueAsULong`; `None` for the other facets.
+    pub fn count(&self) -> Option<u64> {
+        use Facet::*;
+        match self {
+            Length(n) | MinLength(n) | MaxLength(n) | TotalDigits(n) | FractionDigits(n) => {
+                Some(*n)
+            }
+            _ => None,
+        }
     }
 
     /// Whether `value` satisfies the facet; `normalized` is its lexical form

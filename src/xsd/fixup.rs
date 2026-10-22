@@ -1233,7 +1233,7 @@ impl Fix {
                 if let Some(bad) = draft
                     .facets
                     .iter()
-                    .find(|f| !facet_allowed(primitive, f.kind))
+                    .find(|f| !primitive.allows_facet(f.kind))
                 {
                     let message = format!(
                         "The facet '{}' is not allowed on types derived from the type 'xs:{}'.",
@@ -1377,9 +1377,7 @@ impl Fix {
         }
         self.own_facets.insert(
             id,
-            own.iter()
-                .map(|(f, fixed, _)| (facet_name(f), *fixed))
-                .collect(),
+            own.iter().map(|(f, fixed, _)| (f.name(), *fixed)).collect(),
         );
     }
 
@@ -1399,55 +1397,9 @@ enum FacetValue {
     Other(Facet),
 }
 
-fn facet_name(facet: &Facet) -> &'static str {
-    match facet {
-        Facet::Length(_) => "length",
-        Facet::MinLength(_) => "minLength",
-        Facet::MaxLength(_) => "maxLength",
-        Facet::Pattern(_) => "pattern",
-        Facet::Enumeration(_) => "enumeration",
-        Facet::WhiteSpace(_) => "whiteSpace",
-        Facet::MinInclusive(_) => "minInclusive",
-        Facet::MaxInclusive(_) => "maxInclusive",
-        Facet::MinExclusive(_) => "minExclusive",
-        Facet::MaxExclusive(_) => "maxExclusive",
-        Facet::TotalDigits(_) => "totalDigits",
-        Facet::FractionDigits(_) => "fractionDigits",
-    }
-}
-
-/// `xmlSchemaIsBuiltInTypeFacet`.
-fn facet_allowed(primitive: Type, kind: &str) -> bool {
-    use Type::*;
-    let bounds = [
-        "maxInclusive",
-        "maxExclusive",
-        "minInclusive",
-        "minExclusive",
-    ];
-    let common = ["pattern", "enumeration", "whiteSpace"];
-    match primitive {
-        Boolean => ["pattern", "whiteSpace"].contains(&kind),
-        String | Notation | QName | AnyUri | Base64Binary | HexBinary => {
-            ["length", "minLength", "maxLength"].contains(&kind) || common.contains(&kind)
-        }
-        Decimal => {
-            ["totalDigits", "fractionDigits"].contains(&kind)
-                || common.contains(&kind)
-                || bounds.contains(&kind)
-        }
-        Time | GDay | GMonth | GMonthDay | GYear | GYearMonth | Date | DateTime | Duration
-        | Float | Double => common.contains(&kind) || bounds.contains(&kind),
-        _ => false,
-    }
-}
-
 fn compare_facets(a: &Facet, b: &Facet) -> Comparison {
     use Facet::*;
-    let count = |f: &Facet| match f {
-        Length(n) | MinLength(n) | MaxLength(n) | TotalDigits(n) | FractionDigits(n) => Some(*n),
-        _ => None,
-    };
+    let count = Facet::count;
     let value = |f: &Facet| match f {
         MinInclusive(v) | MaxInclusive(v) | MinExclusive(v) | MaxExclusive(v) => Some(v.clone()),
         _ => None,
@@ -1554,7 +1506,7 @@ impl Fix {
         base_fixed: &[&'static str],
         loc: Loc,
     ) -> Vec<Facet> {
-        let find = |set: &[Facet], name: &str| set.iter().find(|f| facet_name(f) == name).cloned();
+        let find = |set: &[Facet], name: &str| set.iter().find(|f| f.name() == name).cloned();
         let own_set: Vec<Facet> = own.iter().map(|(f, ..)| f.clone()).collect();
         let mine = |name: &str| find(&own_set, name);
         let theirs = |name: &str| find(base, name);
@@ -1707,7 +1659,7 @@ impl Fix {
         }
         let mut effective = own_set;
         for facet in base {
-            if !effective.iter().any(|f| facet_name(f) == facet_name(facet)) {
+            if !effective.iter().any(|f| f.name() == facet.name()) {
                 effective.push(facet.clone());
             }
         }

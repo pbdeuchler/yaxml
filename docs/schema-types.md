@@ -11,7 +11,9 @@ The shared foundation for XML Schema and RELAX NG validation.
   types: `Type::parse` (`xmlSchemaValidatePredefinedType`), `Value::compare`
   (`xmlSchemaCompareValues`), `Value::equals` (`xmlSchemaAreValuesEqual`),
   `Facet::new` (`xmlSchemaCheckFacet`) and `Facet::check` (the validator's
-  facet checks), `Value::canonical` (`xmlSchemaGetCanonValueWhtsp`; with
+  facet checks), `Facet::name`, `Facet::count` (`xmlSchemaGetFacetValueAsULong`),
+  `Type::allows_facet` (`xmlSchemaIsBuiltInTypeFacet`: primitive types only),
+  `Value::canonical` (`xmlSchemaGetCanonValueWhtsp`; with
   `WhiteSpace::Preserve`, `xmlSchemaGetCanonValue`), `Value::as_str` and
   `Value::as_bool` (`xmlSchemaValueGetAsString`/`GetAsBoolean`). `QName`,
   `NOTATION`, `ENTITY` and `ENTITIES` consult a caller `Context` for
