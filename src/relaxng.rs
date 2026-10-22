@@ -24,7 +24,7 @@
 //! let schema = Schema::parse(rng, "r.rng", Box::new(none), &Limits::default())?;
 //! let check = |xml| schema.validate(&yaxml::Document::parse(xml).unwrap());
 //! assert!(check("<r><b/><i>1</i><i>2</i></r>").is_empty());
-//! assert_eq!(check("<r><b/><i>x</i></r>")[0].code, Code::Datatype);
+//! assert_eq!(check("<r><b/><i>x</i></r>")[0].code, Code::TypeValue);
 //! assert_eq!(check("<r><b/></r>")[0].code, Code::MissingElement);
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -317,10 +317,16 @@ impl std::error::Error for SchemaErrors {}
 pub enum Code {
     /// An allocation the document sized failed; validation stopped (`MEMORY`).
     Allocation = 1,
-    /// Text that its datatype does not allow (`XML_RELAXNG_ERR_TYPE`).
+    /// A list item missing where a datatype was required (`XML_RELAXNG_ERR_TYPE`).
     Datatype = 2,
+    /// Text outside its datatype's lexical space (`TYPEVAL`).
+    TypeValue = 3,
     /// An `xsd:ID` value used twice (`DUPID`).
     DuplicateId = 4,
+    /// Text a typed `value` cannot be compared with (`TYPECMP`).
+    TypeCompare = 5,
+    /// A list token after the list's content was complete (`LISTEXTRA`).
+    ListExtra = 8,
     /// Another element was expected (`ELEMNAME`).
     ElementName = 13,
     /// The element lacks the expected namespace (`ELEMNONS`).
@@ -337,6 +343,14 @@ pub enum Code {
     Content = 25,
     /// An attribute the element does not allow (`INVALIDATTR`).
     InvalidAttribute = 27,
+    /// An element child where a datatype is expected (`DATAELEM`).
+    DataElement = 28,
+    /// An element child where a value is expected (`VALELEM`).
+    ValueElement = 29,
+    /// An element child where a list is expected (`LISTELEM`).
+    ListElement = 30,
+    /// Text in the lexical space that a `param` or `except` rejects (`DATATYPE`).
+    Data = 31,
     /// Text other than the required value (`VALUE`).
     Value = 32,
     /// A list value that does not match (`LIST`).
@@ -661,6 +675,9 @@ struct Frame<I> {
     /// The element's name key.
     name: u32,
     pattern: Id,
+    /// The content pattern at the start tag; `NOT_ALLOWED` once an element
+    /// child rejected a datatype, value or list content as a whole.
+    content: Id,
     /// Text since the last element child.
     text: String,
     /// Whether an element child was seen, so whitespace text is ignored.
@@ -783,6 +800,17 @@ impl<I: Copy> Engine<I> {
     ) -> bool {
         let at = (element, offset);
         self.root.get_or_insert(at);
+        if let Some(parent) = self.stack.last()
+            && parent.content == NOT_ALLOWED
+        {
+            return false;
+        }
+        if let Some((code, message)) = self.stack.last().and_then(|parent| self.simple(parent)) {
+            self.report(code, at, message);
+            let parent = self.stack.last_mut().expect("checked above");
+            (parent.errored, parent.content) = (true, NOT_ALLOWED);
+            return false;
+        }
         let pattern = self.stack.last().map_or(self.start, |frame| frame.pattern);
         let name = self.name(qname.namespace, qname.local);
         let opened = self.deriver.start_tag_open(pattern, name);
@@ -805,16 +833,34 @@ impl<I: Copy> Engine<I> {
                 continue;
             }
             errored = true;
-            let known = self.deriver.front(current).iter().any(|leaf| {
-                matches!(leaf, Pat::Attribute(class, _)
-                    if self.deriver.tables.contains(*class, attribute_name.ns, attribute_name.local))
-            });
+            let known = self
+                .deriver
+                .front(current)
+                .into_iter()
+                .find_map(|leaf| match leaf {
+                    Pat::Attribute(class, content)
+                        if (self.deriver.tables).contains(
+                            class,
+                            attribute_name.ns,
+                            attribute_name.local,
+                        ) =>
+                    {
+                        Some(content)
+                    }
+                    _ => None,
+                });
             let (code, message) = match known {
-                true => (
-                    Code::Attributes,
-                    format!("Element {} failed to validate attributes", qname.local),
-                ),
-                false => (
+                Some(content) => {
+                    let mut front = self.deriver.front(content).into_iter();
+                    front
+                        .find_map(|leaf| self.rejection(leaf, value, cx))
+                        .unwrap_or_else(|| {
+                            let message =
+                                format!("Element {} failed to validate attributes", qname.local);
+                            (Code::Attributes, message)
+                        })
+                }
+                None => (
                     Code::InvalidAttribute,
                     format!(
                         "Invalid attribute {} for element {}",
@@ -839,6 +885,7 @@ impl<I: Copy> Engine<I> {
             offset,
             name: name.key,
             pattern: closed,
+            content: closed,
             text: String::new(),
             mixed: false,
             errored,
@@ -910,6 +957,9 @@ impl<I: Copy> Engine<I> {
     }
 
     fn characters(&mut self, frame: &mut Frame<I>, text: &str, cx: &dyn Context) {
+        if frame.content == NOT_ALLOWED {
+            return;
+        }
         let mut next = self.deriver.text(frame.pattern, text, cx);
         if is_whitespace(text) {
             next = self.deriver.store.choice(frame.pattern, next);
@@ -927,27 +977,126 @@ impl<I: Copy> Engine<I> {
             Code::UnexpectedText,
             format!("Did not expect text in element {local} content"),
         );
-        let (code, message) = self.wanted(frame.pattern, unexpected);
+        let (code, message) = self.wanted(frame.pattern, text, cx, unexpected);
         self.report(code, (frame.element, frame.offset), message);
     }
 
-    /// The datatype `pattern` wanted, if any, else `fallback`.
-    fn wanted(&self, pattern: Id, fallback: (Code, String)) -> (Code, String) {
-        let tables = &self.deriver.tables;
+    /// libxml2's first message for `text` against the datatype, value or
+    /// list `pattern` wanted, if any, else `fallback`: the error of
+    /// xmlRelaxNGValidateValue, else that of the content check.
+    fn wanted(
+        &mut self,
+        pattern: Id,
+        text: &str,
+        cx: &dyn Context,
+        fallback: (Code, String),
+    ) -> (Code, String) {
+        let tables = Arc::clone(&self.deriver.tables);
         (self.deriver.front(pattern).into_iter())
-            .find_map(|leaf| match leaf {
-                Pat::Data(datatype, _) => Some((
-                    Code::Datatype,
-                    format!(
-                        "failed to validate type {}",
-                        tables.datatypes[datatype as usize].name()
+            .find_map(|leaf| {
+                let outer = match leaf {
+                    Pat::Data(datatype, _) => (
+                        Code::Data,
+                        format!(
+                            "Error validating datatype {}",
+                            tables.datatypes[datatype as usize].name()
+                        ),
                     ),
-                )),
-                Pat::Value(_) => Some((Code::Value, "Error validating value".into())),
-                Pat::List(_) => Some((Code::List, "Error validating list".into())),
-                _ => None,
+                    Pat::Value(value) => (
+                        Code::Value,
+                        format!(
+                            "Error validating value {}",
+                            tables.values[value as usize].name()
+                        ),
+                    ),
+                    Pat::List(_) => (Code::List, "Error validating list".into()),
+                    _ => return None,
+                };
+                Some(self.rejection(leaf, text, cx).unwrap_or(outer))
             })
             .unwrap_or(fallback)
+    }
+
+    /// The error xmlRelaxNGValidateValue raises for `text` against `leaf`.
+    fn rejection(&mut self, leaf: Pat, text: &str, cx: &dyn Context) -> Option<(Code, String)> {
+        let tables = Arc::clone(&self.deriver.tables);
+        match leaf {
+            Pat::Data(datatype, _) => {
+                let datatype = &tables.datatypes[datatype as usize];
+                (!datatype.lexical(text, cx)).then(|| {
+                    let message = format!("Type {} doesn't allow value '{text}'", datatype.name());
+                    (Code::TypeValue, message)
+                })
+            }
+            Pat::Value(value) => {
+                let value = &tables.values[value as usize];
+                (value.incomparable(text, cx)).then(|| {
+                    (
+                        Code::TypeCompare,
+                        format!("failed to compare type {}", value.name()),
+                    )
+                })
+            }
+            Pat::List(mut content) => {
+                // libxml2 backtracks to the last complete prefix: the token
+                // after it is extra.
+                let extra = |token: &str| (Code::ListExtra, format!("Extra data in list: {token}"));
+                let tokens = text
+                    .split([' ', '\t', '\n', '\r'])
+                    .filter(|t| !t.is_empty());
+                let mut after = None;
+                for token in tokens {
+                    if self.deriver.store.nullable(content) {
+                        after = Some(token);
+                    }
+                    let next = self.deriver.text(content, token, cx);
+                    if next == NOT_ALLOWED {
+                        if let Some(token) = after {
+                            return Some(extra(token));
+                        }
+                        let mut front = self.deriver.front(content).into_iter();
+                        return front.find_map(|leaf| self.rejection(leaf, token, cx));
+                    }
+                    content = next;
+                }
+                if self.deriver.store.nullable(content) {
+                    return None;
+                }
+                if let Some(token) = after {
+                    return Some(extra(token));
+                }
+                self.deriver
+                    .front(content)
+                    .into_iter()
+                    .find_map(|leaf| match leaf {
+                        Pat::Data(datatype, _) => Some((
+                            Code::Datatype,
+                            format!(
+                                "failed to validate type {}",
+                                tables.datatypes[datatype as usize].name()
+                            ),
+                        )),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        }
+    }
+
+    /// The DATAELEM-like error for an element child of `parent`, whose
+    /// content is only datatypes, values or lists.
+    fn simple(&self, parent: &Frame<I>) -> Option<(Code, String)> {
+        let front = self.deriver.front(parent.content);
+        let mut kinds = front.iter().map(|leaf| match leaf {
+            Pat::Data(..) => Some((Code::DataElement, "Datatype")),
+            Pat::Value(_) => Some((Code::ValueElement, "Value")),
+            Pat::List(_) => Some((Code::ListElement, "List")),
+            _ => None,
+        });
+        let (code, kind) = kinds.next()??;
+        kinds.all(|kind| kind.is_some()).then_some(())?;
+        let local = &self.locals[parent.name as usize];
+        Some((code, format!("{kind} element {local} has child elements")))
     }
 
     /// The end tag of the current element.
@@ -962,7 +1111,7 @@ impl<I: Copy> Engine<I> {
         let mut ended = self.deriver.end_tag(frame.pattern, false);
         if ended == NOT_ALLOWED && !self.deriver.exhausted() {
             if !frame.errored {
-                let (code, message) = self.missing(&frame);
+                let (code, message) = self.missing(&frame, cx);
                 self.report(code, (frame.element, frame.offset), message);
             }
             ended = self.deriver.end_tag(frame.pattern, true);
@@ -973,7 +1122,7 @@ impl<I: Copy> Engine<I> {
     }
 
     /// Classifies content that ended too early.
-    fn missing(&self, frame: &Frame<I>) -> (Code, String) {
+    fn missing(&mut self, frame: &Frame<I>, cx: &dyn Context) -> (Code, String) {
         let tables = &self.deriver.tables;
         let missing = (self.deriver.front(frame.pattern).into_iter()).find_map(|leaf| match leaf {
             Pat::Element(element) => Some(
@@ -991,7 +1140,7 @@ impl<I: Copy> Engine<I> {
             None => {
                 let local = &self.locals[frame.name as usize];
                 let fallback = format!("Element {local} failed to validate content");
-                self.wanted(frame.pattern, (Code::Content, fallback))
+                self.wanted(frame.pattern, "", cx, (Code::Content, fallback))
             }
         }
     }
@@ -1043,9 +1192,9 @@ impl<I: Copy> Engine<I> {
                 Code::ElementExtraNamespace,
                 format!("Expecting no namespace for element {element}"),
             ),
-            Some((ns, _)) if name.ns.is_empty() => (
+            Some(_) if name.ns.is_empty() => (
                 Code::ElementNoNamespace,
-                format!("Expecting a namespace for element {element}: {ns}"),
+                format!("Expecting a namespace for element {element}"),
             ),
             Some((ns, _)) => (
                 Code::ElementWrongNamespace,

@@ -82,6 +82,14 @@ impl Datatype {
     pub(super) fn allows(&self, text: &str, cx: &dyn Context) -> bool {
         matches!(self, Datatype::String | Datatype::Token) || self.parse(text, cx).is_some()
     }
+
+    /// Whether `text` is in the lexical space, facets aside.
+    pub(super) fn lexical(&self, text: &str, cx: &dyn Context) -> bool {
+        match self {
+            Datatype::Xsd(ty, _) => ty.parse(text, Some(cx)).is_ok(),
+            _ => true,
+        }
+    }
 }
 
 /// A `value` pattern: its datatype, lexical form and, for XML Schema
@@ -89,6 +97,8 @@ impl Datatype {
 #[derive(Debug)]
 pub(super) struct ValueDef {
     pub(super) datatype: Datatype,
+    /// Whether a `type` attribute named the datatype (libxml2 keeps no name otherwise).
+    typed: bool,
     lexical: Box<str>,
     value: Option<Value>,
 }
@@ -96,6 +106,7 @@ pub(super) struct ValueDef {
 impl ValueDef {
     pub(super) fn new(
         datatype: Datatype,
+        typed: bool,
         lexical: &str,
         cx: &dyn Context,
     ) -> Result<Self, Problem> {
@@ -105,6 +116,7 @@ impl ValueDef {
         };
         Ok(Self {
             datatype,
+            typed,
             lexical: lexical.into(),
             value,
         })
@@ -122,6 +134,25 @@ impl ValueDef {
                 .parse(text, cx)
                 .is_some_and(|value| value.equals(expected)),
             (_, None) => false,
+        }
+    }
+
+    /// The `type` attribute, or "".
+    pub(super) fn name(&self) -> &'static str {
+        if self.typed { self.datatype.name() } else { "" }
+    }
+
+    /// Whether libxml2's type comparison fails on `text` (`TYPECMP`): the
+    /// text is not of the type, or the type is one whose value libxml2
+    /// does not compute.
+    pub(super) fn incomparable(&self, text: &str, cx: &dyn Context) -> bool {
+        use crate::schema_types::Type::{AnySimpleType, Entities, IdRefs, NmTokens, String};
+        match &self.datatype {
+            Datatype::Xsd(ty, _) => {
+                matches!(ty, AnySimpleType | String | NmTokens | IdRefs | Entities)
+                    || !self.datatype.lexical(text, cx)
+            }
+            _ => false,
         }
     }
 }

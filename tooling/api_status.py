@@ -964,7 +964,8 @@ I|xmlSchema|xsd::Schema
 P|xmlSchemaNewValidCtxt xmlSchemaValidCtxt|xsd::StreamValidator::new
 A|xmlSchemaFree xmlSchemaFreeParserCtxt xmlSchemaFreeValidCtxt xmlSchemaPtr xmlSchemaParserCtxt xmlSchemaParserCtxtPtr xmlSchemaValidCtxtPtr|Drop or raw pointer alias
 A|xmlSchemaSet*Errors xmlSchemaSet*StructuredErrors xmlSchemaGet*Errors xmlSchemaValidity*Func|diagnostics are returned as Vec<xsd::Diagnostic>
-N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaSetValidOptions xmlSchemaValidCtxtGetOptions xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateOneElement xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator xmlSchemaValidOption XML_SCHEMA_VAL_VC_I_CREATE xmlSchemaValidError XML_SCHEMAS_ERR_*|not started (docs/xsd.md)
+N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaSetValidOptions xmlSchemaValidCtxtGetOptions xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateOneElement xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator xmlSchemaValidOption XML_SCHEMA_VAL_VC_I_CREATE|not started (docs/xsd.md)
+A|xmlSchemaValidError XML_SCHEMAS_ERR_*|never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 # ---- schemasInternals.h
 N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttribute xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaAttributePtr xmlSchemaContentType xmlSchemaElement xmlSchemaElementPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaType xmlSchemaTypeLink xmlSchemaTypeLinkPtr xmlSchemaTypePtr xmlSchemaTypeType xmlSchemaVal xmlSchemaValPtr xmlSchemaWildcard xmlSchemaWildcardNs xmlSchemaWildcardNsPtr xmlSchemaWildcardPtr XML_SCHEMAS_* XML_SCHEMA_CONTENT_* XML_SCHEMA_TYPE_* XML_SCHEMA_EXTRA_*|no public schema component model; xsd::Schema is opaque
 I|xmlSchemaValType|schema_types::Type
@@ -1323,7 +1324,8 @@ def header_rule(h, i, k, ctx):
     if m := re.fullmatch(r"XML_SCHEMA_FACET_(\w+)", i):
         return "I", f"schema_types::Facet::{FACETS[m.group(1)]}"
     if m := re.fullmatch(r"XML_RELAXNG_ERR_(\w+)", i):
-        return by_code(ctx.rngv, ctx.rng[i], "relaxng::Code", "XML_RELAXNG_ERR")
+        s, note = by_code(ctx.rngv, ctx.rng[i], "relaxng::Code", "XML_RELAXNG_ERR")
+        return ("A", "never raised by libxml2 2.15.4") if s == "N" and i not in ctx.raised else (s, note)
     if m := re.fullmatch(r"XPATH_(\w+)", i):
         if m.group(1) in XPATH_ERR:
             return "P", f"xpath::ErrorKind::{XPATH_ERR[m.group(1)]} - category only; no numeric code"

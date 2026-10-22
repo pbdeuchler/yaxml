@@ -137,7 +137,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<attribute name='a'><data type='int'/></attribute>",
         "<r a='x'/>",
-        &[Code::Attributes],
+        &[Code::TypeValue],
     ),
     (
         "<attribute name='a'><data type='int'/></attribute>",
@@ -218,20 +218,20 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<list><oneOrMore><data type='int'/></oneOrMore></list>",
         "<r>1 x</r>",
-        &[Code::List],
+        &[Code::ListExtra],
     ),
     (
         "<list><data type='int'/><data type='int'/></list>",
         "<r>1</r>",
-        &[Code::List],
+        &[Code::Datatype],
     ),
     ("<data type='int'/>", "<r>7</r>", &[]),
-    ("<data type='int'/>", "<r>7.5</r>", &[Code::Datatype]),
-    ("<data type='int'/>", "<r/>", &[Code::Datatype]),
+    ("<data type='int'/>", "<r>7.5</r>", &[Code::TypeValue]),
+    ("<data type='int'/>", "<r/>", &[Code::TypeValue]),
     (
         "<data type='string'><param name='maxLength'>3</param></data>",
         "<r>abcd</r>",
-        &[Code::Datatype],
+        &[Code::Data],
     ),
     (
         "<data type='string'><param name='pattern'>[a-c]+</param><param name='minLength'>2</param></data>",
@@ -241,7 +241,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<data type='string'><param name='pattern'>[a-c]+</param><param name='minLength'>2</param></data>",
         "<r>a</r>",
-        &[Code::Datatype],
+        &[Code::Data],
     ),
     (
         "<data type='integer'><param name='minInclusive'>3</param><param name='maxExclusive'>5</param></data>",
@@ -251,7 +251,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<data type='integer'><param name='minInclusive'>3</param><param name='maxExclusive'>5</param></data>",
         "<r>5</r>",
-        &[Code::Datatype],
+        &[Code::Data],
     ),
     (
         "<data type='decimal'><param name='totalDigits'>3</param><param name='fractionDigits'>1</param></data>",
@@ -261,7 +261,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<data type='decimal'><param name='totalDigits'>3</param></data>",
         "<r>1234</r>",
-        &[Code::Datatype],
+        &[Code::Data],
     ),
     (
         "<data type='token'><except><value>no</value></except></data>",
@@ -271,10 +271,10 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<data type='token'><except><value>no</value></except></data>",
         "<r> no </r>",
-        &[Code::Datatype],
+        &[Code::Data],
     ),
     ("<data type='QName'/>", "<r xmlns:p='urn:p'>p:x</r>", &[]),
-    ("<data type='QName'/>", "<r>q:x</r>", &[Code::Datatype]),
+    ("<data type='QName'/>", "<r>q:x</r>", &[Code::TypeValue]),
     // An unprefixed QName in an `xmlns=""` scope has no namespace, as with no default at all.
     ("<value type='QName'>x</value>", "<r>x</r>", &[]),
     ("<value type='QName'>x</value>", "<r xmlns=''>x</r>", &[]),
@@ -305,7 +305,7 @@ const PATTERNS: &[(&str, &str, &[Code])] = &[
     (
         "<element name='a'><data type='QName'/></element><element name='b'><data type='QName'/></element>",
         "<r><a xmlns:p='urn:p'>p:x</a><b>p:x</b></r>",
-        &[Code::Datatype],
+        &[Code::TypeValue],
     ),
     (
         "<element name='a'><value type='QName' xmlns:p='urn:q'>p:x</value></element>",
@@ -385,6 +385,124 @@ fn patterns_validate_both_doms() {
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// libxml2 reports the innermost failure first (recorded with xmllint --relaxng).
+const FIRST: &[(&str, &str, Code, &str)] = &[
+    (
+        "<data type='int'/>",
+        "<r>x</r>",
+        Code::TypeValue,
+        "Type int doesn't allow value 'x'",
+    ),
+    (
+        "<data type='int'><param name='minInclusive'>3</param></data>",
+        "<r>1</r>",
+        Code::Data,
+        "Error validating datatype int",
+    ),
+    (
+        "<value type='integer'>1</value>",
+        "<r>x</r>",
+        Code::TypeCompare,
+        "failed to compare type integer",
+    ),
+    (
+        "<value type='integer'>1</value>",
+        "<r>2</r>",
+        Code::Value,
+        "Error validating value integer",
+    ),
+    // No value is computed for strings: any mismatch fails to compare.
+    (
+        "<value type='string'>a</value>",
+        "<r>b</r>",
+        Code::TypeCompare,
+        "failed to compare type string",
+    ),
+    (
+        "<value>a</value>",
+        "<r>b</r>",
+        Code::Value,
+        "Error validating value ",
+    ),
+    (
+        "<data type='int'/>",
+        "<r><x/></r>",
+        Code::DataElement,
+        "Datatype element r has child elements",
+    ),
+    (
+        "<value>a</value>",
+        "<r><x/></r>",
+        Code::ValueElement,
+        "Value element r has child elements",
+    ),
+    (
+        "<list><data type='int'/></list>",
+        "<r><x/></r>",
+        Code::ListElement,
+        "List element r has child elements",
+    ),
+    (
+        "<list><oneOrMore><data type='int'/></oneOrMore></list>",
+        "<r>1 x</r>",
+        Code::ListExtra,
+        "Extra data in list: x",
+    ),
+    (
+        "<list><data type='int'/></list>",
+        "<r>x</r>",
+        Code::TypeValue,
+        "Type int doesn't allow value 'x'",
+    ),
+    (
+        "<list><data type='int'/><data type='int'/></list>",
+        "<r>1</r>",
+        Code::Datatype,
+        "failed to validate type int",
+    ),
+    (
+        "<list><data type='int'/></list>",
+        "<r>1 2</r>",
+        Code::ListExtra,
+        "Extra data in list: 2",
+    ),
+    // Backtracks to the last complete repetition.
+    (
+        "<list><oneOrMore><data type='int'/><data type='int'/></oneOrMore></list>",
+        "<r>1 2 3</r>",
+        Code::ListExtra,
+        "Extra data in list: 3",
+    ),
+    (
+        "<attribute name='a'><value type='integer'>1</value></attribute>",
+        "<r a='x'/>",
+        Code::TypeCompare,
+        "failed to compare type integer",
+    ),
+    (
+        "<attribute name='a'><value>b</value></attribute>",
+        "<r a='x'/>",
+        Code::Attributes,
+        "Element r failed to validate attributes",
+    ),
+    (
+        "<attribute name='a'><data type='int'/></attribute>",
+        "<r a='x'/>",
+        Code::TypeValue,
+        "Type int doesn't allow value 'x'",
+    ),
+];
+
+#[test]
+fn first_messages_match_libxml2() {
+    for &(body, xml, code, message) in FIRST {
+        let schema = schema(&wrap(body)).unwrap();
+        let found = schema.validate(&Document::parse(xml).unwrap());
+        assert_eq!(codes(&schema, xml)[0], code, "{body} | {xml}");
+        assert_eq!(found[0].message, message, "{body} | {xml}");
+    }
 }
 
 /// (schema, error code)
@@ -988,7 +1106,7 @@ fn diagnostics_locate_elements() {
         (diagnostic.node, diagnostic.offset),
         (Some(a.id()), Some(3))
     );
-    assert_eq!(diagnostic.message, "failed to validate type int");
+    assert_eq!(diagnostic.message, "Type int doesn't allow value 'x'");
 }
 
 #[test]

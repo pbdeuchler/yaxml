@@ -143,6 +143,14 @@ element the content does not allow, its subtree is skipped by depth count.
 On the 42 invalid libxml2 instances libxml2 reports 65 validity errors and
 yaxml 48, mostly in the same categories (wrong element, namespace, attribute,
 datatype, list, value); libxml2's extra ones are the ancestor chains above.
+The first message is libxml2's on 26 of the 42. Like libxml2, a datatype
+failure reports its innermost cause first: `TypeValue` (lexical), `Data`
+(facet or `except`), `TypeCompare` (a `value` whose instance does not parse,
+or whose type has no computed value, such as `string`), `Value`, `ListExtra`
+(the token after the last complete prefix of a list), `Datatype` (a missing
+list item), and `DataElement`/`ValueElement`/`ListElement` for a child element
+in such content; attribute values report the same inner cause. The other 16
+differ in libxml2's choice and interleave backtracking.
 The differences from the expected verdicts:
 
 - Five `spectest.xml` schemas use names such as U+0E35 that XML 1.0 Fifth
@@ -174,7 +182,8 @@ and stdout on all 798 schema and instance pairs of `tests/yaxmllint.rs`.
 - The DTD compatibility annotations (`a:defaultValue`) are ignored and IDs
   are checked as libxml2 does, not with the ID-type consistency rules of
   the DTD compatibility specification.
-- Messages follow libxml2's wording but not always its choice of message.
+- Messages follow libxml2's wording; inside `choice` and `interleave` the
+  message chosen can differ.
 
 ## Declined: `xmlRelaxNGDump`, `xmlRelaxNGDumpTree`
 

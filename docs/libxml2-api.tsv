@@ -1146,14 +1146,14 @@ pattern.h	xmlStreamWantsAnyNode	function	not_marked	P2	implemented	https://githu
 relaxng.h	XML_RELAXNGP_CRNG	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
 relaxng.h	XML_RELAXNGP_FREE_DOC	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
 relaxng.h	XML_RELAXNGP_NONE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
-relaxng.h	XML_RELAXNG_ERR_ATTREXTRANS	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_ATTRNAME	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_ATTRNONS	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_ATTREXTRANS	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
+relaxng.h	XML_RELAXNG_ERR_ATTRNAME	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
+relaxng.h	XML_RELAXNG_ERR_ATTRNONS	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
 relaxng.h	XML_RELAXNG_ERR_ATTRVALID	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Attributes
-relaxng.h	XML_RELAXNG_ERR_ATTRWRONGNS	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_ATTRWRONGNS	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
 relaxng.h	XML_RELAXNG_ERR_CONTENTVALID	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Content
-relaxng.h	XML_RELAXNG_ERR_DATAELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_DATATYPE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_DATAELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::DataElement
+relaxng.h	XML_RELAXNG_ERR_DATATYPE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Data
 relaxng.h	XML_RELAXNG_ERR_DUPID	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::DuplicateId
 relaxng.h	XML_RELAXNG_ERR_ELEMEXTRANS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementExtraNamespace
 relaxng.h	XML_RELAXNG_ERR_ELEMNAME	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementName
@@ -1170,9 +1170,9 @@ relaxng.h	XML_RELAXNG_ERR_INTERSEQ	enum_value	not_marked	P3	not-started	https://
 relaxng.h	XML_RELAXNG_ERR_INVALIDATTR	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::InvalidAttribute
 relaxng.h	XML_RELAXNG_ERR_LACKDATA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_LIST	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::List
-relaxng.h	XML_RELAXNG_ERR_LISTELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_LISTEMPTY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_LISTEXTRA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_LISTELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ListElement
+relaxng.h	XML_RELAXNG_ERR_LISTEMPTY	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
+relaxng.h	XML_RELAXNG_ERR_LISTEXTRA	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ListExtra
 relaxng.h	XML_RELAXNG_ERR_MEMORY	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Allocation
 relaxng.h	XML_RELAXNG_ERR_NODEFINE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_NOELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::MissingElement
@@ -1181,9 +1181,9 @@ relaxng.h	XML_RELAXNG_ERR_NOSTATE	enum_value	not_marked	P3	not-started	https://g
 relaxng.h	XML_RELAXNG_ERR_NOTELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_TEXTWRONG	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::UnexpectedText
 relaxng.h	XML_RELAXNG_ERR_TYPE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Datatype
-relaxng.h	XML_RELAXNG_ERR_TYPECMP	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_TYPEVAL	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_VALELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_TYPECMP	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::TypeCompare
+relaxng.h	XML_RELAXNG_ERR_TYPEVAL	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::TypeValue
+relaxng.h	XML_RELAXNG_ERR_VALELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ValueElement
 relaxng.h	XML_RELAXNG_ERR_VALUE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Value
 relaxng.h	XML_RELAXNG_OK	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
 relaxng.h	xmlRelaxNG	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Schema
@@ -3452,32 +3452,32 @@ xmlsave.h	xmlSaveTree	function	not_marked	P1	implemented	https://github.com/GNOM
 xmlsave.h	xmlThrDefIndentTreeOutput	function	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	global default; per-call ParseOptions or save::Options flags
 xmlsave.h	xmlThrDefSaveNoEmptyTags	function	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	global default; per-call ParseOptions or save::Options flags
 xmlsave.h	xmlThrDefTreeIndentString	function	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	global default; per-call ParseOptions or save::Options flags
-xmlschemas.h	XML_SCHEMAS_ERR_	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_ATTRINVALID	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_ATTRUNKNOWN	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_CONSTRUCT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_ELEMCONT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_EXTRACONTENT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_FACET	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_HAVEDEFAULT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_INTERNAL	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_INVALIDATTR	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_INVALIDELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_ISABSTRACT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_MISSING	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOROLLBACK	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOROOT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTDETERMINIST	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTEMPTY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTNILLABLE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTSIMPLE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTTOPLEVEL	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_NOTYPE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_OK	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_UNDECLAREDELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_VALUE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_WRONGELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
-xmlschemas.h	XML_SCHEMAS_ERR_XXX	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	XML_SCHEMAS_ERR_	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_ATTRINVALID	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_ATTRUNKNOWN	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_CONSTRUCT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_ELEMCONT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_EXTRACONTENT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_FACET	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_HAVEDEFAULT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_INTERNAL	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_INVALIDATTR	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_INVALIDELEM	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_ISABSTRACT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_MISSING	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOROLLBACK	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOROOT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTDETERMINIST	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTEMPTY	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTNILLABLE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTSIMPLE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTTOPLEVEL	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_NOTYPE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_OK	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_UNDECLAREDELEM	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_VALUE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_WRONGELEM	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
+xmlschemas.h	XML_SCHEMAS_ERR_XXX	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 xmlschemas.h	XML_SCHEMA_VAL_VC_I_CREATE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchema	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema
 xmlschemas.h	xmlSchemaDump	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
@@ -3509,7 +3509,7 @@ xmlschemas.h	xmlSchemaValidCtxt	typedef	not_marked	P3	partial	https://github.com
 xmlschemas.h	xmlSchemaValidCtxtGetOptions	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidCtxtGetParserCtxt	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	Drop or raw pointer alias
-xmlschemas.h	xmlSchemaValidError	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	xmlSchemaValidError	enum	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 xmlschemas.h	xmlSchemaValidOption	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidateDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate
 xmlschemas.h	xmlSchemaValidateFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_stream - caller opens the file

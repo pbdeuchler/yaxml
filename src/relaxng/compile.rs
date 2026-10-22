@@ -838,7 +838,7 @@ impl<'e> Compiler<'e, '_> {
             None => ("", "token"),
         };
         let datatype = self.datatype(el, library, name, &[])?;
-        let value = ValueDef::new(datatype, &el.text, el)
+        let value = ValueDef::new(datatype, el.attr("type").is_some(), &el.text, el)
             .map_err(|problem| self.problem(el, problem, library, name))?;
         self.tables
             .values

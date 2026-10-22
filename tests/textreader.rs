@@ -825,12 +825,12 @@ fn relaxng_validates_while_reading() {
         (
             0,
             "<r><b/><a>x</a></r>",
-            &[Code::ElementName, Code::Datatype],
+            &[Code::ElementName, Code::TypeValue],
         ),
         (0, &format!("{dtd}<r>&e;</r>"), &[]),
         (noent, &format!("{dtd}<r>&e;</r>"), &[]),
         (0, &format!("{dtd}<r><a>u</a></r>"), &[]),
-        (0, &format!("{dtd}<r><a>e</a></r>"), &[Code::Datatype]),
+        (0, &format!("{dtd}<r><a>e</a></r>"), &[Code::TypeValue]),
     ];
     for &(flags, xml, expected) in cases {
         for expand in [false, true] {
