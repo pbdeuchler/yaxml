@@ -302,7 +302,6 @@ FIELD_DEFAULT = {
     "_xmlAttribute": ("A", "tree links and bookkeeping; valid::Attribute is a borrowed view"),
     "_xmlNotation": ("A", "valid::Notation is a borrowed view"),
     "_xmlDtd": ("A", "tree links; valid::Dtd is read through its accessors"),
-    "_xmlElementContent": ("N", "no public content-model tree"),
     "_xmlEnumeration": ("N", "no public enumeration list"),
     "_xmlID": ("N", "IDs via Document::element_by_id"),
     "_xmlRef": ("N", "no IDREF table"),
@@ -532,7 +531,17 @@ P|xmlElement|valid::Element - a borrowed view; the content model is printed, not
 P|xmlAttribute|valid::Attribute - a borrowed view
 P|xmlNotation|valid::Notation - a borrowed view
 P|xmlEnumeration|valid::Attribute::values
-N|xmlElementContent xmlElementContentOccur xmlElementContentType XML_ELEMENT_CONTENT_*|no content-model tree; valid::Element::model prints it
+P|xmlElementContent _xmlElementContent|valid::Particle, valid::Element::content - n-ary groups read from the printed model (same-connector groups without an indicator merge); no parent links
+I|xmlElementContentType|valid::ParticleKind
+I|XML_ELEMENT_CONTENT_PCDATA|valid::ParticleKind::Pcdata
+I|XML_ELEMENT_CONTENT_ELEMENT|valid::ParticleKind::Element
+I|XML_ELEMENT_CONTENT_SEQ|valid::ParticleKind::Sequence
+I|XML_ELEMENT_CONTENT_OR|valid::ParticleKind::Choice
+I|xmlElementContentOccur|valid::Occurrence
+I|XML_ELEMENT_CONTENT_ONCE|valid::Occurrence::Once
+I|XML_ELEMENT_CONTENT_OPT|valid::Occurrence::Optional
+I|XML_ELEMENT_CONTENT_MULT|valid::Occurrence::ZeroOrMore
+I|XML_ELEMENT_CONTENT_PLUS|valid::Occurrence::OneOrMore
 N|xmlID xmlRef|no public ID/IDREF tables
 I|xmlAttributeType|valid::AttributeKind
 I|XML_ATTRIBUTE_CDATA|valid::AttributeKind::Cdata

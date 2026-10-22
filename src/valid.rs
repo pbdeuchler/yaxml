@@ -727,6 +727,151 @@ impl<'a> Element<'a> {
             .split(['(', ')', '|', ',', '?', '*', '+', ' '])
             .filter(move |name| !name.is_empty() && seen.insert(*name))
     }
+
+    /// The mixed or element content model as a tree (libxml2's
+    /// `xmlElementContent`); `None` for `EMPTY`, `ANY` and undeclared.
+    ///
+    /// ```
+    /// use yaxml::Document;
+    /// use yaxml::valid::{Occurrence, ParticleKind};
+    /// let document = Document::parse("<!DOCTYPE r [<!ELEMENT r (a, (b | c)*)>]><r/>")?;
+    /// let model = document.dtd().unwrap().element("r").unwrap().content().unwrap();
+    /// assert_eq!((model.kind(), model.occurrence()), (ParticleKind::Sequence, Occurrence::Once));
+    /// let [a, choice] = model.children().collect::<Vec<_>>()[..] else { panic!() };
+    /// assert_eq!((a.kind(), a.name()), (ParticleKind::Element, Some("a")));
+    /// assert_eq!((choice.kind(), choice.occurrence()), (ParticleKind::Choice, Occurrence::ZeroOrMore));
+    /// assert_eq!(choice.children().filter_map(|c| c.name()).collect::<Vec<_>>(), ["b", "c"]);
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn content(self) -> Option<Particle<'a>> {
+        let (group, occurrence) = Particle::split(self.model?);
+        let body = &group[1..group.len() - 1];
+        // A one-item model is that item, with the model's occurrence.
+        let text = match separator(body) {
+            Some(_) => group,
+            None => body,
+        };
+        Some(Particle { text, occurrence })
+    }
+}
+
+/// How often a particle occurs; the discriminant is libxml2's
+/// `xmlElementContentOccur`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum Occurrence {
+    /// No indicator.
+    Once = 1,
+    /// `?`
+    Optional = 2,
+    /// `*`
+    ZeroOrMore = 3,
+    /// `+`
+    OneOrMore = 4,
+}
+
+/// A particle's kind; the discriminant is libxml2's `xmlElementContentType`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum ParticleKind {
+    /// `#PCDATA`, the first child of a mixed model's choice (or the whole
+    /// `(#PCDATA)` model).
+    Pcdata = 1,
+    /// An element name.
+    Element = 2,
+    /// `(a , b)`
+    Sequence = 3,
+    /// `(a | b)`
+    Choice = 4,
+}
+
+/// One particle of a content model, borrowed from its [`Element`]. libxml2
+/// chains a group's items through binary `c1`/`c2` nodes; here a group lists
+/// them, read from [`Element::model`] (`xmlBufDumpElementContent`'s form), so
+/// a group of the same connector without an indicator merges into its parent:
+/// `(a , (b , c))`, `((a , b) , c)` and `(a , b , c)` are one three-item
+/// sequence (libxml2 keeps `((a , b) , c)` left-nested), while
+/// `((a , b)* , c)` keeps its inner group.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Particle<'a> {
+    /// A name, `#PCDATA` or a parenthesized group, without its indicator.
+    text: &'a str,
+    occurrence: Occurrence,
+}
+
+/// The connector of a group's body: the first one outside nested groups.
+fn separator(body: &str) -> Option<u8> {
+    let mut depth = 0usize;
+    body.bytes().find(|&byte| {
+        match byte {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            _ => return depth == 0 && matches!(byte, b',' | b'|'),
+        }
+        false
+    })
+}
+
+impl<'a> Particle<'a> {
+    /// Splits a printed item into its text and occurrence indicator.
+    fn split(item: &'a str) -> (&'a str, Occurrence) {
+        let occurrence = match item.as_bytes().last() {
+            Some(b'?') => Occurrence::Optional,
+            Some(b'*') => Occurrence::ZeroOrMore,
+            Some(b'+') => Occurrence::OneOrMore,
+            _ => return (item, Occurrence::Once),
+        };
+        (&item[..item.len() - 1], occurrence)
+    }
+
+    /// The particle's kind.
+    pub fn kind(self) -> ParticleKind {
+        match self.text.as_bytes()[0] {
+            b'#' => ParticleKind::Pcdata,
+            b'(' if separator(&self.text[1..self.text.len() - 1]) == Some(b',') => {
+                ParticleKind::Sequence
+            }
+            b'(' => ParticleKind::Choice,
+            _ => ParticleKind::Element,
+        }
+    }
+
+    /// Its occurrence indicator.
+    pub fn occurrence(self) -> Occurrence {
+        self.occurrence
+    }
+
+    /// The qualified element name of an [`ParticleKind::Element`] particle
+    /// (libxml2 splits it into `prefix` and `name`).
+    pub fn name(self) -> Option<&'a str> {
+        (self.kind() == ParticleKind::Element).then_some(self.text)
+    }
+
+    /// A group's items in order; none for a name or `#PCDATA`.
+    pub fn children(self) -> impl Iterator<Item = Particle<'a>> + 'a {
+        let body = match self.text.strip_prefix('(') {
+            Some(body) => &body[..body.len() - 1],
+            None => "",
+        };
+        let mut rest = (!body.is_empty()).then_some(body);
+        std::iter::from_fn(move || {
+            let item = rest?;
+            let mut depth = 0usize;
+            let end = item.bytes().position(|byte| {
+                match byte {
+                    b'(' => depth += 1,
+                    b')' => depth -= 1,
+                    b' ' if depth == 0 => return true,
+                    _ => {}
+                }
+                false
+            });
+            // Items are separated by " , " or " | ".
+            rest = end.map(|end| &item[end + 3..]);
+            let (text, occurrence) = Particle::split(&item[..end.unwrap_or(item.len())]);
+            Some(Particle { text, occurrence })
+        })
+    }
 }
 
 impl std::fmt::Debug for Element<'_> {

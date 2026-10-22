@@ -1673,14 +1673,14 @@ tree.h	XML_DOC_USERBUILT	enum_value	not_marked	P0-P3	implemented	https://github.
 tree.h	XML_DOC_WELLFORMED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::WELLFORMED
 tree.h	XML_DOC_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::XINCLUDE - never set, as in libxml2 2.15.4
 tree.h	XML_DTD_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Doctype, OwnedNodeKind::DocumentType - the DTD node is the doctype node
-tree.h	XML_ELEMENT_CONTENT_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_MULT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_ONCE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_OPT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_OR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_PCDATA	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_PLUS	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	XML_ELEMENT_CONTENT_SEQ	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	XML_ELEMENT_CONTENT_ELEMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Element
+tree.h	XML_ELEMENT_CONTENT_MULT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence::ZeroOrMore
+tree.h	XML_ELEMENT_CONTENT_ONCE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence::Once
+tree.h	XML_ELEMENT_CONTENT_OPT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence::Optional
+tree.h	XML_ELEMENT_CONTENT_OR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Choice
+tree.h	XML_ELEMENT_CONTENT_PCDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Pcdata
+tree.h	XML_ELEMENT_CONTENT_PLUS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence::OneOrMore
+tree.h	XML_ELEMENT_CONTENT_SEQ	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Sequence
 tree.h	XML_ELEMENT_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
 tree.h	XML_ELEMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Element, OwnedNodeKind::Element
 tree.h	XML_ELEMENT_TYPE_ANY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Any
@@ -1804,7 +1804,7 @@ tree.h	_xmlElement.parent	field	not_marked	P0-P3	not-applicable	https://github.c
 tree.h	_xmlElement.prefix	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	names are qualified as declared
 tree.h	_xmlElement.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
 tree.h	_xmlElement.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
-tree.h	_xmlElementContent	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	_xmlElementContent	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Particle, valid::Element::content - n-ary groups read from the printed model (same-connector groups without an indicator merge); no parent links
 tree.h	_xmlElementContent.c1	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.c2	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlElementContent.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1942,10 +1942,10 @@ tree.h	xmlDtd	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/
 tree.h	xmlDtdPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlElemDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
 tree.h	xmlElement	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element - a borrowed view; the content model is printed, not a tree
-tree.h	xmlElementContent	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
-tree.h	xmlElementContentOccur	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	xmlElementContent	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Particle, valid::Element::content - n-ary groups read from the printed model (same-connector groups without an indicator merge); no parent links
+tree.h	xmlElementContentOccur	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence
 tree.h	xmlElementContentPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
-tree.h	xmlElementContentType	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
+tree.h	xmlElementContentType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind
 tree.h	xmlElementPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlElementType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind, OwnedNodeKind
 tree.h	xmlElementTypeVal	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind
