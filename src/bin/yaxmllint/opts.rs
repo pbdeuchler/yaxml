@@ -113,6 +113,7 @@ const TABLE: &[Spec] = &[
     flag("loaddtd", |o, _| o.with(options::DTDLOAD)),
     flag("dtdattr", |o, _| o.with(options::DTDATTR)),
     flag("noent", |o, _| o.with(options::NOENT)),
+    flag("oldxml10", |o, _| o.with(options::OLD10)),
     flag("recover", |o, _| o.with(options::RECOVER)),
     flag("nocdata", |o, _| o.with(options::NOCDATA)),
     flag("nsclean", |o, _| o.with(options::NSCLEAN)),
@@ -211,7 +212,6 @@ const NO_OPS: &[&str] = &[
     "push",
     "memory",
     "repeat",
-    "oldxml10",
     "strict-namespace",
     "load-trace",
 ];

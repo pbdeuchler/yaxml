@@ -492,6 +492,10 @@ impl<'input> DtdControllerCore<'input> {
             let offset = unit_offset(encoding, origin, unit.raw(), 0);
             budget.recover(Error::new(ErrorKind::Namespace, offset))?;
         }
+        if budget.old10() && !unit.fourth_edition() {
+            let offset = unit_offset(encoding, origin, unit.raw(), 0);
+            return Err(Error::new(ErrorKind::InvalidName, offset));
+        }
         let literals = match side {
             Side::Physical => LiteralSource::Physical,
             Side::Replacement => LiteralSource::Replacement,

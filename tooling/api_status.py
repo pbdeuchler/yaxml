@@ -165,7 +165,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "DTDVALID": ("P", "DOMs and TextReader; valid::StreamValidator for other streams"),
     "NOBLANKS": ("P", "every surface but the slice Reader"),
     "PEDANTIC": ("P", "accepted; libxml2 only prints more warnings"),
-    "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
+    "OLD10": ("P", "Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
     "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
     "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver)"),
@@ -578,7 +578,7 @@ I|XML_DOC_WELLFORMED|properties::WELLFORMED
 I|XML_DOC_NSVALID|properties::NSVALID
 I|XML_DOC_DTDVALID|properties::DTDVALID
 I|XML_DOC_USERBUILT|properties::USERBUILT
-I|XML_DOC_OLD10|properties::OLD10 - never set: OLD10 is rejected
+I|XML_DOC_OLD10|properties::OLD10
 I|XML_DOC_XINCLUDE|properties::XINCLUDE - never set, as in libxml2 2.15.4
 I|XML_DOC_INTERNAL|properties::INTERNAL - never set: marks libxml2's scratch documents
 I|xmlDocProperties|properties

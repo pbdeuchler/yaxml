@@ -93,7 +93,8 @@ pub const NOCDATA: u32 = 1 << 14;
 pub const NOXINCNODE: u32 = 1 << 15;
 /// `XML_PARSE_COMPACT`: accepted; storage layout is not configurable.
 pub const COMPACT: u32 = 1 << 16;
-/// `XML_PARSE_OLD10`: pre-Fifth-Edition name rules; not implemented, rejected.
+/// `XML_PARSE_OLD10`: XML 1.0 Fourth Edition name rules, and a version
+/// other than 1.0 is fatal (docs/compatibility.md#option-compatibility).
 pub const OLD10: u32 = 1 << 17;
 /// `XML_PARSE_NOBASEFIX`: no `xml:base` fixup of XInclude results.
 pub const NOBASEFIX: u32 = 1 << 18;
@@ -128,8 +129,7 @@ pub const LEGACY: u32 = NOENT | DTDATTR;
 
 /// Flags with no implementation on any surface, or whose implementation
 /// is compiled out (cargo features `xinclude`, `catalog`).
-const NEVER: u32 = OLD10
-    | OLDSAX
+const NEVER: u32 = OLDSAX
     | UNZIP
     | (XINCLUDE * !cfg!(feature = "xinclude") as u32)
     | (CATALOG_PI * !cfg!(feature = "catalog") as u32);
@@ -307,6 +307,10 @@ impl Flags {
 
     pub(crate) fn recovers(self) -> bool {
         self.has(RECOVER)
+    }
+
+    pub(crate) fn old10(self) -> bool {
+        self.has(OLD10)
     }
 
     pub(crate) fn validates(self) -> bool {

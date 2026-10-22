@@ -33,7 +33,7 @@ fn check_accepts_supported_flags_and_rejects_the_rest() {
         (XINCLUDE, true, XINCLUDE, false),
         (RECOVER, true, 0, true),
         (RECOVER, false, 0, true),
-        (OLD10, true, 0, false),
+        (OLD10, true, 0, true),
         (OLDSAX, true, 0, false),
         (UNZIP, true, 0, false),
         (CATALOG_PI, true, 0, cfg!(feature = "catalog")),

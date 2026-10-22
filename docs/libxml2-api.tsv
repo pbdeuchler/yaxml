@@ -560,7 +560,7 @@ parser.h	XML_PARSE_NOXINCNODE	enum_value	not_marked	P0-P3	implemented	https://gi
 parser.h	XML_PARSE_NO_SYS_CATALOG	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NO_SYS_CATALOG
 parser.h	XML_PARSE_NO_XXE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NO_XXE
 parser.h	XML_PARSE_NSCLEAN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NSCLEAN
-parser.h	XML_PARSE_OLD10	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLD10 - constant defined, rejected with UnsupportedOption
+parser.h	XML_PARSE_OLD10	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLD10 - Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names
 parser.h	XML_PARSE_OLDSAX	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLDSAX - constant defined, rejected with UnsupportedOption
 parser.h	XML_PARSE_PEDANTIC	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::PEDANTIC - accepted; libxml2 only prints more warnings
 parser.h	XML_PARSE_PUSH_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
@@ -1668,7 +1668,7 @@ tree.h	XML_DOC_DTDVALID	enum_value	not_marked	P0-P3	implemented	https://github.c
 tree.h	XML_DOC_HTML	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::HTML - also OwnedDocument::is_html
 tree.h	XML_DOC_INTERNAL	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::INTERNAL - never set: marks libxml2's scratch documents
 tree.h	XML_DOC_NSVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::NSVALID
-tree.h	XML_DOC_OLD10	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::OLD10 - never set: OLD10 is rejected
+tree.h	XML_DOC_OLD10	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::OLD10
 tree.h	XML_DOC_USERBUILT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::USERBUILT
 tree.h	XML_DOC_WELLFORMED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::WELLFORMED
 tree.h	XML_DOC_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::XINCLUDE - never set, as in libxml2 2.15.4

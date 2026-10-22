@@ -61,9 +61,10 @@ fn surfaces_accept_exactly_the_flags_they_implement() {
         | NO_SYS_CATALOG
         | CATALOG_PI
         | SKIP_IDS
+        | OLD10
         | RECOVER;
     assert_eq!(verdicts(accepted), [None; 6]);
-    for flag in [OLD10, OLDSAX, UNZIP, 1 << 28, 1 << 31] {
+    for flag in [OLDSAX, UNZIP, 1 << 28, 1 << 31] {
         assert_eq!(verdicts(flag), [unsupported; 6], "{flag:#x}");
     }
     // Only trees and the text reader validate; all but the slice reader drop blanks.

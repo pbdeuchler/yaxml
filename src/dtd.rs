@@ -292,6 +292,41 @@ impl<'a> DtdUnit<'a> {
         })
     }
 
+    /// Whether the names this unit declares or references are XML 1.0
+    /// Fourth Edition names (`OLD10`; libxml2's `xmlIsNameChar` with
+    /// `XML_PARSE_OLD10`).
+    pub(crate) fn fourth_edition(&self) -> bool {
+        use crate::name::old10_name;
+        let fourth = |name: &str| name.is_ascii() || old10_name(name, false);
+        match self.view() {
+            DtdUnitView::Header(header) => fourth(header.root_name()),
+            DtdUnitView::Element(element) => {
+                let model = match element.content() {
+                    ElementContentView::Mixed(model) | ElementContentView::Children(model) => {
+                        Some(model)
+                    }
+                    _ => None,
+                };
+                fourth(element.name())
+                    && model.into_iter().flatten().all(|token| match token {
+                        ModelTokenView::Name(name) => fourth(name),
+                        _ => true,
+                    })
+            }
+            DtdUnitView::AttributeList(list) => {
+                fourth(list.element_name())
+                    && list.definitions().all(|definition| {
+                        fourth(definition.name())
+                            && definition.values().all(|value| old10_name(value, true))
+                    })
+            }
+            DtdUnitView::Entity(entity) => fourth(entity.name()),
+            DtdUnitView::Notation(notation) => fourth(notation.name()),
+            DtdUnitView::ProcessingInstruction(instruction) => fourth(instruction.target),
+            DtdUnitView::Comment(_) => true,
+        }
+    }
+
     pub(crate) fn view(&self) -> DtdUnitView<'_> {
         match self.shape {
             Shape::Header { external, subset } => DtdUnitView::Header(DoctypeHeaderView {

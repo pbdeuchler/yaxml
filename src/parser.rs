@@ -7,7 +7,7 @@ use memchr::memchr;
 
 use crate::dtd_tag::{Defaulted, TagDeclarations};
 use crate::escape::{needs_normalization, normalize_text};
-use crate::name::{is_ncname, name_char, name_start, qname, validate_name};
+use crate::name::{is_ncname, name_char, name_start, qname, validate_edition};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
@@ -44,6 +44,8 @@ pub(crate) struct Budget {
     /// Attributes a DOM builder may still retain (`max_total_attributes`).
     attributes_left: usize,
     recovers: bool,
+    /// `OLD10`: Fourth Edition names.
+    old10: bool,
     recovered: Vec<Error>,
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
@@ -60,6 +62,7 @@ impl Budget {
             owned_bytes: 0,
             attributes_left: limits.max_total_attributes,
             recovers: false,
+            old10: false,
             recovered: Vec::new(),
             kept: Vec::new(),
             content: None,
@@ -113,6 +116,11 @@ impl Budget {
 
     pub(crate) fn recovers(&self) -> bool {
         self.recovers
+    }
+
+    /// Whether names follow the Fourth Edition (`OLD10`).
+    pub(crate) fn old10(&self) -> bool {
+        self.old10
     }
 
     /// The errors recovered from so far.
@@ -502,7 +510,7 @@ impl<'source> ParserState<'source> {
     ) -> Result<Result<Event<'event>, &'event str>, Error> {
         let found = memchr::memchr_iter(b'&', raw.as_bytes()).find_map(|at| {
             let rest = &raw[at + 1..];
-            let name = &rest[..name_length(rest)];
+            let name = &rest[..name_length(rest, self.budget.old10)];
             let complete = !name.is_empty() && rest[name.len()..].starts_with(';');
             (complete && crate::escape::predefined(name).is_none()).then_some((at, name))
         });
@@ -576,6 +584,7 @@ impl<'source> ParserState<'source> {
     pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
         self.flags = flags;
         self.budget.recovers = flags.recovers();
+        self.budget.old10 = flags.old10();
         self
     }
 
@@ -1129,17 +1138,18 @@ impl<'source> ParserState<'source> {
     ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
         let mut name_end = body.bytes().position(space).unwrap_or(body.len());
-        match validate_name(&body[..name_end], start + 2, false) {
+        let old10 = self.budget.old10;
+        match validate_edition(&body[..name_end], start + 2, false, old10) {
             Ok(()) => {}
             // A colon in a valid Name is a namespace error.
-            Err(error) if validate_name(&body[..name_end], start + 2, true).is_ok() => {
+            Err(error) if validate_edition(&body[..name_end], start + 2, true, old10).is_ok() => {
                 let error = Error::new(ErrorKind::Namespace, error.offset);
                 self.budget.recover(error)?;
             }
             // libxml2 targets the longest Name there, colons included, and
             // reads a PI without one as text after `<?`.
             Err(error) => {
-                name_end = name_length(body);
+                name_end = name_length(body, self.budget.old10);
                 if name_end == 0 {
                     self.markup_as_text(error)?;
                     return self.text_after::<REREADS>(raw, 2, start);
@@ -1149,11 +1159,17 @@ impl<'source> ParserState<'source> {
         }
         let target = &body[..name_end];
         if target == "xml" && start == self.initial && !self.replacement {
+            // Under `OLD10` a version other than 1.0 is fatal.
             let (mut declaration, encoding_offset) = parse_declaration(
                 &body[name_end..],
                 start + 2 + name_end,
                 false,
-                &mut |error| self.budget.recover(error),
+                &mut |error| match error.kind {
+                    ErrorKind::Warning(crate::Warning::UnknownVersion) if old10 => self
+                        .budget
+                        .recover(Error::new(ErrorKind::InvalidDeclaration, error.offset)),
+                    _ => self.budget.recover(error),
+                },
             )?;
             // An auto-detected encoding (a BOM, or the UTF-16 `<?` signature)
             // is kept, as in libxml2's `xmlSetDeclaredEncoding`: a label
@@ -1254,12 +1270,13 @@ impl<'source> ParserState<'source> {
             raw: &raw[1..content_end],
             cursor: 0,
             offset: start + 1,
+            old10: self.budget.old10,
         };
         let (qualified, split) = match scan.scan_name() {
             Ok(name) => name,
             // libxml2 names the element by the longest Name there, and reads
             // a tag without one as text after `<`.
-            Err(error) => match name_length(scan.raw) {
+            Err(error) => match name_length(scan.raw, scan.old10) {
                 0 => {
                     self.markup_as_text(error)?;
                     return self.text_after::<REREADS>(raw, 1, start);
@@ -1876,6 +1893,7 @@ impl<'source> ParserState<'source> {
             raw: body,
             cursor: 0,
             offset: start + 2,
+            old10: self.budget.old10,
         };
         // The open element's name is a validated QName: an exact match needs
         // no rescan, and any other spelling takes the diagnosing path.
@@ -2016,9 +2034,13 @@ fn bound_in<'source>(
 }
 
 /// The length of the longest Name, colons included, that `text` starts with.
-pub(crate) fn name_length(text: &str) -> usize {
+/// Fourth Edition names under `old10`.
+pub(crate) fn name_length(text: &str, old10: bool) -> usize {
     text.char_indices()
-        .find(|&(i, c)| !(name_char(c, true) && (i > 0 || name_start(c, true))))
+        .find(|&(i, c)| match old10 {
+            true => !crate::name::old10_char(c, i == 0),
+            false => !(name_char(c, true) && (i > 0 || name_start(c, true))),
+        })
         .map_or(text.len(), |(i, _)| i)
 }
 
@@ -2218,6 +2240,7 @@ struct TagScanner<'a> {
     raw: &'a str,
     cursor: usize,
     offset: usize,
+    old10: bool,
 }
 
 struct ScannedAttribute<'a> {
@@ -2270,7 +2293,7 @@ impl<'a> TagScanner<'a> {
             .first()
             .map_or(0, |&byte| NAME_BYTES[usize::from(byte)]);
         if all & CONTINUE == 0 || first & START == 0 || length == 0 {
-            validate_name(name, self.offset + start, true)?;
+            validate_edition(name, self.offset + start, true, self.old10)?;
         }
         // A valid Name is a QName when its only colon is followed by a
         // name-start character; prefix characters are already valid.
@@ -2356,6 +2379,7 @@ pub(crate) fn parse_declaration<'a>(
         raw,
         cursor: 0,
         offset,
+        old10: false,
     };
     let mut declaration = Declaration {
         version: "1.0",

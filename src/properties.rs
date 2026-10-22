@@ -8,9 +8,10 @@
 //! `ctxt->valid` for those even without validation). A parsed HTML document
 //! is [`HTML`]; a document built by `OwnedDocument::create` or copied by
 //! `try_clone` is [`USERBUILT`] (`xmlNewDoc`, which `xmlCopyDoc` calls).
-//! [`OLD10`], [`XINCLUDE`] and [`INTERNAL`] are never set: `OLD10` is
-//! rejected, libxml2 2.15.4 never sets `XINCLUDE`, and `INTERNAL` marks its
-//! scratch documents.
+//! A document parsed with `XML_PARSE_OLD10` is also [`OLD10`], even when
+//! recovered from errors. [`XINCLUDE`] and [`INTERNAL`] are never set:
+//! libxml2 2.15.4 never sets `XINCLUDE`, and `INTERNAL` marks its scratch
+//! documents.
 
 use crate::error::{Error, ErrorKind, Warning};
 use crate::valid::{Code, Diagnostic, Dtd};
@@ -19,7 +20,7 @@ use crate::valid::{Code, Diagnostic, Dtd};
 pub const WELLFORMED: u32 = 1 << 0;
 /// `XML_DOC_NSVALID`: no namespace error.
 pub const NSVALID: u32 = 1 << 1;
-/// `XML_DOC_OLD10`: parsed with `XML_PARSE_OLD10`; never set.
+/// `XML_DOC_OLD10`: parsed with `XML_PARSE_OLD10`.
 pub const OLD10: u32 = 1 << 2;
 /// `XML_DOC_DTDVALID`: nothing made the document invalid.
 pub const DTDVALID: u32 = 1 << 3;

@@ -274,7 +274,7 @@ impl<'a> Doctype<'a> {
             ))
         };
         let name_start = skip("<!DOCTYPE".len());
-        let name_end = name_start + crate::parser::name_length(&raw[name_start..]);
+        let name_end = name_start + crate::parser::name_length(&raw[name_start..], false);
         let mut at = skip(name_end);
         let identifier = |at: &mut usize, public| {
             let (value, end) = literal(*at, public)?;

@@ -567,11 +567,13 @@ fn scanned_qname_splits_agree_with_qname() {
             raw: &raw,
             cursor: 0,
             offset: 5,
+            old10: false,
         };
         let mut plain = TagScanner {
             raw: &raw,
             cursor: 0,
             offset: 5,
+            old10: false,
         };
         let scanned = scan.scan_name();
         let named = plain.name();

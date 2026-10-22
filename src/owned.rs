@@ -531,8 +531,9 @@ pub struct OwnedDocument<A: Allocator = Global> {
     errors: Vec<Error>,
     /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
     url: Option<String>,
-    /// Created or copied (`xmlNewDoc`), not parsed: `properties::USERBUILT`.
-    built: bool,
+    /// Property bits fixed at creation: `properties::USERBUILT` (created or
+    /// copied, `xmlNewDoc`) or `properties::OLD10` (parsed with `OLD10`).
+    marks: u32,
 }
 
 impl OwnedDocument {
@@ -780,7 +781,11 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             builder.finish(reader.position(), reader.take_dtd(), flags, errors, content)?
         };
         Ok((
-            OwnedDocument { url, ..document },
+            OwnedDocument {
+                url,
+                marks: crate::properties::OLD10 * u32::from(flags.old10()),
+                ..document
+            },
             flags,
             include.map(|resolver| (resolver, base, limits)),
         ))
@@ -926,10 +931,11 @@ impl<A: Allocator> OwnedDocument<A> {
     /// libxml2's `doc->properties` bits ([`crate::properties`]); edits leave
     /// them unchanged, as in libxml2.
     pub fn properties(&self) -> u32 {
-        match (self.built, &self.html) {
-            (true, _) => crate::properties::USERBUILT,
-            (false, Some(_)) => crate::properties::HTML,
-            (false, None) => crate::properties::parsed(&self.errors, &self.validity, self.dtd()),
+        use crate::properties::{HTML, USERBUILT, parsed};
+        match (self.marks & USERBUILT, &self.html) {
+            (0, Some(_)) => HTML,
+            (0, None) => parsed(&self.errors, &self.validity, self.dtd()) | self.marks,
+            _ => USERBUILT,
         }
     }
 
@@ -2121,7 +2127,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
-            built: false,
+            marks: 0,
         })
     }
 }
@@ -2567,7 +2573,7 @@ impl HtmlBuilder {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
-            built: false,
+            marks: 0,
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document

@@ -154,6 +154,8 @@ pub struct Document<'input> {
     errors: Vec<Error>,
     /// `ParseOptions::base`: libxml2's `doc->URL`.
     url: Option<String>,
+    /// `properties::OLD10` when parsed with `OLD10`, else 0.
+    marks: u32,
 }
 
 impl<'input> Document<'input> {
@@ -201,7 +203,12 @@ impl<'input> Document<'input> {
             .min(options.limits.max_events);
         let reader = Reader::borrowing(input, decoded, flags, options)?;
         let document = Self::from_reader(reader, input.len(), nodes, flags)?;
-        Ok(Self { url, ..document })
+        let marks = crate::properties::OLD10 * u32::from(flags.old10());
+        Ok(Self {
+            url,
+            marks,
+            ..document
+        })
     }
 
     /// The document URL (`ParseOptions::base`, libxml2's `doc->URL`), against
@@ -231,6 +238,7 @@ impl<'input> Document<'input> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            marks: 0,
         };
         let mut parents = Vec::new();
         let end = loop {
@@ -405,7 +413,7 @@ impl<'input> Document<'input> {
 
     /// libxml2's `doc->properties` bits ([`crate::properties`]).
     pub fn properties(&self) -> u32 {
-        crate::properties::parsed(&self.errors, &self.validity, self.dtd())
+        crate::properties::parsed(&self.errors, &self.validity, self.dtd()) | self.marks
     }
 
     /// The declarations of the internal and loaded external subsets.
