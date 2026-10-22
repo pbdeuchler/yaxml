@@ -3628,11 +3628,11 @@ xmlversion.h.in	LIBXML_XPTR_ENABLED	macro	not_marked	P3	partial	https://github.c
 xmlversion.h.in	LIBXML_ZLIB_ENABLED	macro	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlversion.h.in	features::Feature - runtime query rather than a build macro
 xmlwriter.h	xmlFreeTextWriter	function	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	Drop
 xmlwriter.h	xmlNewTextWriter	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::new - any Write sink; the caller opens files
-xmlwriter.h	xmlNewTextWriterDoc	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	not started
+xmlwriter.h	xmlNewTextWriterDoc	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::new - write into a Vec, then OwnedDocument::parse_with(ParseOptions::new(0)) (docs/writer.md)
 xmlwriter.h	xmlNewTextWriterFilename	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::new - any Write sink; the caller opens files
 xmlwriter.h	xmlNewTextWriterMemory	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::new - any Write sink; the caller opens files
-xmlwriter.h	xmlNewTextWriterPushParser	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	not started
-xmlwriter.h	xmlNewTextWriterTree	function	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	not started
+xmlwriter.h	xmlNewTextWriterPushParser	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::new - write into a Vec, then OwnedDocument::parse_with(ParseOptions::new(0)) (docs/writer.md)
+xmlwriter.h	xmlNewTextWriterTree	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	Editor::parse_content - then append_child; prefixes resolve in context (docs/writer.md)
 xmlwriter.h	xmlTextWriter	typedef	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter
 xmlwriter.h	xmlTextWriterClose	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::into_inner - end_document, then drop or take the sink
 xmlwriter.h	xmlTextWriterEndAttribute	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	TextWriter::start_element - one method per call, named in snake_case (xmlTextWriterWriteDTDElement is TextWriter::write_dtd_element)

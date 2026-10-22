@@ -374,3 +374,56 @@ fn well_formed_call_sequences_reparse() {
     );
     assert_eq!(root.first_child().unwrap().text(), Some("\n "));
 }
+
+#[test]
+fn writing_into_documents_composes_with_the_parsers() {
+    use yaxml::{EditLimits, ParseOptions, save};
+    // xmlNewTextWriterDoc: the writer feeds a default push parser.
+    let mut writer = TextWriter::new(Vec::new());
+    writer.start_document(None, Some("UTF-8"), None).unwrap();
+    writer.start_element("r").unwrap();
+    writer.write_attribute("a", "1&2").unwrap();
+    writer.write_element("c", Some("x<y")).unwrap();
+    writer.write_comment("k").unwrap();
+    writer.end_document().unwrap();
+    let written = writer.into_inner();
+    let document = OwnedDocument::parse_with(&written, ParseOptions::new(0)).unwrap();
+    let saved =
+        String::from_utf8(save::to_vec(&document, &save::Options::default()).unwrap()).unwrap();
+    assert_eq!(
+        saved,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<r a=\"1&amp;2\"><c>x&lt;y</c><!--k--></r>\n"
+    );
+
+    // xmlNewTextWriterTree: content parsed under a node. libxml2 reports
+    // `p` unbound here; in context it resolves. `flush`, as `end_document`
+    // adds a newline that content parsing keeps (libxml2's epilog drops it).
+    let mut writer = TextWriter::new(Vec::new());
+    writer.start_element("p:y").unwrap();
+    writer.write_string("t").unwrap();
+    writer.end_element().unwrap();
+    writer.flush().unwrap();
+    let written = writer.into_inner();
+    let mut document = OwnedDocument::parse("<root xmlns:p='urn:p'><x/></root>").unwrap();
+    let root = document.document_element().unwrap().id();
+    let mut editor = document.edit(EditLimits::DEFAULT).unwrap();
+    let fragment = editor
+        .parse_content(root, &written, ParseOptions::new(0))
+        .unwrap();
+    assert!(fragment.errors.is_empty());
+    for node in fragment.nodes {
+        editor.append_child(root, node).unwrap();
+    }
+    let saved =
+        String::from_utf8(save::to_vec(&document, &save::Options::default()).unwrap()).unwrap();
+    assert!(
+        saved.ends_with("<root xmlns:p=\"urn:p\"><x/><p:y>t</p:y></root>\n"),
+        "{saved}"
+    );
+
+    // A sad path: an unclosed element written as raw text fails the parse.
+    let mut writer = TextWriter::new(Vec::new());
+    writer.write_raw("<r>").unwrap();
+    writer.end_document().unwrap();
+    assert!(OwnedDocument::parse_with(&writer.into_inner(), ParseOptions::new(0)).is_err());
+}

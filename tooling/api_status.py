@@ -766,7 +766,8 @@ P|xmlSaveCtxt|save::Options
 A|xmlSaveCtxtPtr|raw pointer alias
 # ---- xmlwriter.h
 P|xmlNewTextWriter xmlNewTextWriterFilename xmlNewTextWriterMemory|TextWriter::new - any Write sink; the caller opens files
-N|xmlNewTextWriterDoc xmlNewTextWriterTree xmlNewTextWriterPushParser|not started
+P|xmlNewTextWriterDoc xmlNewTextWriterPushParser|TextWriter::new - write into a Vec, then OwnedDocument::parse_with(ParseOptions::new(0)) (docs/writer.md)
+P|xmlNewTextWriterTree|Editor::parse_content - then append_child; prefixes resolve in context (docs/writer.md)
 I|xmlTextWriter|TextWriter
 A|xmlTextWriterPtr xmlFreeTextWriter|Drop
 A|xmlTextWriterWriteFormat* xmlTextWriterWriteVFormat*|format!/write! replace printf-style formatting
