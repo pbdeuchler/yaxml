@@ -62,7 +62,9 @@ mod setters;
 mod allocator;
 mod blanks;
 mod buffered;
+#[cfg(feature = "c14n")]
 pub mod c14n;
+#[cfg(feature = "catalog")]
 pub mod catalog;
 pub mod chars;
 pub mod diagnostic;
@@ -76,34 +78,61 @@ mod dtd_tag;
 mod encoding;
 mod error;
 mod escape;
+// Shared helpers: some are unused when features are off.
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 mod fallible;
 pub mod features;
+#[cfg(feature = "html")]
 pub mod html;
 mod name;
 pub mod options;
 mod origin;
 mod owned;
 mod parser;
+#[cfg(feature = "xpath")]
 pub mod pattern;
 mod push;
 mod reader;
+#[cfg(feature = "schemas")]
 pub mod regexp;
+// `chars` reads its XML 1.0 (4th edition) tables from the regexp tables.
+#[cfg(not(feature = "schemas"))]
+mod regexp {
+    #[allow(dead_code)]
+    pub(crate) mod unicode;
+}
+#[cfg(feature = "schemas")]
 pub mod relaxng;
 mod resolve;
 pub mod save;
+#[cfg(feature = "schemas")]
 pub mod schema_types;
+#[cfg(feature = "schemas")]
 pub mod schematron;
 mod serialize;
 mod stream;
+#[cfg(feature = "textreader")]
 mod textreader;
+#[cfg(feature = "textwriter")]
 mod textwriter;
 mod tokenizer;
 pub mod uri;
 pub mod valid;
 mod writer;
+#[cfg(feature = "xinclude")]
 pub mod xinclude;
+#[cfg(feature = "xpath")]
 pub mod xpath;
+// Without XPath only `xpath::tree` stays: the crate-private `Navigate` and
+// the DOM accessors that both DOMs, `valid` and `save` share.
+#[cfg(not(feature = "xpath"))]
+mod xpath {
+    #[allow(dead_code)]
+    pub(crate) mod tree;
+}
+#[cfg(feature = "xpath")]
 pub mod xpointer;
+#[cfg(feature = "schemas")]
 pub mod xsd;
 
 pub use buffered::BufferedReader;
@@ -126,7 +155,9 @@ pub use owned::{
 pub use push::PushParser;
 pub use reader::{Attribute, Attributes, Declaration, Doctype, Element, Event, Limits, Reader};
 pub use resolve::{FileResolver, Request, Resolver, ResourceKind};
+#[cfg(feature = "textreader")]
 pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader};
+#[cfg(feature = "textwriter")]
 pub use textwriter::TextWriter;
 pub use uri::{Uri, UriError};
 pub use writer::{Writer, WriterLimits};

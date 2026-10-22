@@ -202,7 +202,10 @@ DTD type normalizes them are compared unnormalized; the context lines
   passes the int through. `all()` lists every `(Feature, bool)`; unknown
   numbers and `XML_WITH_NONE` are false. `ALLOCATOR_API` reports the cargo
   feature of that name. A binding should map its own module probes
-  (`HAVE_XPATH`, ...) onto these instead of hard-coding.
+  (`HAVE_XPATH`, ...) onto these instead of hard-coding: subsystems behind
+  a cargo feature (`xpath`, `c14n`, `xinclude`, `catalog`, `schemas`, `html`,
+  `textreader`, `textwriter`; README.md#cargo-features) answer whether this
+  build has them. The bindings depend on yaxml with default features (`full`).
 - `yaxml::VERSION` is the crate version; `LIBXML2_COMPAT_VERSION` ("2.15.4")
   and `LIBXML2_COMPAT_VERSION_NUMBER` (21504, `LIBXML_VERSION`) say which
   libxml2 is matched; `features::check_version(v)` is `xmlCheckVersion`

@@ -101,6 +101,7 @@ impl StreamValidator {
 
     /// [`set_dtd`](Self::set_dtd) with a reader's DTD after an event; a reader
     /// without one after the document element's start tag has none.
+    #[cfg(feature = "textreader")]
     pub(crate) fn sync(&mut self, dtd: Option<&Dtd>) {
         match dtd {
             Some(dtd) => self.set_dtd(dtd),

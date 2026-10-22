@@ -274,7 +274,10 @@ constructors (`new`, `parse`, `with_limits`, ...) are conveniences for the
 default options, and there is no other resolver entry point. Unknown bits and every flag a
 surface lacks fail with `ErrorKind::UnsupportedOption` before parsing; a flag
 is accepted without code only where libxml2 2.15.4 gives it no observable
-effect on results. `tests/options.rs` covers each row; the `dom`, `owned` and
+effect on results. A flag whose implementation a disabled cargo feature
+compiles out is unsupported everywhere: `XINCLUDE` without `xinclude`,
+`CATALOG_PI` without `catalog` (and the save flag `AS_HTML` without `html`;
+README.md#cargo-features). `tests/options.rs` covers each row; the `dom`, `owned` and
 `dtd` fuzz targets select flags from a leading high-bit byte
 (`tests/support/fuzz/options.rs`).
 

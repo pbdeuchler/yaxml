@@ -156,8 +156,34 @@ ICU (Shift_JIS, EUC-JP, GBK and others), and the SAX2 handler table. The
 
 ## Cargo features
 
-- `allocator_api` (Rust 1.100+): place `OwnedDocument` storage in any
-  `Allocator` (`OwnedDocument::parse_in`).
+Everything is on by default (`full`). With `default-features = false` you get
+the core: `Reader`, `PushParser`, `BufferedReader`, `Document`,
+`OwnedDocument` and `Editor`, DTD processing and validation (`valid`),
+diagnostics, `save`, `Writer`, `uri` and `chars` (about 37,600 of the
+70,000 lines in `src/`). Then add what you need:
+
+```toml
+[dependencies]
+yaxml = { version = "0.1", default-features = false, features = ["xpath"] }
+```
+
+| Feature | Enables | Implies | Lines |
+| --- | --- | --- | --- |
+| `xpath` | `xpath` compile and evaluation, `xpointer`, `pattern` | | 3,400 |
+| `c14n` | `c14n` | `xpath` | 650 |
+| `xinclude` | `xinclude`, the `XINCLUDE` parser flag | `xpath` | 1,150 |
+| `catalog` | `catalog`, the `CATALOG_PI` parser flag | | 1,250 |
+| `schemas` | `xsd`, `relaxng`, `schematron`, `schema_types`, `regexp` | `xpath` | 16,800 |
+| `html` | `html`, `save::AS_HTML` | | 6,250 |
+| `textreader` | `TextReader` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 1,700 |
+| `textwriter` | `TextWriter` | | 1,200 |
+| `full` | all of the above (default) | | |
+| `allocator_api` | Rust 1.100+: `OwnedDocument` storage in any `Allocator` (`OwnedDocument::parse_in`); not in `full` | | |
+
+Lines are the feature's own `src/` files, without what it implies. A flag
+whose implementation is compiled out (`XINCLUDE`, `CATALOG_PI`,
+`save::AS_HTML`) is `ErrorKind::UnsupportedOption`, and
+`features::has` answers for the build. The `yaxmllint` binary needs `full`.
 
 ## Command line
 

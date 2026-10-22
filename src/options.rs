@@ -74,7 +74,8 @@ pub const PEDANTIC: u32 = 1 << 7;
 pub const NOBLANKS: u32 = 1 << 8;
 /// `XML_PARSE_SAX1`: accepted; yaxml has no SAX1 handlers to prefer.
 pub const SAX1: u32 = 1 << 9;
-/// `XML_PARSE_XINCLUDE`: process XInclude after parsing (`OwnedDocument` only).
+/// `XML_PARSE_XINCLUDE`: process XInclude after parsing (`OwnedDocument` only;
+/// unsupported without the `xinclude` feature).
 pub const XINCLUDE: u32 = 1 << 10;
 /// `XML_PARSE_NONET`: accepted; parsing never uses the network.
 pub const NONET: u32 = 1 << 11;
@@ -113,7 +114,8 @@ pub const NO_SYS_CATALOG: u32 = 1 << 25;
 /// `XML_PARSE_CATALOG_PI`: a `<?oasis-xml-catalog catalog="URL"?>` instruction
 /// outside the DTD is passed to the resolver ([`Resolver::catalog_pi`]), which
 /// [`crate::catalog::CatalogResolver`] adds as a catalog for the rest of the parse.
-/// Without such a resolver it has no effect.
+/// Without such a resolver it has no effect; unsupported without the `catalog`
+/// feature.
 pub const CATALOG_PI: u32 = 1 << 26;
 /// `XML_PARSE_SKIP_IDS`: record no ID attributes (`element_by_id`, XPath `id()`).
 pub const SKIP_IDS: u32 = 1 << 27;
@@ -121,8 +123,13 @@ pub const SKIP_IDS: u32 = 1 << 27;
 /// `NOENT | DTDATTR`: substitute entities and add default attributes.
 pub const LEGACY: u32 = NOENT | DTDATTR;
 
-/// Flags with no implementation on any surface.
-const NEVER: u32 = OLD10 | OLDSAX | UNZIP;
+/// Flags with no implementation on any surface, or whose implementation
+/// is compiled out (cargo features `xinclude`, `catalog`).
+const NEVER: u32 = OLD10
+    | OLDSAX
+    | UNZIP
+    | (XINCLUDE * !cfg!(feature = "xinclude") as u32)
+    | (CATALOG_PI * !cfg!(feature = "catalog") as u32);
 /// Flags only a tree can implement.
 const TREE_ONLY: u32 = DTDVALID | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
@@ -297,10 +304,12 @@ impl Flags {
         self.has(XINCLUDE)
     }
 
+    #[cfg(feature = "xinclude")]
     pub(crate) fn fixes_base(self) -> bool {
         !self.has(NOBASEFIX)
     }
 
+    #[cfg(feature = "catalog")]
     pub(crate) fn catalog_pi(self) -> bool {
         self.has(CATALOG_PI)
     }

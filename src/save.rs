@@ -57,7 +57,8 @@ pub const EMPTY: u32 = 1 << 8;
 pub const NO_INDENT: u32 = 1 << 9;
 /// `XML_SAVE_INDENT`: accepted; indentation is on by default (`xmlIndentTreeOutput`).
 pub const INDENT: u32 = 1 << 10;
-const SUPPORTED: u32 = (1 << 11) - 1;
+/// Without the `html` feature `AS_HTML` is unsupported (and no document is HTML).
+const SUPPORTED: u32 = ((1 << 11) - 1) & !(AS_HTML * !cfg!(feature = "html") as u32);
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 const XHTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
@@ -303,6 +304,7 @@ impl<'document, 'input> Tree<'document, 'input> {
         std::iter::successors(self.first_child(), |node| node.next_sibling())
     }
 
+    #[cfg(feature = "html")]
     fn owned_document(self) -> Option<&'document OwnedDocument> {
         match self {
             Self::Borrowed(_) => None,
@@ -404,7 +406,7 @@ pub fn to_vec<'document, 'input: 'document>(
 /// # Errors
 ///
 /// - `UnsupportedOption`: unknown flags, an invalid indent, or [`AS_HTML`]
-///   on a borrowed node.
+///   on a borrowed node or without the `html` feature.
 /// - `UnsupportedEncoding`: an unknown encoding.
 /// - `InvalidCharacter`: a character the encoding lacks in a name, comment,
 ///   PI, CDATA section or DOCTYPE identifier (where libxml2 would change
@@ -425,7 +427,9 @@ pub fn to_writer<'document, 'input: 'document>(
         return Err(unsupported);
     }
     let document = tree.is_document();
+    #[cfg(feature = "html")]
     let html = tree.owned_document().is_some_and(OwnedDocument::is_html);
+    #[cfg(feature = "html")]
     if options.has(AS_HTML) || html && !options.has(AS_XML) && !options.has(XHTML) {
         let Tree::Owned(node) = tree else {
             return Err(unsupported);
@@ -500,6 +504,15 @@ pub fn encode_special_chars(text: &str) -> String {
     let mut out = String::new();
     escape_into(text, &QUOT, false, |piece| out.push_str(piece));
     out
+}
+
+/// `htmlIsBooleanAttr` (HTML 4 minimized attributes), ASCII case-insensitive.
+pub(crate) fn boolean_attribute(name: &str) -> bool {
+    const NAMES: [&str; 13] = [
+        "checked", "compact", "declare", "defer", "disabled", "ismap", "multiple", "nohref",
+        "noresize", "noshade", "nowrap", "readonly", "selected",
+    ];
+    NAMES.iter().any(|known| known.eq_ignore_ascii_case(name))
 }
 
 /// `xmlEscapeText` of content into `out`: HTML (`html`), or XML for a
@@ -1063,11 +1076,7 @@ impl<'a> Saver<'a, '_> {
         }
         self.out.raw(name);
         self.out.raw("=\"");
-        if self.xhtml_attributes
-            && plain
-            && value.0.is_empty()
-            && crate::html::boolean_attribute(name)
-        {
+        if self.xhtml_attributes && plain && value.0.is_empty() && boolean_attribute(name) {
             self.out.raw(name);
         } else {
             self.value(value);

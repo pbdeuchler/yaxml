@@ -4,6 +4,7 @@ use crate::allocator::Allocator;
 use crate::save::{Tree, Walk};
 use crate::{Attributes, Declaration, Document, Element, Event, OwnedDocument, WriteError, Writer};
 
+#[cfg(feature = "xinclude")]
 pub(crate) use crate::save::owned_leaf;
 
 pub(crate) fn borrowed<W: Write>(

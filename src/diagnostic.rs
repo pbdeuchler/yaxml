@@ -321,6 +321,7 @@ pub struct LineIndex<'s> {
     decoded: Option<(Decoder, Vec<usize>)>,
     /// HTML input re-decoded after a charset switch, before conversion:
     /// what earlier reports show.
+    #[cfg_attr(not(feature = "html"), allow(dead_code))]
     raw: Option<&'s [u8]>,
     /// Content parsed in a node's context, not a document.
     content: bool,
@@ -525,6 +526,7 @@ impl<'s> LineIndex<'s> {
     /// must be the one parsed from `input` ([`html::parse`](crate::html::parse)
     /// or [`html::parse_fragment`](crate::html::parse_fragment)); for another
     /// document this is [`LineIndex::new`].
+    #[cfg(feature = "html")]
     pub fn html(input: &'s [u8], document: &crate::OwnedDocument) -> Self {
         match document.html_decoding() {
             Some(decoding) => Self::decoded_html(input, decoding),
@@ -532,6 +534,7 @@ impl<'s> LineIndex<'s> {
         }
     }
 
+    #[cfg(feature = "html")]
     pub(crate) fn decoded_html(input: &'s [u8], decoding: &crate::html::Decoding) -> Self {
         let (text, raw) = decoding.text(input);
         let starts = std::iter::once(0)
@@ -554,6 +557,7 @@ impl<'s> LineIndex<'s> {
 
     /// libxml2's context lines for an HTML report at text offset `at`, from
     /// the text before a charset switch when it was raised `early`.
+    #[cfg(feature = "html")]
     pub(crate) fn html_context(&self, at: usize, early: bool, bytes: bool) -> String {
         let text = self.raw.filter(|_| early).unwrap_or(self.text());
         let at = at.min(text.len());
@@ -838,6 +842,7 @@ impl Diagnostic {
 
 /// libxml2's context lines at `cur` in UTF-8 `text`, as `xmlFormatError`
 /// prints them, with the next bytes first when `bytes`.
+#[cfg(feature = "html")]
 pub(crate) fn context(text: &[u8], cur: usize, bytes: bool) -> String {
     LineIndex::utf8(text).context(cur, bytes)
 }
@@ -915,6 +920,7 @@ impl<Id> crate::valid::Diagnostic<Id> {
     }
 }
 
+#[cfg(feature = "schemas")]
 impl<Id> crate::relaxng::Diagnostic<Id> {
     /// This diagnostic as libxml2's `xmlError` (`XML_FROM_RELAXNGV`).
     pub fn describe(&self, lines: &LineIndex<'_>) -> Diagnostic {
@@ -929,6 +935,7 @@ impl<Id> crate::relaxng::Diagnostic<Id> {
     }
 }
 
+#[cfg(feature = "schemas")]
 impl<Id> crate::xsd::Diagnostic<Id> {
     /// This diagnostic as libxml2's `xmlError` (`XML_FROM_SCHEMASV`, which
     /// names no element).
@@ -945,6 +952,7 @@ impl<Id> crate::xsd::Diagnostic<Id> {
     }
 }
 
+#[cfg(feature = "schemas")]
 impl<Id> crate::schematron::Diagnostic<Id> {
     /// This diagnostic as libxml2's `xmlError`: `XML_FROM_SCHEMATRONV` for
     /// asserts and reports, otherwise the domain libxml2 raises it in; the

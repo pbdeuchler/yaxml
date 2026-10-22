@@ -7,9 +7,9 @@
 //! ```
 //! use yaxml::features::{self, Feature};
 //!
-//! assert!(features::has(Feature::Xpath));
+//! assert!(features::has(Feature::Valid));
 //! assert!(!features::has(Feature::Iconv)); // decoding is built in
-//! assert!(features::has_code(16)); // XML_WITH_XPATH
+//! assert!(features::has_code(11)); // XML_WITH_VALID
 //! assert_eq!(features::LIBXML2_COMPAT_VERSION_NUMBER, 21504);
 //! ```
 
@@ -95,33 +95,34 @@ use Feature::*;
 /// needed. `Sax1`: only `SAX1` the option bit is accepted, no SAX1 handlers.
 /// `Legacy` (deprecated APIs), `Automata` (`xmlAutomata*`; the XSD content
 /// model automaton is internal) and `Expr` (`xmlexp`) have no equivalent.
+/// Subsystems behind a cargo feature answer whether it is compiled in.
 const TABLE: [(Feature, bool); 34] = [
     (Thread, true),
     (Tree, true),
     (Output, true),
     (Push, true),
-    (Reader, true),
-    (Pattern, true),
-    (Writer, true),
+    (Reader, cfg!(feature = "textreader")),
+    (Pattern, cfg!(feature = "xpath")),
+    (Writer, cfg!(feature = "textwriter")),
     (Sax1, false),
     (Ftp, false),
     (Http, false),
     (Valid, true),
-    (Html, true),
+    (Html, cfg!(feature = "html")),
     (Legacy, false),
-    (C14n, true),
-    (Catalog, true),
-    (Xpath, true),
-    (Xptr, true),
-    (Xinclude, true),
+    (C14n, cfg!(feature = "c14n")),
+    (Catalog, cfg!(feature = "catalog")),
+    (Xpath, cfg!(feature = "xpath")),
+    (Xptr, cfg!(feature = "xpath")),
+    (Xinclude, cfg!(feature = "xinclude")),
     (Iconv, false),
     (Iso8859x, true),
-    (Unicode, true),
-    (Regexp, true),
+    (Unicode, cfg!(feature = "schemas")),
+    (Regexp, cfg!(feature = "schemas")),
     (Automata, false),
     (Expr, false),
-    (Schemas, true),
-    (Schematron, true),
+    (Schemas, cfg!(feature = "schemas")),
+    (Schematron, cfg!(feature = "schemas")),
     (Modules, false),
     (Debug, false),
     (DebugMem, false),
@@ -129,7 +130,7 @@ const TABLE: [(Feature, bool); 34] = [
     (Zlib, false),
     (Icu, false),
     (Lzma, false),
-    (Relaxng, true),
+    (Relaxng, cfg!(feature = "schemas")),
 ];
 
 /// This crate's version (`CARGO_PKG_VERSION`).

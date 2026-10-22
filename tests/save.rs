@@ -5,7 +5,9 @@
 
 use std::io::{self, Write};
 
-use yaxml::{Document, ErrorKind, OwnedDocument, WriteError, html, save};
+#[cfg(feature = "html")]
+use yaxml::html;
+use yaxml::{Document, ErrorKind, OwnedDocument, WriteError, save};
 
 const DECLARATION: &str = "<?xml version=\"1.0\"?>\n";
 
@@ -211,11 +213,12 @@ fn invalid_requests_are_rejected() {
             .kind,
         ErrorKind::UnsupportedOption
     );
-    // AS_HTML saves an owned XML subtree as HTML.
-    assert_eq!(
-        save::to_vec(document.root_element(), &options(save::AS_HTML)).unwrap(),
-        b"<r></r>"
-    );
+    // AS_HTML saves an owned XML subtree as HTML, and needs the HTML serializer.
+    let saved = save::to_vec(document.root_element(), &options(save::AS_HTML));
+    match cfg!(feature = "html") {
+        true => assert_eq!(saved.unwrap(), b"<r></r>"),
+        false => assert_eq!(saved.unwrap_err().kind, ErrorKind::UnsupportedOption),
+    }
 }
 
 #[test]
@@ -421,6 +424,7 @@ fn xhtml_documents_follow_appendix_c() {
 }
 
 #[test]
+#[cfg(feature = "html")]
 fn html_documents_choose_their_serializer() {
     let parsed = html::parse(
         b"<p class=x>caf&eacute;<br><div>a</div>",
@@ -739,6 +743,7 @@ impl Write for Sink {
 }
 
 #[test]
+#[cfg(feature = "html")]
 fn to_writer_streams_what_to_vec_returns() {
     // Large enough for several chunks; one HTML document as well.
     let xml = format!("<r>{}</r>", "<a b='&amp;'>t\u{e9}</a>".repeat(8000));

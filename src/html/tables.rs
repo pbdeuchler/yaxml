@@ -488,14 +488,9 @@ pub(crate) fn allows_text(name: &str) -> bool {
     NAMES.binary_search(&name).is_ok()
 }
 
-/// `htmlIsBooleanAttr` (HTML 4 minimized attributes), ASCII case-insensitive.
-pub(crate) fn boolean_attribute(name: &str) -> bool {
-    const NAMES: [&str; 13] = [
-        "checked", "compact", "declare", "defer", "disabled", "ismap", "multiple", "nohref",
-        "noresize", "noshade", "nowrap", "readonly", "selected",
-    ];
-    NAMES.iter().any(|known| known.eq_ignore_ascii_case(name))
-}
+/// `htmlIsBooleanAttr`; in `save`, whose XHTML output needs it without the
+/// `html` feature.
+pub(crate) use crate::save::boolean_attribute;
 
 /// `html40EntitiesTable` by code point, for the "HTML" output encoding.
 static HTML4_ENTITIES: [(u32, &str); 253] = [

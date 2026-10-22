@@ -8,6 +8,7 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "xpath")]
 use yaxml::xpath::{Context, Tree, XPath};
 use yaxml::{
     BufferedReader, Document, EditLimits, Error, ErrorKind, Event, FileResolver, Limit, Limits,
@@ -488,6 +489,7 @@ fn file_resolver_stays_inside_its_root() {
     assert_eq!(error.kind, ErrorKind::ExternalResource);
 }
 
+#[cfg(feature = "xpath")]
 fn selected<T: Tree>(tree: &T, root: T::Id, expression: &str) -> usize {
     XPath::compile(expression)
         .unwrap()
@@ -497,6 +499,7 @@ fn selected<T: Tree>(tree: &T, root: T::Id, expression: &str) -> usize {
 }
 
 #[test]
+#[cfg(feature = "xpath")]
 fn dtd_ids_drive_element_lookup_and_xpath_id_on_both_doms() {
     let input = "<!DOCTYPE r SYSTEM 's.dtd' [<!ATTLIST e id ID #IMPLIED c CDATA #IMPLIED>]>\
                  <r><e id='a' c='z'/><e id=' b '/><e id='a'/><f xml:id='x'/><g k='g'/></r>";

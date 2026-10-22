@@ -19,6 +19,8 @@
 
 mod eval;
 mod parse;
+// Shared helpers: some are unused when features are off.
+#[cfg_attr(not(feature = "full"), allow(dead_code))]
 pub(crate) mod tree;
 
 use std::collections::{HashMap, TryReserveError};
@@ -26,6 +28,7 @@ use std::fmt;
 
 use crate::fallible::{cloned, copied};
 
+#[cfg(feature = "schemas")]
 pub(crate) use eval::truthy;
 pub use tree::Tree;
 
@@ -392,6 +395,7 @@ impl XPath {
 
     /// libxml2's `XML_XPATH_CHECKNS` compilation: the first name-test prefix
     /// that `bound` rejects is an `UndefinedPrefix` error at its offset.
+    #[cfg(feature = "schemas")]
     pub(crate) fn check_prefixes(&self, bound: impl Fn(&str) -> bool) -> Result<(), Error> {
         let unbound = (self.ast.steps.iter())
             .filter_map(|step| match step.test {

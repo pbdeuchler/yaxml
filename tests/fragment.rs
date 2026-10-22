@@ -7,7 +7,7 @@
 use yaxml::options::{DTDVALID, NOBLANKS, NOENT, NSCLEAN, RECOVER, XINCLUDE};
 use yaxml::{
     EditErrorKind, EditLimit, EditLimits, Error, ErrorKind, Fragment, Limit, Limits, LineIndex,
-    OwnedDocument, OwnedNodeId, OwnedNodeKind, ParseOptions, html, save,
+    OwnedDocument, OwnedNodeId, OwnedNodeKind, ParseOptions, save,
 };
 
 const DTD: &str = "<!DOCTYPE r [<!ENTITY e 'ent'><!ENTITY m '<p:x/>'>\
@@ -289,12 +289,15 @@ fn unusable_contexts_and_options_fail() {
     assert_eq!(parse(&mut editor, r, DTDVALID), unsupported);
     assert_eq!(parse(&mut editor, r, 1 << 30), unsupported);
     // HTML has its own fragment parser.
-    let mut page = html::parse(b"<p>x", html::Options::DEFAULT)
-        .unwrap()
-        .document;
-    let body = page.root_element().first_child().unwrap().id();
-    let mut editor = page.edit(EditLimits::default()).unwrap();
-    assert_eq!(parse(&mut editor, body, 0), EditErrorKind::WrongNodeKind);
+    #[cfg(feature = "html")]
+    {
+        let mut page = yaxml::html::parse(b"<p>x", yaxml::html::Options::DEFAULT)
+            .unwrap()
+            .document;
+        let body = page.root_element().first_child().unwrap().id();
+        let mut editor = page.edit(EditLimits::default()).unwrap();
+        assert_eq!(parse(&mut editor, body, 0), EditErrorKind::WrongNodeKind);
+    }
 }
 
 #[test]

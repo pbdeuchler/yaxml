@@ -156,6 +156,7 @@ impl Budget {
         &mut self.kept
     }
 
+    #[cfg(any(feature = "xinclude", feature = "html"))]
     pub(crate) fn max_events(&self) -> usize {
         self.limits.max_events
     }
@@ -399,6 +400,7 @@ impl<'source> ParserState<'source> {
 
     /// Records the catalog of an `oasis-xml-catalog` instruction when the
     /// flags ask for it (`xmlParseCatalogPI`; a syntax error is ignored).
+    #[cfg(feature = "catalog")]
     fn note_catalog(&mut self, target: &str, data: &str) {
         if self.flags.catalog_pi()
             && target == "oasis-xml-catalog"
@@ -1181,6 +1183,7 @@ impl<'source> ParserState<'source> {
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
+        #[cfg(feature = "catalog")]
         self.note_catalog(target, data);
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),

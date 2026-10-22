@@ -228,6 +228,7 @@ fn base_resolves_against_the_document_url() {
 }
 
 #[test]
+#[cfg(feature = "html")]
 fn html_base_comes_from_the_base_element() {
     let cases: &[(&[u8], Option<&str>)] = &[
         (
@@ -1107,6 +1108,7 @@ fn entity_content_is_read_only_for_structure() {
 }
 
 #[test]
+#[cfg(feature = "html")]
 fn html_documents_take_attributes_but_no_namespaces() {
     let parsed = yaxml::html::parse(b"<p id=a>t</p>", yaxml::html::Options::default()).unwrap();
     let mut document = parsed.document;

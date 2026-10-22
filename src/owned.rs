@@ -604,6 +604,7 @@ impl OwnedDocument {
 
     /// The substituting parse (`NOENT | DTDATTR`) used for schema, catalog
     /// and expanded reader documents.
+    #[cfg(any(feature = "schemas", feature = "catalog"))]
     pub(crate) fn parse_legacy(input: &[u8], limits: Limits) -> Result<Self, Error> {
         let options = ParseOptions::new(crate::options::LEGACY).with_limits(limits);
         Self::parse_with(input, options)
@@ -614,7 +615,10 @@ impl OwnedDocument {
     /// [`xinclude::process`](crate::xinclude::process) with the same
     /// resolver, and its failures are [`ErrorKind::XInclude`].
     pub fn parse_with(input: &[u8], options: ParseOptions) -> Result<Self, Error> {
+        // Without `xinclude` the flag is rejected, so there is nothing to include.
+        #[cfg_attr(not(feature = "xinclude"), allow(unused_mut, unused_variables))]
         let (mut document, flags, include) = Self::parse_tree(input, options, 0, Global, None)?;
+        #[cfg(feature = "xinclude")]
         if let Some((resolver, base, limits)) = include {
             let options = crate::xinclude::Options {
                 base_fixup: flags.fixes_base(),
@@ -1034,6 +1038,7 @@ impl<A: Allocator> OwnedDocument<A> {
 
     /// How an HTML document's input was decoded into the text its node
     /// origins point into.
+    #[cfg(feature = "html")]
     pub(crate) fn html_decoding(&self) -> Option<&crate::html::Decoding> {
         Some(&self.html.as_ref()?.decoding)
     }
@@ -1872,6 +1877,7 @@ fn store_content<A: Allocator>(
 /// Builds a document from copied node events, without source origins and
 /// without merging Text: the XInclude result tree. Appends follow preorder and
 /// each element is closed after its subtree.
+#[cfg(feature = "xinclude")]
 pub(crate) struct TreeBuilder {
     nodes: allocator::Vec<OwnedRecord, Global>,
     attributes: allocator::Vec<StoredAttribute, Global>,
@@ -1882,6 +1888,7 @@ pub(crate) struct TreeBuilder {
     budget: Budget,
 }
 
+#[cfg(feature = "xinclude")]
 impl TreeBuilder {
     pub(crate) const ROOT: NodeId = NodeId(0);
 
@@ -1998,17 +2005,20 @@ fn append_record<A: Allocator>(
     Ok(id)
 }
 
-/// State that only HTML documents carry.
+/// State that only HTML documents carry (none are built without `html`).
 #[derive(Clone, Debug)]
+#[cfg_attr(not(feature = "html"), allow(dead_code))]
 struct HtmlMeta {
     encoding: Option<String>,
     /// Sorted attribute-arena indices of attributes written without a value.
     valueless: Vec<usize>,
     /// How the input became the text node origins point into.
+    #[cfg(feature = "html")]
     decoding: crate::html::Decoding,
 }
 
 /// An element's last child other than comments, as `areBlanks` inspects it.
+#[cfg(feature = "html")]
 pub(crate) enum LastChild<'a> {
     None,
     Text,
@@ -2020,6 +2030,7 @@ pub(crate) enum LastChild<'a> {
 /// shape: names are stored verbatim (HTML allows names XML rejects), adjacent
 /// Text or CDATA appends merge, and nodes carry no source origins. Errors are
 /// limit or allocation failures with offset 0; the caller supplies offsets.
+#[cfg(feature = "html")]
 pub(crate) struct HtmlBuilder {
     nodes: allocator::Vec<OwnedRecord, Global>,
     attributes: allocator::Vec<StoredAttribute, Global>,
@@ -2029,6 +2040,7 @@ pub(crate) struct HtmlBuilder {
     budget: Budget,
 }
 
+#[cfg(feature = "html")]
 impl HtmlBuilder {
     pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
         let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, 0, Global)?;

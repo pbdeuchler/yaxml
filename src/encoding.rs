@@ -135,8 +135,11 @@ mod charsets;
 
 /// Tables the HTML parser treats specially: libxml2 decodes ASCII and Latin-1
 /// labels as windows-1252 in HTML, and remaps C1 numeric references with it.
+#[cfg(feature = "html")]
 pub(crate) const WINDOWS_1252: &[u16; 128] = &charsets::WINDOWS_1252;
+#[cfg(feature = "html")]
 pub(crate) const ISO_8859_1: &[u16; 128] = &charsets::ISO_8859_1;
+#[cfg(feature = "html")]
 pub(crate) const US_ASCII: &[u16; 128] = &charsets::US_ASCII;
 
 /// A built-in libxml2 declaration label: UTF-16 carries an optional byte

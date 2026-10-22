@@ -105,6 +105,7 @@ impl StreamingSession {
         self.options.flags
     }
     /// Starts over with other flags, keeping the resolver: only before input.
+    #[cfg(feature = "textreader")]
     pub(crate) fn set_flags(&mut self, flags: Flags) {
         let loader = self.loader.take();
         self.reset(self.limits, self.decode, flags);

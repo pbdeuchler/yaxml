@@ -5,7 +5,6 @@
 //! erased `Arc<dyn Allocator>`, and prove routing through allocator identity
 //! and `Arc` reference counts. Allocation failure is covered by the crate's
 //! private failpoint tests (src/owned/construction.rs).
-#![cfg(feature = "allocator_api")]
 #![allow(clippy::incompatible_msrv)]
 
 use std::alloc::{Allocator, Global, System};

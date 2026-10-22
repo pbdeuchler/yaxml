@@ -157,11 +157,13 @@ impl<R: BufRead> BufferedReader<R> {
         self.session.catalog().map(|catalog| catalog.dtd())
     }
 
+    #[cfg(feature = "textreader")]
     pub(crate) fn budget(&mut self) -> Option<&mut crate::parser::Budget> {
         self.session.budget()
     }
 
     /// Changes the flags of a reader that has not been read yet.
+    #[cfg(feature = "textreader")]
     pub(crate) fn set_flags(&mut self, flags: crate::options::Flags) {
         self.session.set_flags(flags);
         self.detached = Detached::new(flags);

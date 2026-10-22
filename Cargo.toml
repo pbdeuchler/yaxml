@@ -24,9 +24,178 @@ include = [
 memchr = "2.8.0"
 
 [features]
-default = []
+# Everything is on by default; `default-features = false` leaves the core:
+# the XML parsers (Reader, PushParser, BufferedReader), both DOMs and the
+# Editor, DTD processing and validation (`valid`), diagnostics, `save`,
+# `Writer`, `uri` and `chars`. README.md#features lists what each adds.
+default = ["full"]
+full = ["xpath", "c14n", "xinclude", "catalog", "schemas", "html", "textreader", "textwriter"]
+# XPath 1.0 compile/evaluate (`xpath`), `xpointer`, `pattern`.
+xpath = []
+# Canonical XML (`c14n`).
+c14n = ["xpath"]
+# XInclude (`xinclude`, the `XINCLUDE` parser flag).
+xinclude = ["xpath"]
+# XML and SGML catalogs (`catalog`, the `CATALOG_PI` parser flag).
+catalog = []
+# XML Schema, RELAX NG and Schematron (`xsd`, `relaxng`, `schematron`,
+# `schema_types`, `regexp`).
+schemas = ["xpath"]
+# The HTML parser and serializer (`html`, `save::AS_HTML`).
+html = []
+# libxml2's xmlTextReader (`TextReader`); its RELAX NG and XSD hooks need `schemas`.
+textreader = ["schemas"]
+# libxml2's xmlTextWriter (`TextWriter`).
+textwriter = []
 # Allocator-aware OwnedDocument storage; requires Rust 1.100 (std allocator API).
 allocator_api = []
+
+# Targets that exercise optional subsystems; a test in a core test file
+# that touches one is `#[cfg(feature = "...")]` instead.
+[[bin]]
+name = "yaxmllint"
+path = "src/bin/yaxmllint/main.rs"
+required-features = ["full"]
+
+[[test]]
+name = "allocation"
+required-features = ["c14n", "catalog", "schemas"]
+
+[[test]]
+name = "allocator"
+required-features = ["allocator_api", "c14n", "xinclude"]
+
+[[test]]
+name = "budgets"
+required-features = ["textreader"]
+
+[[test]]
+name = "c14n"
+required-features = ["c14n"]
+
+[[test]]
+name = "catalog"
+required-features = ["catalog"]
+
+[[test]]
+name = "catalog_pi"
+required-features = ["catalog", "textreader"]
+
+[[test]]
+name = "defaults"
+required-features = ["full"]
+
+[[test]]
+name = "diagnostic"
+required-features = ["textreader"]
+
+[[test]]
+name = "dom_copy"
+required-features = ["html"]
+
+[[test]]
+name = "fuzz_smoke"
+required-features = ["full"]
+
+[[test]]
+name = "html"
+required-features = ["html", "xpath"]
+
+[[test]]
+name = "html_events"
+required-features = ["html"]
+
+[[test]]
+name = "html_xml_output"
+required-features = ["html", "c14n"]
+
+[[test]]
+name = "namespace_errors"
+required-features = ["textreader"]
+
+[[test]]
+name = "options"
+required-features = ["full"]
+
+[[test]]
+name = "pattern"
+required-features = ["xpath"]
+
+[[test]]
+name = "recover"
+required-features = ["xinclude", "textreader"]
+
+[[test]]
+name = "regexp"
+required-features = ["schemas"]
+
+[[test]]
+name = "relaxng"
+required-features = ["textreader"]
+
+[[test]]
+name = "reset"
+required-features = ["xinclude", "textreader"]
+
+[[test]]
+name = "schema_types"
+required-features = ["schemas"]
+
+[[test]]
+name = "schematron"
+required-features = ["schemas", "html"]
+
+[[test]]
+name = "stream"
+required-features = ["full"]
+
+[[test]]
+name = "text_writer"
+required-features = ["textwriter"]
+
+[[test]]
+name = "textreader"
+required-features = ["textreader"]
+
+[[test]]
+name = "valid_stream"
+required-features = ["textreader"]
+
+[[test]]
+name = "writer"
+required-features = ["full"]
+
+[[test]]
+name = "xinclude"
+required-features = ["xinclude"]
+
+[[test]]
+name = "xpath"
+required-features = ["xpath"]
+
+[[test]]
+name = "xpointer"
+required-features = ["xinclude"]
+
+[[test]]
+name = "xsd"
+required-features = ["schemas"]
+
+[[test]]
+name = "xsd_documents"
+required-features = ["schemas"]
+
+[[test]]
+name = "xsd_random"
+required-features = ["schemas"]
+
+[[test]]
+name = "xsd_stream"
+required-features = ["schemas"]
+
+[[test]]
+name = "yaxmllint"
+required-features = ["full"]
 
 [lints.rust]
 unsafe_code = "forbid"
