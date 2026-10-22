@@ -13,6 +13,7 @@ the WHATWG tree builder.
 | --- | --- |
 | `html::parse(bytes, Options) -> Result<Parsed, Error>` | `htmlReadMemory` / `htmlCtxtReadMemory` |
 | `html::create(uri, public_id) -> Result<OwnedDocument, Error>` | `htmlNewDocNoDtD`: rootless, an `html` DOCTYPE only when an id is given; `htmlNewDoc(NULL, NULL)` = the HTML 4.0 Transitional ids. Build it with the [editor](owned-dom.md): `append_child` on the document adopts the first element (e.g. an `Editor::import`ed one) |
+| `html::meta_encoding(&document)`, `html::set_meta_encoding(&mut editor, encoding) -> Result<bool, EditError>` | `htmlGetMetaEncoding` (the charset alone; libxml2 returns the attribute value from the charset on, e.g. `latin1; x`), `htmlSetMetaEncoding` (`false` = no `head`; every declaring `<meta>` in the head rewritten, blanks around the old charset kept, `HTML` written as `ASCII`; else `<meta charset>` becomes the head's first child) |
 | `html::PushParser::{new, feed, finish}` | `htmlCreatePushParserCtxt`, `htmlParseChunk` |
 | `html::parse_events(bytes, Options, handler) -> Result<Summary, Error>` | `htmlNewSAXParserCtxt` + `htmlCtxtReadMemory` with custom SAX callbacks |
 | `html::EventParser::{new, feed, finish}` | `htmlCreatePushParserCtxt` with custom SAX callbacks |

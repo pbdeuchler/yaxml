@@ -751,3 +751,141 @@ fn created_documents_serialize_like_html_new_doc_no_dtd() {
         assert_eq!(built, expected, "{uri:?} {public_id:?}");
     }
 }
+
+#[test]
+fn meta_encodings_match_html_set_meta_encoding() {
+    use yaxml::EditLimits;
+    // Recorded with htmlGetMetaEncoding, htmlSetMetaEncoding (ret 1 = false)
+    // and htmlNodeDump of the root (HTML_PARSE_NODEFDTD). libxml2's getter
+    // returns the value's suffix from the charset on: "latin1 ", "latin1; x",
+    // "x\"" where these rows stop at the charset's end.
+    let cases = [
+        (
+            "<title>t</title>",
+            "UTF-8",
+            None,
+            true,
+            Some("UTF-8"),
+            "<html><head>\n<meta charset=\"UTF-8\">\n<title>t</title>\n</head></html>",
+        ),
+        (
+            "<head><meta charset=' latin1 '><meta charset=x></head>",
+            "UTF-8",
+            Some("latin1"),
+            true,
+            Some("UTF-8"),
+            "<html><head>\n<meta charset=\" UTF-8 \">\n<meta charset=\"UTF-8\">\n</head></html>",
+        ),
+        (
+            "<meta http-equiv=content-type content='text/html; charset=latin1; x'>",
+            "UTF-8",
+            Some("latin1"),
+            true,
+            Some("UTF-8"),
+            "<html><head><meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8; x\"></head></html>",
+        ),
+        (
+            "<meta http-equiv=Content-Type content='text/html'>",
+            "UTF-8",
+            None,
+            true,
+            Some("UTF-8"),
+            "<html><head>\n<meta charset=\"UTF-8\">\n<meta http-equiv=\"Content-Type\" content=\"text/html\">\n</head></html>",
+        ),
+        (
+            "<meta charset>",
+            "koi8-r",
+            Some(""),
+            true,
+            Some("koi8-r"),
+            "<html><head><meta charset=\"koi8-r\"></head></html>",
+        ),
+        (
+            "<meta charset=x>",
+            "html",
+            Some("x"),
+            true,
+            Some("ASCII"),
+            "<html><head><meta charset=\"ASCII\"></head></html>",
+        ),
+        (
+            "<p>x",
+            "UTF-8",
+            None,
+            false,
+            None,
+            "<html><body><p>x</p></body></html>",
+        ),
+        (
+            "<head></head>",
+            "HTML",
+            None,
+            true,
+            Some("HTML"),
+            "<html><head><meta charset=\"HTML\"></head></html>",
+        ),
+        (
+            "<meta CHARSET=x content=y http-equiv=content-type>",
+            "a",
+            Some("x"),
+            true,
+            Some("a"),
+            "<html><head><meta charset=\"a\" content=\"y\" http-equiv=\"content-type\"></head></html>",
+        ),
+        (
+            "<meta content='charset=x' http-equiv=content-type>",
+            "UTF-8",
+            Some("x"),
+            true,
+            Some("UTF-8"),
+            "<html><head><meta content=\"charset=UTF-8\" http-equiv=\"content-type\"></head></html>",
+        ),
+        (
+            "<meta content='text/html; charset=\"x\"' http-equiv=content-type>",
+            "y",
+            Some("x"),
+            true,
+            Some("y"),
+            "<html><head><meta content=\"text/html; charset=&quot;y&quot;\" http-equiv=\"content-type\"></head></html>",
+        ),
+        (
+            "<frameset></frameset>",
+            "UTF-8",
+            None,
+            false,
+            None,
+            "<html><frameset></frameset></html>",
+        ),
+    ];
+    for (input, encoding, before, set, after, dumped) in cases {
+        let options = html::Options::new(html::NODEFDTD);
+        let mut document = html::parse(input.as_bytes(), options).unwrap().document;
+        assert_eq!(html::meta_encoding(&document), before, "{input}");
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        let result = html::set_meta_encoding(&mut editor, encoding);
+        assert_eq!(result, Ok(set), "{input}");
+        assert_eq!(html::meta_encoding(&document), after, "{input}");
+        let root = html::dump_node(document.root_element(), true).unwrap();
+        assert_eq!(String::from_utf8(root).unwrap(), dumped, "{input}");
+    }
+}
+
+#[test]
+fn set_meta_encoding_reports_edit_limits() {
+    use yaxml::{EditErrorKind, EditLimit, EditLimits};
+    let options = html::Options::default();
+    let mut document = html::parse(b"<title>t</title>", options).unwrap().document;
+    let limits = EditLimits::DEFAULT.max_created_nodes(0);
+    let mut editor = document.edit(limits).unwrap();
+    let refused = html::set_meta_encoding(&mut editor, "UTF-8").unwrap_err();
+    assert_eq!(
+        refused.kind,
+        EditErrorKind::LimitExceeded(EditLimit::CreatedNodes)
+    );
+    assert_eq!(html::meta_encoding(&document), None);
+    let limits = EditLimits::DEFAULT.max_value_bytes(4);
+    let mut document = html::parse(b"<meta charset=x>", options).unwrap().document;
+    let mut editor = document.edit(limits).unwrap();
+    assert!(html::set_meta_encoding(&mut editor, "UTF-8").is_err());
+    assert_eq!(html::meta_encoding(&document), Some("x"));
+}

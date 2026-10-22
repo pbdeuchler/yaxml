@@ -307,8 +307,8 @@ FIELD_DEFAULT = {
     "_xmlID": ("N", "IDs via Document::element_by_id"),
     "_xmlRef": ("N", "no IDREF table"),
     "_xmlError": ("A", "no counterpart field"),
-    "_htmlElemDesc": ("N", "no public HTML element table"),
-    "_htmlEntityDesc": ("N", "no public HTML entity table"),
+    "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
+    "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
 for _s in "Schema SchemaAnnot SchemaAttribute SchemaAttributeGroup SchemaAttributeLink SchemaElement SchemaFacet SchemaFacetLink SchemaNotation SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
     FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no public schema component model; xsd::Schema is opaque")
@@ -902,7 +902,8 @@ P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
 P|htmlSAXHandler|html::Event - the callbacks HTML parsing makes, as events
 I|XML_HTML_STRUCURE_ERROR|diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
-N|htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|node info and element/entity tables not public (docs/html.md)
+N|htmlParserInput htmlParserNodeInfo|node info tables not public (docs/html.md)
+R|htmlElemDesc htmlEntityDesc _htmlElemDesc _htmlEntityDesc|types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
 I|htmlDocDumpMemory htmlDocDumpMemoryFormat|html::to_html, html::save
 P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - returns bytes
 I|htmlNodeDump|html::dump_node - format true
@@ -910,10 +911,10 @@ P|htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocCo
 P|htmlNodeDumpFile htmlNodeDumpFileFormat|html::dump_node - returns bytes
 I|htmlNewDocNoDtD|html::create
 P|htmlNewDoc|html::create - pass the HTML 4.0 Transitional ids for htmlNewDoc(NULL, NULL); an explicit DOCTYPE without ids is not built
-N|htmlSetMetaEncoding|HTML meta editing not started (docs/html.md)
-P|htmlGetMetaEncoding|OwnedDocument::html_encoding
+I|htmlSetMetaEncoding|html::set_meta_encoding
+I|htmlGetMetaEncoding|html::meta_encoding - the charset alone, not libxml2's value suffix
 A|HTML_COMMENT_NODE HTML_ENTITY_REF_NODE HTML_PI_NODE HTML_PRESERVE_NODE HTML_TEXT_NODE|node-type aliases
-N|HTML_DEPRECATED HTML_INVALID HTML_NA HTML_REQUIRED HTML_VALID htmlStatus htmlDefaultSubelement htmlElementAllowedHereDesc htmlRequiredAttrs UTF8ToHtml|no public HTML element table
+R|HTML_DEPRECATED HTML_INVALID HTML_NA HTML_REQUIRED HTML_VALID htmlStatus htmlDefaultSubelement htmlElementAllowedHereDesc htmlRequiredAttrs UTF8ToHtml|only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 P|htmlParserOption|html::Options
 # ---- uri.h
 I|xmlParseURI xmlParseURISafe xmlParseURIReference|Uri::parse

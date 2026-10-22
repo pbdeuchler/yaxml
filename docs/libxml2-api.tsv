@@ -1,7 +1,7 @@
 header	identifier	kind	deprecated_marker	priority	status	upstream_ref	rust
-HTMLparser.h	HTML_DEPRECATED	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	HTML_INVALID	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	HTML_NA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
+HTMLparser.h	HTML_DEPRECATED	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
+HTMLparser.h	HTML_INVALID	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
+HTMLparser.h	HTML_NA	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	HTML_PARSE_BIG_LINES	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::BIG_LINES
 HTMLparser.h	HTML_PARSE_COMPACT	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::COMPACT
 HTMLparser.h	HTML_PARSE_HTML5	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::HTML5 - token-level events; trees follow them unbalanced, as in libxml2
@@ -15,29 +15,29 @@ HTMLparser.h	HTML_PARSE_NONET	enum_value	not_marked	P3	implemented	https://githu
 HTMLparser.h	HTML_PARSE_NOWARNING	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::NOWARNING
 HTMLparser.h	HTML_PARSE_PEDANTIC	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PEDANTIC
 HTMLparser.h	HTML_PARSE_RECOVER	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::RECOVER
-HTMLparser.h	HTML_REQUIRED	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	HTML_VALID	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	UTF8ToHtml	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
-HTMLparser.h	_htmlElemDesc.attrs_depr	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlElemDesc.attrs_opt	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlElemDesc.attrs_req	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlElemDesc.dataMode	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.defaultsubelt	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlElemDesc.depr	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.desc	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.dtd	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.empty	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.endTag	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.isinline	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.name	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.saveEndTag	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.startTag	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
-HTMLparser.h	_htmlElemDesc.subelts	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	_htmlEntityDesc	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
-HTMLparser.h	_htmlEntityDesc.desc	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
-HTMLparser.h	_htmlEntityDesc.name	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
-HTMLparser.h	_htmlEntityDesc.value	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML entity table
+HTMLparser.h	HTML_REQUIRED	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
+HTMLparser.h	HTML_VALID	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
+HTMLparser.h	UTF8ToHtml	macro	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
+HTMLparser.h	_htmlElemDesc	struct	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.attrs_depr	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.attrs_opt	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.attrs_req	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.dataMode	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.defaultsubelt	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.depr	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.desc	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.dtd	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.empty	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.endTag	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.isinline	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.name	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.saveEndTag	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.startTag	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlElemDesc.subelts	field	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlTagLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlEntityDesc	struct	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlEntityDesc.desc	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlEntityDesc.name	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4
+HTMLparser.h	_htmlEntityDesc.value	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4
 HTMLparser.h	htmlAttrAllowed	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlAutoCloseTag	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlCreateFileParserCtxt	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
@@ -53,15 +53,15 @@ HTMLparser.h	htmlCtxtReset	function	not_marked	P3	not-started	https://github.com
 HTMLparser.h	htmlCtxtSetOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlCtxtUseOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlDefaultSAXHandler	variable	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlDefaultSubelement	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
+HTMLparser.h	htmlDefaultSubelement	macro	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	htmlDocPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlElemDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlElemDesc	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
 HTMLparser.h	htmlElemDescPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlElementAllowedHere	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlElementAllowedHereDesc	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
+HTMLparser.h	htmlElementAllowedHereDesc	macro	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	htmlElementStatusHere	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlEncodeEntities	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlEntityDesc	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlEntityDesc	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
 HTMLparser.h	htmlEntityDescPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlEntityLookup	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlEntityValueLookup	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
@@ -83,21 +83,21 @@ HTMLparser.h	htmlParseEntityRef	function	yes	P3	removed-upstream	https://github.
 HTMLparser.h	htmlParseFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlParserCtxt	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser
 HTMLparser.h	htmlParserCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlParserInput	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlParserInput	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info tables not public (docs/html.md)
 HTMLparser.h	htmlParserInputPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
-HTMLparser.h	htmlParserNodeInfo	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info and element/entity tables not public (docs/html.md)
+HTMLparser.h	htmlParserNodeInfo	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info tables not public (docs/html.md)
 HTMLparser.h	htmlParserOption	enum	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options
 HTMLparser.h	htmlReadDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
 HTMLparser.h	htmlReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
 HTMLparser.h	htmlReadMemory	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
-HTMLparser.h	htmlRequiredAttrs	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
+HTMLparser.h	htmlRequiredAttrs	macro	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	htmlSAXHandler	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Event - the callbacks HTML parsing makes, as events
 HTMLparser.h	htmlSAXHandlerPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlSAXParseDoc	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlSAXParseFile	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlStatus	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	no public HTML element table
+HTMLparser.h	htmlStatus	enum	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	htmlTagLookup	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlUTF8ToHtml	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLtree.h	HTML_COMMENT_NODE	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	node-type aliases
@@ -110,7 +110,7 @@ HTMLtree.h	htmlDocContentDumpOutput	function	not_marked	P3	partial	https://githu
 HTMLtree.h	htmlDocDump	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlDocDumpMemory	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::to_html, html::save
 HTMLtree.h	htmlDocDumpMemoryFormat	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::to_html, html::save
-HTMLtree.h	htmlGetMetaEncoding	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	OwnedDocument::html_encoding
+HTMLtree.h	htmlGetMetaEncoding	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::meta_encoding - the charset alone, not libxml2's value suffix
 HTMLtree.h	htmlIsBooleanAttr	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	deprecated in 2.15.4
 HTMLtree.h	htmlNewDoc	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::create - pass the HTML 4.0 Transitional ids for htmlNewDoc(NULL, NULL); an explicit DOCTYPE without ids is not built
 HTMLtree.h	htmlNewDocNoDtD	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::create
@@ -122,7 +122,7 @@ HTMLtree.h	htmlNodeDumpOutput	function	not_marked	P3	partial	https://github.com/
 HTMLtree.h	htmlSaveFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlSaveFileEnc	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
 HTMLtree.h	htmlSaveFileFormat	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::save - returns bytes
-HTMLtree.h	htmlSetMetaEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	HTML meta editing not started (docs/html.md)
+HTMLtree.h	htmlSetMetaEncoding	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLtree.h	html::set_meta_encoding
 SAX2.h	htmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
 SAX2.h	xmlDefaultSAXHandlerInit	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	deprecated in 2.15.4
 SAX2.h	xmlSAX2AttributeDecl	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/SAX2.h	libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
