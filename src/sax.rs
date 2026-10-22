@@ -25,8 +25,12 @@
 //! - libxml2's queries to the handler (`getEntity`, `resolveEntity`,
 //!   `isStandalone`, `hasInternalSubset`, ...) have no counterpart: the
 //!   parser keeps the declarations and a [`Resolver`](crate::Resolver) loads
-//!   resources; there is no locator (errors carry offsets) and no
-//!   `ignorableWhitespace` (`NOBLANKS` is rejected, as by the `Reader`).
+//!   resources; there is no `ignorableWhitespace` (`NOBLANKS` is
+//!   rejected, as by the `Reader`);
+//! - the [`Locator`] of a declaration callback is the end of the DOCTYPE,
+//!   or the root's start tag for the external subset's, and inside entity
+//!   content the end of the reference (libxml2 reports the declaration's
+//!   own place, and places in the entity's text).
 //!
 //! ```
 //! use std::ops::ControlFlow;
@@ -48,11 +52,13 @@
 //! # Ok::<(), yaxml::Error>(())
 //! ```
 
+use std::cell::OnceCell;
 use std::ops::ControlFlow;
 
 use crate::valid::{self, ContentKind, Dtd, EntityKind};
 use crate::{
-    Declaration, Doctype, Element, Error, ErrorKind, Event, Name, ParseOptions, Reader, Transcoded,
+    Declaration, Doctype, Element, Error, ErrorKind, Event, LineIndex, Name, ParseOptions, Reader,
+    Transcoded,
 };
 
 const GO: ControlFlow<()> = ControlFlow::Continue(());
@@ -61,6 +67,10 @@ const GO: ControlFlow<()> = ControlFlow::Continue(());
 /// default, and returning [`ControlFlow::Break`] stops the parse.
 #[allow(unused_variables)]
 pub trait Handler {
+    /// The parser's place changed; it holds for the callbacks that follow
+    /// (`setDocumentLocator`, then libxml2's locator queries in each
+    /// callback).
+    fn locate(&mut self, locator: &Locator<'_>) {}
     /// The document starts, after its XML declaration (`startDocument`).
     fn start_document(&mut self, declaration: Option<&Declaration<'_>>) -> ControlFlow<()> {
         GO
@@ -134,6 +144,59 @@ pub trait Handler {
     fn end_document(&mut self) {}
 }
 
+/// Where the parser is during a callback (`xmlSAXLocator`): libxml2's
+/// parsing point, which is after the event's markup, except at a start
+/// tag's `>` (or `/>`) and, for `start_document`, past the blanks after the
+/// XML declaration.
+pub struct Locator<'a> {
+    offset: usize,
+    lines: &'a (dyn Lines + 'a),
+    system_id: Option<&'a str>,
+}
+
+impl Locator<'_> {
+    /// Byte offset in the UTF-8 text: the input, unless it was transcoded.
+    #[must_use]
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// 1-based line (`xmlSAX2GetLineNumber`).
+    #[must_use]
+    pub fn line(&self) -> usize {
+        self.lines.index().line(self.offset)
+    }
+
+    /// 1-based column in characters (`xmlSAX2GetColumnNumber`).
+    #[must_use]
+    pub fn column(&self) -> usize {
+        self.lines.index().column(self.offset)
+    }
+
+    /// The document's [`ParseOptions::base`] (`xmlSAX2GetSystemId`: the
+    /// input's name); libxml2's public ID is always null.
+    #[must_use]
+    pub fn system_id(&self) -> Option<&str> {
+        self.system_id
+    }
+}
+
+/// The text's line index, built at the first query.
+trait Lines {
+    fn index(&self) -> &LineIndex<'_>;
+}
+
+struct Lazy<'t> {
+    text: &'t Transcoded<'t>,
+    index: OnceCell<LineIndex<'t>>,
+}
+
+impl Lines for Lazy<'_> {
+    fn index(&self) -> &LineIndex<'_> {
+        self.index.get_or_init(|| LineIndex::transcoded(self.text))
+    }
+}
+
 /// Parses `input`, in any encoding the [`Transcoded`] input takes, calling
 /// `handler` (`xmlSAXUserParseMemory`, `xmlCtxtReadMemory` on an
 /// `xmlNewSAXParserCtxt`).
@@ -146,8 +209,21 @@ pub trait Handler {
 /// before any callback.
 pub fn parse(input: &[u8], options: ParseOptions, handler: &mut impl Handler) -> Result<(), Error> {
     let text = Transcoded::new(input, &options)?;
+    let base = options.base.clone();
     let mut reader = Reader::transcoded(&text, options)?;
-    let mut sax = Sax::default();
+    let lines = Lazy {
+        text: &text,
+        index: OnceCell::new(),
+    };
+    let mut sax = Sax {
+        text: text.as_bytes(),
+        locator: Locator {
+            offset: usize::MAX,
+            lines: &lines,
+            system_id: base.as_deref(),
+        },
+        progress: Progress::default(),
+    };
     let outcome = sax.drive(&mut reader, handler);
     if outcome == Err(None) {
         return Ok(());
@@ -155,9 +231,22 @@ pub fn parse(input: &[u8], options: ParseOptions, handler: &mut impl Handler) ->
     sax.errors(&reader, handler);
     // libxml2 starts every document but an empty one ("Document is empty").
     let document = !text.as_bytes().is_empty();
-    if document && !sax.started {
+    if document && !sax.progress.started {
+        sax.locate(handler, start(text.as_bytes(), None));
         let _ = handler.start_document(None);
     }
+    // After a fatal error libxml2 reads on to the end with SAX disabled,
+    // unless the error is outside the root element.
+    let end = match &outcome {
+        Err(Some(error)) => match error.kind {
+            ErrorKind::MissingRoot | ErrorKind::MultipleRoots | ErrorKind::TextOutsideRoot => {
+                error.offset
+            }
+            _ => text.as_bytes().len(),
+        },
+        _ => reader.position(),
+    };
+    sax.locate(handler, end);
     if let Err(Some(error)) = &outcome {
         handler.fatal_error(error);
     }
@@ -177,10 +266,28 @@ fn go(flow: ControlFlow<()>) -> Step {
     }
 }
 
+/// Where `start_document` is: past the blanks after a declaration ending
+/// at `declared`, else at the first character.
+fn start(text: &[u8], declared: Option<usize>) -> usize {
+    let bom = usize::from(text.starts_with(b"\xef\xbb\xbf")) * 3;
+    declared.map_or(bom, |end| {
+        let blanks = text[end..]
+            .iter()
+            .take_while(|byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r'));
+        end + blanks.count()
+    })
+}
+
+struct Sax<'a> {
+    text: &'a [u8],
+    locator: Locator<'a>,
+    progress: Progress,
+}
+
 /// What has been reported: kept errors, and declarations by kind
 /// (`elements` = whether its `<!ELEMENT>` was, and how many attributes).
 #[derive(Default)]
-struct Sax {
+struct Progress {
     started: bool,
     errors: usize,
     entities: usize,
@@ -192,25 +299,45 @@ struct Sax {
     skipped: usize,
 }
 
-impl Sax {
+impl Sax<'_> {
+    fn locate(&mut self, handler: &mut impl Handler, offset: usize) {
+        if offset != self.locator.offset {
+            self.locator.offset = offset;
+            handler.locate(&self.locator);
+        }
+    }
+
     fn drive(&mut self, reader: &mut Reader<'_>, handler: &mut impl Handler) -> Step {
         while let Some(event) = reader.read_event()? {
+            let at = reader.position();
             self.errors(reader, handler);
-            if !self.started {
-                self.started = true;
+            let progress = &mut self.progress;
+            if !progress.started {
+                progress.started = true;
                 let declaration = match &event {
                     Event::Declaration(declaration) => Some(declaration),
                     _ => None,
                 };
+                self.locate(handler, start(self.text, declaration.map(|_| at)));
                 go(handler.start_document(declaration))?;
             }
-            if self.skipped > 0 {
+            let progress = &mut self.progress;
+            if progress.skipped > 0 {
                 match event {
-                    Event::EntityStart(_) => self.skipped += 1,
-                    Event::EntityEnd => self.skipped -= 1,
+                    Event::EntityStart(_) => progress.skipped += 1,
+                    Event::EntityEnd => progress.skipped -= 1,
                     _ => {}
                 }
                 continue;
+            }
+            // A start tag's place is its `>` (`/>`).
+            let tag = match event {
+                Event::Start(_) => 1,
+                Event::Empty(_) => 2,
+                _ => 0,
+            };
+            if !matches!(event, Event::Declaration(_) | Event::EntityEnd) {
+                self.locate(handler, at - tag);
             }
             go(match &event {
                 Event::Declaration(_) | Event::EntityEnd => GO,
@@ -220,13 +347,16 @@ impl Sax {
                     handler.external_subset(doctype)
                 }
                 Event::Start(element) | Event::Empty(element) => {
-                    if !self.rooted {
-                        self.rooted = true;
+                    if !self.progress.rooted {
+                        self.progress.rooted = true;
                         self.declarations(reader.dtd(), handler)?;
                     }
                     go(handler.start_element(element))?;
                     match event {
-                        Event::Empty(_) => handler.end_element(&element.name),
+                        Event::Empty(_) => {
+                            self.locate(handler, at);
+                            handler.end_element(&element.name)
+                        }
                         _ => GO,
                     }
                 }
@@ -238,7 +368,7 @@ impl Sax {
                     handler.processing_instruction(target, data)
                 }
                 Event::EntityStart(name) => {
-                    self.skipped = 1;
+                    self.progress.skipped = 1;
                     handler.reference(name)
                 }
             })?;
@@ -247,13 +377,14 @@ impl Sax {
     }
 
     fn errors(&mut self, reader: &Reader<'_>, handler: &mut impl Handler) {
-        for error in &reader.errors()[self.errors..] {
+        for error in &reader.errors()[self.progress.errors..] {
+            self.locate(handler, reader.position());
             match error.kind {
                 ErrorKind::Warning(_) => handler.warning(error),
                 _ => handler.error(error),
             }
         }
-        self.errors = reader.errors().len();
+        self.progress.errors = reader.errors().len();
     }
 
     /// Reports the declarations `dtd` gained since the last call.
@@ -261,19 +392,20 @@ impl Sax {
         let Some(dtd) = dtd else {
             return Ok(());
         };
-        for entity in dtd.entities().skip(self.entities) {
-            self.entities += 1;
+        let progress = &mut self.progress;
+        for entity in dtd.entities().skip(progress.entities) {
+            progress.entities += 1;
             go(match entity.kind {
                 EntityKind::ExternalUnparsedGeneral => handler.unparsed_entity_decl(entity),
                 _ => handler.entity_decl(entity),
             })?;
         }
-        for notation in dtd.notations().skip(self.notations) {
-            self.notations += 1;
+        for notation in dtd.notations().skip(progress.notations) {
+            progress.notations += 1;
             go(handler.notation_decl(notation))?;
         }
-        self.elements.resize(dtd.elements.len(), (false, 0));
-        for (element, (declared, attributes)) in dtd.elements().zip(&mut self.elements) {
+        progress.elements.resize(dtd.elements.len(), (false, 0));
+        for (element, (declared, attributes)) in dtd.elements().zip(&mut progress.elements) {
             if !*declared && element.kind != ContentKind::Undefined {
                 *declared = true;
                 go(handler.element_decl(element))?;

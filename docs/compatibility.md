@@ -8,10 +8,10 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 587 | 64 | 0 | 97 | 14 | 159 | 1050 |
-| partial | 1 | 25 | 244 | 46 | 0 | 92 | 52 | 99 | 559 |
-| not-started | 0 | 18 | 438 | 41 | 0 | 27 | 2 | 421 | 947 |
-| not-applicable | 24 | 21 | 530 | 32 | 75 | 181 | 85 | 256 | 1204 |
+| implemented | 22 | 107 | 593 | 64 | 0 | 97 | 14 | 159 | 1056 |
+| partial | 1 | 25 | 248 | 46 | 0 | 92 | 52 | 99 | 563 |
+| not-started | 0 | 18 | 423 | 41 | 0 | 27 | 2 | 421 | 932 |
+| not-applicable | 24 | 21 | 535 | 32 | 75 | 181 | 85 | 256 | 1209 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
@@ -614,9 +614,21 @@ Differences:
 - libxml2's queries to the handler (`getEntity`, `getParameterEntity`,
   `resolveEntity`, `isStandalone`, `hasInternalSubset`, `hasExternalSubset`)
   have no counterpart: the parser keeps the declarations and a `Resolver`
-  loads resources. There is no locator (`setDocumentLocator`; errors carry
-  offsets into the UTF-8 text), no `ignorableWhitespace` (the slice reader
-  rejects `NOBLANKS`), and no SAX1 `startElement`/`endElement`.
+  loads resources. There is no `ignorableWhitespace` (the slice reader
+  rejects `NOBLANKS`; libxml2 2.15.4 itself drops the blanks without calling
+  it under `NOBLANKS`, and otherwise calls it only for a handler whose
+  `ignorableWhitespace` is not its `characters`, judging blanks by the tree
+  libxml2's SAX2 builder holds), and no SAX1 `startElement`/`endElement`.
+- `Handler::locate` (`setDocumentLocator` with the locator's queries:
+  `Locator::line`, `column`, `system_id`, `offset`) is called when the place
+  changes. The place is libxml2's parsing point: after the event's markup, at
+  a start tag's `>` or `/>`, past the blanks after the XML declaration for
+  `start_document`, and after a fatal error the end of the input (libxml2
+  reads on with SAX disabled) unless the error is outside the root element
+  (`tests/sax.rs` pins libxml2's lines and columns). Declaration callbacks get
+  the end of the DOCTYPE (the root's start tag for the external subset), and
+  entity content the end of the reference; libxml2 reports the declaration's
+  own place and places in the entity's text.
 
 ## Debugging dumps
 

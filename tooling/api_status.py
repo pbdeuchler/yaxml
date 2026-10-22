@@ -479,13 +479,19 @@ P|_xmlSAXHandler.serror|sax::Handler::error - warning, error and fatal_error rec
 A|_xmlSAXHandler.startElement _xmlSAXHandler.endElement startElementSAXFunc endElementSAXFunc attributeSAXFunc|SAX1 callbacks; sax::Handler::start_element gets expanded names
 A|_xmlSAXHandler.getEntity _xmlSAXHandler.getParameterEntity _xmlSAXHandler.resolveEntity _xmlSAXHandler.isStandalone _xmlSAXHandler.hasInternalSubset _xmlSAXHandler.hasExternalSubset getEntitySAXFunc getParameterEntitySAXFunc resolveEntitySAXFunc isStandaloneSAXFunc hasInternalSubsetSAXFunc hasExternalSubsetSAXFunc|queries to the handler; the parser keeps the declarations and a Resolver loads resources
 A|_xmlSAXHandler.initialized _xmlSAXHandler._private|C handler-table bookkeeping; a Handler is a Rust value
-N|_xmlSAXHandler.setDocumentLocator setDocumentLocatorSAXFunc|no SAX locator; errors carry offsets
+P|_xmlSAXHandler.setDocumentLocator setDocumentLocatorSAXFunc|sax::Handler::locate - called when the place changes, with the place
 N|_xmlSAXHandler.ignorableWhitespace ignorableWhitespaceSAXFunc|sax::parse reads with the slice Reader, which rejects NOBLANKS
 P|xmlSAXHandler _xmlSAXHandler|sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
 A|xmlSAXHandlerPtr|raw pointer alias
 A|xmlDefaultSAXHandler|sax::Handler - its default methods do nothing; OwnedDocument builds trees
 A|xmlSAXHandlerV1 xmlSAXHandlerV1Ptr _xmlSAXHandlerV1 _xmlSAXHandlerV1.*|SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
-N|xmlDefaultSAXLocator xmlSAXLocator xmlSAXLocatorPtr _xmlSAXLocator _xmlSAXLocator.*|no SAX locator; errors carry offsets
+P|xmlSAXLocator _xmlSAXLocator|sax::Locator - declaration callbacks and entity content get the place of the DOCTYPE, root or reference
+I|_xmlSAXLocator.getLineNumber|sax::Locator::line
+I|_xmlSAXLocator.getColumnNumber|sax::Locator::column
+I|_xmlSAXLocator.getSystemId|sax::Locator::system_id
+A|_xmlSAXLocator.getPublicId|always null in libxml2
+A|xmlDefaultSAXLocator|sax::Locator - sax::parse supplies it
+A|xmlSAXLocatorPtr|raw pointer alias
 N|xmlExternalEntityLoader|use Resolver
 P|xmlParserCtxt|PushParser
 A|xmlParserInput xmlParserCtxtPtr xmlParserInputPtr xmlParserNodeInfoPtr xmlParserNodeInfoSeqPtr|input stream or raw pointer alias
@@ -1041,7 +1047,11 @@ R|LIBXML_HTTP_STUBS_ENABLED|HTTP/FTP stubs removed upstream
 A|LIBXML_VERSION_EXTRA LIBXML_MODULE_EXTENSION LIBXML_THREAD_ALLOC_ENABLED LIBXML_ATTR_ALLOC_SIZE LIBXML_ATTR_FORMAT LIBXML_DLL_IMPORT XMLCALL XMLCDECL XMLPUBFUN XMLPUBVAR XML_DEPRECATED XML_DEPRECATED_MEMBER|C build or ABI macro
 P|LIBXML_*_ENABLED|features::Feature - runtime query rather than a build macro
 # ---- SAX2.h xlink.h
-N|xmlSAX2GetLineNumber xmlSAX2GetColumnNumber xmlSAX2GetPublicId xmlSAX2GetSystemId xmlSAX2SetDocumentLocator|no SAX locator; errors carry offsets
+I|xmlSAX2GetLineNumber|sax::Locator::line
+I|xmlSAX2GetColumnNumber|sax::Locator::column
+I|xmlSAX2GetSystemId|sax::Locator::system_id
+A|xmlSAX2GetPublicId|always null in libxml2
+A|xmlSAX2SetDocumentLocator|the SAX2 default does nothing, as sax::Handler::locate
 A|xmlSAX2* xmlSAXVersion|libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
 R|xlink* XLINK_* _xlinkHandler*|xlink.h is deprecated in 2.15.4 ("don't use"); the parser never calls its handlers
 # ---- xmlstring.h chvalid.h dict.h hash.h list.h debugXML.h threads.h xmlmemory.h xmlmodule.h nanohttp.h

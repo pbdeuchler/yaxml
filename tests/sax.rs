@@ -16,11 +16,14 @@ struct Log {
     lines: String,
     /// Stop at the first callback whose line starts with this.
     stop: Option<&'static str>,
+    /// Prefix each line with the locator's `@line:column`.
+    places: bool,
+    place: String,
 }
 
 impl Log {
     fn line(&mut self, line: String) -> ControlFlow<()> {
-        writeln!(self.lines, "{line}").unwrap();
+        writeln!(self.lines, "{}{line}", self.place).unwrap();
         match self.stop {
             Some(stop) if line.starts_with(stop) => ControlFlow::Break(()),
             _ => ControlFlow::Continue(()),
@@ -33,6 +36,11 @@ fn s(text: Option<&str>) -> &str {
 }
 
 impl sax::Handler for Log {
+    fn locate(&mut self, locator: &sax::Locator<'_>) {
+        if self.places {
+            self.place = format!("@{}:{} ", locator.line(), locator.column());
+        }
+    }
     fn start_document(&mut self, declaration: Option<&Declaration<'_>>) -> ControlFlow<()> {
         let version = declaration.map(|declaration| declaration.version);
         self.line(format!("startDocument {}", s(version)))
@@ -336,4 +344,79 @@ fn input_and_option_errors_come_before_any_callback() {
     let mut log = Log::default();
     sax::parse(&utf16, ParseOptions::default(), &mut log).unwrap();
     assert!(log.lines.contains("characters é|"), "{}", log.lines);
+}
+
+#[test]
+fn the_locator_is_libxml2s_parsing_point() {
+    // Recorded from xmlSAX2GetLineNumber/ColumnNumber in each callback.
+    let cases = [
+        (
+            "\u{feff}<r>é\u{e9}x</r>",
+            "@1:1 startDocument -\n@1:3 startElementNs r - -\n@1:7 characters ééx|\n\
+             @1:11 endElementNs r - -\n@1:11 endDocument\n",
+        ),
+        (
+            "<r\n a=\"x\ny\"\n>t</r>",
+            "@1:1 startDocument -\n@4:1 startElementNs r - - -a{-}=x y\n@4:3 characters t|\n\
+             @4:7 endElementNs r - -\n@4:7 endDocument\n",
+        ),
+        (
+            "<?xml version=\"1.0\"?><!--c-->\n<r/>  \n<!--d-->\n",
+            "@1:22 startDocument 1.0\n@1:30 comment c\n@2:3 startElementNs r - -\n\
+             @2:5 endElementNs r - -\n@3:9 comment d\n@4:1 endDocument\n",
+        ),
+        (
+            "<?xml version=\"1.0\"?>\n<r>\n  t <![CDATA[x]]><?p d?>\n<é b=\"2\"/></r>",
+            "@2:1 startDocument 1.0\n@2:3 startElementNs r - -\n@3:5 characters \n  t |\n\
+             @3:18 cdataBlock x\n@3:25 processingInstruction p d\n@4:1 characters \n|\n\
+             @4:9 startElementNs é - - -b{-}=2\n@4:11 endElementNs é - -\n\
+             @4:15 endElementNs r - -\n@4:15 endDocument\n",
+        ),
+        (
+            "<r><a></a></r",
+            "@1:1 startDocument -\n@1:3 startElementNs r - -\n@1:6 startElementNs a - -\n\
+             @1:11 endElementNs a - -\n@1:14 fatal UnexpectedEof\n@1:14 endDocument\n",
+        ),
+        (
+            "<r><a></b></r>",
+            "@1:1 startDocument -\n@1:3 startElementNs r - -\n@1:6 startElementNs a - -\n\
+             @1:15 fatal MismatchedEndTag\n@1:15 endDocument\n",
+        ),
+        // Outside the root element libxml2 stops at the error.
+        (
+            "<r/>x  ",
+            "@1:1 startDocument -\n@1:3 startElementNs r - -\n@1:5 endElementNs r - -\n\
+             @1:5 fatal TextOutsideRoot\n@1:5 endDocument\n",
+        ),
+        (
+            "x<r/>",
+            "@1:1 startDocument -\n@1:1 fatal TextOutsideRoot\n@1:1 endDocument\n",
+        ),
+    ];
+    for (input, expected) in cases {
+        let mut log = Log {
+            places: true,
+            ..Log::default()
+        };
+        let _ = sax::parse(input.as_bytes(), ParseOptions::default(), &mut log);
+        assert_eq!(log.lines, expected, "{input}");
+    }
+}
+
+#[test]
+fn the_locator_names_the_base() {
+    #[derive(Default)]
+    struct Base(Vec<Option<String>>);
+    impl sax::Handler for Base {
+        fn locate(&mut self, locator: &sax::Locator<'_>) {
+            self.0.push(locator.system_id().map(str::to_owned));
+        }
+    }
+    for base in [None, Some("doc.xml")] {
+        let mut handler = Base::default();
+        let options = ParseOptions::default().base(base.map(str::to_owned));
+        sax::parse(b"<r/>", options, &mut handler).unwrap();
+        // Start, the start tag's `/>`, after it.
+        assert_eq!(handler.0, vec![base.map(str::to_owned); 3], "{base:?}");
+    }
 }
