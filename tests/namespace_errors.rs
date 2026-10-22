@@ -9,7 +9,7 @@
 use std::io::BufReader;
 use std::ops::ControlFlow;
 
-use yaxml::options::{NOENT, RECOVER};
+use yaxml::options::{DTDATTR, DTDVALID, NOENT, RECOVER};
 use yaxml::{
     BufferedReader, Document, EditLimits, Error, ErrorKind, Event, LineIndex, NodeKind, NodeType,
     OwnedDocument, ParseOptions, PushParser, Reader, TextReader,
@@ -401,6 +401,24 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
         ("<!DOCTYPE r [<!ENTITY % e \"<!ENTITY quot 'q'>\">%e;]><r/>",
          Warning::PredefinedEntity, Domain::Parser, 117, W, 50,
          "Invalid redeclaration of predefined entity 'quot'"),
+        ("<r xml:id=\"1a\"/>", Warning::XmlIdValue, Domain::Parser, 539, E, 15,
+         "xml:id : attribute value 1a is not an NCName"),
+        ("<r xml:id=\"1\" b=\"2\"  />", Warning::XmlIdValue, Domain::Parser, 539, E, 22,
+         "xml:id : attribute value 1 is not an NCName"),
+        ("<r xml:id=\"&#49;\"/>", Warning::XmlIdValue, Domain::Parser, 539, E, 18,
+         "xml:id : attribute value 1 is not an NCName"),
+        ("<r xml:id=''/>", Warning::XmlIdValue, Domain::Parser, 539, E, 13,
+         "xml:id : attribute value  is not an NCName"),
+        ("<r xml:id='p:q'>x</r>", Warning::XmlIdValue, Domain::Parser, 539, E, 16,
+         "xml:id : attribute value p:q is not an NCName"),
+        ("<!DOCTYPE r [<!ENTITY e \"1\">]><r xml:id=\"&e;\"/>", Warning::XmlIdValue,
+         Domain::Parser, 539, E, 45, "xml:id : attribute value 1 is not an NCName"),
+        ("<!DOCTYPE r [<!ATTLIST r xml:id CDATA #IMPLIED>]><r/>", Warning::XmlIdType,
+         Domain::Parser, 540, E, 47, "xml:id : attribute type should be ID"),
+        ("<!DOCTYPE r [<!ATTLIST r b CDATA #IMPLIED xml:id NMTOKEN #IMPLIED >]><r/>",
+         Warning::XmlIdType, Domain::Parser, 540, E, 67, "xml:id : attribute type should be ID"),
+        ("<!DOCTYPE r [<!ENTITY % p \"<!ATTLIST r xml:id CDATA #IMPLIED>\">%p;]><r/>",
+         Warning::XmlIdType, Domain::Parser, 540, E, 66, "xml:id : attribute type should be ID"),
     ];
     for &(input, warning, domain, code, level, column, message) in cases {
         let (_, reference) = document(input.as_bytes(), 0).unwrap();
@@ -446,6 +464,43 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
             assert_eq!(offsets, [13, 24], "{surface} flags {flags}");
         }
     }
+    // Values libxml2 accepts or never checks: blanks around an NCName,
+    // entity content,
+    // and a character reference that spells a valid value (a lent value).
+    #[rustfmt::skip]
+    let silent: &[&str] = &[
+        "<r xml:id=' a '/>", "<r xml:id='\u{e9}1'/>", "<r xml:id='_1\u{b7}'/>",
+        "<!DOCTYPE r [<!ENTITY e \"<a xml:id='1'/>\">]><r>&e;</r>",
+        "<r xml:space='&#100;efault' xml:id='&#97;'/>",
+    ];
+    for &input in silent {
+        for flags in [0, RECOVER] {
+            for (surface, parse) in SURFACES {
+                let (_, errors) = parse(input.as_bytes(), flags)
+                    .unwrap_or_else(|error| panic!("{surface} {flags} rejected {input}: {error}"));
+                assert_eq!(errors, [], "{surface} flags {flags}: {input}");
+            }
+        }
+    }
+    // Nor is a value that keeps its references (no NOENT), or one a DOCTYPE
+    // validates.
+    let input = b"<!DOCTYPE r [<!ENTITY e '1'>]><r xml:id='&e;'/>";
+    assert_eq!(OwnedDocument::parse_bytes(input).unwrap().errors(), []);
+    let input = b"<!DOCTYPE r [<!ATTLIST r xml:id ID #IMPLIED>]><r xml:id='1'/>";
+    let document = OwnedDocument::parse_with(input, options(DTDVALID)).unwrap();
+    assert_eq!(document.errors(), []);
+    // A default is checked at its tag, normalized as its type is.
+    let input = b"<!DOCTYPE r [<!ATTLIST r xml:id ID ' 9 '>]><r/>";
+    let document = OwnedDocument::parse_with(input, options(DTDATTR)).unwrap();
+    let [error] = document.errors() else {
+        panic!("{:?}", document.errors())
+    };
+    let found = error.describe(&LineIndex::new(input));
+    let message = "xml:id : attribute value 9 is not an NCName";
+    assert_eq!(
+        (found.code, found.column, &*found.message),
+        (539, 46, message)
+    );
     // A strict well-formedness error still fails after a warning.
     let input = b"<?xml version='1.1'?><r></s>";
     for (surface, parse) in SURFACES {

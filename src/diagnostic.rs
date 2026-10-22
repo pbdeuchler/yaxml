@@ -259,6 +259,10 @@ pub mod code {
     pub const NS_ATTRIBUTE_REDEFINED: u16 = 203;
     /// `XML_NS_ERR_COLON`.
     pub const NS_COLON: u16 = 205;
+    /// `XML_DTD_XMLID_VALUE`, raised by the parser.
+    pub const DTD_XMLID_VALUE: u16 = 539;
+    /// `XML_DTD_XMLID_TYPE`, raised by the parser.
+    pub const DTD_XMLID_TYPE: u16 = 540;
     /// `XML_HTML_STRUCURE_ERROR`.
     pub const HTML_STRUCTURE_ERROR: u16 = 800;
     /// `XML_IO_LOAD_ERROR`.
@@ -292,9 +296,14 @@ impl Warning {
             Self::EncodingMismatch => (WAR_ENCODING_MISMATCH, Domain::Parser),
             Self::UndeclaredEntity { .. } => (WAR_UNDECLARED_ENTITY, Domain::Parser),
             Self::PredefinedEntity => (REDECL_PREDEF_ENTITY, Domain::Parser),
+            Self::XmlIdValue => (DTD_XMLID_VALUE, Domain::Parser),
+            Self::XmlIdType => (DTD_XMLID_TYPE, Domain::Parser),
         };
         let level = match self {
-            Self::NamespaceUri | Self::UndeclaredEntity { error: true } => Level::Error,
+            Self::NamespaceUri
+            | Self::UndeclaredEntity { error: true }
+            | Self::XmlIdValue
+            | Self::XmlIdType => Level::Error,
             _ => Level::Warning,
         };
         (code, domain, level)
@@ -778,7 +787,14 @@ impl LineIndex<'_> {
     /// `;`), past which the cursor is.
     fn cursor(&self, code: u16, at: usize) -> usize {
         let t = self.text();
-        if code == REDECL_PREDEF_ENTITY && matches!(t.get(at), Some(b'"' | b'\'' | b';')) {
+        let lags = match code {
+            REDECL_PREDEF_ENTITY => matches!(t.get(at), Some(b'"' | b'\'' | b';')),
+            DTD_XMLID_TYPE => t.get(at) == Some(&b';'),
+            // The column lags the tag end after an expanded entity.
+            DTD_XMLID_VALUE => !matches!(t.get(at), Some(b'/' | b'>')),
+            _ => false,
+        };
+        if lags {
             return at + 1;
         }
         if code != MISPLACED_CDATA_END {

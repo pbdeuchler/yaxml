@@ -1130,6 +1130,8 @@ def error_rule(i, ctx):
         return by_code(ctx.xsd, ctx.err[i], "xsd::Code", "XML_SCHEMA*")
     if i.startswith("XML_RNGP_") or i == "XML_ERR_RESOURCE_LIMIT":
         return by_code(ctx.rngp, ctx.err[i], "relaxng::SchemaCode", "XML_RNGP")
+    if i.startswith("XML_DTD_") and (name := DIAG_NAME(i)) in DIAG_CODES:
+        return "I", f"diagnostic::code::{name} - parser domain"
     if i.startswith("XML_DTD_") or i in ("XML_ERR_UNDECLARED_ENTITY", "XML_ERR_ENTITY_BOUNDARY"):
         return by_code(ctx.valid, ctx.err[i], "valid::Code", "XML_DTD")
     if i.startswith("XML_SCHEMATRONV_"):

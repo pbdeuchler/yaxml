@@ -2482,8 +2482,8 @@ xmlerror.h	XML_DTD_UNKNOWN_ELEM	enum_value	not_marked	P0-P3	implemented	https://
 xmlerror.h	XML_DTD_UNKNOWN_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::UnknownEntity
 xmlerror.h	XML_DTD_UNKNOWN_ID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::UnknownId
 xmlerror.h	XML_DTD_UNKNOWN_NOTATION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	valid::Code::UnknownNotation
-xmlerror.h	XML_DTD_XMLID_TYPE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
-xmlerror.h	XML_DTD_XMLID_VALUE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no yaxml diagnostic carries this XML_DTD code
+xmlerror.h	XML_DTD_XMLID_TYPE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::DTD_XMLID_TYPE - parser domain
+xmlerror.h	XML_DTD_XMLID_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::DTD_XMLID_VALUE - parser domain
 xmlerror.h	XML_ERR_ARGUMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::ARGUMENT
 xmlerror.h	XML_ERR_ATTLIST_NOT_FINISHED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::ATTLIST_NOT_FINISHED
 xmlerror.h	XML_ERR_ATTLIST_NOT_STARTED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::ATTLIST_NOT_STARTED

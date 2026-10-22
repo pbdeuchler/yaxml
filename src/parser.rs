@@ -7,7 +7,7 @@ use memchr::memchr;
 
 use crate::dtd_tag::{Defaulted, TagDeclarations};
 use crate::escape::{needs_normalization, normalize_text};
-use crate::name::{name_char, name_start, qname, validate_name};
+use crate::name::{is_ncname, name_char, name_start, qname, validate_name};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
@@ -329,6 +329,16 @@ struct LentValues {
 }
 
 impl<'source> ParserState<'source> {
+    /// `value`, or the lent text its placeholder stands for.
+    fn unlent<'v>(&'v self, value: &'v str) -> &'v str {
+        match &self.lent {
+            Some(lent) if value == LENT_VALUE => {
+                (lent[0].ranges.last()).map_or(value, |range| &lent[0].values[range.clone()])
+            }
+            _ => value,
+        }
+    }
+
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         &mut self.budget
     }
@@ -1269,6 +1279,7 @@ impl<'source> ParserState<'source> {
         }
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();
+        let mut xml_id = None;
         loop {
             let attribute = match scan.attribute(&mut |error| self.budget.recover(error)) {
                 Ok(Some(attribute)) => attribute,
@@ -1323,9 +1334,24 @@ impl<'source> ParserState<'source> {
                     Err(error) => return Err(error),
                 }
             };
-            if name == "xml:space" && !matches!(&*value, "default" | "preserve") {
-                let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
-                self.budget.recover(Error::new(warning, offset))?;
+            match name {
+                "xml:space" if !matches!(self.unlent(&value), "default" | "preserve") => {
+                    let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
+                    self.budget.recover(Error::new(warning, offset))?;
+                }
+                // SAX2 checks `xml:id` unless the value keeps references, the
+                // element is entity content or a DOCTYPE validates it.
+                "xml:id"
+                    if kept.is_none()
+                        && !self.replacement
+                        && !(declarations.is_some() && self.flags.validates())
+                        && !is_ncname(
+                            self.unlent(&value).trim_matches([' ', '\t', '\n', '\r']),
+                        ) =>
+                {
+                    xml_id = Some(offset);
+                }
+                _ => {}
             }
             let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
@@ -1381,6 +1407,14 @@ impl<'source> ParserState<'source> {
         }
         if let Some(declarations) = declarations {
             for default in declarations.defaults(&mut self.budget, qualified, start)? {
+                if default.0 == "xml:id"
+                    && default.2.is_none()
+                    && !self.replacement
+                    && !self.flags.validates()
+                    && !is_ncname(default.1.trim_matches([' ', '\t', '\n', '\r']))
+                {
+                    xml_id.get_or_insert(start);
+                }
                 self.default_attribute(&mut attributes, default, start, retain)?;
             }
         }
@@ -1395,6 +1429,10 @@ impl<'source> ParserState<'source> {
         if element_prefix.is_some() && name.namespace().is_none() {
             let error = Error::new(ErrorKind::Namespace, start + 1);
             self.budget.recover(error)?;
+        }
+        if let Some(offset) = xml_id {
+            let warning = ErrorKind::Warning(crate::Warning::XmlIdValue);
+            self.budget.recover(Error::new(warning, offset))?;
         }
         let element = Element {
             name,

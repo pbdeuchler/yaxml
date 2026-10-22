@@ -508,17 +508,16 @@ impl<'input> DtdControllerCore<'input> {
             },
         );
         self.counters.work += self.catalog.usage().work - before;
-        let redeclared = result.map_err(|error| {
+        let warning = result.map_err(|error| {
             let offset = match error.offset {
                 Some(offset) => unit_offset(encoding, origin, unit.raw(), offset),
                 None => origin.error_offset(),
             };
             Error::new(error.kind, offset)
         })?;
-        if redeclared {
-            let offset = unit_offset(encoding, origin, unit.raw(), 0);
-            let warning = ErrorKind::Warning(crate::Warning::PredefinedEntity);
-            budget.recover(Error::new(warning, offset))?;
+        if let Some((warning, at)) = warning {
+            let offset = unit_offset(encoding, origin, unit.raw(), at);
+            budget.recover(Error::new(ErrorKind::Warning(warning), offset))?;
         }
         // Released once applied: recovery cuts the subset before a unit the
         // catalog rejects.

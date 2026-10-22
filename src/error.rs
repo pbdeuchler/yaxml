@@ -81,6 +81,13 @@ pub enum Warning {
     /// section 4.6 allows; the declaration is dropped
     /// (`XML_ERR_REDECL_PREDEF_ENTITY`).
     PredefinedEntity,
+    /// An `xml:id` value that is not an NCName (`XML_DTD_XMLID_VALUE`, at
+    /// error level), unless the value keeps entity references, the element
+    /// is entity content, or `DTDVALID` validates against a DOCTYPE.
+    XmlIdValue,
+    /// An internal-subset `xml:id` attribute declared with a type other
+    /// than ID (`XML_DTD_XMLID_TYPE`, at error level).
+    XmlIdType,
 }
 
 /// What went wrong in an [`Error`].

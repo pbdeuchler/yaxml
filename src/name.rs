@@ -235,6 +235,12 @@ pub(crate) fn name_chars_length(text: &str, colon: bool) -> usize {
             .map_or(rest.len(), |(i, _)| i)
 }
 
+/// An `NCName`, as `xmlValidateNCName` without blanks reads one.
+pub(crate) fn is_ncname(name: &str) -> bool {
+    name.chars().next().is_some_and(|c| name_start(c, false))
+        && name_chars_length(name, false) == name.len()
+}
+
 pub(crate) fn name_char(c: char, colon: bool) -> bool {
     name_start(c, colon)
         || matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')

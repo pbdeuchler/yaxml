@@ -509,9 +509,15 @@ pub(crate) enum DefaultDeclarationView<'a> {
 pub(crate) struct AttributeDefinitionView<'a> {
     unit: &'a DtdUnit<'a>,
     meta: &'a AttributeDefinitionMeta,
+    end: usize,
 }
 
 impl<'a> AttributeDefinitionView<'a> {
+    /// Where the definition ends in its unit, past the default.
+    pub(crate) fn end(self) -> usize {
+        self.end
+    }
+
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(self.meta.name)
     }
@@ -554,9 +560,11 @@ impl<'a> AttributeListView<'a> {
         unit.tokens
             .iter()
             .filter_map(move |token| match &token.kind {
-                TokenKind::AttributeDefinition(meta) => {
-                    Some(AttributeDefinitionView { unit, meta })
-                }
+                TokenKind::AttributeDefinition(meta) => Some(AttributeDefinitionView {
+                    unit,
+                    meta,
+                    end: token.range.end,
+                }),
                 _ => None,
             })
     }

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, TryReserveError, VecDeque};
 use std::rc::Rc;
 
 use crate::fallible::TryPush;
-use crate::name::{name_char, name_start};
+use crate::name::is_ncname;
 use crate::pattern::{self, Pattern};
 use crate::xpath::tree::{Item, Navigate, attributes, namespaces};
 use crate::{ErrorKind, OwnedDocument, OwnedNodeId, Request, Resolver, ResourceKind};
@@ -437,11 +437,6 @@ const FACETS: [&str; 12] = [
     "maxLength",
     "minLength",
 ];
-
-fn is_ncname(text: &str) -> bool {
-    let mut chars = text.chars();
-    chars.next().is_some_and(|c| name_start(c, false)) && chars.all(|c| name_char(c, false))
-}
 
 fn is_qname(text: &str) -> bool {
     match text.split_once(':') {

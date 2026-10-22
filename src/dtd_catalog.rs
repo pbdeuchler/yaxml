@@ -478,15 +478,15 @@ impl DtdCatalog {
             .iter()
     }
 
-    /// Applies one declaration; `true` when it is an invalid redeclaration of
-    /// a predefined entity, dropped (libxml2's `XML_ERR_REDECL_PREDEF_ENTITY`
-    /// warning). Failure offsets are relative to `unit`, or absent inside
-    /// replacement text.
+    /// Applies one declaration, returning the warning libxml2 raises for it
+    /// and where in `unit`: an invalid redeclaration of a predefined entity
+    /// (dropped) or an `xml:id` attribute declared other than ID. Failure
+    /// offsets are relative to `unit`, or absent inside replacement text.
     pub(crate) fn apply(
         &mut self,
         unit: &DtdUnit<'_>,
         context: DeclarationContext,
-    ) -> Result<bool, DtdError> {
+    ) -> Result<Option<(crate::Warning, usize)>, DtdError> {
         let at = Some(0);
         let limits = self.limits;
         increment(
@@ -544,10 +544,10 @@ impl DtdCatalog {
                             && let Some(character) = predefined(entity.name())
                             && !valid_predefined(entity.name(), character, &result)
                         {
-                            return Ok(true);
+                            return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(false);
+                            return Ok(None);
                         }
                         let bytes = result.len();
                         input = context.input.filter(|_| result == content);
@@ -559,10 +559,10 @@ impl DtdCatalog {
                         notation,
                     } => {
                         if !parameter && predefined(entity.name()).is_some() {
-                            return Ok(true);
+                            return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(false);
+                            return Ok(None);
                         }
                         let bytes = checked_sum(&[
                             identifier
@@ -582,8 +582,12 @@ impl DtdCatalog {
                 self.insert_entity(entity.name(), (parameter, bound, input), body)?;
             }
             DtdUnitView::AttributeList(list) => {
+                let mut warning = None;
                 for definition in list.definitions() {
                     let kind = definition.kind();
+                    if definition.name() == "xml:id" && kind != AttributeKind::Id {
+                        warning.get_or_insert((crate::Warning::XmlIdType, definition.end()));
+                    }
                     let default = match definition.default() {
                         DefaultDeclarationView::Required => StoredDefault::Required,
                         DefaultDeclarationView::Implied => StoredDefault::Implied,
@@ -646,6 +650,7 @@ impl DtdCatalog {
                         .map_err(|()| allocation())?;
                     self.attribute_lists = true;
                 }
+                return Ok(warning);
             }
             DtdUnitView::Element(view) => {
                 let element = self.element_slot(view.name())?;
@@ -683,7 +688,7 @@ impl DtdCatalog {
             }
             _ => {}
         }
-        Ok(false)
+        Ok(None)
     }
 
     /// The index of `name`'s element declaration, created on first use.

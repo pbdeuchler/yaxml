@@ -2007,6 +2007,53 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             let message = format!("Invalid redeclaration of predefined entity '{name}'");
             fail(code, end, message).strs(name, None)
         }
+        // Raised by SAX2 at the tag's `/>` or `>` (one column early once the
+        // tag expanded a declared entity) with the normalized value; a
+        // default (`DTDATTR`) at its tag. The element's first internal-subset
+        // definition of `xml:id` gives a default's literal, and with a
+        // tokenized type the value is normalized as one.
+        Warning::XmlIdValue => {
+            let tag = memchr::memrchr(b'<', &t[..=c.i]).unwrap_or(0);
+            let mut r = Cur { i: tag + 1, ..*c };
+            let attlist = format!("<!ATTLIST {} ", r.name(true).unwrap_or_default());
+            let definition = |at: usize| {
+                let end = unquoted(t, at, b">")?;
+                let id = at + 6 + memchr::memmem::find(&t[at..end], b"xml:id")?;
+                let kind = String::from_utf8_lossy(&t[id..end]);
+                let tokenized = kind.split_ascii_whitespace().next() != Some("CDATA");
+                Some((tokenized, (id..end).find(|&i| matches!(t[i], b'"' | b'\''))))
+            };
+            let definition =
+                memchr::memmem::find_iter(&t[..tag], attlist.as_bytes()).find_map(definition);
+            let (open, from) = match c.i == tag {
+                true => (definition.and_then(|(_, open)| open).unwrap_or(tag), tag),
+                false => (open, close + 1),
+            };
+            let mut r = Cur { i: open, ..*c };
+            let mut value = att_value(&mut r, ErrorKind::Syntax, open).unwrap_or_default();
+            if definition.is_some_and(|(tokenized, _)| tokenized) {
+                value = value.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+            }
+            let end = unquoted(t, from, b">").unwrap_or(t.len());
+            let expanded = (String::from_utf8_lossy(&t[tag..end]).split('&').skip(1))
+                .filter_map(|rest| Some(rest.split_once(';')?.0))
+                .any(|name| !name.starts_with('#') && predefined(name).is_none());
+            let end = end - usize::from(t[end - 1] == b'/') - usize::from(expanded);
+            let message = format!("xml:id : attribute value {value} is not an NCName");
+            fail(code, end, message).strs(&value, None)
+        }
+        // Raised past the definition's default (`at` = its end) and the
+        // blanks after it, or at the `;` of the parameter-entity reference
+        // there (the caret past it, see `LineIndex::cursor`).
+        Warning::XmlIdType => {
+            let mut r = Cur { ..*c };
+            r.blanks();
+            if r.b() == b'%' {
+                r.i += 1;
+                r.name(true);
+            }
+            r.here(code, "xml:id : attribute type should be ID")
+        }
         Warning::UndeclaredEntity { .. } => {
             let mut r = Cur {
                 i: c.i + usize::from(!c.eof()),

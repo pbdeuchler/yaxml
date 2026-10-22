@@ -8,9 +8,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 585 | 64 | 0 | 97 | 14 | 159 | 1048 |
+| implemented | 22 | 107 | 587 | 64 | 0 | 97 | 14 | 159 | 1050 |
 | partial | 1 | 25 | 243 | 40 | 0 | 92 | 52 | 99 | 552 |
-| not-started | 0 | 18 | 441 | 47 | 0 | 27 | 2 | 421 | 956 |
+| not-started | 0 | 18 | 439 | 47 | 0 | 27 | 2 | 421 | 954 |
 | not-applicable | 24 | 21 | 530 | 32 | 75 | 181 | 85 | 256 | 1204 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
@@ -350,13 +350,18 @@ on `Diagnostic::level`.
 | `EncodingMismatch` (`XML_WAR_ENCODING_MISMATCH`, warning) | a BOM or signature that disagrees with the declared label |
 | `UndeclaredEntity` (`XML_WAR_UNDECLARED_ENTITY`; error with `NOENT`/`DTDLOAD`/`DTDATTR`) | an undeclared reference libxml2 does not make fatal (unread external subset or parameter entity), in content, attribute values and the internal subset |
 | `PredefinedEntity` (`XML_ERR_REDECL_PREDEF_ENTITY`, warning) | an internal-subset declaration of `lt`, `gt`, `amp`, `apos` or `quot` with replacement text XML 1.0 section 4.6 does not allow; the declaration is dropped (not stored or saved) |
+| `XmlIdValue` (`XML_DTD_XMLID_VALUE`, error) | an `xml:id` value (specified, or a `DTDATTR` default) that is no NCName once normalized and trimmed, as SAX2 checks it: not in entity content, not when the value keeps entity references (no `NOENT`), not when `DTDVALID` validates a DOCTYPE |
+| `XmlIdType` (`XML_DTD_XMLID_TYPE`, error) | an `xml:id` attribute declared with a type other than `ID` (every definition, also under `DTDVALID`) |
 
 Not matched: `PEDANTIC`-only warnings; the I/O warning for an external
 subset or entity that fails to load (`Ok(None)` from a resolver); warnings
 inside the external subset, ATTLIST defaults and entity values; a strict
 fatal error drops the warnings recorded before it (the parse returns only the
 error); context lines of a warning inside entity content or a parameter
-entity's replacement text. An editor's `add_declarations`/`set_internal_subset`
+entity's replacement text. For an empty `xml:id` libxml2 also reports the ID
+as already defined (a validity error it raises for the first empty ID); yaxml
+does not, and it describes an `xml:id` default from the external subset with
+an empty value (the re-reader sees only the internal subset). An editor's `add_declarations`/`set_internal_subset`
 drops such a declaration without an error (libxml2's `xmlAddDocEntity` fails).
 
 ### Document properties

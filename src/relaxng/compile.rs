@@ -11,7 +11,7 @@ use super::load::{El, Loader, Loc};
 use super::pattern::{Arena, EMPTY, Id, NOT_ALLOWED, NameClass, Pat, Store, TEXT, Tables};
 use super::{SchemaCode, SchemaError, check};
 use crate::fallible::{TryPush, cloned};
-use crate::name::{name_char, name_start};
+use crate::name::is_ncname;
 use crate::schema_types::Type;
 use crate::xpath::tree::XML_NAMESPACE;
 
@@ -791,9 +791,4 @@ fn fold<S, T: Copy>(state: &mut S, items: &[T], combine: fn(&mut S, T, T) -> T) 
             combine(state, left, right)
         }
     }
-}
-
-fn is_ncname(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars.next().is_some_and(|c| name_start(c, false)) && chars.all(|c| name_char(c, false))
 }
