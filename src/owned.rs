@@ -531,6 +531,8 @@ pub struct OwnedDocument<A: Allocator = Global> {
     errors: Vec<Error>,
     /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
     url: Option<String>,
+    /// Created or copied (`xmlNewDoc`), not parsed: `properties::USERBUILT`.
+    built: bool,
 }
 
 impl OwnedDocument {
@@ -906,7 +908,8 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2): namespace errors and warnings, which never stop a parse
+    /// libxml2, which past that still keeps the first error clearing a
+    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
     /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
     /// well-formedness error recovered from; empty for a namespace-well-formed
     /// document.
@@ -917,6 +920,16 @@ impl<A: Allocator> OwnedDocument<A> {
     /// Validity diagnostics found by `DTDVALID` after parsing; empty without it.
     pub fn validity(&self) -> &[crate::valid::Diagnostic<OwnedNodeId>] {
         &self.validity
+    }
+
+    /// libxml2's `doc->properties` bits ([`crate::properties`]); edits leave
+    /// them unchanged, as in libxml2.
+    pub fn properties(&self) -> u32 {
+        match (self.built, &self.html) {
+            (true, _) => crate::properties::USERBUILT,
+            (false, Some(_)) => crate::properties::HTML,
+            (false, None) => crate::properties::parsed(&self.errors, &self.validity, self.dtd()),
+        }
     }
 
     /// Checks the current tree against its DTD, as libxml2's `xmlValidateDocument`.
@@ -1969,6 +1982,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            built: false,
         })
     }
 }
@@ -2414,6 +2428,7 @@ impl HtmlBuilder {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            built: false,
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document

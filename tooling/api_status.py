@@ -356,7 +356,7 @@ TREE_FIELDS = {
     "_xmlDoc.type": ("P", "OwnedDocument::is_html"),
     "_xmlDoc.extSubset": ("N", "external subset not exposed"),
     "_xmlDoc.name": ("N", "not stored"),
-    "_xmlDoc.properties": ("N", "no document property flags"),
+    "_xmlDoc.properties": ("I", "Document::properties, OwnedDocument::properties"),
     "_xmlDoc.parseFlags": ("N", "flags are not stored"),
     "_xmlDoc.charset": ("N", "not stored"),
     "_xmlDoc.compression": ("A", "no compression"),
@@ -538,9 +538,15 @@ P|_xmlDtd.entities _xmlDtd.pentities|valid::Dtd::entities - an iterator over bot
 P|_xmlDtd.elements|valid::Dtd::elements
 P|_xmlDtd.attributes|valid::Element::attributes
 P|_xmlDtd.notations|valid::Dtd::notations
-P|XML_DOC_HTML|OwnedDocument::is_html
-N|XML_DOC_*|no document property flags
-N|xmlDocProperties|no document property flags
+I|XML_DOC_HTML|properties::HTML - also OwnedDocument::is_html
+I|XML_DOC_WELLFORMED|properties::WELLFORMED
+I|XML_DOC_NSVALID|properties::NSVALID
+I|XML_DOC_DTDVALID|properties::DTDVALID
+I|XML_DOC_USERBUILT|properties::USERBUILT
+I|XML_DOC_OLD10|properties::OLD10 - never set: OLD10 is rejected
+I|XML_DOC_XINCLUDE|properties::XINCLUDE - never set, as in libxml2 2.15.4
+I|XML_DOC_INTERNAL|properties::INTERNAL - never set: marks libxml2's scratch documents
+I|xmlDocProperties|properties
 N|XML_ELEMENT_DECL XML_ENTITY_DECL XML_NAMESPACE_DECL|no public DTD declaration nodes
 R|XML_DOCB_DOCUMENT_NODE xmlRegisterNodeFunc xmlDeregisterNodeFunc|DocBook and node registration callbacks removed upstream
 A|XML_XINCLUDE_START XML_XINCLUDE_END|xinclude never adds marker nodes (NOXINCNODE behaviour)
@@ -935,7 +941,8 @@ I|xmlRegexpCompile|regexp::Regex::new
 I|xmlRegexpExec|regexp::Regex::is_match
 I|xmlRegexp|regexp::Regex
 A|xmlRegFreeRegexp xmlRegexpPtr|Drop
-N|xmlRegexpIsDeterminist xmlRegExecCallbacks xmlRegExecCtxt xmlRegExecCtxtPtr|push execution contexts not started (docs/compatibility.md)
+R|xmlRegExecCallbacks xmlRegExecCtxt xmlRegExecCtxtPtr|types of the push execution functions, deprecated in 2.15.4
+N|xmlRegexpIsDeterminist|a verdict on libxml2's epsilon-NFA construction; regexp::Regex compiles a Thompson NFA
 R|xmlAutomata* xmlFreeAutomata xmlNewAutomata|deprecated; LIBXML_AUTOMATA off in 2.15
 # ---- xinclude.h
 I|xmlXIncludeProcess xmlXIncludeProcessFlags xmlXIncludeProcessFlagsData|xinclude::process

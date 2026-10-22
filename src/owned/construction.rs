@@ -1335,6 +1335,7 @@ pub(super) fn create<A: Allocator + Clone>(
         validity: Vec::new(),
         errors: Vec::new(),
         url: None,
+        built: true,
     };
     let staged = stage(&staging_document, None, &root, limits)?;
     if limits.max_created_nodes < 1 {

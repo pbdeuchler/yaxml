@@ -389,7 +389,8 @@ impl<'input> Document<'input> {
     }
 
     /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2): namespace errors and warnings, which never stop a parse
+    /// libxml2, which past that still keeps the first error clearing a
+    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
     /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
     /// well-formedness error recovered from; empty for a namespace-well-formed
     /// document.
@@ -400,6 +401,11 @@ impl<'input> Document<'input> {
     /// Validity diagnostics found by `DTDVALID`; empty without it.
     pub fn validity(&self) -> &[crate::valid::Diagnostic<NodeId>] {
         &self.validity
+    }
+
+    /// libxml2's `doc->properties` bits ([`crate::properties`]).
+    pub fn properties(&self) -> u32 {
+        crate::properties::parsed(&self.errors, &self.validity, self.dtd())
     }
 
     /// The declarations of the internal and loaded external subsets.

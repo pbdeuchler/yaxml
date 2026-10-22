@@ -93,6 +93,7 @@ mod owned;
 mod parser;
 #[cfg(feature = "xpath")]
 pub mod pattern;
+pub mod properties;
 mod push;
 mod reader;
 #[cfg(feature = "schemas")]

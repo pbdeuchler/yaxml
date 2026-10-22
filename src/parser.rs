@@ -92,13 +92,23 @@ impl Budget {
         {
             return Err(error);
         }
-        if self.recovered.len() < MAX_RECOVERED {
+        // Past the cap, like libxml2, the first error clearing a document
+        // property is still kept, so `properties` stays exact.
+        if self.recovered.len() < MAX_RECOVERED || self.first_to_clear(error.kind) {
             self.recovered
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, error.offset))?;
             self.recovered.push(error);
         }
         Ok(())
+    }
+
+    #[cold]
+    fn first_to_clear(&self, kind: ErrorKind) -> bool {
+        let cleared = self.recovered.iter().fold(0, |bits, error| {
+            bits | crate::properties::clears(error.kind)
+        });
+        crate::properties::clears(kind) & !cleared != 0
     }
 
     pub(crate) fn recovers(&self) -> bool {

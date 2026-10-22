@@ -1664,14 +1664,14 @@ tree.h	XML_DOCB_DOCUMENT_NODE	macro	not_marked	P0-P3	removed-upstream	https://gi
 tree.h	XML_DOCUMENT_FRAG_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document fragment node
 tree.h	XML_DOCUMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Document, OwnedNodeKind::Document
 tree.h	XML_DOCUMENT_TYPE_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Doctype, OwnedNodeKind::DocumentType
-tree.h	XML_DOC_DTDVALID	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_HTML	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::is_html
-tree.h	XML_DOC_INTERNAL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_NSVALID	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_OLD10	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_USERBUILT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_WELLFORMED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
-tree.h	XML_DOC_XINCLUDE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
+tree.h	XML_DOC_DTDVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::DTDVALID
+tree.h	XML_DOC_HTML	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::HTML - also OwnedDocument::is_html
+tree.h	XML_DOC_INTERNAL	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::INTERNAL - never set: marks libxml2's scratch documents
+tree.h	XML_DOC_NSVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::NSVALID
+tree.h	XML_DOC_OLD10	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::OLD10 - never set: OLD10 is rejected
+tree.h	XML_DOC_USERBUILT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::USERBUILT
+tree.h	XML_DOC_WELLFORMED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::WELLFORMED
+tree.h	XML_DOC_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::XINCLUDE - never set, as in libxml2 2.15.4
 tree.h	XML_DTD_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Doctype, OwnedNodeKind::DocumentType - the DTD node is the doctype node
 tree.h	XML_ELEMENT_CONTENT_ELEMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
 tree.h	XML_ELEMENT_CONTENT_MULT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no content-model tree; valid::Element::model prints it
@@ -1766,7 +1766,7 @@ tree.h	_xmlDoc.oldNs	field	not_marked	P0-P3	not-applicable	https://github.com/GN
 tree.h	_xmlDoc.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
 tree.h	_xmlDoc.parseFlags	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	flags are not stored
 tree.h	_xmlDoc.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
-tree.h	_xmlDoc.properties	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
+tree.h	_xmlDoc.properties	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::properties, OwnedDocument::properties
 tree.h	_xmlDoc.psvi	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no schema PSVI
 tree.h	_xmlDoc.refs	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlDoc.standalone	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Declaration
@@ -1935,7 +1935,7 @@ tree.h	xmlDocDumpMemory	function	not_marked	P0-P3	implemented	https://github.com
 tree.h	xmlDocDumpMemoryEnc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocFormatDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
 tree.h	xmlDocGetRootElement	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::document_element, OwnedDocument::document_element
-tree.h	xmlDocProperties	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document property flags
+tree.h	xmlDocProperties	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties
 tree.h	xmlDocPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlDocSetRootElement	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::append_child
 tree.h	xmlDtd	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
@@ -3407,9 +3407,9 @@ xmlreader.h	xmlTextReaderSetup	function	not_marked	P0-P2	partial	https://github.
 xmlreader.h	xmlTextReaderStandalone	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::standalone
 xmlreader.h	xmlTextReaderValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
 xmlreader.h	xmlTextReaderXmlLang	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_lang
-xmlregexp.h	xmlRegExecCallbacks	callback	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	push execution contexts not started (docs/compatibility.md)
-xmlregexp.h	xmlRegExecCtxt	typedef	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	push execution contexts not started (docs/compatibility.md)
-xmlregexp.h	xmlRegExecCtxtPtr	typedef	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	push execution contexts not started (docs/compatibility.md)
+xmlregexp.h	xmlRegExecCallbacks	callback	not_marked	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	types of the push execution functions, deprecated in 2.15.4
+xmlregexp.h	xmlRegExecCtxt	typedef	not_marked	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	types of the push execution functions, deprecated in 2.15.4
+xmlregexp.h	xmlRegExecCtxtPtr	typedef	not_marked	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	types of the push execution functions, deprecated in 2.15.4
 xmlregexp.h	xmlRegExecErrInfo	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	deprecated in 2.15.4
 xmlregexp.h	xmlRegExecNextValues	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	deprecated in 2.15.4
 xmlregexp.h	xmlRegExecPushString	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	deprecated in 2.15.4
@@ -3420,7 +3420,7 @@ xmlregexp.h	xmlRegNewExecCtxt	function	yes	P2-P3	removed-upstream	https://github
 xmlregexp.h	xmlRegexp	typedef	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex
 xmlregexp.h	xmlRegexpCompile	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex::new
 xmlregexp.h	xmlRegexpExec	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex::is_match
-xmlregexp.h	xmlRegexpIsDeterminist	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	push execution contexts not started (docs/compatibility.md)
+xmlregexp.h	xmlRegexpIsDeterminist	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	a verdict on libxml2's epsilon-NFA construction; regexp::Regex compiles a Thompson NFA
 xmlregexp.h	xmlRegexpPrint	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	deprecated in 2.15.4
 xmlregexp.h	xmlRegexpPtr	typedef	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	Drop
 xmlsave.h	XML_SAVE_AS_HTML	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::AS_HTML

@@ -8,11 +8,11 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 535 | 64 | 0 | 97 | 13 | 155 | 993 |
-| partial | 1 | 25 | 234 | 40 | 0 | 92 | 52 | 99 | 543 |
-| not-started | 0 | 18 | 583 | 47 | 0 | 27 | 6 | 425 | 1106 |
+| implemented | 22 | 107 | 545 | 64 | 0 | 97 | 13 | 155 | 1003 |
+| partial | 1 | 25 | 233 | 40 | 0 | 92 | 52 | 99 | 542 |
+| not-started | 0 | 18 | 574 | 47 | 0 | 27 | 3 | 425 | 1094 |
 | not-applicable | 24 | 21 | 447 | 32 | 75 | 181 | 85 | 256 | 1121 |
-| removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 142 | 297 |
+| removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
 No `P0` row is `not-started` (`chvalid.h` is `yaxml::chars`); the large `not-started` groups are the unmapped error codes (`xmlerror.h`), the schema component model (`schemasInternals.h`), SAX2 and DTD declaration construction. Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.
@@ -347,6 +347,22 @@ subset or entity that fails to load (`Ok(None)` from a resolver); warnings
 inside the external subset, ATTLIST defaults and entity values; a strict
 fatal error drops the warnings recorded before it (the parse returns only the
 error); context lines of a warning inside entity content.
+
+### Document properties
+
+`Document::properties` and `OwnedDocument::properties` return libxml2's
+`doc->properties` bits (module `yaxml::properties`), as
+`xmlSAX2EndDocument`, `xmlNewDoc` and `xmlCopyDoc` set them: a parsed XML
+document is `WELLFORMED` unless `RECOVER` recovered from an error, then
+`NSVALID` without namespace errors (`Warning::NamespaceUri` included) and
+`DTDVALID` unless `DTDVALID` validation failed, an undeclared entity was
+referenced, or an element or notation was declared twice (libxml2 clears
+`ctxt->valid` for those without validation too); parsed HTML is `HTML`;
+`OwnedDocument::create` and every `try_clone` are `USERBUILT`. Edits leave
+them unchanged. `OLD10`, `XINCLUDE` and `INTERNAL` are never set. To keep
+them exact past the 100-error cap, `errors()` still keeps the first error
+clearing a bit, as libxml2 keeps the first fatal error. `tests/properties.rs`
+pins these against values recorded from libxml2.
 
 ### Namespace errors
 
