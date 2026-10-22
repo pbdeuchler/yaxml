@@ -10,9 +10,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | implemented | 22 | 104 | 528 | 64 | 0 | 74 | 8 | 147 | 947 |
 | partial | 1 | 20 | 225 | 34 | 0 | 87 | 50 | 89 | 506 |
-| not-started | 0 | 26 | 603 | 53 | 0 | 64 | 14 | 475 | 1235 |
+| not-started | 0 | 26 | 603 | 53 | 0 | 64 | 14 | 443 | 1203 |
 | not-applicable | 24 | 21 | 443 | 32 | 75 | 172 | 84 | 256 | 1107 |
-| removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 110 | 265 |
+| removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 142 | 297 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
 No `P0` row is `not-started` (`chvalid.h` is `yaxml::chars`); the large `not-started` groups are the unmapped error codes (`xmlerror.h`), the schema component model (`schemasInternals.h`), SAX2 and DTD declaration construction. Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.

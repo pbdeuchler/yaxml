@@ -299,7 +299,6 @@ FIELD_DEFAULT = {
     "_xmlChSRange": ("A", "the chars predicates keep their range tables private"),
     "_xmlChRangeGroup": ("A", "the chars predicates keep their range tables private"),
     "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
-    "_xlinkHandler": ("N", "XLink callbacks not started"),
     "_xmlDOMWrapCtxt": ("A", "no DOM-wrapper context; copies plan namespaces themselves"),
     "_xmlEntity": ("A", "tree links and bookkeeping; valid::Entity is a borrowed view"),
     "_xmlElement": ("A", "tree links and bookkeeping; valid::Element is a borrowed view"),
@@ -955,7 +954,7 @@ A|LIBXML_VERSION_EXTRA LIBXML_MODULE_EXTENSION LIBXML_THREAD_ALLOC_ENABLED LIBXM
 P|LIBXML_*_ENABLED|features::Feature - runtime query rather than a build macro
 # ---- SAX2.h xlink.h
 N|xmlSAX2* xmlSAXVersion|SAX2 handler table not started (roadmap 15)
-N|xlink* XLINK_*|XLink callbacks not started
+R|xlink* XLINK_* _xlinkHandler*|xlink.h is deprecated in 2.15.4 ("don't use"); the parser never calls its handlers
 # ---- xmlstring.h chvalid.h dict.h hash.h list.h debugXML.h threads.h xmlmemory.h xmlmodule.h nanohttp.h
 A|BAD_CAST xmlChar xmlStr* xmlCharStr* xmlCheckUTF8 xmlGetUTF8Char xmlUTF8*|str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)
 I|xmlIsChar xmlIsCharQ xmlIsChar_ch|chars::is_char

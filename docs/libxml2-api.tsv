@@ -2250,38 +2250,38 @@ xinclude.h	xmlXIncludeProcessTreeFlagsData	function	not_marked	P2	partial	https:
 xinclude.h	xmlXIncludeSetErrorHandler	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	Drop; errors returned by xinclude::process
 xinclude.h	xmlXIncludeSetFlags	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::Options
 xinclude.h	xmlXIncludeSetResourceLoader	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::Options
-xlink.h	XLINK_ACTUATE_AUTO	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_ACTUATE_NONE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_ACTUATE_ONREQUEST	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_SHOW_EMBED	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_SHOW_NEW	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_SHOW_NONE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_SHOW_REPLACE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_TYPE_EXTENDED	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_TYPE_EXTENDED_SET	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_TYPE_NONE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	XLINK_TYPE_SIMPLE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	_xlinkHandler	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	_xlinkHandler.extended	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	_xlinkHandler.set	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	_xlinkHandler.simple	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkActuate	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkExtendedLinkFunk	callback	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkExtendedLinkSetFunk	callback	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkGetDefaultDetect	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkGetDefaultHandler	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkHRef	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkHandler	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkHandlerPtr	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkIsLink	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkNodeDetectFunc	callback	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkRole	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkSetDefaultDetect	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkSetDefaultHandler	function	yes	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkShow	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkSimpleLinkFunk	callback	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkTitle	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
-xlink.h	xlinkType	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	XLink callbacks not started
+xlink.h	XLINK_ACTUATE_AUTO	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_ACTUATE_NONE	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_ACTUATE_ONREQUEST	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_SHOW_EMBED	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_SHOW_NEW	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_SHOW_NONE	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_SHOW_REPLACE	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_TYPE_EXTENDED	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_TYPE_EXTENDED_SET	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_TYPE_NONE	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	XLINK_TYPE_SIMPLE	enum_value	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	_xlinkHandler	struct	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	_xlinkHandler.extended	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	_xlinkHandler.set	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	_xlinkHandler.simple	field	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkActuate	enum	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkExtendedLinkFunk	callback	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkExtendedLinkSetFunk	callback	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkGetDefaultDetect	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkGetDefaultHandler	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkHRef	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkHandler	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkHandlerPtr	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkIsLink	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkNodeDetectFunc	callback	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkRole	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkSetDefaultDetect	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkSetDefaultHandler	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkShow	enum	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkSimpleLinkFunk	callback	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkTitle	typedef	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
+xlink.h	xlinkType	enum	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xlink.h	"xlink.h is deprecated in 2.15.4 (""don't use""); the parser never calls its handlers"
 xmlIO.h	XML_TREE_INTERNALS	macro	not_marked	P1-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlIO.h	internal parser state or flag
 xmlIO.h	__xmlOutputBufferCreateFilename	function	not_marked	P1-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlIO.h	std::io::Read/Write replace I/O buffers; Resolver replaces global callbacks
 xmlIO.h	__xmlOutputBufferCreateFilenameValue	function	yes	P1-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlIO.h	std::io::Read/Write replace I/O buffers; Resolver replaces global callbacks
