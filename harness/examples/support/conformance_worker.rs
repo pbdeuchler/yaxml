@@ -46,8 +46,14 @@ pub fn observe(
     };
 
     // XMLTS scores namespace well-formedness: a namespace error the parser
-    // keeps (libxml2's `xmlNsErr`) rejects the case.
-    let kept = |errors: &[Error]| errors.first().map_or(Ok(()), |&error| Err(error));
+    // keeps (libxml2's `xmlNsErr`, including its non-URI
+    // namespace warning) rejects the case; other warnings do not.
+    let kept = |errors: &[Error]| {
+        let mut errors = errors.iter().copied();
+        errors
+            .find(|error| !matches!(error.kind, yaxml::ErrorKind::Warning(w) if w != yaxml::Warning::NamespaceUri))
+            .map_or(Ok(()), Err)
+    };
     match surface {
         // The borrowing surfaces read UTF-16 and declared charsets transcoded.
         "reader" => {

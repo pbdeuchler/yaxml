@@ -32,7 +32,8 @@ declared label, as in `xmlSetDeclaredEncoding`: UTF-8 allows `UTF-8`/`UTF8`,
 UTF-16LE `UTF-16`/`UTF-16LE`/`UTF16`, UTF-16BE `UTF-16`/`UTF-16BE`/`UTF16`. Any
 other well-formed label, supported or not, makes libxml2 warn ("Encoding 'X'
 doesn't match auto-detected 'UTF-8'") and keep the detected encoding; yaxml
-accepts silently (no warning channel) and `Declaration.encoding` records the
+keeps the same warning (`ErrorKind::Warning(Warning::EncodingMismatch)` in
+`errors()`) and `Declaration.encoding` records the
 detected name (`UTF-8`, `UTF-16LE`, `UTF-16BE`), not the label. Malformed
 declaration grammar returns `InvalidDeclaration`. BOM-less UTF-16 still requires
 a declaration with an encoding (`EncodingMismatch`). An undetected source

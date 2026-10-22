@@ -149,6 +149,7 @@ fn known_error(kind: &str) -> bool {
             | "MismatchedEndTag"
             | "DuplicateAttribute"
             | "Namespace"
+            | "Warning(NamespaceUri)"
             | "InvalidReference"
             | "UnknownEntity"
             | "EntityLoop"

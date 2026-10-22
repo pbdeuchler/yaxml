@@ -67,7 +67,7 @@ impl Budget {
     }
 
     /// An error site's decision: strict parsing fails with `error`, except
-    /// that a namespace error is recorded and the site continues with its
+    /// that a warning or a namespace error is recorded and the site continues with its
     /// repair, as libxml2's `xmlNsErr` does. Under `RECOVER` every
     /// well-formedness error is; resource limits, allocation failure, entity
     /// loops and failed loads stay fatal.
@@ -86,7 +86,10 @@ impl Budget {
                 | ErrorKind::ExternalResource
                 | ErrorKind::XInclude
         );
-        if fatal || !(self.recovers || error.kind == ErrorKind::Namespace) {
+        if fatal
+            || !(self.recovers
+                || matches!(error.kind, ErrorKind::Namespace | ErrorKind::Warning(_)))
+        {
             return Err(error);
         }
         if self.recovered.len() < MAX_RECOVERED {
@@ -1151,12 +1154,15 @@ impl<'source> ParserState<'source> {
             self.encoding = match declaration.encoding {
                 Some(label) if auto.is_some() || self.flags.ignores_encoding() => {
                     declaration.encoding = match auto {
-                        Some((allowed, name)) => {
-                            Some(if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) {
-                                label
-                            } else {
-                                name
-                            })
+                        Some((allowed, _))
+                            if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) =>
+                        {
+                            Some(label)
+                        }
+                        Some((_, name)) => {
+                            let warning = ErrorKind::Warning(crate::Warning::EncodingMismatch);
+                            self.budget.recover(Error::new(warning, offset))?;
+                            Some(name)
                         }
                         None => (self.encoding != Utf8).then_some(label),
                     };
@@ -1177,6 +1183,12 @@ impl<'source> ParserState<'source> {
         if target.eq_ignore_ascii_case("xml") {
             // libxml2 keeps a misplaced or miscased declaration as a PI.
             self.recover_markup(Error::new(ErrorKind::InvalidDeclaration, start))?;
+        } else if target.len() > 3
+            && target.as_bytes()[..3].eq_ignore_ascii_case(b"xml")
+            && !matches!(target, "xml-stylesheet" | "xml-model")
+        {
+            let warning = ErrorKind::Warning(crate::Warning::ReservedTarget);
+            self.budget.recover(Error::new(warning, start + 2))?;
         }
         if self.encoding.requires_declaration() && !self.declaration_seen && !self.replacement {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
@@ -1300,6 +1312,10 @@ impl<'source> ParserState<'source> {
                     Err(error) => return Err(error),
                 }
             };
+            if name == "xml:space" && !matches!(&*value, "default" | "preserve") {
+                let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
+                self.budget.recover(Error::new(warning, offset))?;
+            }
             let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
                 // libxml2 ignores a declaration it cannot bind, and all but
@@ -1308,6 +1324,20 @@ impl<'source> ParserState<'source> {
                     self.budget
                         .recover(Error::new(ErrorKind::Namespace, offset))?;
                     continue;
+                }
+                // libxml2 checks a declared URI with `xmlParseURISafe`; only
+                // a relative default namespace warns without `PEDANTIC`.
+                let warning = match crate::uri::has_scheme(&value) {
+                    _ if value.is_empty() => None,
+                    None => Some(crate::Warning::NamespaceUri),
+                    Some(false) if bound_prefix.is_empty() => {
+                        Some(crate::Warning::RelativeNamespaceUri)
+                    }
+                    Some(_) => None,
+                };
+                if let Some(warning) = warning {
+                    self.budget
+                        .recover(Error::new(ErrorKind::Warning(warning), offset))?;
                 }
                 if self.recovers()
                     && self
@@ -2273,6 +2303,10 @@ pub(crate) fn parse_declaration<'a>(
                         !minor.is_empty() && minor.bytes().all(|b| b.is_ascii_digit())
                     }) =>
             {
+                if !text && value != "1.0" {
+                    let warning = ErrorKind::Warning(crate::Warning::UnknownVersion);
+                    recover(Error::new(warning, position))?;
+                }
                 declaration.version = value;
                 true
             }

@@ -105,7 +105,12 @@ pub fn exercise(input: &[u8]) {
     for error in &fragment.errors {
         error.describe(&index);
     }
-    let namespace = |error: &Error| error.kind == yaxml::ErrorKind::Namespace;
+    let namespace = |error: &Error| {
+        matches!(
+            error.kind,
+            yaxml::ErrorKind::Namespace | yaxml::ErrorKind::Warning(_)
+        )
+    };
     assert!(options & RECOVER != 0 || fragment.errors.iter().all(namespace));
     for &node in &fragment.nodes {
         let node = editor.document().node(node).expect("parsed nodes are live");

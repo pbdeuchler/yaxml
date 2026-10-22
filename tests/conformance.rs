@@ -10,11 +10,19 @@ use yaxml::{
 // frontend of this crate. See docs/conformance.md for the scope and references.
 
 /// A parse's first error: the one that stopped it, or a namespace error it
-/// kept (namespace errors never stop a parse, as in libxml2).
+/// kept (namespace errors and warnings never stop a parse, as in libxml2;
+/// warnings do not reject).
 fn first_error(result: Result<&[Error], Error>) -> Result<(), ErrorKind> {
     let kept = result.map_err(|error| error.kind)?;
-    assert!(kept.iter().all(|error| error.kind == ErrorKind::Namespace));
-    kept.first().map_or(Ok(()), |error| Err(error.kind))
+    let mut errors = kept
+        .iter()
+        .filter(|error| !matches!(error.kind, ErrorKind::Warning(_)));
+    assert!(
+        errors
+            .clone()
+            .all(|error| error.kind == ErrorKind::Namespace)
+    );
+    errors.next().map_or(Ok(()), |error| Err(error.kind))
 }
 
 fn slice_result(input: &[u8]) -> Result<(), ErrorKind> {

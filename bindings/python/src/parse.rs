@@ -13,7 +13,7 @@ use pyo3::sync::MutexExt;
 use pyo3::types::{PyByteArray, PyBytes, PyString};
 use yaxml::diagnostic::Level;
 use yaxml::{
-    EditLimits, LineIndex, NodeType, OwnedDocument, OwnedNodeId, ParseOptions, ReadError, Request,
+    EditLimits, ErrorKind, LineIndex, NodeType, OwnedDocument, OwnedNodeId, ParseOptions, ReadError, Request,
     Resolver, ResourceKind, TextReader, options,
 };
 
@@ -176,8 +176,9 @@ pub fn parse_document(
     let mut rows: Vec<Row> = (lines.describe_all(doc.errors()).iter())
         .map(|d| row(d, filename))
         .collect();
-    // lxml raises the namespace errors libxml2 only reports, unless recovering.
-    if flags & options::RECOVER == 0 && !rows.is_empty() {
+    // lxml raises the namespace errors libxml2 only reports, unless
+    // recovering; warnings are only logged.
+    if flags & options::RECOVER == 0 && rows.iter().any(|r| r.3 >= Level::Error as u8) {
         return Err(errors::syntax_from(py, &rows));
     }
     let validity: Vec<Row> = (doc.validity().iter())
@@ -427,8 +428,9 @@ impl State {
             }
             Err(error) => return Err(self.fail(py, error)),
         }
-        // As lxml, a namespace error stops the iteration.
-        if let Some(&error) = self.reader.errors().first() {
+        // As lxml, a namespace error stops the iteration; a warning does not.
+        let mut kept = self.reader.errors().iter();
+        if let Some(&error) = kept.find(|error| !matches!(error.kind, ErrorKind::Warning(_))) {
             return Err(self.fail(py, ReadError::Xml(error)));
         }
         match self.reader.node_type() {

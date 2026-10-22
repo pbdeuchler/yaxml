@@ -90,6 +90,12 @@ impl<'c> TagDeclarations<'c> {
             &mut requested,
         );
         budget.charge_owned(requested, value_offset)?;
+        if let Some(warning) = self.catalog.undeclared_warning() {
+            for &at in self.catalog.undeclared_references() {
+                let offset = self.physical(value_offset + at).unwrap_or(start);
+                budget.recover(Error::new(ErrorKind::Warning(warning), offset))?;
+            }
+        }
         let value = match normalized {
             Ok(value) => value,
             Err(error) if budget.recovers() => {

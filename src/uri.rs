@@ -237,6 +237,16 @@ fn split(src: &str, absolute: bool, decode: bool) -> Result<Parts<'_>, usize> {
     }
 }
 
+/// Whether `src` has a scheme when it parses as [`Uri::parse`] does;
+/// `None` when it does not, found without allocating.
+pub(crate) fn has_scheme(src: &str) -> Option<bool> {
+    let src = cstr(src);
+    match split(src, true, false) {
+        Ok(_) => Some(true),
+        Err(_) => split(src, false, false).ok().map(|_| false),
+    }
+}
+
 fn parse_with(src: &str, decode: bool) -> Result<Uri, UriError> {
     let src = cstr(src);
     let parts = split(src, true, decode)

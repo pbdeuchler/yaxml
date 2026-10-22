@@ -665,9 +665,10 @@ impl<R: BufRead> TextReader<R> {
     }
 
     /// The errors kept so far, in input order (the first 100, as libxml2
-    /// keeps), possibly from nodes read ahead of the cursor: namespace errors,
-    /// which never stop a parse (libxml2's `xmlNsErr`), and under `RECOVER`
-    /// every well-formedness error recovered from.
+    /// keeps), possibly from nodes read ahead of the cursor: namespace errors
+    /// and warnings, which never stop a parse (libxml2's `xmlNsErr`,
+    /// `ErrorKind::Warning`), and under `RECOVER` every well-formedness error
+    /// recovered from.
     pub fn errors(&self) -> &[Error] {
         self.source.errors()
     }

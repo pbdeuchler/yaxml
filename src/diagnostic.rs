@@ -25,7 +25,7 @@
 use std::borrow::Cow;
 
 use crate::xpath::tree::{Item, Navigate};
-use crate::{Error, ErrorKind};
+use crate::{Error, ErrorKind, Warning};
 
 mod reread;
 
@@ -131,6 +131,8 @@ pub mod code {
     pub const PEREF_SEMICOL_MISSING: u16 = 25;
     /// `XML_ERR_UNDECLARED_ENTITY`.
     pub const UNDECLARED_ENTITY: u16 = 26;
+    /// `XML_WAR_UNDECLARED_ENTITY`.
+    pub const WAR_UNDECLARED_ENTITY: u16 = 27;
     /// `XML_ERR_UNPARSED_ENTITY`.
     pub const UNPARSED_ENTITY: u16 = 28;
     /// `XML_ERR_ENTITY_IS_EXTERNAL`.
@@ -223,12 +225,22 @@ pub mod code {
     pub const ENTITY_LOOP: u16 = 89;
     /// `XML_ERR_VERSION_MISSING`.
     pub const VERSION_MISSING: u16 = 96;
+    /// `XML_WAR_UNKNOWN_VERSION`.
+    pub const WAR_UNKNOWN_VERSION: u16 = 97;
+    /// `XML_WAR_NS_URI`.
+    pub const WAR_NS_URI: u16 = 99;
+    /// `XML_WAR_NS_URI_RELATIVE`.
+    pub const WAR_NS_URI_RELATIVE: u16 = 100;
+    /// `XML_WAR_SPACE_VALUE`.
+    pub const WAR_SPACE_VALUE: u16 = 102;
     /// `XML_ERR_NOTATION_PROCESSING`.
     pub const NOTATION_PROCESSING: u16 = 105;
     /// `XML_ERR_UNKNOWN_VERSION`.
     pub const UNKNOWN_VERSION: u16 = 108;
     /// `XML_ERR_USER_STOP`.
     pub const USER_STOP: u16 = 111;
+    /// `XML_WAR_ENCODING_MISMATCH`.
+    pub const WAR_ENCODING_MISMATCH: u16 = 113;
     /// `XML_ERR_RESOURCE_LIMIT`.
     pub const RESOURCE_LIMIT: u16 = 114;
     /// `XML_ERR_ARGUMENT`.
@@ -266,6 +278,26 @@ const fn raised(code: u16) -> (Domain, Level) {
     }
 }
 
+impl Warning {
+    /// libxml2's code, domain and level for this warning.
+    pub(crate) const fn raised(self) -> (u16, Domain, Level) {
+        let (code, domain) = match self {
+            Self::UnknownVersion => (WAR_UNKNOWN_VERSION, Domain::Parser),
+            Self::NamespaceUri => (WAR_NS_URI, Domain::Namespace),
+            Self::RelativeNamespaceUri => (WAR_NS_URI_RELATIVE, Domain::Namespace),
+            Self::SpaceValue => (WAR_SPACE_VALUE, Domain::Parser),
+            Self::ReservedTarget => (RESERVED_XML_NAME, Domain::Parser),
+            Self::EncodingMismatch => (WAR_ENCODING_MISMATCH, Domain::Parser),
+            Self::UndeclaredEntity { .. } => (WAR_UNDECLARED_ENTITY, Domain::Parser),
+        };
+        let level = match self {
+            Self::NamespaceUri | Self::UndeclaredEntity { error: true } => Level::Error,
+            _ => Level::Warning,
+        };
+        (code, domain, level)
+    }
+}
+
 impl ErrorKind {
     /// libxml2's domain and code for this kind without the input;
     /// [`Error::describe`] refines it from the input.
@@ -299,6 +331,10 @@ impl ErrorKind {
             Self::Allocation => NO_MEMORY,
             Self::Aborted => USER_STOP,
             Self::InvalidState => INTERNAL_ERROR,
+            Self::Warning(warning) => {
+                let (code, domain, _) = warning.raised();
+                return (domain, code);
+            }
         };
         (raised(code).0, code)
     }
@@ -634,8 +670,14 @@ impl<'s> LineIndex<'s> {
 }
 
 impl LineIndex<'_> {
-    fn diagnostic(&self, found: Found, work: &Work) -> Diagnostic {
-        let (domain, level) = raised(found.code);
+    fn diagnostic(&self, found: Found, kind: ErrorKind, work: &Work) -> Diagnostic {
+        let (domain, level) = match kind {
+            ErrorKind::Warning(warning) => {
+                let (_, domain, level) = warning.raised();
+                (domain, level)
+            }
+            _ => raised(found.code),
+        };
         let line = self.text_line(found.at);
         // Counting a column's characters is charged too; without work it is unknown.
         let start = self.starts[line - 1].min(found.at);
@@ -679,7 +721,7 @@ impl LineIndex<'_> {
         for error in errors {
             let at = self.to_text(error.offset);
             let found = found(error.kind, self, at, &mut scan, &work);
-            let diagnostic = self.diagnostic(found, &work);
+            let diagnostic = self.diagnostic(found, error.kind, &work);
             let late = matches!(diagnostic.code, TAG_NOT_FINISHED | DOCUMENT_EMPTY);
             if !(late
                 && described
@@ -779,6 +821,7 @@ impl Error {
         let work = Work::new(lines.text().len());
         lines.diagnostic(
             found(self.kind, lines, at, &mut Scan::new(lines.content), &work),
+            self.kind,
             &work,
         )
     }

@@ -42,6 +42,42 @@ pub enum Limit {
     ExternalBytes,
 }
 
+/// A condition libxml2 reports without stopping the parse, at warning level
+/// unless noted. Every surface records it in `errors()` as
+/// [`ErrorKind::Warning`], strict or not.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Warning {
+    /// An XML declaration's version is `1.x` other than `1.0`
+    /// (`XML_WAR_UNKNOWN_VERSION`).
+    UnknownVersion,
+    /// A namespace declaration's value is not a URI reference
+    /// (`XML_WAR_NS_URI`, which libxml2 reports at error level).
+    NamespaceUri,
+    /// A default namespace declaration's URI is relative
+    /// (`XML_WAR_NS_URI_RELATIVE`).
+    RelativeNamespaceUri,
+    /// An `xml:space` value other than `default` or `preserve`
+    /// (`XML_WAR_SPACE_VALUE`).
+    SpaceValue,
+    /// A processing-instruction target starting with `xml`, other than the
+    /// W3C's `xml-stylesheet` and `xml-model` (`XML_ERR_RESERVED_XML_NAME`).
+    ReservedTarget,
+    /// A declared encoding disagrees with the one detected from a byte order
+    /// mark or the UTF-16 `<?` signature, which wins
+    /// (`XML_WAR_ENCODING_MISMATCH`).
+    EncodingMismatch,
+    /// A reference to an undeclared entity that unread markup could
+    /// declare; it expands to nothing (`XML_WAR_UNDECLARED_ENTITY`). `error`
+    /// is libxml2's error level, used when `DTDLOAD`, `DTDATTR` or `NOENT`
+    /// without `NO_XXE` asked for every declaration. Under `DTDVALID` it is
+    /// a validity error instead.
+    UndeclaredEntity {
+        /// Reported at error level.
+        error: bool,
+    },
+}
+
 /// What went wrong in an [`Error`].
 ///
 /// [`ErrorKind::libxml2_code`] maps a kind to libxml2's domain and code.
@@ -104,6 +140,8 @@ pub enum ErrorKind {
     EncodingMismatch,
     /// A resource ceiling was reached.
     LimitExceeded(Limit),
+    /// A non-fatal diagnostic; the parse went on unchanged.
+    Warning(Warning),
     /// Memory allocation failed.
     Allocation,
     /// No more owned-document node identifiers are available.

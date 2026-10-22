@@ -116,8 +116,13 @@ fn replay(input: &[u8], oracle: Option<&Oracle>) -> io::Result<Comparison> {
         return Ok(Comparison::SkippedPolicy);
     }
     // The oracle runs with `--strict-namespace`: a namespace error the
-    // parse kept is a rejection.
-    let kept = || Document::parse_bytes(input).ok()?.errors().first().copied();
+    // parse kept is a rejection, as is the `xmlNsErr` warning for a
+    // non-URI namespace name; other warnings are not.
+    let kept = || {
+        let document = Document::parse_bytes(input).ok()?;
+        (document.errors().iter().copied())
+            .find(|e| !matches!(e.kind, yaxml::ErrorKind::Warning(w) if w != yaxml::Warning::NamespaceUri))
+    };
     oracle.compare(input, outcome.error.or_else(kept))
 }
 

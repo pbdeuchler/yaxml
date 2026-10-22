@@ -899,9 +899,10 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2): namespace errors, which never stop a parse (libxml2's
-    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
-    /// from; empty for a namespace-well-formed document.
+    /// libxml2): namespace errors and warnings, which never stop a parse
+    /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
+    /// well-formedness error recovered from; empty for a namespace-well-formed
+    /// document.
     pub fn errors(&self) -> &[Error] {
         &self.errors
     }

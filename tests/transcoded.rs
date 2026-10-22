@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use yaxml::options::{IGNORE_ENC, RECOVER};
 use yaxml::{
     DecodeLimits, Document, Error, ErrorKind, Event, Limit, Limits, LineIndex, NodeKind,
-    OwnedDocument, ParseOptions, Reader, Transcoded,
+    OwnedDocument, ParseOptions, Reader, Transcoded, Warning,
 };
 
 fn utf16(text: &str, little: bool, bom: bool) -> Vec<u8> {
@@ -132,12 +132,16 @@ fn transcoded_parses_agree_with_the_owned_dom() {
             0,
             ok("a", Some("UTF-16BE")),
         ),
-        // libxml2 keeps the BOM's encoding and records its name.
+        // libxml2 keeps the BOM's encoding, records its name and warns.
         (
             "bom outranks label",
             utf16(mismatch, true, true),
             0,
-            ok("", Some("UTF-16LE")),
+            Ok((
+                String::new(),
+                Some("UTF-16LE".into()),
+                vec![error(ErrorKind::Warning(Warning::EncodingMismatch), 42)],
+            )),
         ),
         (
             "signature without label",

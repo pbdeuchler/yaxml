@@ -127,10 +127,11 @@ impl PushParser {
     }
 
     /// The errors kept so far, in input order (the first 100, as libxml2
-    /// keeps): namespace errors, which never stop a parse (libxml2's
-    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
-    /// from. An error no site repairs stops a recovering parse: what is open
-    /// closes with `End` events, and later input is ignored.
+    /// keeps): namespace errors and warnings, which never stop a parse
+    /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
+    /// well-formedness error recovered from. An error no site repairs stops a
+    /// recovering parse: what is open closes with `End` events, and later input
+    /// is ignored.
     ///
     /// ```
     /// use std::ops::ControlFlow;

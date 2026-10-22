@@ -649,6 +649,10 @@ impl<'input> ContentControllerCore<'input> {
                 let offset = origin.input_range().map(|range| range.start);
                 let message = format!("Entity '{name}' not defined");
                 catalog.note(Code::UndeclaredEntity, offset, message);
+                if let Some(warning) = catalog.undeclared_warning() {
+                    let warning = Error::new(ErrorKind::Warning(warning), origin.error_offset());
+                    self.parser.owned_budget().recover(warning)?;
+                }
                 None
             }
             EntityLookup::ExternalUnavailable { .. } => None,

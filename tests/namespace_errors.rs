@@ -3,7 +3,8 @@
 //! QNames, unbindable declarations, duplicate expanded names, colons in PI,
 //! entity and notation names) never stop a parse: every surface keeps them
 //! in `errors()`, with or without `RECOVER`, and keeps the names in no
-//! namespace. Expectations were checked against `xmllint` 2.15.4.
+//! namespace. Parser and namespace warnings (`ErrorKind::Warning`) are kept
+//! the same way. Expectations were checked against `xmllint` 2.15.4.
 
 use std::io::BufReader;
 use std::ops::ControlFlow;
@@ -370,4 +371,69 @@ fn content_parsed_in_context_keeps_namespace_errors() {
             .unwrap()
             .contains("<q:a/><q:a/><a q:b=\"1\"/>")
     );
+}
+
+#[test]
+fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
+    use Level::{Error as E, Warning as W};
+    use yaxml::Warning;
+    use yaxml::diagnostic::{Domain, Level};
+    // (input, warning, libxml2 domain, code, level, column, message), from
+    // the xmllint 2.15.4 error helper with NOENT.
+    #[rustfmt::skip]
+    let cases: &[(&str, Warning, Domain, u16, Level, usize, &str)] = &[
+        ("<?xml version='1.1'?><r/>", Warning::UnknownVersion, Domain::Parser, 97, W, 20,
+         "Unsupported version '1.1'"),
+        ("<r xml:space='x'/>", Warning::SpaceValue, Domain::Parser, 102, W, 17,
+         "Invalid value \"x\" for xml:space : \"default\" or \"preserve\" expected"),
+        ("<r xmlns:p='a b'/>", Warning::NamespaceUri, Domain::Namespace, 99, E, 17,
+         "xmlns:p: 'a b' is not a valid URI"),
+        ("<r xmlns='rel'/>", Warning::RelativeNamespaceUri, Domain::Namespace, 100, W, 15,
+         "xmlns: URI rel is not absolute"),
+        ("<?xml-foo x?><r/>", Warning::ReservedTarget, Domain::Parser, 64, W, 10,
+         "xmlParsePITarget: invalid name prefix 'xml'"),
+        ("<!DOCTYPE r SYSTEM 'x.dtd'><r>&u;</r>", Warning::UndeclaredEntity { error: true },
+         Domain::Parser, 27, E, 34, "Entity 'u' not defined"),
+    ];
+    for &(input, warning, domain, code, level, column, message) in cases {
+        let (_, reference) = document(input.as_bytes(), 0).unwrap();
+        let kinds: Vec<_> = reference.iter().map(|error| error.kind).collect();
+        assert_eq!(kinds, [ErrorKind::Warning(warning)], "{input}");
+        for flags in [0, RECOVER] {
+            for (surface, parse) in SURFACES {
+                let (_, errors) = parse(input.as_bytes(), flags)
+                    .unwrap_or_else(|error| panic!("{surface} {flags} rejected {input}: {error}"));
+                assert_eq!(errors, reference, "{surface} flags {flags}: {input}");
+            }
+        }
+        let found = reference[0].describe(&LineIndex::new(input.as_bytes()));
+        assert_eq!(
+            (
+                found.domain,
+                found.code,
+                found.level,
+                found.line,
+                found.column
+            ),
+            (domain, code, level, 1, column),
+            "{input}"
+        );
+        assert_eq!(found.message, message, "{input}");
+    }
+    // Without NOENT (or DTD loading) an undeclared entity is a warning.
+    let input = b"<!DOCTYPE r SYSTEM 'x.dtd'><r>&u;</r>";
+    let document = OwnedDocument::parse_bytes(input).unwrap();
+    let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+    let undeclared = Warning::UndeclaredEntity { error: false };
+    assert_eq!(kinds, [ErrorKind::Warning(undeclared)]);
+    assert_eq!(
+        document.errors()[0].describe(&LineIndex::new(input)).level,
+        W
+    );
+    // A strict well-formedness error still fails after a warning.
+    let input = b"<?xml version='1.1'?><r></s>";
+    for (surface, parse) in SURFACES {
+        let strict = parse(input, 0).map(drop).map_err(|error| error.kind);
+        assert_eq!(strict, Err(ErrorKind::MismatchedEndTag), "{surface}");
+    }
 }

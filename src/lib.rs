@@ -142,7 +142,7 @@ pub use encoding::{DecodeLimits, Transcoded};
 pub(crate) use error::DtdError;
 pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
-    ReadError, WriteError,
+    ReadError, Warning, WriteError,
 };
 pub use features::{LIBXML2_COMPAT_VERSION, LIBXML2_COMPAT_VERSION_NUMBER, VERSION};
 pub use name::Name;

@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use yaxml::{Error, ErrorKind, Event, Limit, Limits, Reader};
 
 /// The events, or the first error: the one that stopped the reader, or a
-/// namespace error it kept.
+/// namespace error it kept (warnings, such as a relative default namespace
+/// URI, do not count).
 fn read(input: &[u8]) -> Result<Vec<Event<'_>>, Error> {
     let mut reader = Reader::new(input)?;
     let mut events = Vec::new();
@@ -12,7 +13,7 @@ fn read(input: &[u8]) -> Result<Vec<Event<'_>>, Error> {
     }
     assert!(reader.read_event()?.is_none());
     assert_eq!(reader.position(), input.len());
-    match reader.errors().first() {
+    match (reader.errors().iter()).find(|error| !matches!(error.kind, ErrorKind::Warning(_))) {
         Some(&error) => Err(error),
         None => Ok(events),
     }

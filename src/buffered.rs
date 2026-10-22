@@ -140,9 +140,9 @@ impl<R: BufRead> BufferedReader<R> {
     }
 
     /// The errors kept so far, in input order (the first 100, as libxml2
-    /// keeps): namespace errors, which never stop a parse (libxml2's
-    /// `xmlNsErr`), and under `RECOVER` every well-formedness error recovered
-    /// from.
+    /// keeps): namespace errors and warnings, which never stop a parse
+    /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
+    /// well-formedness error recovered from.
     pub fn errors(&self) -> &[Error] {
         self.session.errors()
     }

@@ -398,8 +398,9 @@ fn check_recovered(flags: u32, document: &[u8]) {
     if flags & SKIP_IDS == 0 {
         super::check_document(&tree, document.len(), Limits::default().max_events);
     }
-    // Strict parsing stops at any but a namespace error (below the cap).
-    let namespace = tree.errors().iter().all(|e| e.kind == ErrorKind::Namespace);
+    // Strict parsing stops at any but a namespace error or warning (below the cap).
+    let namespace = (tree.errors().iter())
+        .all(|e| matches!(e.kind, ErrorKind::Namespace | ErrorKind::Warning(_)));
     assert!(tree.errors().len() == 100 || namespace == strict.is_ok());
     assert!(tree.errors().len() <= 100);
     // Recovery makes progress: every node but the root starts at a later

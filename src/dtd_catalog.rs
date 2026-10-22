@@ -190,6 +190,9 @@ pub(crate) struct DtdCatalog {
     loader: Option<Loader>,
     /// The DOCTYPE's external identifier, kept only for loading.
     subset: Option<ExternalEntity>,
+    /// Offsets in the last processed value of the references to undeclared
+    /// entities it expanded to nothing (outermost references for nested ones).
+    undeclared: Vec<usize>,
 }
 
 impl DtdCatalog {
@@ -212,6 +215,7 @@ impl DtdCatalog {
             amplification_ceiling: usize::MAX,
             loader: None,
             subset: None,
+            undeclared: Vec::new(),
         }
     }
 
@@ -366,6 +370,17 @@ impl DtdCatalog {
     }
 
     /// Records a validity error found while parsing.
+    /// The warning a reference to an undeclared entity that unread markup
+    /// could declare raises besides its validity note.
+    pub(crate) fn undeclared_warning(&self) -> Option<crate::Warning> {
+        self.limits.flags.undeclared_entity()
+    }
+
+    /// Where the last processed value referenced undeclared entities.
+    pub(crate) fn undeclared_references(&self) -> &[usize] {
+        &self.undeclared
+    }
+
     pub(crate) fn note(&mut self, code: Code, offset: Option<usize>, message: String) {
         self.dtd.issues.push((code, offset, message));
     }
@@ -765,6 +780,7 @@ impl DtdCatalog {
         let may_be_unread = self.may_be_unread();
         let (usage, requested) = (self.usage, request.requested);
         let noted = self.dtd.issues.len();
+        self.undeclared.clear();
         loop {
             let mut processor = ValueProcessor {
                 general: &self.dtd.general,
@@ -776,6 +792,8 @@ impl DtdCatalog {
                 request: &mut *request,
                 usage: &mut self.usage,
                 issues: &mut self.dtd.issues,
+                undeclared: &mut self.undeclared,
+                reference: offset,
                 may_be_unread,
                 // xmlExpandPEsInEntityValue loads external PEs only to
                 // substitute or validate; otherwise they expand to nothing.
@@ -795,6 +813,7 @@ impl DtdCatalog {
                 Err(Stop::Load(id)) => {
                     (self.usage, request.requested) = (usage, requested);
                     self.dtd.issues.truncate(noted);
+                    self.undeclared.clear();
                     self.load(id)?;
                 }
             }
@@ -873,6 +892,9 @@ struct ValueProcessor<'a, 'raw> {
     request: &'a mut ValueRequest,
     usage: &'a mut CatalogUsage,
     issues: &'a mut Vec<(Code, Option<usize>, String)>,
+    undeclared: &'a mut Vec<usize>,
+    /// The offset of the outermost reference being expanded.
+    reference: usize,
     may_be_unread: bool,
     loadable: bool,
     raw: &'raw str,
@@ -925,6 +947,9 @@ impl<'raw> ValueProcessor<'_, 'raw> {
             let mut consumed = character.len_utf8();
             let is_entity = matches!(self.mode, ValueMode::Entity);
             if character == '&' || (is_entity && character == '%') {
+                if let Some(at) = at {
+                    self.reference = at;
+                }
                 let (spelling, reference) =
                     parse_reference(remaining).ok_or(fail(ErrorKind::InvalidReference))?;
                 consumed = spelling.len();
@@ -962,6 +987,10 @@ impl<'raw> ValueProcessor<'_, 'raw> {
                             if self.may_be_unread {
                                 let message = format!("Entity '{name}' not defined");
                                 self.issues.push((Code::UndeclaredEntity, None, message));
+                                self.undeclared
+                                    .try_reserve(1)
+                                    .map_err(|_| Stop::Fail(DtdError::new(ALLOCATION, at)))?;
+                                self.undeclared.push(self.reference);
                                 continue;
                             }
                             return Err(fail(ErrorKind::UnknownEntity));

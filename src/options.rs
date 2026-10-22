@@ -67,7 +67,9 @@ pub const DTDVALID: u32 = 1 << 4;
 pub const NOERROR: u32 = 1 << 5;
 /// `XML_PARSE_NOWARNING`: accepted; yaxml returns warnings and never prints them.
 pub const NOWARNING: u32 = 1 << 6;
-/// `XML_PARSE_PEDANTIC`: accepted; it only adds printed warnings in libxml2.
+/// `XML_PARSE_PEDANTIC`: accepted; it only adds printed warnings in libxml2
+/// (default-on warnings are kept in `errors()` without it; pedantic ones are
+/// not raised).
 pub const PEDANTIC: u32 = 1 << 7;
 /// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs and `TextReader`), with
 /// libxml2's `areBlanks` rules.
@@ -298,6 +300,14 @@ impl Flags {
 
     pub(crate) fn validates(self) -> bool {
         self.has(DTDVALID)
+    }
+
+    /// How libxml2 reports a reference to an undeclared entity that unread
+    /// markup could declare (`xmlHandleUndeclaredEntity`); `None` under
+    /// `DTDVALID`, where it is a validity error.
+    pub(crate) fn undeclared_entity(self) -> Option<crate::Warning> {
+        let error = self.has(DTDLOAD | DTDATTR) || (self.has(NOENT) && !self.has(NO_XXE));
+        (!self.validates()).then_some(crate::Warning::UndeclaredEntity { error })
     }
 
     pub(crate) fn includes(self) -> bool {

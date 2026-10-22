@@ -429,7 +429,7 @@ impl<'input> DtdControllerCore<'input> {
             .expect("ready unit");
         let origin = self.pending_origin(side);
         if kind == ScanKind::ParameterReference {
-            return self.enter_parameter(side, origin);
+            return self.enter_parameter(side, origin, budget);
         }
         if kind == ScanKind::Whitespace {
             self.commit_source(side, raw_len)?;
@@ -544,7 +544,12 @@ impl<'input> DtdControllerCore<'input> {
         Ok(())
     }
 
-    fn enter_parameter(&mut self, side: Side, origin: FragmentOrigin) -> Result<(), Error> {
+    fn enter_parameter(
+        &mut self,
+        side: Side,
+        origin: FragmentOrigin,
+        budget: &mut Budget,
+    ) -> Result<(), Error> {
         // libxml2 sets hasPErefs before resolving the name.
         self.catalog.note_parameter_reference();
         let raw = self.scanner(side).current().expect("parameter raw").1;
@@ -571,6 +576,12 @@ impl<'input> DtdControllerCore<'input> {
                 let offset = origin.input_range().map(|range| range.start);
                 self.catalog
                     .note(crate::valid::Code::UndeclaredEntity, offset, message);
+                if let Some(warning) = self.catalog.undeclared_warning() {
+                    budget.recover(Error::new(
+                        ErrorKind::Warning(warning),
+                        origin.error_offset(),
+                    ))?;
+                }
                 self.commit_source(side, raw_len)?;
                 self.release_scanner(side);
                 return Ok(());

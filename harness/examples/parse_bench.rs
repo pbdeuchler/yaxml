@@ -222,8 +222,8 @@ fn validate_profile(input: &[u8]) -> Result<(), String> {
 /// Rejects a parse that kept a namespace error, as the libxml2 helper fails
 /// on any reported error.
 fn kept(errors: &[yaxml::Error]) -> Result<(), String> {
-    errors
-        .first()
+    (errors.iter())
+        .find(|error| !matches!(error.kind, yaxml::ErrorKind::Warning(w) if w != yaxml::Warning::NamespaceUri))
         .map_or(Ok(()), |error| Err(format!("namespace error: {error}")))
 }
 

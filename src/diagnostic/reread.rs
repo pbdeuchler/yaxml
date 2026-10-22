@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use super::LineIndex;
 use super::code::*;
 use crate::name::{name_char, name_start};
-use crate::{ErrorKind, Limit};
+use crate::{ErrorKind, Limit, Warning};
 
 // ---- the work budget ----
 
@@ -1803,6 +1803,7 @@ fn described(
         | ErrorKind::IdentifierExhausted
         | ErrorKind::Aborted
         | ErrorKind::InvalidState => Some(fallback(kind, at)),
+        ErrorKind::Warning(warning) => Some(warned(warning, &c)),
         _ => None,
     };
     if let Some(found) = semantic {
@@ -1932,6 +1933,71 @@ fn unsupported_encoding(r: &Cur<'_>) -> Found {
 }
 
 /// The context-free mapping, for kinds the input cannot refine.
+/// libxml2's report of `warning`, raised by the attribute, PI target or
+/// reference at `c`; a reference nested in entity text is reported after
+/// the outermost one.
+fn warned(warning: Warning, c: &Cur<'_>) -> Found {
+    let (code, ..) = warning.raised();
+    let t = c.t;
+    let mut r = Cur { ..*c };
+    let name = r.name(true).unwrap_or_default();
+    // The attribute's literal and the offset past it.
+    let open = (c.i..t.len())
+        .find(|&i| matches!(t[i], b'"' | b'\''))
+        .unwrap_or(t.len());
+    let close = (t
+        .get(open + 1..)
+        .and_then(|rest| memchr::memchr(t[open], rest)))
+    .map_or(t.len(), |k| open + 1 + k);
+    let value = String::from_utf8_lossy(t.get(open + 1..close).unwrap_or_default());
+    let past = |message: String| fail(code, (close + 1).min(t.len()), message);
+    match warning {
+        Warning::UnknownVersion => {
+            past(format!("Unsupported version '{value}'")).strs(&value, None)
+        }
+        Warning::SpaceValue => past(format!(
+            "Invalid value \"{value}\" for xml:space : \"default\" or \"preserve\" expected"
+        ))
+        .strs(&value, None),
+        Warning::RelativeNamespaceUri => {
+            past(format!("xmlns: URI {value} is not absolute")).strs(&value, None)
+        }
+        Warning::NamespaceUri => match name.strip_prefix("xmlns:") {
+            Some(prefix) => past(format!("xmlns:{prefix}: '{value}' is not a valid URI"))
+                .strs(prefix, Some(&value)),
+            None => past(format!("xmlns: '{value}' is not a valid URI")).strs(&value, None),
+        },
+        Warning::EncodingMismatch => {
+            let detected = match c.lines.decoded {
+                Some((super::Decoder::Utf16 { big: true }, _)) => "UTF-16BE",
+                Some((super::Decoder::Utf16 { .. }, _)) => "UTF-16LE",
+                _ => "UTF-8",
+            };
+            let message = format!("Encoding '{value}' doesn't match auto-detected '{detected}'");
+            past(message).strs(&value, Some(detected))
+        }
+        Warning::ReservedTarget => r.here(code, "xmlParsePITarget: invalid name prefix 'xml'"),
+        Warning::UndeclaredEntity { .. } => {
+            let mut r = Cur { i: c.i + 1, ..*c };
+            let outer = r.name(true).unwrap_or_default();
+            r.i += usize::from(r.b() == b';');
+            let undeclared = |name: &&str| matches!(declared(c, name, false), Ok(Declared::No));
+            let nested = match declared(c, outer, c.b() == b'%') {
+                Ok(Declared::Internal(text)) => (text.split('&').skip(1))
+                    .filter_map(|rest| Some(rest.split_once(';')?.0))
+                    .find(|name| {
+                        !name.starts_with('#') && predefined(name).is_none() && undeclared(name)
+                    })
+                    .map(str::to_owned),
+                _ => None,
+            };
+            let name = nested.as_deref().unwrap_or(outer);
+            r.here(code, format!("Entity '{name}' not defined"))
+                .strs(name, None)
+        }
+    }
+}
+
 fn fallback(kind: ErrorKind, at: usize) -> Found {
     let message = match kind {
         ErrorKind::LimitExceeded(Limit::Depth) => "Excessive depth in document".into(),

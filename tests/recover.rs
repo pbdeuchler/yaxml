@@ -5,6 +5,8 @@
 
 use std::ops::ControlFlow;
 use yaxml::ErrorKind::{self, *};
+
+const RELATIVE: ErrorKind = Warning(yaxml::Warning::RelativeNamespaceUri);
 use yaxml::options::{NOENT, RECOVER};
 
 use yaxml::{
@@ -53,14 +55,14 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<!DOCTYPE r [<!ATTLIST r a CDATA #IMPLIED b NMTOKEN #IMPLIED>]><r a=\"x<y\" b=\" p<q \"/>",
      "<!DOCTYPE r [\n<!ATTLIST r a CDATA #IMPLIED>\n<!ATTLIST r b NMTOKEN #IMPLIED>\n]>\n<r a=\"x&lt;y\" b=\"p&lt;q\"/>", &[Syntax; 2]),
     ("<!DOCTYPE p:r [<!ATTLIST p:r xmlns:p CDATA #FIXED \"u\">]><p:r xmlns:p=\"a<b\"/>",
-     "<!DOCTYPE p:r [\n<!ATTLIST p:r xmlns:p CDATA #FIXED \"u\">\n]>\n<p:r xmlns:p=\"a&lt;b\"/>", &[Syntax]),
+     "<!DOCTYPE p:r [\n<!ATTLIST p:r xmlns:p CDATA #FIXED \"u\">\n]>\n<p:r xmlns:p=\"a&lt;b\"/>", &[Syntax, Warning(yaxml::Warning::NamespaceUri)]),
     ("<!DOCTYPE r [<!ENTITY e \"&#60;\"><!ATTLIST r a CDATA #IMPLIED>]><r a=\"x&e;\"/>",
      "<!DOCTYPE r [\n<!ENTITY e \"&#60;\">\n<!ATTLIST r a CDATA #IMPLIED>\n]>\n<r a=\"\"/>", &[Syntax]),
     // duplicates are kept, as libxml2 keeps them
     ("<r a=\"1\" a=\"2\"/>", "<r a=\"1\" a=\"2\"/>", &[DuplicateAttribute]),
     // ... but only the first declaration of a prefix
     ("<r xmlns:p=\"a\" xmlns:p=\"b\"><p:x/></r>", "<r xmlns:p=\"a\"><p:x/></r>", &[DuplicateAttribute]),
-    ("<!DOCTYPE r []><r xmlns=\"a\" xmlns=\"b\"/>", "<!DOCTYPE r>\n<r xmlns=\"a\"/>", &[DuplicateAttribute]),
+    ("<!DOCTYPE r []><r xmlns=\"a\" xmlns=\"b\"/>", "<!DOCTYPE r>\n<r xmlns=\"a\"/>", &[RELATIVE, RELATIVE, DuplicateAttribute]),
     ("<r xmlns:p=\"u\" p:a=\"1\" p:a=\"2\"/>", "<r xmlns:p=\"u\" p:a=\"1\" p:a=\"2\"/>", &[DuplicateAttribute]),
     // unbound prefixes leave names in no namespace; unbindable declarations go
     ("<p:r/>", "<p:r/>", &[Namespace]),
@@ -232,9 +234,12 @@ fn recovery_decodes_utf16_like_utf8() {
             .collect();
         let [utf8, utf16] = [input.as_bytes(), &utf16]
             .map(|bytes| OwnedDocument::parse_with(bytes, ParseOptions::new(RECOVER)).unwrap());
-        let kinds: Vec<_> = utf16.errors().iter().map(|error| error.kind).collect();
         // A BOM-detected encoding outranks the label, so UTF-16 never
-        // reports a label it cannot switch to.
+        // reports a label it cannot switch to, but warns about any other.
+        let mismatch = Warning(yaxml::Warning::EncodingMismatch);
+        let kinds: Vec<_> = (utf16.errors().iter().map(|error| error.kind))
+            .filter(|kind| *kind != mismatch)
+            .collect();
         let errors: Vec<_> = errors
             .iter()
             .filter(|k| **k != UnsupportedEncoding)

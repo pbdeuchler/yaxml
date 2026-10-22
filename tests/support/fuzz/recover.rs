@@ -142,7 +142,10 @@ pub(super) fn exercise(input: &[u8], flags: u32, control: u8) {
                 error.kind,
                 ErrorKind::LimitExceeded(_) | ErrorKind::Allocation | ErrorKind::EntityLoop
             ));
-            assert!(flags & RECOVER != 0 || error.kind == ErrorKind::Namespace);
+            assert!(
+                flags & RECOVER != 0
+                    || matches!(error.kind, ErrorKind::Namespace | ErrorKind::Warning(_))
+            );
         }
     }
     let Some(text) = comparable(input, flags).filter(|_| !owned) else {
