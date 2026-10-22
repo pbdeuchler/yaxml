@@ -309,15 +309,15 @@ encoding.h	XML_CHAR_ENCODING_8859_7	enum_value	not_marked	P1	partial	https://git
 encoding.h	XML_CHAR_ENCODING_8859_8	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
 encoding.h	XML_CHAR_ENCODING_8859_9	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
 encoding.h	XML_CHAR_ENCODING_ASCII	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-encoding.h	XML_CHAR_ENCODING_EBCDIC	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
+encoding.h	XML_CHAR_ENCODING_EBCDIC	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
 encoding.h	XML_CHAR_ENCODING_ERROR	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_EUC_JP	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_HTML	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_NONE	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_SHIFT_JIS	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_UCS2	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UCS4BE	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
-encoding.h	XML_CHAR_ENCODING_UCS4LE	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
+encoding.h	XML_CHAR_ENCODING_UCS4BE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
+encoding.h	XML_CHAR_ENCODING_UCS4LE	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
 encoding.h	XML_CHAR_ENCODING_UCS4_2143	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_UCS4_3412	enum_value	not_marked	P1	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	encoding unsupported (docs/encoding.md)
 encoding.h	XML_CHAR_ENCODING_UTF16	enum_value	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/encoding.h	OwnedDocument::parse_bytes - decoded by label; no public encoding enum

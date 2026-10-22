@@ -376,6 +376,10 @@ fn utf32_signatures_repeated_boms_and_unpaired_units_are_rejected() {
         vec![0, 0, 0x3c, 0],
         vec![0, 0x3c, 0, 0],
     ] {
+        // The `encodings` feature decodes the UCS-4 `<` signatures (tests/encodings.rs).
+        if cfg!(feature = "encodings") && matches!(bytes[..], [0, 0, 0, 0x3c] | [0x3c, 0, 0, 0]) {
+            continue;
+        }
         for split in 0..=bytes.len() {
             assert_eq!(
                 stream(&bytes, split).unwrap_err().kind,

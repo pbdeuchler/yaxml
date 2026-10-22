@@ -2395,6 +2395,8 @@ fn validate_encoding(
         };
     };
     let kind = match (source, crate::encoding::charset(label)) {
+        // libxml2 records a UCS-4 document's label without checking it.
+        (SourceEncoding::Ucs4 { .. }, _) => return Ok(source),
         (_, None) => ErrorKind::UnsupportedEncoding,
         (SourceEncoding::Utf8, Some(Charset::Utf8)) => return Ok(source),
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
@@ -2402,6 +2404,10 @@ fn validate_encoding(
         }
         // Transcoded input, which the label switched already.
         (SourceEncoding::Byte(_), Some(Charset::Byte(_))) => return Ok(source),
+        // An EBCDIC declaration, read in IBM037, names the code page that follows.
+        (SourceEncoding::Ebcdic(_), Some(Charset::Ebcdic(table))) => {
+            return Ok(SourceEncoding::Ebcdic(table));
+        }
         _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))

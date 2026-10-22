@@ -155,12 +155,15 @@ impl Stream {
         }
     }
 
-    /// Releases the token; a declaration that selected a byte charset takes
-    /// effect here, before any byte after it is decoded.
+    /// Releases the token; a declaration that selected a byte charset or an
+    /// EBCDIC code page takes effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
         self.tokenizer.release();
         let encoding = self.state.encoding();
-        if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
+        if matches!(
+            encoding,
+            crate::encoding::SourceEncoding::Byte(_) | crate::encoding::SourceEncoding::Ebcdic(_)
+        ) {
             self.decoder.switch(encoding);
             self.tokenizer.switch(encoding);
         }
@@ -526,7 +529,9 @@ fn decode(
                 0
             };
             state.set_encoding(encoding, initial, limit);
-            if encoding == crate::encoding::SourceEncoding::Utf8 && bom == 0 {
+            if matches!(encoding, crate::encoding::SourceEncoding::Utf8 if bom == 0)
+                || matches!(encoding, crate::encoding::SourceEncoding::Ebcdic(_))
+            {
                 state.allow_switch();
             }
             Ok(DecodeProgress {

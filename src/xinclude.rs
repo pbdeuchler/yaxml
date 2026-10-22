@@ -1152,5 +1152,24 @@ fn decode_text(bytes: &[u8], charset: Charset) -> Option<String> {
                     .and_then(|code| char::from_u32(code.into())),
             })
             .collect(),
+        // UTF-32 is big-endian; its BOM stays U+FEFF.
+        Charset::Ucs4(order) => bytes
+            .chunks(4)
+            .map(|unit| {
+                let unit = <[u8; 4]>::try_from(unit).ok()?;
+                char::from_u32(match order {
+                    Some(true) => u32::from_le_bytes(unit),
+                    _ => u32::from_be_bytes(unit),
+                })
+            })
+            .collect(),
+        Charset::Ebcdic(table) => bytes
+            .iter()
+            .map(|&byte| {
+                Some(table[usize::from(byte)])
+                    .filter(|&code| code != 0 || byte == 0)
+                    .and_then(|code| char::from_u32(code.into()))
+            })
+            .collect(),
     }
 }

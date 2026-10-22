@@ -102,6 +102,10 @@ fn decoding_is_independent_of_every_byte_boundary() {
 #[test]
 fn signatures_wait_until_ambiguity_is_resolved() {
     for signature in UNSUPPORTED {
+        // The `encodings` feature decodes the UCS-4 and EBCDIC `<` signatures.
+        if select(&signature, true).is_some_and(|selection| selection.is_ok()) {
+            continue;
+        }
         for split in 0..=4 {
             let mut decoder = Decoder::new(1024);
             let mut starts = 0;
@@ -616,8 +620,6 @@ fn labels_resolve_like_libxml2_without_iconv() {
         ("EUC-JP", None),
         ("ISO-2022-JP", None),
         ("UCS-2", None),
-        ("UCS-4", None),
-        ("IBM037", None),
         ("HTML", None),
         ("ISO-8859-12", None),
         ("iso885911", None),
@@ -627,6 +629,16 @@ fn labels_resolve_like_libxml2_without_iconv() {
     ] {
         assert_eq!(charset(label), expected, "{label}");
     }
+    let iconv = cfg!(feature = "encodings");
+    assert_eq!(
+        charset("UCS-4"),
+        iconv.then_some(Charset::Ucs4(Some(false)))
+    );
+    assert_eq!(charset("utf-32"), iconv.then_some(Charset::Ucs4(None)));
+    assert_eq!(
+        matches!(charset("ebcdic-cp-us"), Some(Charset::Ebcdic(_))),
+        iconv
+    );
 }
 
 #[test]

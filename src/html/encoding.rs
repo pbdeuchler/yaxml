@@ -74,6 +74,7 @@ impl Decoder {
                 big_endian: little_endian == Some(false),
                 pending: Vec::new(),
             },
+            Charset::Ebcdic(_) | Charset::Ucs4(_) => return None,
         })
     }
 

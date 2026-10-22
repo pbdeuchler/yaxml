@@ -204,8 +204,8 @@ fn transcoded_parses_agree_with_the_owned_dom() {
             Err(error(ErrorKind::InvalidUtf16, 10)),
         ),
         (
-            "utf-32 signature",
-            b"\0\0\0<\0\0\0r\0\0\0/\0\0\0>".to_vec(),
+            "ucs-4 2143 signature",
+            b"\0\0<\0\0\0r\0\0\0/\0\0\0>\0".to_vec(),
             0,
             Err(error(ErrorKind::UnsupportedEncoding, 0)),
         ),

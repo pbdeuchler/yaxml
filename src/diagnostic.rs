@@ -366,8 +366,16 @@ pub struct LineIndex<'s> {
 /// The decoders of transcoded input.
 #[derive(Clone, Copy)]
 enum Decoder {
-    Utf16 { big: bool },
+    Utf16 {
+        big: bool,
+    },
     Byte(&'static [u16; 128]),
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ucs4 {
+        big: bool,
+    },
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ebcdic(&'static [u16; 256]),
 }
 
 impl Decoder {
@@ -399,6 +407,20 @@ impl Decoder {
                 let c = char::decode_utf16(units).next()?.ok();
                 Some((replaced(c), 2 * c.map_or(1, char::len_utf16)))
             }
+            Self::Ucs4 { big } => {
+                let unit = *bytes.first_chunk::<4>()?;
+                let c = if big {
+                    u32::from_be_bytes(unit)
+                } else {
+                    u32::from_le_bytes(unit)
+                };
+                Some((replaced(char::from_u32(c)), 4))
+            }
+            Self::Ebcdic(table) => {
+                let &b = bytes.first()?;
+                let c = char::from_u32(table[usize::from(b)].into());
+                Some((replaced(c.filter(|&c| c != '\0' || b == 0)), 1))
+            }
         }
     }
 }
@@ -406,12 +428,21 @@ impl Decoder {
 impl<'s> LineIndex<'s> {
     /// Indexes `input`, the bytes that were parsed.
     pub fn new(input: &'s [u8]) -> Self {
-        use crate::encoding::{Charset, charset, declared_label};
+        use crate::encoding::{SourceEncoding, declared};
         let decoder = match input {
             [0xfe, 0xff, ..] | [0, b'<', 0, b'?', ..] => Decoder::Utf16 { big: true },
             [0xff, 0xfe, ..] | [b'<', 0, b'?', 0, ..] => Decoder::Utf16 { big: false },
-            _ => match declared_label(input).and_then(charset) {
-                Some(Charset::Byte(table)) => Decoder::Byte(table),
+            #[cfg(feature = "encodings")]
+            [0, 0, 0, b'<', ..] => Decoder::Ucs4 { big: true },
+            #[cfg(feature = "encodings")]
+            [b'<', 0, 0, 0, ..] => Decoder::Ucs4 { big: false },
+            #[cfg(feature = "encodings")]
+            [0x4c, 0x6f, 0xa7, 0x94, ..] => Decoder::Ebcdic(match declared(input) {
+                Some(SourceEncoding::Ebcdic(table)) => table,
+                _ => crate::encoding::IBM037,
+            }),
+            _ => match declared(input) {
+                Some(SourceEncoding::Byte(table)) => Decoder::Byte(table),
                 _ => {
                     let mut index = Self::utf8(input);
                     index.starts[0] = if input.starts_with(b"\xef\xbb\xbf") {

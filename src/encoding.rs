@@ -88,11 +88,11 @@ impl<'a> Transcoded<'a> {
             });
         }
         let recovers = options.has(crate::options::RECOVER);
-        let table = declared_table(input)
+        let switch = declared(input)
             .filter(|_| !options.has(crate::options::IGNORE_ENC))
-            .filter(|_| !recovers || recovered_label(input).is_some());
+            .filter(|_| !recovers || recovered_label(&ascii_head(input)).is_some());
         let mut text = Vec::new();
-        let (encoding, end) = transcode(input, table, decode.max_decoded_bytes, &mut text);
+        let (encoding, end) = transcode(input, switch, decode.max_decoded_bytes, &mut text);
         let cut = match end {
             Ok(()) => None,
             Err(error)
@@ -142,19 +142,38 @@ pub(crate) const ISO_8859_1: &[u16; 128] = &charsets::ISO_8859_1;
 #[cfg(feature = "html")]
 pub(crate) const US_ASCII: &[u16; 128] = &charsets::US_ASCII;
 
+#[cfg(feature = "encodings")]
+mod iconv;
+
+/// The EBCDIC code page libxml2 reads a declaration in (`xmlDetectEBCDIC`).
+#[cfg(feature = "encodings")]
+pub(crate) const IBM037: &[u16; 256] = &iconv::CP037;
+
 /// A built-in libxml2 declaration label: UTF-16 carries an optional byte
-/// order, and single-byte charsets map bytes 0x80..=0xFF (zero is unmapped).
+/// order, single-byte charsets map bytes 0x80..=0xFF and EBCDIC code pages
+/// every byte (zero is unmapped). UCS-4 is an output charset only.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Charset {
     Utf8,
     Utf16(Option<bool>),
     Byte(&'static [u16; 128]),
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ebcdic(&'static [u16; 256]),
+    /// UCS-4 output; `None` = UTF-32, big-endian behind a BOM.
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ucs4(Option<bool>),
 }
 
-/// Resolves a label as libxml2 does without iconv/ICU: ASCII case-insensitively.
+/// Resolves a label ASCII case-insensitively, as libxml2 does without
+/// iconv/ICU, or with the macOS iconv for EBCDIC and UCS-4 (feature `encodings`).
 pub(crate) fn charset(label: &str) -> Option<Charset> {
+    #[cfg(feature = "encodings")]
+    let optional = &iconv::LABELS;
+    #[cfg(not(feature = "encodings"))]
+    let optional: &[(&str, Charset)] = &[];
     charsets::LABELS
         .iter()
+        .chain(optional)
         .find(|(name, _)| name.eq_ignore_ascii_case(label))
         .map(|(_, charset)| *charset)
 }
@@ -166,6 +185,8 @@ pub(crate) enum Output {
     Utf8,
     Utf16 { little_endian: bool, bom: bool },
     Byte(&'static [u16; 128]),
+    Ebcdic(&'static [u16; 256]),
+    Ucs4 { little_endian: bool, bom: bool },
 }
 
 impl Output {
@@ -181,6 +202,11 @@ impl Output {
                 bom: false,
             },
             Charset::Byte(table) => Self::Byte(table),
+            Charset::Ebcdic(table) => Self::Ebcdic(table),
+            Charset::Ucs4(order) => Self::Ucs4 {
+                little_endian: order == Some(true),
+                bom: order.is_none(),
+            },
         })
     }
 
@@ -188,6 +214,7 @@ impl Output {
     pub(crate) fn bom(self) -> &'static [u8] {
         match self {
             Self::Utf16 { bom: true, .. } => &[0xFF, 0xFE],
+            Self::Ucs4 { bom: true, .. } => &[0, 0, 0xFE, 0xFF],
             _ => &[],
         }
     }
@@ -216,6 +243,16 @@ impl Output {
                     None => return false,
                 }
             }
+            Self::Ucs4 { little_endian, .. } => out.extend_from_slice(&if little_endian {
+                code.to_le_bytes()
+            } else {
+                code.to_be_bytes()
+            }),
+            Self::Ebcdic(table) => match table.iter().position(|&m| m != 0 && u32::from(m) == code)
+            {
+                Some(index) => out.push(index as u8),
+                None => return false,
+            },
         }
         true
     }
@@ -230,6 +267,14 @@ pub(crate) enum SourceEncoding {
     },
     /// A single-byte charset selected by a BOM-less declaration.
     Byte(&'static [u16; 128]),
+    /// UCS-4 detected from a `<` signature (feature `encodings`).
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ucs4 {
+        little_endian: bool,
+    },
+    /// An EBCDIC code page: IBM037 until a declaration names another.
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ebcdic(&'static [u16; 256]),
 }
 
 impl SourceEncoding {
@@ -244,7 +289,10 @@ impl SourceEncoding {
                     _ => 0,
                 })
                 .sum(),
-            Self::Byte(_) => bytes.iter().filter(|b| (**b & 0xc0) != 0x80).count(),
+            Self::Byte(_) | Self::Ebcdic(_) => {
+                bytes.iter().filter(|b| (**b & 0xc0) != 0x80).count()
+            }
+            Self::Ucs4 { .. } => 4 * bytes.iter().filter(|b| (**b & 0xc0) != 0x80).count(),
         }
     }
 
@@ -302,8 +350,9 @@ pub(crate) struct Decoder {
     position: usize,
     decoded: usize,
     limit: usize,
-    byte: Option<(u8, usize)>,
-    high: Option<(u16, usize)>,
+    /// A code unit's bytes so far, and the offset of its first byte.
+    unit: ([u8; 4], usize, usize),
+    high: Option<(u32, usize)>,
     pending: [u8; 4],
     pending_cursor: usize,
     pending_len: usize,
@@ -319,7 +368,7 @@ impl Decoder {
             position: 0,
             decoded: 0,
             limit,
-            byte: None,
+            unit: ([0; 4], 0, 0),
             high: None,
             pending: [0; 4],
             pending_cursor: 0,
@@ -404,11 +453,11 @@ impl Decoder {
                             });
                         }
                     }
-                    SourceEncoding::Utf16 { little_endian, .. } => {
+                    _ => {
                         let offset = self.preamble_cursor;
                         let byte = self.preamble[offset];
                         self.preamble_cursor += 1;
-                        self.unit_byte(byte, offset, little_endian)?;
+                        self.unit_byte(encoding, byte, offset)?;
                     }
                 }
                 continue;
@@ -429,13 +478,6 @@ impl Decoder {
                             suspended: true,
                         });
                     }
-                }
-                SourceEncoding::Utf16 { little_endian, .. } => {
-                    let offset = self.position;
-                    self.position += 1;
-                    let byte = input[cursor];
-                    cursor += 1;
-                    self.unit_byte(byte, offset, little_endian)?;
                 }
                 SourceEncoding::Byte(table) => {
                     // ASCII runs are forwarded in bounded windows, so a token
@@ -466,6 +508,13 @@ impl Decoder {
                         .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
                     self.carry(scalar)?;
                 }
+                _ => {
+                    let offset = self.position;
+                    self.position += 1;
+                    let byte = input[cursor];
+                    cursor += 1;
+                    self.unit_byte(encoding, byte, offset)?;
+                }
             }
         }
     }
@@ -490,7 +539,7 @@ impl Decoder {
         if let Some((_, offset)) = self.high {
             return Err(Error::new(ErrorKind::InvalidUtf16, offset));
         }
-        if let Some((_, offset)) = self.byte {
+        if let (_, 1.., offset) = self.unit {
             return Err(Error::new(ErrorKind::InvalidUtf16, offset));
         }
         Ok(false)
@@ -537,30 +586,50 @@ impl Decoder {
         })
     }
 
-    fn unit_byte(&mut self, byte: u8, offset: usize, little_endian: bool) -> Result<(), Error> {
-        let Some((first, unit_offset)) = self.byte.take() else {
-            self.byte = Some((byte, offset));
+    /// Decodes one byte of an encoding the decoder does not forward as UTF-8.
+    fn unit_byte(
+        &mut self,
+        encoding: SourceEncoding,
+        byte: u8,
+        offset: usize,
+    ) -> Result<(), Error> {
+        let (little_endian, width) = match encoding {
+            SourceEncoding::Utf16 { little_endian, .. } => (little_endian, 2),
+            SourceEncoding::Ucs4 { little_endian } => (little_endian, 4),
+            SourceEncoding::Ebcdic(table) => {
+                let scalar = char::from_u32(table[usize::from(byte)].into())
+                    .filter(|scalar| *scalar != '\0')
+                    .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
+                return self.carry(scalar);
+            }
+            SourceEncoding::Utf8 | SourceEncoding::Byte(_) => unreachable!("forwarded as UTF-8"),
+        };
+        let (mut bytes, length, unit_offset) = self.unit;
+        let unit_offset = if length == 0 { offset } else { unit_offset };
+        bytes[length] = byte;
+        if length + 1 < width {
+            self.unit = (bytes, length + 1, unit_offset);
             return Ok(());
-        };
-        let unit = if little_endian {
-            u16::from_le_bytes([first, byte])
-        } else {
-            u16::from_be_bytes([first, byte])
-        };
-        let scalar = if let Some((high, high_offset)) = self.high.take() {
+        }
+        self.unit = ([0; 4], 0, 0);
+        let ordered = |i: usize| bytes[if little_endian { width - 1 - i } else { i }];
+        let unit = (0..width).fold(0, |unit, i| unit << 8 | u32::from(ordered(i)));
+        let scalar = if width == 4 {
+            unit
+        } else if let Some((high, high_offset)) = self.high.take() {
             if !(0xdc00..=0xdfff).contains(&unit) {
                 return Err(Error::new(ErrorKind::InvalidUtf16, high_offset));
             }
-            0x10000 + ((u32::from(high) - 0xd800) << 10) + u32::from(unit) - 0xdc00
+            0x10000 + ((high - 0xd800) << 10) + unit - 0xdc00
         } else if (0xd800..=0xdbff).contains(&unit) {
             self.high = Some((unit, unit_offset));
             return Ok(());
-        } else if (0xdc00..=0xdfff).contains(&unit) {
-            return Err(Error::new(ErrorKind::InvalidUtf16, unit_offset));
         } else {
-            u32::from(unit)
+            unit
         };
-        self.carry(char::from_u32(scalar).expect("validated UTF-16 scalar"))
+        // Lone UTF-16 low surrogates and UCS-4 values past the scalars fail here.
+        let scalar = char::from_u32(scalar).ok_or(Error::new(ErrorKind::InvalidUtf16, unit_offset));
+        self.carry(scalar?)
     }
 
     fn carry(&mut self, character: char) -> Result<(), Error> {
@@ -625,8 +694,9 @@ fn check_progress(progress: DecodeProgress, available: usize, offset: usize) -> 
 /// Bytes scanned per byte-charset ASCII run; bounds rescanning after suspension.
 const ASCII_WINDOW: usize = 256;
 
-/// UCS-4 BOMs and `<` signatures, then EBCDIC `<?xm`: libxml2 detects these
-/// but has no built-in decoder for them.
+/// UCS-4 BOMs and `<` signatures, then EBCDIC `<?xm`: libxml2 has no built-in
+/// decoder for them. Without the `encodings` feature none is decoded; with it
+/// only the BOMs and the 2143/3412 byte orders stay unsupported.
 const UNSUPPORTED: [[u8; 4]; 9] = [
     [0, 0, 0xfe, 0xff],
     [0xff, 0xfe, 0, 0],
@@ -636,10 +706,34 @@ const UNSUPPORTED: [[u8; 4]; 9] = [
     [b'<', 0, 0, 0],
     [0, 0, b'<', 0],
     [0, b'<', 0, 0],
-    [0x4c, 0x6f, 0xa7, 0x94],
+    EBCDIC,
 ];
 
+/// The UCS-4 `<` signatures and EBCDIC `<?xm` the `encodings` feature decodes.
+#[cfg(feature = "encodings")]
+const DETECTED: [([u8; 4], SourceEncoding); 3] = [
+    (
+        [0, 0, 0, b'<'],
+        SourceEncoding::Ucs4 {
+            little_endian: false,
+        },
+    ),
+    (
+        [b'<', 0, 0, 0],
+        SourceEncoding::Ucs4 {
+            little_endian: true,
+        },
+    ),
+    (EBCDIC, SourceEncoding::Ebcdic(IBM037)),
+];
+
+const EBCDIC: [u8; 4] = [0x4c, 0x6f, 0xa7, 0x94];
+
 fn select(prefix: &[u8], final_input: bool) -> Option<Result<(SourceEncoding, usize), Error>> {
+    #[cfg(feature = "encodings")]
+    if let Some((_, encoding)) = DETECTED.iter().find(|(signature, _)| prefix == signature) {
+        return Some(Ok((*encoding, 0)));
+    }
     if UNSUPPORTED.iter().any(|candidate| prefix == candidate) {
         return Some(Err(Error::new(ErrorKind::UnsupportedEncoding, 0)));
     }
@@ -727,15 +821,38 @@ pub(crate) fn needs_decoding(input: &[u8]) -> bool {
         || UNSUPPORTED
             .iter()
             .any(|signature| input.starts_with(signature))
-        || declared_table(input).is_some()
+        || declared(input).is_some()
 }
 
-/// The single-byte charset a leading declaration names.
-pub(crate) fn declared_table(input: &[u8]) -> Option<&'static [u16; 128]> {
-    match declared_label(input).and_then(charset)? {
-        Charset::Byte(table) => Some(table),
+/// The encoding a leading declaration switches `input` to after it: a
+/// single-byte charset, or another code page for EBCDIC input.
+pub(crate) fn declared(input: &[u8]) -> Option<SourceEncoding> {
+    let ebcdic = input.starts_with(&EBCDIC);
+    match (
+        ebcdic,
+        declared_label(&ascii_head(input)).and_then(charset)?,
+    ) {
+        (false, Charset::Byte(table)) => Some(SourceEncoding::Byte(table)),
+        (true, Charset::Ebcdic(table)) => Some(SourceEncoding::Ebcdic(table)),
         _ => None,
     }
+}
+
+/// The input a leading declaration is read from: EBCDIC through its
+/// `?>` in IBM037, as `xmlDetectEBCDIC` reads it.
+fn ascii_head(input: &[u8]) -> Cow<'_, [u8]> {
+    #[cfg(feature = "encodings")]
+    if input.starts_with(&EBCDIC) {
+        let end = memchr::memmem::find(input, &[0x6f, 0x6e]).map_or(input.len(), |end| end + 2);
+        // IBM037 maps every byte to Latin-1.
+        return Cow::Owned(
+            input[..end]
+                .iter()
+                .map(|&b| IBM037[usize::from(b)] as u8)
+                .collect(),
+        );
+    }
+    Cow::Borrowed(input)
 }
 
 /// The label a leading declaration keeps when the parser recovers from its
@@ -748,12 +865,12 @@ fn recovered_label(input: &[u8]) -> Option<&str> {
     declaration.encoding
 }
 
-/// Decodes complete `input` into `output` as the streams do, in the byte
-/// charset `table` after the declaration naming it: the detected encoding
+/// Decodes complete `input` into `output` as the streams do, in `switch`
+/// after the declaration naming it (see [`declared`]): the detected encoding
 /// and how decoding ended (`output` then holds the text before the error).
 pub(crate) fn transcode(
     input: &[u8],
-    table: Option<&'static [u16; 128]>,
+    switch: Option<SourceEncoding>,
     limit: usize,
     output: &mut Vec<u8>,
 ) -> (SourceEncoding, Result<(), Error>) {
@@ -780,18 +897,22 @@ pub(crate) fn transcode(
             suspended: false,
         })
     };
-    let split = table.map_or(0, |_| {
-        memchr::memmem::find(input, b"?>").expect("declared label is terminated") + 2
+    let close: &[u8] = match switch {
+        Some(SourceEncoding::Ebcdic(_)) => &[0x6f, 0x6e],
+        _ => b"?>",
+    };
+    let split = switch.map_or(0, |_| {
+        memchr::memmem::find(input, close).expect("declared label is terminated") + 2
     });
     let end = (|| {
         decoder.advance(&input[..split], &mut sink)?;
-        if let Some(table) = table {
-            decoder.switch(SourceEncoding::Byte(table));
+        if let Some(switch) = switch {
+            decoder.switch(switch);
         }
         decoder.advance(&input[split..], &mut sink)?;
         decoder.finish_step(&mut sink).map(drop)
     })();
-    (table.map_or(encoding, SourceEncoding::Byte), end)
+    (switch.unwrap_or(encoding), end)
 }
 
 /// Locates a leading declaration's label only to route it to the decoder;
