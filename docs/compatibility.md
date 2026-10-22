@@ -8,10 +8,10 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 104 | 532 | 64 | 0 | 78 | 8 | 147 | 955 |
+| implemented | 22 | 104 | 533 | 64 | 0 | 84 | 8 | 147 | 962 |
 | partial | 1 | 20 | 232 | 34 | 0 | 87 | 50 | 89 | 513 |
-| not-started | 0 | 26 | 589 | 53 | 0 | 60 | 14 | 443 | 1185 |
-| not-applicable | 24 | 21 | 446 | 32 | 75 | 172 | 84 | 256 | 1110 |
+| not-started | 0 | 26 | 587 | 53 | 0 | 46 | 14 | 443 | 1169 |
+| not-applicable | 24 | 21 | 447 | 32 | 75 | 180 | 84 | 256 | 1119 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 142 | 297 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
@@ -170,7 +170,9 @@ order. `valid::Entity` carries libxml2's entity type (`EntityKind`, the
 `valid::Element` has `ContentKind` (`xmlElementTypeVal`) and the content
 model as `xmlDumpElementDecl` prints it; `valid::Attribute` has
 `AttributeKind` (`xmlAttributeType`), `AttributeDefault` (`xmlAttributeDefault`
-with the value) and the enumeration. `save::encode_entities`
+with the value) and the enumeration. `valid::value_matches(kind, value)` is
+the validator's lexical check (`xmlValidateNameValue`, `NamesValue`,
+`NmtokenValue`, `NmtokensValue` as `Id`, `IdRefs`, `NmToken`, `NmTokens`). `save::encode_entities`
 (`xmlEncodeEntitiesReentrant`, with `save::Escape` standing for the document
 argument: `Xml` with an encoding, `Ascii` without one or without a document,
 `Html`) and `save::encode_special_chars` (`xmlEncodeSpecialChars`) reuse the

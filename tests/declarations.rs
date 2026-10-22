@@ -466,3 +466,38 @@ fn encoders_follow_xml_escape_text() {
         assert_eq!(save::encode_special_chars(text), expected, "{text:?}");
     }
 }
+
+#[test]
+fn values_match_libxml2_name_validators() {
+    use yaxml::valid::value_matches;
+    // (value, xmlValidateNameValue, NamesValue, NmtokenValue, NmtokensValue)
+    // as libxml2 2.15.4 returns them.
+    for (value, name, names, nmtoken, nmtokens) in [
+        ("", false, false, false, false),
+        ("a", true, true, true, true),
+        ("1a", false, false, true, true),
+        ("a b", false, true, false, true),
+        ("a  b", false, true, false, true),
+        (" a", false, false, false, true),
+        ("a ", false, false, false, true),
+        ("a\tb", false, false, false, false),
+        ("\ta", false, false, false, true),
+        ("a:b", true, true, true, true),
+        ("-x", false, false, true, true),
+        ("x-1.y", true, true, true, true),
+        ("é", true, true, true, true),
+        ("a b ", false, false, false, true),
+        (".5", false, false, true, true),
+        ("1 2", false, false, false, true),
+    ] {
+        let found = [
+            AttributeKind::Id,
+            AttributeKind::IdRefs,
+            AttributeKind::NmToken,
+            AttributeKind::NmTokens,
+        ]
+        .map(|kind| value_matches(kind, value));
+        assert_eq!(found, [name, names, nmtoken, nmtokens], "{value:?}");
+        assert!(value_matches(AttributeKind::Cdata, value), "{value:?}");
+    }
+}

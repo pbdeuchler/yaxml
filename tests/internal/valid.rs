@@ -18,10 +18,10 @@ fn attribute_values_follow_libxml2_lexical_rules() {
     ];
     for &(kind, valid, invalid) in table {
         for value in valid {
-            assert!(lexical(kind, value), "{kind:?} {value:?}");
+            assert!(value_matches(kind, value), "{kind:?} {value:?}");
         }
         for value in invalid {
-            assert!(!lexical(kind, value), "{kind:?} {value:?}");
+            assert!(!value_matches(kind, value), "{kind:?} {value:?}");
         }
     }
 }

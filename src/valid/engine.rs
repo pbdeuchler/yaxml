@@ -17,7 +17,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, lexical, predefined_entity,
+    AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, predefined_entity,
+    value_matches,
 };
 use crate::dtd_catalog::{EntityBody, StoredDefault};
 use crate::fallible::collected;
@@ -502,7 +503,7 @@ impl<Id: Copy> Validator<Id> {
             let message = format!("No declaration for attribute {shown} of element {owner}");
             return self.report(key, Code::UnknownAttribute, Some(node), message);
         };
-        if !lexical(decl.kind, value) {
+        if !value_matches(decl.kind, value) {
             let code = match namespace {
                 true => Code::InvalidDefault,
                 false => Code::AttributeValue,

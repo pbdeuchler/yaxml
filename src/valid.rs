@@ -495,7 +495,7 @@ impl Dtd {
             StoredDefault::Value { value, .. } => Some(value.as_str()),
             _ => None,
         };
-        let lexical = default.is_none_or(|value| lexical(attribute.kind, value));
+        let lexical = default.is_none_or(|value| value_matches(attribute.kind, value));
         if !lexical {
             let message = format!("Attribute {owner} of {name}: invalid default value");
             self.issues.push((Code::AttributeDefault, None, message));
@@ -884,10 +884,21 @@ fn blank(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r')
 }
 
-/// The lexical check of `xmlValidateAttributeValueInternal`: names are
-/// separated by runs of U+0020, and NMTOKENS (and enumerations) may also have
-/// leading blanks and trailing spaces.
-fn lexical(kind: AttributeKind, value: &str) -> bool {
+/// Whether `value` is lexically valid for an attribute of type `kind`
+/// (`xmlValidateAttributeValue`; `Id` = `xmlValidateNameValue`, `IdRefs` =
+/// `xmlValidateNamesValue`, `NmToken`/`NmTokens` = `xmlValidateNmtoken(s)Value`).
+/// Names are separated by runs of U+0020, and NMTOKENS (and enumerations) may
+/// also have leading blanks and trailing spaces. XML 1.0 fifth-edition names.
+///
+/// ```
+/// use yaxml::valid::{AttributeKind, value_matches};
+///
+/// assert!(value_matches(AttributeKind::IdRefs, "a b  c"));
+/// assert!(!value_matches(AttributeKind::IdRefs, "a b "));
+/// assert!(value_matches(AttributeKind::NmTokens, "\t1 2 "));
+/// assert!(!value_matches(AttributeKind::Id, "1a"));
+/// ```
+pub fn value_matches(kind: AttributeKind, value: &str) -> bool {
     match kind {
         AttributeKind::Cdata => true,
         AttributeKind::Id
