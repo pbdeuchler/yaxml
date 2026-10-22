@@ -39,8 +39,8 @@ fn owned_parsed_text_extends_the_pool_tail_without_a_second_node() {
     };
     assert_eq!(range, &(0..2));
     assert_eq!(builder.nodes[1].source.unwrap().input_range(), Some(3..5));
-    assert_eq!(builder.nodes[0].first_child.get(), Some(NodeId(1)));
-    assert_eq!(builder.nodes[0].last_child.get(), Some(NodeId(1)));
+    assert_eq!(builder.nodes[0].first_child.get(), Some(NodeId::new(1)));
+    assert_eq!(builder.nodes[0].last_child.get(), Some(NodeId::new(1)));
 }
 
 #[test]

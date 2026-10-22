@@ -110,6 +110,12 @@ pub(crate) struct ContentControllerCore<'input> {
     pieces: Vec<Option<Box<[Piece]>>>,
     /// The next piece of each entity being expanded, innermost last.
     replay: Vec<usize>,
+    /// Recorded expansions (by `EntityId`; see [`template`]), the one
+    /// being recorded, the one being replayed, and the bytes they hold.
+    templates: Vec<template::Slot<'input>>,
+    recording: Option<Box<template::Recording<'input>>>,
+    replaying: Option<template::Replay>,
+    template_bytes: usize,
 }
 
 /// A token or reference of replacement text, from the previous piece's end.
@@ -127,6 +133,8 @@ enum PieceKind {
     /// The text fails to scan here (reported at the outermost reference).
     Fail(ErrorKind),
 }
+
+mod template;
 
 pub(crate) type ContentController = ContentControllerCore<'static>;
 pub(crate) type BorrowedContentController<'input> = ContentControllerCore<'input>;
@@ -181,6 +189,10 @@ impl<'input> ContentControllerCore<'input> {
             shared: (usize::MAX, 0, 0),
             pieces: Vec::new(),
             replay: Vec::new(),
+            templates: Vec::new(),
+            recording: None,
+            replaying: None,
+            template_bytes: 0,
             origin: FragmentOrigin::input(0..0).expect("empty range"),
         })
     }
@@ -210,7 +222,9 @@ impl<'input> ContentControllerCore<'input> {
     /// `None` at the end of the document.
     pub(crate) fn next_stable(&mut self) -> Result<Option<Event<'input>>, Error> {
         loop {
-            if let Some((marker, origin)) = self.pending.take() {
+            // Checked before taking: moving the empty slot out costs every token.
+            if self.pending.is_some() {
+                let (marker, origin) = self.pending.take().expect("pending marker");
                 self.pending = self.queued.take().map(|origin| (Marker::End, origin));
                 self.origin = origin;
                 return Ok(Some(match marker {
@@ -222,11 +236,21 @@ impl<'input> ContentControllerCore<'input> {
                 let Some((kind, range)) = self.replacement_step(frame)? else {
                     continue;
                 };
-                let event = self.take_replacement(kind, range);
+                let event = match self.recording {
+                    Some(_) => self.record(kind, range),
+                    None => self.take_replacement(kind, range),
+                };
                 if !matches!(event, Ok(None)) {
                     return event;
                 }
                 continue;
+            }
+            // A replay opens no frame.
+            if self.replaying.is_some() {
+                match self.replay()? {
+                    Some(event) => return Ok(Some(event)),
+                    None => continue,
+                }
             }
             let Source::Stable(input, limit) = self.source else {
                 unreachable!("streamed input is lent, not taken")
@@ -614,20 +638,25 @@ impl<'input> ContentControllerCore<'input> {
                 Source::Stream(_) => unreachable!("streamed references come from the coordinator"),
             },
         };
+        // A resolved entity needs its name only for its reference node.
         self.scratch.clear();
-        self.scratch.push_str(&text[range]);
+        if known.is_none() || self.markers {
+            self.scratch.push_str(&text[range]);
+        }
         self.enter(origin, known)
     }
 
     /// Enters the reference in `scratch`, spelled at `origin`, to the
     /// internal entity `known` when it was resolved before.
     fn enter(&mut self, origin: FragmentOrigin, known: Option<EntityId>) -> Result<(), Error> {
-        self.share_expansion();
+        let left = self.share_expansion();
+        self.record_reference(known);
         let fail = |kind| Error::new(kind, origin.error_offset());
         if !self.parser.in_content() {
             return Err(fail(ErrorKind::TextOutsideRoot));
         }
-        let name = &self.scratch[1..self.scratch.len() - 1];
+        let name = self.scratch.get(1..self.scratch.len().saturating_sub(1));
+        let name = name.unwrap_or_default();
         let marker = match self.markers {
             true => Some(owned_name(
                 name,
@@ -682,6 +711,9 @@ impl<'input> ContentControllerCore<'input> {
             }
             return Ok(());
         };
+        if self.reuse(id, origin.physical_context(), left) {
+            return Ok(());
+        }
         let before = self.body.frames.counters().work;
         self.body
             .frames
@@ -713,6 +745,9 @@ impl<'input> ContentControllerCore<'input> {
     fn finish_general(&mut self) -> Result<(), Error> {
         self.body.frames.finish(self.parser.element_depth())?;
         self.replay.pop();
+        if self.recording.is_some() && self.body.frames.stack().is_empty() {
+            self.conclude();
+        }
         if let Some(origin) = self.open.pop() {
             self.pending = Some((Marker::End, origin));
         }
@@ -744,15 +779,15 @@ impl<'input> ContentControllerCore<'input> {
         self.parser.close_open(at)
     }
 
-    fn share_expansion(&mut self) {
+    fn share_expansion(&mut self) -> usize {
         let body = &mut self.body;
+        self.shared = (usize::MAX, 0, 0);
         share_expansion(
             &body.limits,
             body.physical_position,
             &mut body.frames,
             &mut body.catalog,
-        );
-        self.shared = (usize::MAX, 0, 0);
+        )
     }
 
     /// Shares the allowance before the frames expand replacement text. Their
@@ -805,7 +840,7 @@ impl<'input> ContentControllerCore<'input> {
             physical_reference: frame.physical_reference,
         };
         match kind {
-            TokenKind::Start => self.share_expansion(),
+            TokenKind::Start => _ = self.share_expansion(),
             _ => self.share_frame_expansion(),
         }
         self.work.charge(range.len(), origin.error_offset())?;
@@ -1055,6 +1090,7 @@ fn reference(text: &str, start: usize, token: TokenLimit) -> Result<(ReferenceKi
 }
 
 /// Publishes a physical token: tags see the DTD, other tokens are ordinary.
+#[inline(always)]
 fn publish_physical<'source, 'raw>(
     parser: &mut ParserState<'source>,
     catalog: &mut DtdCatalog,
@@ -1108,6 +1144,7 @@ fn note_catalogs(parser: &mut ParserState<'_>, catalog: &mut DtdCatalog, kind: T
 /// with line ends normalized when it was declared, stopping at the markup
 /// errors physical input recovers from, and reading a tag's literals as
 /// replacement text. Failures are located at the reference.
+#[inline(always)]
 pub(crate) fn publish_replacement<'source, 'raw>(
     parser: &mut ParserState<'source>,
     catalog: &mut DtdCatalog,

@@ -121,6 +121,19 @@ impl<'a> Name<'a> {
         })
     }
 
+    /// A copy that borrows what this name borrows.
+    pub(crate) fn try_clone(&self) -> Result<Self, std::collections::TryReserveError> {
+        Ok(Self {
+            qualified: crate::fallible::cow(&self.qualified)?,
+            prefix_length: self.prefix_length,
+            namespace: self
+                .namespace
+                .as_ref()
+                .map(crate::fallible::cow)
+                .transpose()?,
+        })
+    }
+
     pub(crate) fn as_borrowed(&self) -> Name<'_> {
         Name::from_validated_parts(
             Cow::Borrowed(&self.qualified),

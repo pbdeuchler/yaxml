@@ -425,6 +425,18 @@ fn malformed_tokens_report_explicit_original_byte_errors() {
         ("<r é🙂\u{f0000}='v'/>", ErrorKind::InvalidName, "<r é🙂"),
         ("<r>é🙂</x>", ErrorKind::MismatchedEndTag, "<r>é🙂"),
         ("<r>é🙂\u{1}</r>", ErrorKind::InvalidCharacter, "<r>é🙂"),
+        // Short tokens adopted whole (a window of 32 bytes or more), which
+        // are screened as they are copied.
+        (
+            "<r>é\u{fffe}</r><!-- reaching the adoption window -->",
+            ErrorKind::InvalidCharacter,
+            "<r>é",
+        ),
+        (
+            "<r><!--\u{1f}--></r><!-- reaching the adoption window -->",
+            ErrorKind::InvalidCharacter,
+            "<r><!--",
+        ),
         ("<r/><s/>", ErrorKind::MultipleRoots, "<r/>"),
         ("<r><!🙂</r>", ErrorKind::Syntax, "<r>"),
         ("<![CDATA[x]]><r/>", ErrorKind::TextOutsideRoot, ""),

@@ -163,18 +163,18 @@ fn document_identity(counter: &AtomicUsize) -> Result<NonZeroUsize, Error> {
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct OwnedNodeId {
     document: NonZeroUsize,
-    slot: NodeId,
+    slot: usize,
 }
 
 impl OwnedNodeId {
     pub(crate) fn slot(self) -> usize {
-        self.slot.0
+        self.slot
     }
 
     /// The handle as `(document identity, slot)`, for foreign handle tables
     /// such as a C ABI; [`from_parts`](Self::from_parts) rebuilds it.
     pub fn parts(self) -> (usize, usize) {
-        (self.document.get(), self.slot.0)
+        (self.document.get(), self.slot)
     }
 
     /// Rebuilds a handle from [`parts`](Self::parts); `None` for identity 0.
@@ -182,7 +182,7 @@ impl OwnedNodeId {
     pub fn from_parts(document: usize, slot: usize) -> Option<Self> {
         Some(Self {
             document: NonZeroUsize::new(document)?,
-            slot: NodeId(slot),
+            slot,
         })
     }
 }
@@ -239,11 +239,11 @@ impl Link {
 
     /// A slot index is below `isize::MAX`, so it never spells `NONE`.
     fn new(id: NodeId) -> Self {
-        Self(id.0)
+        Self(id.index())
     }
 
     fn get(self) -> Option<NodeId> {
-        (self != Self::NONE).then_some(NodeId(self.0))
+        (self != Self::NONE).then(|| NodeId::new(self.0))
     }
 }
 
@@ -265,7 +265,7 @@ struct OwnedRecord {
 impl OwnedRecord {
     fn root(source_length: usize) -> Self {
         Self {
-            id: NodeId(0),
+            id: NodeId::new(0),
             content: Content::Document,
             source: Some(SourceOrigin::input(0..source_length)),
             parent: Link::NONE,
@@ -724,7 +724,11 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                 None
             }
         };
-        let mut builder = OwnedBuilder::new(input.len(), expected_nodes(input), allocator)?;
+        let mut builder = OwnedBuilder::new(
+            input.len(),
+            expected_nodes(input, limits.max_events),
+            allocator,
+        )?;
         let content = context.is_some();
         let document = if !content && crate::encoding::needs_decoding(input) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
@@ -794,12 +798,12 @@ impl<A: Allocator> OwnedDocument<A> {
         let size = record.subtree_size;
         self.slots_are_preorder = false;
         match previous.get() {
-            Some(previous) => self.nodes[previous.0].next_sibling = next,
-            None => self.nodes[parent.0].first_child = next,
+            Some(previous) => self.nodes[previous.index()].next_sibling = next,
+            None => self.nodes[parent.index()].first_child = next,
         }
         match next.get() {
-            Some(next) => self.nodes[next.0].previous_sibling = previous,
-            None => self.nodes[parent.0].last_child = previous,
+            Some(next) => self.nodes[next.index()].previous_sibling = previous,
+            None => self.nodes[parent.index()].last_child = previous,
         }
         self.resize_ancestors(parent, size, false);
     }
@@ -808,30 +812,33 @@ impl<A: Allocator> OwnedDocument<A> {
     /// (`Link::NONE`: as the last child).
     fn attach(&mut self, index: usize, parent: usize, next: Link) {
         let previous = match next.get() {
-            Some(next) => self.nodes[next.0].previous_sibling,
+            Some(next) => self.nodes[next.index()].previous_sibling,
             None => self.nodes[parent].last_child,
         };
-        let (link, parent_link) = (Link::new(NodeId(index)), Link::new(NodeId(parent)));
+        let (link, parent_link) = (
+            Link::new(NodeId::new(index)),
+            Link::new(NodeId::new(parent)),
+        );
         let record = &mut self.nodes[index];
         (record.parent, record.previous_sibling, record.next_sibling) =
             (parent_link, previous, next);
         let size = record.subtree_size;
         self.slots_are_preorder = false;
         match previous.get() {
-            Some(previous) => self.nodes[previous.0].next_sibling = link,
+            Some(previous) => self.nodes[previous.index()].next_sibling = link,
             None => self.nodes[parent].first_child = link,
         }
         match next.get() {
-            Some(next) => self.nodes[next.0].previous_sibling = link,
+            Some(next) => self.nodes[next.index()].previous_sibling = link,
             None => self.nodes[parent].last_child = link,
         }
-        self.resize_ancestors(NodeId(parent), size, true);
+        self.resize_ancestors(NodeId::new(parent), size, true);
     }
 
     fn resize_ancestors(&mut self, from: NodeId, size: usize, grow: bool) {
         let mut ancestor = Some(from);
         while let Some(id) = ancestor {
-            let record = &mut self.nodes[id.0];
+            let record = &mut self.nodes[id.index()];
             record.subtree_size = match grow {
                 true => record.subtree_size + size,
                 false => record.subtree_size - size,
@@ -848,13 +855,13 @@ impl<A: Allocator> OwnedDocument<A> {
         self.slots_are_preorder = false;
         // Strip rightmost leaves, then their parents. Each edge is visited a
         // constant number of times, without recursion or a temporary stack.
-        let mut current = NodeId(index);
+        let mut current = NodeId::new(index);
         loop {
-            if let Some(last) = self.nodes[current.0].last_child.get() {
+            if let Some(last) = self.nodes[current.index()].last_child.get() {
                 current = last;
                 continue;
             }
-            let record = &mut self.nodes[current.0];
+            let record = &mut self.nodes[current.index()];
             let parent = record.parent;
             let previous = record.previous_sibling;
             record.content = Content::Removed;
@@ -865,16 +872,16 @@ impl<A: Allocator> OwnedDocument<A> {
             record.previous_sibling = Link::NONE;
             record.next_sibling = Link::NONE;
             record.subtree_size = 0;
-            if current.0 == index {
+            if current.index() == index {
                 break;
             }
             let parent = parent.get().expect("removed descendant has a parent");
-            self.nodes[parent.0].last_child = previous;
+            self.nodes[parent.index()].last_child = previous;
             if let Some(previous) = previous.get() {
-                self.nodes[previous.0].next_sibling = Link::NONE;
+                self.nodes[previous.index()].next_sibling = Link::NONE;
                 current = previous;
             } else {
-                self.nodes[parent.0].first_child = Link::NONE;
+                self.nodes[parent.index()].first_child = Link::NONE;
                 current = parent;
             }
         }
@@ -925,20 +932,20 @@ impl<A: Allocator> OwnedDocument<A> {
     /// The synthetic document root, parent of the document element and of
     /// the comments and PIs around it.
     pub fn root(&self) -> OwnedNode<'_, A> {
-        self.view(NodeId(0)).expect("owned document root is live")
+        self.view(0).expect("owned document root is live")
     }
 
     /// The document element; the synthetic root for an HTML or `RECOVER`
     /// document without one ([`Self::document_element`] tells them apart).
     pub fn root_element(&self) -> OwnedNode<'_, A> {
-        self.view(self.root_element)
+        self.view(self.root_element.index())
             .expect("owned document element is live")
     }
 
     /// The document element, or `None` for an HTML or `RECOVER` document
     /// without one (libxml2's `xmlDocGetRootElement`, DOM's `documentElement`).
     pub fn document_element(&self) -> Option<OwnedNode<'_, A>> {
-        (self.root_element != NodeId(0)).then(|| self.root_element())
+        (self.root_element != NodeId::new(0)).then(|| self.root_element())
     }
 
     /// The node `id` names; `None` for a foreign, removed or out-of-range
@@ -952,8 +959,8 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     #[inline]
-    fn view(&self, id: NodeId) -> Option<OwnedNode<'_, A>> {
-        let record = self.nodes.get(id.0)?;
+    fn view(&self, index: usize) -> Option<OwnedNode<'_, A>> {
+        let record = self.nodes.get(index)?;
         // Contiguous parsed slots are all live. Structural edits permanently
         // disable that invariant before any slot can become Removed.
         (self.slots_are_preorder || !matches!(record.content, Content::Removed)).then_some(
@@ -978,7 +985,7 @@ impl<A: Allocator> OwnedDocument<A> {
         ranks.try_reserve_exact(self.nodes.len())?;
         ranks.resize(self.nodes.len(), 0);
         for (rank, node) in self.nodes().enumerate() {
-            ranks[node.record.id.0] = rank;
+            ranks[node.record.id.index()] = rank;
         }
         Ok(Some(ranks))
     }
@@ -1365,7 +1372,7 @@ impl<A: Allocator> Editor<'_, A> {
             self.document.edit_owned_bytes,
             self.limits.max_owned_bytes,
         )?;
-        let id = NodeId(self.document.nodes.len());
+        let id = NodeId::new(self.document.nodes.len());
         let allocation = EditError::new(EditErrorKind::Allocation, None);
         #[cfg(test)]
         if self.document.nodes.len() == self.document.nodes.capacity() {
@@ -1394,11 +1401,11 @@ impl<A: Allocator> Editor<'_, A> {
             },
         };
         self.document.nodes.push(OwnedRecord::detached(id, content));
-        self.document.attach(id.0, parent, Link::NONE);
+        self.document.attach(id.index(), parent, Link::NONE);
         self.document.edit_created_nodes = created;
         Ok(OwnedNodeId {
             document: self.document.identity,
-            slot: id,
+            slot: id.index(),
         })
     }
 
@@ -1407,7 +1414,7 @@ impl<A: Allocator> Editor<'_, A> {
     /// cannot be removed.
     pub fn remove_subtree(&mut self, node: OwnedNodeId) -> Result<(), EditError> {
         let index = self.resolve(node)?;
-        if index == 0 || NodeId(index) == self.document.root_element {
+        if index == 0 || NodeId::new(index) == self.document.root_element {
             return Err(EditError::new(EditErrorKind::ProtectedNode, None));
         }
         self.document.remove(index);
@@ -1419,12 +1426,12 @@ impl<A: Allocator> Editor<'_, A> {
             || self
                 .document
                 .nodes
-                .get(node.slot.0)
+                .get(node.slot)
                 .is_none_or(|record| matches!(record.content, Content::Removed))
         {
             return Err(EditError::new(EditErrorKind::InvalidHandle, None));
         }
-        Ok(node.slot.0)
+        Ok(node.slot)
     }
 
     /// Replaces the value of a Text, CDATA, comment or PI node
@@ -1565,15 +1572,15 @@ fn validate_value(value: &str, kind: ValueKind, limit: usize) -> Result<(), Edit
 }
 
 /// Nodes to reserve before parsing `input`: two per `<` (a tag and the text
-/// after it) in a sampled prefix, scaled to the input and capped. Markup-heavy
-/// input skips early regrowth; text-heavy input reserves only what it needs.
-fn expected_nodes(input: &[u8]) -> usize {
+/// after it) in a sampled prefix, scaled to the input, within `max_events`.
+/// Markup-heavy input skips regrowth (owned svg -3% instructions, -38% peak
+/// RSS); text-heavy input reserves only what it needs.
+fn expected_nodes(input: &[u8], max_events: usize) -> usize {
     const SAMPLE: usize = 16 * 1024;
-    const CAP: usize = 4096;
     let sample = &input[..input.len().min(SAMPLE)];
     let tags = memchr::memchr_iter(b'<', sample).count();
     let scaled = (2 * tags + 1).saturating_mul(input.len()) / sample.len().max(1);
-    scaled.min(CAP)
+    scaled.min(max_events)
 }
 
 /// Concrete shared sink: all strings are copied using the parser's budget.
@@ -1603,7 +1610,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             kept: allocator::Vec::new_in(allocator.clone()),
             attributes: allocator::Vec::new_in(allocator),
             pool: Pool::default(),
-            root_element: NodeId(0),
+            root_element: NodeId::new(0),
             declaration: None,
             parents: Vec::new(),
         })
@@ -1618,7 +1625,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         let starts = matches!(event, Event::Start(_) | Event::EntityStart(_));
 
         let offset = origin.error_offset();
-        let parent = self.parents.last().copied().unwrap_or(NodeId(0));
+        let parent = self.parents.last().copied().unwrap_or(NodeId::new(0));
         if let Event::Text(value) = event
             && (value.is_empty() || self.merge_text(parent, value, origin, budget)?)
         {
@@ -1639,12 +1646,12 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             // its count directly, without updating every open ancestor.
             Event::EntityEnd | Event::End(_) => {
                 let end = self.nodes.len();
-                let record = &mut self.nodes[parent.0];
+                let record = &mut self.nodes[parent.index()];
                 if let Event::End(_) = event {
                     record.source = record.source.map(|opening| opening.close_element(origin));
                 }
                 self.parents.pop();
-                record.subtree_size = end - parent.0;
+                record.subtree_size = end - parent.index();
                 return Ok(());
             }
             event => {
@@ -1656,8 +1663,8 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             }
         };
         let id = append_record(&mut self.nodes, parent, content, Some(origin), offset)?;
-        let element = matches!(self.nodes[id.0].content, Content::Element { .. });
-        if element && parent == NodeId(0) {
+        let element = matches!(self.nodes[id.index()].content, Content::Element { .. });
+        if element && parent == NodeId::new(0) {
             self.root_element = id;
         }
         if starts {
@@ -1674,10 +1681,10 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         origin: SourceOrigin,
         budget: &mut Budget,
     ) -> Result<bool, Error> {
-        let Some(last) = self.nodes[parent.0].last_child.get() else {
+        let Some(last) = self.nodes[parent.index()].last_child.get() else {
             return Ok(false);
         };
-        let record = &self.nodes[last.0];
+        let record = &self.nodes[last.index()];
         let (Content::Text(range), Some(source)) = (&record.content, record.source) else {
             return Ok(false);
         };
@@ -1685,7 +1692,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         let extended = self
             .pool
             .extend(range.clone(), value, origin.error_offset(), budget)?;
-        let record = &mut self.nodes[last.0];
+        let record = &mut self.nodes[last.index()];
         record.content = Content::Text(extended);
         record.source = Some(joined);
         Ok(true)
@@ -1712,7 +1719,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
 
     /// Notes the `xml:id` attributes of the element about to be appended.
     fn note_xml_ids(&mut self, element: &crate::Element<'_>, offset: usize) -> Result<(), Error> {
-        let slot = NodeId(self.nodes.len());
+        let slot = NodeId::new(self.nodes.len());
         for (index, attribute) in element.attributes.iter().enumerate() {
             if attribute.name.qualified() == "xml:id" {
                 self.xml_ids
@@ -1760,14 +1767,22 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         } else {
             let document = document.identity;
             let ids = xml_ids.into_iter();
-            collected(ids.map(|(slot, index)| (OwnedNodeId { document, slot }, index)))
-                .map_err(|_| Error::new(ErrorKind::Allocation, position))?
+            collected(ids.map(|(slot, index)| {
+                (
+                    OwnedNodeId {
+                        document,
+                        slot: slot.index(),
+                    },
+                    index,
+                )
+            }))
+            .map_err(|_| Error::new(ErrorKind::Allocation, position))?
         };
         if flags.drops_blanks() {
             let blanks = crate::xpath::tree::blanks(&document, content)
                 .map_err(|_| Error::new(ErrorKind::Allocation, position))?;
             for blank in blanks {
-                document.remove(blank.slot.0);
+                document.remove(blank.slot);
             }
         }
         Ok(document)
@@ -1779,7 +1794,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
         counter: &AtomicUsize,
         rootless: bool,
     ) -> Result<OwnedDocument<A>, Error> {
-        if self.root_element == NodeId(0) && !rootless {
+        if self.root_element == NodeId::new(0) && !rootless {
             return Err(Error::new(ErrorKind::MissingRoot, position));
         }
         self.nodes[0].subtree_size = self.nodes.len();
@@ -1891,7 +1906,7 @@ pub(crate) struct TreeBuilder {
 
 #[cfg(feature = "xinclude")]
 impl TreeBuilder {
-    pub(crate) const ROOT: NodeId = NodeId(0);
+    pub(crate) const ROOT: NodeId = NodeId::new(0);
 
     pub(crate) fn new(limits: Limits, declaration: Option<Declaration<'_>>) -> Result<Self, Error> {
         let mut pool = Pool::default();
@@ -1903,7 +1918,7 @@ impl TreeBuilder {
             nodes: OwnedBuilder::new(0, 0, Global)?.nodes,
             attributes: allocator::Vec::new_in(Global),
             pool,
-            root_element: NodeId(0),
+            root_element: NodeId::new(0),
             declaration,
             ids: Vec::new(),
             budget,
@@ -1942,7 +1957,7 @@ impl TreeBuilder {
 
     /// Ends an element: everything appended since it is its subtree.
     pub(crate) fn close(&mut self, id: NodeId) {
-        self.nodes[id.0].subtree_size = self.nodes.len() - id.0;
+        self.nodes[id.index()].subtree_size = self.nodes.len() - id.index();
     }
 
     pub(crate) fn finish(self) -> Result<OwnedDocument, Error> {
@@ -1964,7 +1979,7 @@ impl TreeBuilder {
             .map(|(slot, index)| {
                 let element = OwnedNodeId {
                     document: document_id,
-                    slot,
+                    slot: slot.index(),
                 };
                 (element, index)
             })
@@ -1982,10 +1997,10 @@ fn append_record<A: Allocator>(
     offset: usize,
 ) -> Result<NodeId, Error> {
     let allocation = Error::new(ErrorKind::Allocation, offset);
-    let id = NodeId(nodes.len());
+    let id = NodeId::new(nodes.len());
     let (link, parent_link) = (Link::new(id), Link::new(parent));
     nodes.try_reserve(1).map_err(|_| allocation)?;
-    let previous_sibling = nodes[parent.0].last_child;
+    let previous_sibling = nodes[parent.index()].last_child;
     nodes.push(OwnedRecord {
         id,
         content,
@@ -1998,11 +2013,11 @@ fn append_record<A: Allocator>(
         subtree_size: 1,
     });
     if let Some(previous) = previous_sibling.get() {
-        nodes[previous.0].next_sibling = link;
+        nodes[previous.index()].next_sibling = link;
     } else {
-        nodes[parent.0].first_child = link;
+        nodes[parent.index()].first_child = link;
     }
-    nodes[parent.0].last_child = link;
+    nodes[parent.index()].last_child = link;
     Ok(id)
 }
 
@@ -2049,7 +2064,7 @@ impl HtmlBuilder {
             nodes,
             attributes: allocator::Vec::new_in(Global),
             pool: Pool::default(),
-            root_element: NodeId(0),
+            root_element: NodeId::new(0),
             valueless: Vec::new(),
             budget: Budget::new(limits),
         })
@@ -2108,7 +2123,7 @@ impl HtmlBuilder {
         }
         let attributes = start..self.attributes.len();
         let id = self.append(parent, Content::Element { name, attributes }, Some(mark))?;
-        if parent == NodeId(0) && self.root_element == NodeId(0) {
+        if parent == NodeId::new(0) && self.root_element == NodeId::new(0) {
             self.root_element = id;
         }
         Ok(id)
@@ -2124,8 +2139,8 @@ impl HtmlBuilder {
         limit: usize,
         mark: usize,
     ) -> Result<bool, Error> {
-        let last = self.nodes[parent.0].last_child.get();
-        let merge = last.and_then(|last| match &self.nodes[last.0].content {
+        let last = self.nodes[parent.index()].last_child.get();
+        let merge = last.and_then(|last| match &self.nodes[last.index()].content {
             Content::Text(range) if !cdata => Some((last, range.clone())),
             Content::Cdata(range) if cdata => Some((last, range.clone())),
             _ => None,
@@ -2144,11 +2159,11 @@ impl HtmlBuilder {
             return Ok(false);
         }
         let range = self.pool.extend(range, value, 0, &mut self.budget)?;
-        self.nodes[last.0].content = if cdata {
+        self.nodes[last.index()].content = if cdata {
             Content::Cdata(range)
         } else {
             // xmlSAX2Text moves a merged text node's line forward.
-            self.nodes[last.0].source = Some(SourceOrigin::input(mark..mark));
+            self.nodes[last.index()].source = Some(SourceOrigin::input(mark..mark));
             Content::Text(range)
         };
         Ok(true)
@@ -2167,13 +2182,13 @@ impl HtmlBuilder {
 
     /// Ends an element: everything appended since it is its subtree.
     pub(crate) fn close(&mut self, id: NodeId) {
-        self.nodes[id.0].subtree_size = self.nodes.len() - id.0;
+        self.nodes[id.index()].subtree_size = self.nodes.len() - id.index();
     }
 
     pub(crate) fn last_child(&self, parent: NodeId) -> LastChild<'_> {
-        let mut child = self.nodes[parent.0].last_child.get();
+        let mut child = self.nodes[parent.index()].last_child.get();
         while let Some(id) = child {
-            let record = &self.nodes[id.0];
+            let record = &self.nodes[id.index()];
             match &record.content {
                 Content::Comment(_) => child = record.previous_sibling.get(),
                 Content::Text(_) => return LastChild::Text,
@@ -2209,16 +2224,16 @@ impl HtmlBuilder {
                 internal_subset: None,
             });
             let first = self.nodes[0].first_child;
-            let id = self.append(NodeId(0), content, None)?;
+            let id = self.append(NodeId::new(0), content, None)?;
             if let Some(first) = first.get() {
                 // Move the new last child to the front.
-                let link = Link(id.0);
-                let previous = self.nodes[id.0].previous_sibling;
+                let link = Link(id.index());
+                let previous = self.nodes[id.index()].previous_sibling;
                 self.nodes[previous.0].next_sibling = Link::NONE;
                 self.nodes[0].last_child = previous;
-                self.nodes[id.0].previous_sibling = Link::NONE;
-                self.nodes[id.0].next_sibling = Link(first.0);
-                self.nodes[first.0].previous_sibling = link;
+                self.nodes[id.index()].previous_sibling = Link::NONE;
+                self.nodes[id.index()].next_sibling = Link(first.index());
+                self.nodes[first.index()].previous_sibling = link;
                 self.nodes[0].first_child = link;
                 preorder = false;
             }
@@ -2298,7 +2313,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
     pub fn id(self) -> OwnedNodeId {
         OwnedNodeId {
             document: self.document.identity,
-            slot: self.record.id,
+            slot: self.record.id.index(),
         }
     }
 
@@ -2496,7 +2511,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record()
             .parent
             .get()
-            .and_then(|id| self.document.view(id))
+            .and_then(|id| self.document.view(id.index()))
     }
 
     /// The first child.
@@ -2504,7 +2519,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record()
             .first_child
             .get()
-            .and_then(|id| self.document.view(id))
+            .and_then(|id| self.document.view(id.index()))
     }
 
     /// The last child.
@@ -2512,7 +2527,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record()
             .last_child
             .get()
-            .and_then(|id| self.document.view(id))
+            .and_then(|id| self.document.view(id.index()))
     }
 
     /// The next sibling.
@@ -2520,7 +2535,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record()
             .next_sibling
             .get()
-            .and_then(|id| self.document.view(id))
+            .and_then(|id| self.document.view(id.index()))
     }
 
     /// The previous sibling.
@@ -2528,7 +2543,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         self.record()
             .previous_sibling
             .get()
-            .and_then(|id| self.document.view(id))
+            .and_then(|id| self.document.view(id.index()))
     }
 
     /// The children in document order.
@@ -2636,7 +2651,8 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
         if self.document.slots_are_preorder {
             Descendants::Contiguous {
                 document: self.document,
-                slots: self.document.nodes[self.record.id.0..self.record.id.0 + count].iter(),
+                slots: self.document.nodes[self.record.id.index()..self.record.id.index() + count]
+                    .iter(),
             }
         } else {
             Descendants::Linked(LinkedDescendants {

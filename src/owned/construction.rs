@@ -452,7 +452,7 @@ fn lookup<'a, A: Allocator>(
                 return Ok(Some(uri));
             }
         }
-        current = record.parent.get().map(|node| node.0);
+        current = record.parent.get().map(|node| node.index());
     }
     Ok(None)
 }
@@ -738,7 +738,7 @@ fn find_matching_prefix<'a, A: Allocator>(
                     .transpose();
             }
         }
-        current = record.parent.get().map(|node| node.0);
+        current = record.parent.get().map(|node| node.index());
     }
     Ok(None)
 }
@@ -1291,10 +1291,12 @@ fn depth_bounded<A: Allocator>(
     parent: usize,
     maximum: usize,
 ) -> usize {
-    std::iter::successors(Some(NodeId(parent)), |id| document.nodes[id.0].parent.get())
-        .filter(|id| matches!(document.nodes[id.0].content, Content::Element { .. }))
-        .take(maximum)
-        .count()
+    std::iter::successors(Some(NodeId::new(parent)), |id| {
+        document.nodes[id.index()].parent.get()
+    })
+    .filter(|id| matches!(document.nodes[id.index()].content, Content::Element { .. }))
+    .take(maximum)
+    .count()
 }
 
 pub(super) fn limit_global(limit: EditLimit) -> EditError {
@@ -1321,7 +1323,7 @@ pub(super) fn create<A: Allocator + Clone>(
         kept: allocator::Vec::new_in(allocator.clone()),
         attributes: allocator::Vec::new_in(allocator),
         pool: Pool::default(),
-        root_element: NodeId(0),
+        root_element: NodeId::new(0),
         declaration: None,
         edit_owned_bytes: 0,
         edit_created_nodes: 0,
@@ -1367,9 +1369,9 @@ pub(super) fn create<A: Allocator + Clone>(
 
     let mut document_node = OwnedRecord::root(0);
     document_node.source = None;
-    let root_id = NodeId(1);
+    let root_id = NodeId::new(1);
     let root_link = Link::new(root_id);
-    let document_link = Link::new(NodeId(0));
+    let document_link = Link::new(NodeId::new(0));
     let root_name = store_name(&mut staging_document.pool.0, &staged.strings, &staged.name);
     let start = staging_document.attributes.len();
     let expected_end = start + created_attributes;
@@ -1441,7 +1443,7 @@ pub(super) fn append<A: Allocator>(
         editor.limits.max_owned_bytes,
     )?;
 
-    let node_id = NodeId(editor.document.nodes.len());
+    let node_id = NodeId::new(editor.document.nodes.len());
     #[cfg(test)]
     if editor.document.nodes.len() == editor.document.nodes.capacity() {
         inject_edit_reservation_failure(EditReservation::Node)?;
@@ -1488,12 +1490,12 @@ pub(super) fn append<A: Allocator>(
         .document
         .nodes
         .push(OwnedRecord::detached(node_id, content));
-    editor.document.attach(node_id.0, parent, Link::NONE);
+    editor.document.attach(node_id.index(), parent, Link::NONE);
     editor.document.edit_created_nodes = created_nodes;
     editor.document.edit_created_attributes = created_attributes;
     Ok(OwnedNodeId {
         document: editor.document.identity,
-        slot: node_id,
+        slot: node_id.index(),
     })
 }
 

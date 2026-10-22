@@ -194,7 +194,13 @@ impl Tokenizer {
             // A released text token left capacity for its replayed `<`.
             self.buffer.push(b'<');
         }
-        self.append_slice(&input[..used])?;
+        // Short tokens (most) are copied and screened in one pass, so
+        // `validate` skips its scan; the ceilings hold below `borrow_limit`.
+        let token = &input[..used];
+        match token.len() <= 16 && token.len() <= self.buffer.capacity() - self.buffer.len() {
+            true => self.screened = self.screened_push(token),
+            false => self.append_slice(token)?,
+        }
         self.skip_borrowed(kind, start + length);
         self.start = start;
         self.source_start = start;
@@ -363,6 +369,17 @@ impl Tokenizer {
         }
     }
 
+    /// Appends `bytes` within spare capacity; whether none is `suspect`.
+    #[inline(always)]
+    fn screened_push(&mut self, bytes: &[u8]) -> bool {
+        let mut suspect = false;
+        self.buffer.extend(bytes.iter().map(|&byte| {
+            suspect |= crate::escape::suspect(byte);
+            byte
+        }));
+        !suspect
+    }
+
     /// Appends token bytes, enforcing the source and decoded ceilings.
     #[inline(always)]
     fn extend(&mut self, run: &[u8]) -> Result<(), Error> {
@@ -385,14 +402,7 @@ impl Tokenizer {
         // screen of the whole token; longer ones leave the token unscreened.
         let spare = self.buffer.capacity() - self.buffer.len();
         match run {
-            _ if run.len() <= 8 && run.len() <= spare => {
-                let mut suspect = false;
-                self.buffer.extend(run.iter().map(|&byte| {
-                    suspect |= crate::escape::suspect(byte);
-                    byte
-                }));
-                self.screened &= !suspect;
-            }
+            _ if run.len() <= 8 && run.len() <= spare => self.screened &= self.screened_push(run),
             _ if run.len() <= spare => {
                 self.buffer.extend_from_slice(run);
                 self.screened = false;

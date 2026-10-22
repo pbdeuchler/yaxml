@@ -89,9 +89,9 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
         .unwrap();
         assert_eq!(b.pool.0.as_ptr(), pool_pointer);
         assert_eq!(b.nodes.len(), 3);
-        assert_eq!(b.nodes[1].first_child, Link::new(NodeId(2)));
-        assert_eq!(b.nodes[1].last_child, Link::new(NodeId(2)));
-        assert_eq!(b.nodes[2].parent, Link::new(NodeId(1)));
+        assert_eq!(b.nodes[1].first_child, Link::new(NodeId::new(2)));
+        assert_eq!(b.nodes[1].last_child, Link::new(NodeId::new(2)));
+        assert_eq!(b.nodes[2].parent, Link::new(NodeId::new(1)));
         assert_eq!(b.nodes[2].previous_sibling, Link::NONE);
         assert_eq!(b.nodes[2].next_sibling, Link::NONE);
     }
@@ -105,8 +105,8 @@ fn spec_pool_tail_extension_keeps_one_prefix_copy_slot_and_links() {
         state.owned_budget(),
     )
     .unwrap();
-    assert_eq!(b.nodes[2].next_sibling, Link::new(NodeId(3)));
-    assert_eq!(b.nodes[3].previous_sibling, Link::new(NodeId(2)));
+    assert_eq!(b.nodes[2].next_sibling, Link::new(NodeId::new(3)));
+    assert_eq!(b.nodes[3].previous_sibling, Link::new(NodeId::new(2)));
     let doc = end(b, state.owned_budget());
     assert_eq!(summary(&doc), ["T:pretailpost", "M:later"]);
     assert_eq!(doc.nodes[0].subtree_size, 4);
@@ -220,22 +220,22 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
         assert_eq!(doc.nodes.len(), children.len() + 2);
         assert_eq!(doc.root().descendants().count(), doc.nodes.len());
         assert_eq!(doc.root_element().descendants().count(), children.len() + 1);
-        assert_eq!(doc.nodes[1].first_child.get(), Some(NodeId(2)));
+        assert_eq!(doc.nodes[1].first_child.get(), Some(NodeId::new(2)));
         assert_eq!(
             doc.nodes[1].last_child.get(),
-            Some(NodeId(doc.nodes.len() - 1))
+            Some(NodeId::new(doc.nodes.len() - 1))
         );
         for (index, node) in children.iter().enumerate() {
             let record = &doc.nodes[index + 2];
-            assert_eq!(record.id, NodeId(index + 2));
-            assert_eq!(record.parent.get(), Some(NodeId(1)));
+            assert_eq!(record.id, NodeId::new(index + 2));
+            assert_eq!(record.parent.get(), Some(NodeId::new(1)));
             assert_eq!(record.subtree_size, 1);
             assert_eq!(
                 record.previous_sibling.get(),
                 if index == 0 {
                     None
                 } else {
-                    Some(NodeId(index + 1))
+                    Some(NodeId::new(index + 1))
                 }
             );
             assert_eq!(
@@ -243,7 +243,7 @@ fn spec_owned_literal_entity_topologies_have_complete_links_and_provenance() {
                 if index + 1 == children.len() {
                     None
                 } else {
-                    Some(NodeId(index + 3))
+                    Some(NodeId::new(index + 3))
                 }
             );
             assert_eq!(node.parent().unwrap().id(), doc.root_element().id());

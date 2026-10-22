@@ -265,6 +265,29 @@ impl DtdCatalog {
         self.usage
     }
 
+    /// The expansion usage its ceilings still allow.
+    pub(crate) fn headroom(&self) -> CatalogUsage {
+        let (limits, usage) = (&self.limits, self.usage);
+        CatalogUsage {
+            expanded_bytes: limits.expansion.saturating_sub(usage.expanded_bytes),
+            work: limits.work.saturating_sub(usage.work),
+            references: limits.references.saturating_sub(usage.references),
+            amplification: self
+                .amplification_ceiling
+                .saturating_sub(usage.amplification),
+            ..CatalogUsage::default()
+        }
+    }
+
+    /// Charges a replayed expansion's usage, within `headroom`.
+    pub(crate) fn replayed(&mut self, charged: CatalogUsage) {
+        let usage = &mut self.usage;
+        usage.expanded_bytes += charged.expanded_bytes;
+        usage.work += charged.work;
+        usage.references += charged.references;
+        usage.amplification += charged.amplification;
+    }
+
     /// Any parameter reference relaxes Entity Declared, as in libxml2's hasPErefs.
     pub(crate) fn note_parameter_reference(&mut self) {
         self.parameter_reference = true;

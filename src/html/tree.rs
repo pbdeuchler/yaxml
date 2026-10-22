@@ -672,7 +672,7 @@ impl Sink for Document {
     type Node = NodeId;
 
     fn root(&self) -> NodeId {
-        NodeId(0)
+        NodeId::new(0)
     }
 
     #[inline]
@@ -687,7 +687,7 @@ impl Sink for Document {
         if depth >= self.max_depth {
             return Ok(None);
         }
-        let parent = parent.unwrap_or(NodeId(0));
+        let parent = parent.unwrap_or(NodeId::new(0));
         self.builder
             .element(parent, name, attributes, mark)
             .map(Some)
@@ -723,7 +723,7 @@ impl Sink for Document {
 
     #[inline]
     fn comment(&mut self, parent: Option<NodeId>, text: &str, mark: usize) -> Result<(), Error> {
-        let parent = parent.unwrap_or(NodeId(0));
+        let parent = parent.unwrap_or(NodeId::new(0));
         self.builder.comment(parent, text, mark)
     }
 

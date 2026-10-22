@@ -11,8 +11,35 @@ use crate::{
 };
 
 /// A node's index in its [`Document`]; meaningless in any other document.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NodeId(pub(crate) usize);
+///
+/// Stored as index + 1 so `Option<NodeId>`, a node record's every link, is
+/// one word.
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct NodeId(std::num::NonZeroUsize);
+
+impl NodeId {
+    /// The ID of the node at `index`.
+    pub(crate) const fn new(index: usize) -> Self {
+        match std::num::NonZeroUsize::new(index.wrapping_add(1)) {
+            Some(id) => Self(id),
+            None => panic!("node index overflow"),
+        }
+    }
+
+    /// The node's index.
+    pub(crate) const fn index(self) -> usize {
+        self.0.get() - 1
+    }
+}
+
+impl std::fmt::Debug for NodeId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("NodeId")
+            .field(&self.index())
+            .finish()
+    }
+}
 
 /// The content of a [`Node`]. The XML declaration lives on the [`Document`].
 #[derive(Debug)]
@@ -76,7 +103,7 @@ pub(crate) fn append_record<K>(
     nodes
         .try_reserve(1)
         .map_err(|_| Error::new(ErrorKind::Allocation, origin.error_offset()))?;
-    let id = NodeId(nodes.len());
+    let id = NodeId::new(nodes.len());
     nodes.push(Record {
         kind,
         origin,
@@ -84,14 +111,14 @@ pub(crate) fn append_record<K>(
         first_child: None,
         last_child: None,
         next_sibling: None,
-        subtree_end: id.0 + 1,
+        subtree_end: id.index() + 1,
     });
-    if let Some(previous) = nodes[parent.0].last_child {
-        nodes[previous.0].next_sibling = Some(id);
+    if let Some(previous) = nodes[parent.index()].last_child {
+        nodes[previous.index()].next_sibling = Some(id);
     } else {
-        nodes[parent.0].first_child = Some(id);
+        nodes[parent.index()].first_child = Some(id);
     }
-    nodes[parent.0].last_child = Some(id);
+    nodes[parent.index()].last_child = Some(id);
     Ok(id)
 }
 
@@ -196,7 +223,7 @@ impl<'input> Document<'input> {
         nodes.push(Record::root(NodeKind::Document, length));
         let mut document = Self {
             nodes,
-            root_element: NodeId(0),
+            root_element: NodeId::new(0),
             declaration: None,
             ids: Vec::new(),
             kept: Vec::new(),
@@ -215,7 +242,7 @@ impl<'input> Document<'input> {
             let origin = reader
                 .event_origin()
                 .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
-            let parent = parents.last().copied().unwrap_or(NodeId(0));
+            let parent = parents.last().copied().unwrap_or(NodeId::new(0));
             let opens = matches!(event, Event::Start(_));
             match event {
                 Event::Declaration(declaration) => document.declaration = Some(declaration),
@@ -225,7 +252,7 @@ impl<'input> Document<'input> {
                 // The parser balances ends, so `parent` is what they close.
                 Event::End(_) => {
                     let subtree_end = document.nodes.len();
-                    let record = &mut document.nodes[parent.0];
+                    let record = &mut document.nodes[parent.index()];
                     record.origin = record.origin.close_element(origin);
                     parents.pop();
                     record.subtree_end = subtree_end;
@@ -238,13 +265,13 @@ impl<'input> Document<'input> {
                 }
                 Event::EntityEnd => {
                     parents.pop();
-                    document.nodes[parent.0].subtree_end = document.nodes.len();
+                    document.nodes[parent.index()].subtree_end = document.nodes.len();
                 }
                 Event::Start(element) | Event::Empty(element) => {
                     if opens {
                         crate::parser::reserve_frame(&mut parents, origin.error_offset())?;
                     }
-                    let id = NodeId(document.nodes.len());
+                    let id = NodeId::new(document.nodes.len());
                     let kept = reader.owned_budget().kept();
                     if !kept.is_empty() {
                         let offset = origin.error_offset();
@@ -259,7 +286,7 @@ impl<'input> Document<'input> {
                         .owned_budget()
                         .charge_attributes(element.attributes.len(), origin.error_offset())?;
                     document.append_element(parent, element, origin)?;
-                    if parent == NodeId(0) {
+                    if parent == NodeId::new(0) {
                         document.root_element = id;
                     }
                     if opens {
@@ -289,7 +316,7 @@ impl<'input> Document<'input> {
         document.errors = Budget::conclude(reader.budget(), end)?;
         // Recovery keeps a document without an element, as libxml2 does
         // unless the input is empty (otherwise the reader failed already).
-        if document.root_element == NodeId(0) && length == 0 {
+        if document.root_element == NodeId::new(0) && length == 0 {
             let missing = Error::new(ErrorKind::MissingRoot, reader.position());
             return Err(document.errors.first().copied().unwrap_or(missing));
         }
@@ -330,11 +357,11 @@ impl<'input> Document<'input> {
         for index in 0..=self.nodes.len() {
             kept.push(count);
             match removed.peek() {
-                Some(leaf) if leaf.0 == index => drop(removed.next()),
+                Some(leaf) if leaf.index() == index => drop(removed.next()),
                 _ => count += 1,
             }
         }
-        let map = |id: NodeId| NodeId(kept[id.0]);
+        let map = |id: NodeId| NodeId::new(kept[id.index()]);
         let mut slot = 0;
         self.nodes.retain_mut(|record| {
             let keep = kept[slot + 1] != kept[slot];
@@ -345,12 +372,14 @@ impl<'input> Document<'input> {
             keep
         });
         for index in 1..self.nodes.len() {
-            let parent = self.nodes[index].parent.expect("non-root parent").0;
+            let parent = self.nodes[index].parent.expect("non-root parent").index();
             match self.nodes[parent].last_child {
-                Some(previous) => self.nodes[previous.0].next_sibling = Some(NodeId(index)),
-                None => self.nodes[parent].first_child = Some(NodeId(index)),
+                Some(previous) => {
+                    self.nodes[previous.index()].next_sibling = Some(NodeId::new(index))
+                }
+                None => self.nodes[parent].first_child = Some(NodeId::new(index)),
             }
-            self.nodes[parent].last_child = Some(NodeId(index));
+            self.nodes[parent].last_child = Some(NodeId::new(index));
         }
         self.root_element = map(self.root_element);
         for (element, _, _) in &mut self.kept {
@@ -411,7 +440,7 @@ impl<'input> Document<'input> {
         element: Element<'input>,
         origin: SourceOrigin,
     ) -> Result<NodeId, Error> {
-        let id = NodeId(self.nodes.len());
+        let id = NodeId::new(self.nodes.len());
         for (index, attribute) in element.attributes.iter().enumerate() {
             if attribute.name.qualified() == "xml:id" {
                 self.ids
@@ -439,14 +468,14 @@ impl<'input> Document<'input> {
         origin: SourceOrigin,
         budget: &mut crate::parser::Budget,
     ) -> Result<Option<NodeId>, Error> {
-        let last = self.nodes[parent.0].last_child;
+        let last = self.nodes[parent.index()].last_child;
         if value.is_empty() {
-            return Ok(last.filter(|id| matches!(self.nodes[id.0].kind, NodeKind::Text(_))));
+            return Ok(last.filter(|id| matches!(self.nodes[id.index()].kind, NodeKind::Text(_))));
         }
         let Some(last) = last else {
             return self.append(parent, NodeKind::Text(value), origin).map(Some);
         };
-        let record = &mut self.nodes[last.0];
+        let record = &mut self.nodes[last.index()];
         let NodeKind::Text(previous) = &mut record.kind else {
             return self.append(parent, NodeKind::Text(value), origin).map(Some);
         };
@@ -461,7 +490,7 @@ impl<'input> Document<'input> {
     pub fn root(&self) -> Node<'_, 'input> {
         Node {
             document: self,
-            id: NodeId(0),
+            id: NodeId::new(0),
         }
     }
 
@@ -477,13 +506,15 @@ impl<'input> Document<'input> {
     /// The document element, or `None` for a `RECOVER` parse that recovered
     /// none (libxml2's `xmlDocGetRootElement`, DOM's `documentElement`).
     pub fn document_element(&self) -> Option<Node<'_, 'input>> {
-        (self.root_element != NodeId(0)).then(|| self.root_element())
+        (self.root_element != NodeId::new(0)).then(|| self.root_element())
     }
 
     /// The node `id` names, or `None` when out of range. An ID from another
     /// document may name an unrelated node.
     pub fn node(&self, id: NodeId) -> Option<Node<'_, 'input>> {
-        self.nodes.get(id.0).map(|_| Node { document: self, id })
+        self.nodes
+            .get(id.index())
+            .map(|_| Node { document: self, id })
     }
 
     /// Visits all nodes in document order, including the synthetic root.
@@ -567,7 +598,7 @@ impl<'document, 'input> Node<'document, 'input> {
     }
 
     fn record(self) -> &'document Record<NodeKind<'input>> {
-        &self.document.nodes[self.id.0]
+        &self.document.nodes[self.id.index()]
     }
 
     /// The node's ID in its document.
@@ -707,9 +738,9 @@ impl<'document, 'input> Node<'document, 'input> {
     /// The previous sibling.
     pub fn previous_sibling(self) -> Option<Self> {
         let parent = self.record().parent?;
-        let mut id = NodeId(self.id.0 - 1);
+        let mut id = NodeId::new(self.id.index() - 1);
         while id != parent {
-            let up = self.document.nodes[id.0].parent?;
+            let up = self.document.nodes[id.index()].parent?;
             if up == parent {
                 return self.document.node(id);
             }
@@ -725,9 +756,9 @@ impl<'document, 'input> Node<'document, 'input> {
 
     /// This node and its descendants in document order.
     pub fn descendants(self) -> impl ExactSizeIterator<Item = Self> + 'document {
-        (self.id.0..self.record().subtree_end).map(move |index| Self {
+        (self.id.index()..self.record().subtree_end).map(move |index| Self {
             document: self.document,
-            id: NodeId(index),
+            id: NodeId::new(index),
         })
     }
 

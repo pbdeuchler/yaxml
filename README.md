@@ -220,7 +220,8 @@ Prerequisites: Rust via [rustup](https://rustup.rs) (rust-toolchain.toml pins
 compiler. `fuzz.sh` and `coverage.sh` need `rustup toolchain install
 nightly-2026-10-18 --component llvm-tools-preview` and `cargo install
 cargo-fuzz --version 0.13.2 --locked`; `coverage.sh` also needs
-[uv](https://docs.astral.sh/uv/). Every script takes `--help`.
+[uv](https://docs.astral.sh/uv/). `pgo.sh` needs `llvm-profdata` (`rustup
+component add llvm-tools`, or Xcode's). Every script takes `--help`.
 
 `./setup.sh` downloads and checks (sha256) libxml2 2.15.4 and the W3C XML Test
 Suite 20130923, builds the static libxml2 oracle in `../yaxml-oracle` (beside
@@ -232,6 +233,7 @@ locations; anything already present is reused.
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `./oracle.sh [step...]`        | yaxml's ignored and env-gated differentials, the harness oracle tests, fuzz-seed replay, structural edits, and the conformance run, which fails on any regression of `harness/tests/fixtures/xmlconf-20130923-required.tsv` | `harness/results/oracle-<time>/`: one log per step, `xmlconf-results.tsv` |
 | `./bench.sh [fixture...]`      | Matched parse benchmark, yaxml vs libxml2, in five modes; prints libxml2/yaxml time ratios (above 1 favors yaxml)                                                                                                           | table on stdout, raw samples in `harness/results/bench-<time>.txt`        |
+| `./pgo.sh`                     | Profile-guided `yaxmllint`: instrumented build trained on the benchmark fixtures under 12 option sets, then rebuilt with the merged profile; prints instruction deltas against the plain build (macOS)                       | `harness/target/pgo/use/release/yaxmllint`                                |
 | `./fuzz.sh [target [seconds]]` | Lists the fuzz targets, or fuzzes one (default 60 s)                                                                                                                                                                        | new inputs in the corpus, crashes in `fuzz/artifacts/<target>/`           |
 | `./coverage.sh [target...]`    | Line/branch coverage of `src/` from the corpus                                                                                                                                                                              | `fuzz/coverage/report.txt`, `merged.lcov`                                 |
 

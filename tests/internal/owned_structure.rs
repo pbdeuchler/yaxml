@@ -144,15 +144,15 @@ fn fill_node_capacity(editor: &mut Editor<'_>, parent: OwnedNodeId) {
 // Independently reconstruct preorder and sizes from child/sibling links, rather
 // than trusting the production descendant iterator or cached counts.
 fn assert_topology(document: &OwnedDocument) {
-    let mut pending = vec![NodeId(0)];
+    let mut pending = vec![NodeId::new(0)];
     let mut order = Vec::new();
     let mut seen = vec![false; document.nodes.len()];
     let mut sizes = vec![0; document.nodes.len()];
     while let Some(id) = pending.pop() {
-        assert!(!seen[id.0], "cycle or duplicate incoming edge");
-        seen[id.0] = true;
+        assert!(!seen[id.index()], "cycle or duplicate incoming edge");
+        seen[id.index()] = true;
         order.push(id);
-        let record = &document.nodes[id.0];
+        let record = &document.nodes[id.index()];
         assert_eq!(record.id, id);
         assert!(!matches!(record.content, Content::Removed));
         let mut child = record.first_child.get();
@@ -160,7 +160,7 @@ fn assert_topology(document: &OwnedDocument) {
         let mut children = Vec::new();
         while let Some(child_id) = child {
             assert!(children.len() < document.nodes.len(), "sibling cycle");
-            let record = &document.nodes[child_id.0];
+            let record = &document.nodes[child_id.index()];
             assert_eq!(record.parent.get(), Some(id));
             assert_eq!(record.previous_sibling.get(), previous);
             children.push(child_id);
@@ -171,16 +171,16 @@ fn assert_topology(document: &OwnedDocument) {
         pending.extend(children.into_iter().rev());
     }
     for id in order.iter().rev() {
-        sizes[id.0] += 1;
-        if let Some(parent) = document.nodes[id.0].parent.get() {
-            sizes[parent.0] += sizes[id.0];
+        sizes[id.index()] += 1;
+        if let Some(parent) = document.nodes[id.index()].parent.get() {
+            sizes[parent.index()] += sizes[id.index()];
         }
     }
     for (index, record) in document.nodes.iter().enumerate() {
-        assert_eq!(record.id, NodeId(index));
+        assert_eq!(record.id, NodeId::new(index));
         let handle = OwnedNodeId {
             document: document.identity,
-            slot: NodeId(index),
+            slot: index,
         };
         assert_eq!(document.node(handle).is_some(), seen[index]);
         assert_eq!(record.subtree_size, sizes[index]);
@@ -203,7 +203,7 @@ fn assert_topology(document: &OwnedDocument) {
     for (position, id) in order.iter().enumerate() {
         assert_eq!(actual.len(), order.len() - position);
         assert_eq!(actual.size_hint(), (actual.len(), Some(actual.len())));
-        assert_eq!(actual.next().unwrap().id().slot, *id);
+        assert_eq!(actual.next().unwrap().id().slot, id.index());
     }
     assert!(actual.next().is_none());
     assert!(actual.next().is_none());
@@ -372,7 +372,7 @@ fn handles_and_parent_rules_precede_payloads_and_quota() {
     let foreign = OwnedDocument::parse("<r/>").unwrap().root_element().id();
     let invalid = OwnedNodeId {
         document: document.identity,
-        slot: NodeId(usize::MAX),
+        slot: usize::MAX,
     };
     let mut editor = document
         .edit(EditLimits {
@@ -510,7 +510,7 @@ fn pi_strings_share_one_inclusive_capacity_request_and_created_quota_persists() 
             })
             .unwrap();
         let id = editor.append_text(root, "").unwrap();
-        assert_eq!(id.slot, NodeId(3));
+        assert_eq!(id.slot, 3);
         assert_topology(editor.document());
     }
 }
@@ -617,7 +617,7 @@ fn removal_protects_roots_and_keeps_adjacent_text_handles_without_merging() {
     }
     assert_eq!(output(editor.document()), b"<r/>");
     let next = editor.append_comment(root, "").unwrap();
-    assert!(next.slot.0 > fresh.slot.0);
+    assert!(next.slot > fresh.slot);
     assert!(editor.document().node(fresh).is_none());
     assert_eq!(output(editor.document()), b"<r><!----></r>");
 }
@@ -711,7 +711,7 @@ fn node_reservation_failures_precede_pool_work_and_publish_nothing() {
 
         let id = append_test_leaf(&mut editor, parent, kind, &value).unwrap();
         assert_eq!(failure.attempts(), 1);
-        assert_eq!(id.slot.0, nodes_len);
+        assert_eq!(id.slot, nodes_len);
         assert_eq!(editor.document().node(id).unwrap().range(), None);
         assert_eq!(editor.document().edit_created_nodes, created + 1);
         for (id, range) in provenance {
@@ -773,7 +773,7 @@ fn pool_reservation_failures_keep_charge_and_node_capacity_but_publish_nothing()
 
         let id = append_test_leaf(&mut editor, parent, kind, &value).unwrap();
         assert_eq!(failure.attempts(), 1);
-        assert_eq!(id.slot.0, nodes_len);
+        assert_eq!(id.slot, nodes_len);
         assert_eq!(editor.document().node(id).unwrap().range(), None);
         assert_eq!(editor.document().edit_created_nodes, created + 1);
         assert_topology(editor.document());

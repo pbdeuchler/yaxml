@@ -240,7 +240,7 @@ fn handle_kind_lookup_and_namespace_fail_before_value_validation() {
     let foreign = OwnedDocument::parse("<r/>").unwrap().root().id();
     let invalid = OwnedNodeId {
         document: document.identity,
-        slot: NodeId(usize::MAX),
+        slot: usize::MAX,
     };
     let root = document.root_element().id();
     let text = document.root_element().first_child().unwrap().id();

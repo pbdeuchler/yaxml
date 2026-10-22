@@ -2,6 +2,7 @@
 //! refuses (docs/security.md#allocation-failure). Each subsystem maps
 //! [`TryReserveError`] to its own allocation error.
 
+use std::borrow::Cow;
 use std::collections::TryReserveError;
 use std::io;
 
@@ -32,6 +33,14 @@ impl TryPush<&str> for String {
 #[inline]
 pub(crate) fn copied(text: &str) -> Result<String, TryReserveError> {
     concat(&[text])
+}
+
+/// A copy of `text` that borrows what it borrows.
+pub(crate) fn cow<'a>(text: &Cow<'a, str>) -> Result<Cow<'a, str>, TryReserveError> {
+    match text {
+        Cow::Borrowed(text) => Ok(Cow::Borrowed(text)),
+        Cow::Owned(text) => copied(text).map(Cow::Owned),
+    }
 }
 
 /// `parts` joined, in one allocation.

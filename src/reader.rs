@@ -701,6 +701,23 @@ impl<'a> Reader<'a> {
 
     #[inline(never)]
     fn read_session(&mut self) -> Result<Option<Event<'a>>, Error> {
+        let Some(Phase::Content(controller)) = self.session.first_mut() else {
+            return self.read_declarations();
+        };
+        let event = controller.next_stable();
+        match &event {
+            Ok(Some(_)) => self.origin = Some(controller.origin()),
+            Ok(None) => self.end = Some(End::Finished),
+            Err(_) => {}
+        }
+        event
+    }
+
+    /// The internal subset's events, then content's first event. Out of
+    /// line, so the per-event content path keeps a small frame.
+    #[cold]
+    #[inline(never)]
+    fn read_declarations(&mut self) -> Result<Option<Event<'a>>, Error> {
         loop {
             if matches!(self.session.first(), Some(Phase::Declarations { controller, .. }) if controller.is_complete())
             {
@@ -738,15 +755,7 @@ impl<'a> Reader<'a> {
                         return Ok(Some(Event::Doctype(doctype)));
                     }
                 }
-                Phase::Content(controller) => {
-                    let event = controller.next_stable();
-                    match &event {
-                        Ok(Some(_)) => self.origin = Some(controller.origin()),
-                        Ok(None) => self.end = Some(End::Finished),
-                        Err(_) => {}
-                    }
-                    return event;
-                }
+                Phase::Content(_) => return self.read_session(),
             }
         }
     }
@@ -773,6 +782,8 @@ impl<'a> Reader<'a> {
         Ok(())
     }
 
+    #[cold]
+    #[inline(never)]
     fn start_content(&mut self) -> Result<(), Error> {
         self.physical = self.position();
         let Phase::Declarations { controller, parser } = self.session.pop().expect("completed DTD")

@@ -598,6 +598,7 @@ fn token_origin(tokenizer: &Tokenizer) -> SourceOrigin {
 
 /// The ready token's event. Hot callers take the origin separately so the
 /// event is returned in place instead of being rewrapped with it.
+#[inline(always)]
 fn parse_event<'token>(
     tokenizer: &'token Tokenizer,
     state: &mut ParserState<'static>,

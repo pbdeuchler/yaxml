@@ -64,6 +64,261 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
+### Start tags and node links (2026-10-22, from `10757c81c`)
+
+Instruction counts (`instructions retired` from `/usr/bin/time -l`, min of
+3) of a parse-only driver linked against `10757c81c` and this change, same
+fixtures, identical output; rustc 1.97.0, thin LTO, 1 CGU. The host ran at a
+load average near 29, so cycles are not reported. Changes:
+
+- `TagScanner::scan_name` is one table pass: `NAME_BYTES` gives `:` the
+  START and CONTINUE classes, so validity is one AND of classes and the
+  QName split uses the last colon seen in the pass.
+- The duplicate-attribute check takes a single attribute without comparing,
+  and up to `SMALL_ATTRIBUTES` attributes by `(namespace ID, local name)`
+  pairs. `resolve_attribute` skips resolution for unprefixed names other
+  than `xmlns`. Two or more attributes go to the out-of-line
+  `resolve_attributes`: with the pair array inline in `start_element`,
+  attribute-free documents paid for it (reader mixed +1.24%, bisected;
+  out of line -0.64%, svg/attributes unchanged).
+- `dom::NodeId` stores index + 1 in a `NonZeroUsize`, so each of a record's
+  four `Option<NodeId>` links is one word (32 B less per record).
+  `OwnedNodeId` keeps its raw slot, so `from_parts` still accepts any slot.
+
+| Workload | Instructions |
+|---|---:|
+| dom svg | -5.86% |
+| dom attributes | -4.64% |
+| dom flat | -2.06% |
+| dom tiny | -1.08% |
+| dom mixed | -0.82% |
+| dom namespaces | -0.56% |
+| dom unicode | -0.32% |
+| owned svg | -4.39% |
+| owned flat | -1.07% |
+| owned namespaces | -0.37% |
+| owned tiny | -0.38% |
+| reader svg | -6.32% |
+| reader flat | -1.95% |
+| reader namespaces | -0.69% |
+| push svg/65536 | -5.48% |
+| push namespaces/7 | -1.17% |
+| push flat/7 | -1.05% |
+
+Peak RSS of a DOM parse of the 2.5 MB SVG fixture drops from 40.98 to
+38.42 MB (-6.2%).
+
+Measured and rejected (don't retry):
+
+| Change | Result |
+|---|---|
+| Reserve attributes from a count of `=` in the tag | svg +1% (the first growth already reserves 4) |
+| 256-entry class table in `short_value` | attributes +1.1% |
+| Computing `local` eagerly in the duplicate check, or the pair array without the single-attribute case | flat +0.9% |
+| Duplicate check for 2+ attributes inline in `start_element` | reader mixed +1.0% (no attributes) |
+| Out-of-line colon split (memchr / scalar) | namespaces +0.9% / +1.4% |
+| `&raw[value_start..][..length]` value slice | worse than `&raw[value_start..cursor]` |
+| Owned nodes reserved from a full `<` count (as `Document` does) | owned svg -7.1%, but text +8.6%, mixed +1.5%, svg peak RSS +34% |
+
+The owned builder keeps its sampled estimate (two nodes per `<` in the
+first 16 KiB, scaled to the input) but no longer caps it at 4096 nodes,
+only at `max_events`: owned svg -3.20%, mixed -3.01%, flat -1.33%,
+namespaces -1.07%, text and tiny within 0.13%; svg peak RSS 116 -> 72 MB
+(-38%; regrowth held old and new buffers at once), mixed -23%, flat -10%.
+Unlike the full count, the sample keeps the scan off text-heavy input.
+
+`publish_replacement` and `publish_physical` are `inline(always)`, as PGO
+inlines them: NOENT DOM dtd-nested -2.15%, dtd-refs -2.60%, dtd -0.22%; no
+other row moved by more than 0.4%. Making `reserve_frame` `inline(always)`
+on top of that changed nothing. `ContentControllerCore::next_stable` checks
+its pending entity marker before taking it (an empty `Option::take` still
+moved the slot for every token): NOENT dtd-nested dom -1.65%, owned -1.58%,
+reader -2.17%, dtd-refs dom -1.41%. The same guard in `acknowledge`
+(streamed path) moved nothing.
+
+Profile-guided optimization (driver build only, `-Cprofile-generate` /
+`-Cprofile-use` on rustc 1.97.0, merged with the Command Line Tools'
+`llvm-profdata`):
+
+| Training set | Rows trained on | Held-out rows |
+|---|---|---|
+| Every row measured here | -3% (dom mixed) to -28% (buffered dtd-nested); dom svg -12.5%, push svg -25.6%, dom dtd -15.8% | — |
+| attributes, unicode, normalized, dtd-attrs only | — | dom/push/reader -5..-11%; owned svg +5.9%, push dtd-refs +4.7%, dom mixed +3.1% |
+
+PGO pays only when training covers every surface a build serves. Surfaces
+it never saw get worse. That suits the binaries this repo builds
+(`yaxmllint`, `yaxml-capi`, `yaxml-py`), not the library crate, which
+downstream users compile themselves. Most of its gain is block layout and
+hot/cold splitting, which source attributes can't express.
+
+`./pgo.sh` builds the PGO `yaxmllint` (harness/target/pgo/use/release):
+it trains on every fixture under 12 option sets (default, `--stream`,
+`--noent`, `--noent --stream`, `--dtdattr`, `--loaddtd --valid`,
+`--noblanks`, `--recover`, `--html`, `--c14n`, `--xpath`, `--format`), 20
+documents a run, and prints each run's instructions against the plain
+release build. Results, 2026-10-22, the trained runs themselves:
+
+| Fixtures | Instructions |
+|---|---|
+| dtd family (5 fixtures x 12 sets) | -13% to -27% |
+| flat, mixed, namespaces, normalized, unicode | -11% to -27% (`--format`/`--noblanks` most) |
+| attributes | -6% to -19% (`--html`) |
+| deep (900 B) | -3% to -30% (`--format`) |
+| tiny (23 B, process-start dominated) | -1.3% to +0.3% |
+| text (500 KB of character data, memchr-bound) | +1% to +8% (`--c14n` worst), -5% under `--html` |
+
+DTD rows: the NOENT dtd-nested DOM gap (about 2x libxml2's instructions)
+is per-reference replay. Every reference rescans its cached `Piece`s
+through the tag scanner, with the work, frame and catalog ledgers per
+token. libxml2 parses an entity once and copies its node list. Copying in
+the DOM would mean rewriting each copy's origins (invocation and
+reference), re-merging text at the boundaries, and charging every ledger
+exactly as replay does. Buffered dtd-nested spreads its cost over the
+session layers (prepare 14%, lend 9%, `lend_current` 7%, drive 7%+7%).
+The scratch copy of each replacement token (2.5%) is forced by the
+catalog borrow that publication takes. Merged-text and node growth in
+NOENT DOMs (malloc about 8%) charge `max_owned_bytes` (text) or follow
+expansion the `<` hint can't see.
+
+Not attempted, with reasons:
+
+- Pre-sizing the owned pool. Pool growth charges `max_owned_bytes`
+  cumulatively, so another reservation schedule changes which documents
+  pass near the limit.
+- Removing the copies in `ParserState::bind`. Its charges feed the same
+  ledger.
+- Removing the per-element attribute `Vec` (malloc is about 11% of DOM svg).
+  The public `Attributes::Owned(Vec)` layout fixes it.
+- An end-tag compare-first path. `end_element` already compares against
+  the open name before rescanning.
+
+Buffered pull, three structural costs per event (64 KiB `BufReader`,
+instructions; cycles moved the same way or more):
+
+1. Stack probes. `StreamingSession::start_dtd` and the subset-to-content
+   handover (`DtdSession::start_content`) were inlined into
+   `prepare_inner`, which every buffered event calls. Their controller
+   moves gave it an 18 KiB frame, probed page by page on each call.
+   Out of line, the frame is 480 B. `Reader::read_session` had the same
+   problem through `Reader::start_content`. Buffered DTD rows -3% to -5%;
+   reader and DOM DTD rows -0.4% to -0.6%.
+2. Event rewrapping. `lend_plain` moved its event through
+   `and_then`/`ok_or_else`/`map_err`/`?`, and each layout change was an
+   88 B copy, partly through misaligned 4-byte stores that stall store
+   forwarding. A `match` and inlined `parse_event` (plain), `lend_current`
+   and `lend` (DTD) cut those copies. Plain rows -1% to -5%; DTD rows
+   -3% to -4%.
+3. Unscreened copies. A buffered token must be copied out of
+   `fill_buf`, because `position()` equals the bytes consumed from the
+   source after every event. `adopt` copied it with `append_slice`, which
+   leaves it unscreened, so `validate` ran `invalid_char` on every token.
+   Tokens of 16 bytes or fewer are now copied and screened in one pass
+   (`screened_push`, the small-run path's loop). mixed -7.8%, flat -4.4%;
+   a 32 B threshold moved normalized -1.3% but namespaces +0.7% and
+   text +0.6%.
+
+Together, `buffered` against the start of the series:
+
+| Fixture | 64 KiB | 7 B |
+|---|---:|---:|
+| mixed | -12.78% | -4.13% |
+| flat | -7.99% | -3.07% |
+| normalized | -5.81% | -2.20% |
+| unicode | -4.53% | -1.90% |
+| deep | -2.80% | -1.23% |
+| namespaces | -2.72% | -1.59% |
+| tiny | -1.71% | -1.67% |
+| attributes, text | -0.1% to +0.4% | -0.2% |
+| dtd-nested (NOENT) | -7.65% | -7.65% |
+| dtd-refs (NOENT) | -7.35% | — |
+| dtd (NOENT) | -6.07% | — |
+| dtd-attrs (NOENT) | -4.19% | — |
+
+DOM, owned, reader and push rows stayed within ±0.4%. Push tiny is +0.1%
+at 100k documents, and its 20k-document runs drift ±0.7% with binary
+layout.
+
+#### Entity references after a DOCTYPE (same day)
+
+Per-unit instructions (difference of 20- and 40-iteration runs, 20,000
+units each, NOENT; the helper's dom/reader modes) on micro-fixtures:
+
+| Unit | libxml2 dom | yaxml dom | libxml2 reader | yaxml reader |
+|---|---:|---:|---:|---:|
+| `<p>zz</p>`, no DOCTYPE | 2704 | 1762 | 2726 | 1441 |
+| `<p>zz</p>` after a DOCTYPE | 2712 | 2441 | 2729 | 2092 |
+| `<p>&z;</p>`, `z` = `zz` | 3379 | 3465 | 3287 | 3116 |
+| `<p>&z;</p>`, `z` = `<q/>` | 3419 | 3772 | 3987 | 3382 |
+
+So a single reference costs about 900-1000 units over the inline text,
+spread over the entity frames, ledgers and publication layers with no
+function above 8% self. `dtd-nested`'s remaining DOM gap is libxml2
+copying an entity's parsed nodes on every later reference
+(`xmlDocCopyNode`) where yaxml replays the cached pieces. Of a replayed
+token, the parser's publication (`start_element`, `end_element`, name
+scans, normalization checks) is about 7% of the DOM parse; the per-token
+ledger calls (work, expansion, amplification, depth) are the rest. A
+DOM-side subtree copy was first estimated to save at most 7-10%; recorded
+expansions (below) replace the whole replay machinery instead, at the
+event level.
+
+Two small changes (`read_session` handles only the content phase, with the
+DOCTYPE phase in a cold `read_declarations`; a resolved nested reference
+no longer copies its spelling into `scratch` unless it keeps a reference
+node), instructions:
+
+| Fixture (NOENT) | DOM | Owned | Reader |
+|---|---:|---:|---:|
+| dtd-nested | -2.36% | -2.38% | -3.08% |
+| dtd-refs | -0.63% | -0.58% | -0.75% |
+| dtd | -0.46% | -0.42% | -0.50% |
+| dtd-attrs | -0.29% | -0.26% | -0.36% |
+
+DTD-free DOM and reader rows did not move (±0.16%).
+
+#### Recorded expansions (same day)
+
+Deleting every ledger call from the replay path saved only 2-7%
+(instructions), so a single headroom counter could not pay on its own:
+the cost is the replay machinery (pieces, frames, origins, publication).
+Parsing `dtd-nested` with every `&x;` written out inline costs 46.29M
+instructions per document against 101.12M with references (libxml2
+49.97M).
+
+src/dtd_controller/content/template.rs records the events an eligible
+top-level reference publishes from stable input under NOENT, with their
+origins and owned charges and what the expansion charged to every ledger,
+and replays them at later references of the same entity. A replay first
+checks that every ledger has room for the whole expansion. Within one
+reference every counter only grows, so when the totals fit no check
+inside could have failed, and the ledgers are charged at once. When they
+don't fit, the reference is expanded as before, so the failing ledger,
+error and offset stay the same. Owned bytes are charged per replayed event,
+as the expansion charges them. Origins are renumbered from the new
+reference and invocation. Expansions that depend on context are always
+expanded: prefixed names (other than `xml`), namespace declarations,
+instructions, references resolved by name, kept forms, errors or warnings.
+A template is used only when the in-scope default namespace is identical,
+including whether it is owned. Each recording is capped at 16 KiB, and all
+recordings together at 1 MiB.
+
+| Fixture (NOENT) | DOM | Owned | Reader |
+|---|---:|---:|---:|
+| dtd-nested | -37.19% (cycles -27.02%) | -37.45% (-26.09%) | -49.26% (-33.40%) |
+| dtd-refs | -16.69% (-13.81%) | — | -21.02% (-17.36%) |
+| dtd | -16.40% | -21.34% (-22.61%) | — |
+| dtd-attrs, dtd-decl | -0.04%, -0.22% | — | — |
+
+DOM `dtd-nested` is now 63.5M instructions per document (libxml2
+49.97M, inline 46.29M). Without NOENT, the DTD rows gain 0.15-0.63%
+instructions with cycles flat, and DTD-free rows stay within ±0.08%. An
+inline guard in front of an out-of-line `reuse` body was worse
+(+1.1-1.9%). tests/internal/templates.rs compares templates on and off
+(the test-only `TEMPLATES` switch) on the reader and both DOMs: events,
+origins, errors and saved output, for every value of each ceiling up to
+256 below its threshold. Deliberately breaking any remaining precheck,
+the owned charges, origin rebasing or invocation numbering fails it.
+
 ### Small-chunk push (2026-10-20, `37f104e` → `5cc5929`)
 
 Ratios are **libxml2 median / yaxml median** of parse plus destruction per

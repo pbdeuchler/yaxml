@@ -68,7 +68,7 @@ fn construction_finishes_xml_before_assigning_identity() {
             assert_eq!(document.root().range(), Some(0..4));
             let invalid = OwnedNodeId {
                 document: document.identity,
-                slot: NodeId(usize::MAX),
+                slot: usize::MAX,
             };
             assert!(document.node(invalid).is_none());
         } else {
@@ -341,22 +341,25 @@ fn owned_links_are_reciprocal_and_subtree_counts_match_ancestor_membership() {
         let document = OwnedDocument::parse(input).unwrap();
         let mut expected_sizes = vec![0; document.nodes.len()];
         for (index, record) in document.nodes.iter().enumerate() {
-            assert_eq!(record.id, NodeId(index));
+            assert_eq!(record.id, NodeId::new(index));
             assert!(!matches!(record.content, Content::Removed));
-            let mut ancestor = Some(NodeId(index));
+            let mut ancestor = Some(NodeId::new(index));
             while let Some(id) = ancestor {
-                expected_sizes[id.0] += 1;
-                ancestor = document.nodes[id.0].parent.get();
+                expected_sizes[id.index()] += 1;
+                ancestor = document.nodes[id.index()].parent.get();
             }
             let mut children = Vec::new();
             let mut child = record.first_child.get();
             let mut previous = None;
             while let Some(id) = child {
-                let child_record = &document.nodes[id.0];
-                assert_eq!(child_record.parent.get(), Some(NodeId(index)));
+                let child_record = &document.nodes[id.index()];
+                assert_eq!(child_record.parent.get(), Some(NodeId::new(index)));
                 assert_eq!(child_record.previous_sibling.get(), previous);
                 if let Some(previous) = previous {
-                    assert_eq!(document.nodes[previous.0].next_sibling.get(), Some(id));
+                    assert_eq!(
+                        document.nodes[previous.index()].next_sibling.get(),
+                        Some(id)
+                    );
                 }
                 children.push(id);
                 previous = Some(id);
@@ -364,7 +367,7 @@ fn owned_links_are_reciprocal_and_subtree_counts_match_ancestor_membership() {
             }
             assert_eq!(record.last_child.get(), children.last().copied());
             if let Some(last) = record.last_child.get() {
-                assert_eq!(document.nodes[last.0].next_sibling.get(), None);
+                assert_eq!(document.nodes[last.index()].next_sibling.get(), None);
             }
         }
         for (record, expected) in document.nodes.iter().zip(expected_sizes) {
@@ -378,7 +381,10 @@ fn owned_links_are_reciprocal_and_subtree_counts_match_ancestor_membership() {
 fn compact_links_preserve_every_slot_below_the_private_sentinel() {
     assert_eq!(Link::NONE.get(), None);
     for index in [0, 1, usize::MAX - 1] {
-        assert_eq!(Link::new(NodeId(index)).get(), Some(NodeId(index)));
+        assert_eq!(
+            Link::new(NodeId::new(index)).get(),
+            Some(NodeId::new(index))
+        );
     }
 }
 
@@ -389,11 +395,11 @@ fn compact_owned_record_layout_is_smaller_than_optional_usize_links() {
         id: NodeId,
         content: Content,
         source: Option<Range<usize>>,
-        parent: Option<NodeId>,
-        first_child: Option<NodeId>,
-        last_child: Option<NodeId>,
-        previous_sibling: Option<NodeId>,
-        next_sibling: Option<NodeId>,
+        parent: Option<usize>,
+        first_child: Option<usize>,
+        last_child: Option<usize>,
+        previous_sibling: Option<usize>,
+        next_sibling: Option<usize>,
         subtree_size: usize,
     }
     println!(
@@ -428,8 +434,8 @@ fn compact_owned_record_layout_is_smaller_than_optional_usize_links() {
 fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     let mut document = OwnedDocument::parse("<r><a/></r><!--end-->").unwrap();
     let root = document.root_element;
-    let previous = document.nodes[root.0].last_child;
-    let late = NodeId(document.nodes.len());
+    let previous = document.nodes[root.index()].last_child;
+    let late = NodeId::new(document.nodes.len());
     let late_link = Link::new(late);
     document.nodes.push(OwnedRecord {
         id: late,
@@ -442,9 +448,9 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
         next_sibling: Link::NONE,
         subtree_size: 1,
     });
-    document.nodes[previous.get().unwrap().0].next_sibling = late_link;
-    document.nodes[root.0].last_child = late_link;
-    document.nodes[root.0].subtree_size += 1;
+    document.nodes[previous.get().unwrap().index()].next_sibling = late_link;
+    document.nodes[root.index()].last_child = late_link;
+    document.nodes[root.index()].subtree_size += 1;
     document.nodes[0].subtree_size += 1;
     document.slots_are_preorder = false;
 
@@ -453,7 +459,7 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     let mut expected = Vec::new();
     let mut pending = vec![document.root()];
     while let Some(node) = pending.pop() {
-        expected.push(node.record.id.0);
+        expected.push(node.record.id.index());
         let children: Vec<_> = node.children().collect();
         pending.extend(children.into_iter().rev());
     }
@@ -462,7 +468,7 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
     assert_eq!(
         document
             .nodes()
-            .map(|node| node.record.id.0)
+            .map(|node| node.record.id.index())
             .collect::<Vec<_>>(),
         [0, 1, 2, 4, 3]
     );
@@ -477,7 +483,7 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
         for (position, expected) in expected.iter().copied().enumerate() {
             assert_eq!(iterator.len(), node.record().subtree_size - position);
             assert_eq!(iterator.size_hint(), (iterator.len(), Some(iterator.len())));
-            assert_eq!(iterator.next().unwrap().record.id.0, expected);
+            assert_eq!(iterator.next().unwrap().record.id.index(), expected);
         }
         assert_eq!(iterator.len(), 0);
         assert_eq!(iterator.size_hint(), (0, Some(0)));
@@ -501,8 +507,8 @@ fn linked_preorder_visits_a_later_slot_before_the_epilog_and_bounds_subtrees() {
 fn removed_slots_are_rejected_by_lookup_and_existing_edit_boundaries() {
     let mut document = OwnedDocument::parse("<r/><!--removed-->").unwrap();
     let removed = document.root().last_child().unwrap().id();
-    document.nodes[removed.slot.0] = OwnedRecord {
-        id: removed.slot,
+    document.nodes[removed.slot] = OwnedRecord {
+        id: NodeId::new(removed.slot),
         content: Content::Removed,
         source: None,
         parent: Link::NONE,
@@ -513,7 +519,7 @@ fn removed_slots_are_rejected_by_lookup_and_existing_edit_boundaries() {
         subtree_size: 0,
     };
     let root = document.root_element;
-    document.nodes[root.0].next_sibling = Link::NONE;
+    document.nodes[root.index()].next_sibling = Link::NONE;
     document.nodes[0].last_child = Link::new(root);
     document.nodes[0].subtree_size = 2;
     document.slots_are_preorder = false;
@@ -585,7 +591,7 @@ fn linked_mode_walks_deep_and_wide_trees_without_recursion() {
                 let mut nodes = document.nodes();
                 for index in 0..count {
                     assert_eq!(nodes.len(), count - index);
-                    assert_eq!(nodes.next().unwrap().record.id.0, index);
+                    assert_eq!(nodes.next().unwrap().record.id.index(), index);
                 }
                 assert_eq!(nodes.size_hint(), (0, Some(0)));
                 assert!(nodes.next().is_none());
@@ -675,19 +681,21 @@ fn node_reservation_follows_markup_not_length() {
     let text = format!("<r>{}</r>", "text ".repeat(100_000));
     let flat = format!("<r>{}</r>", "<i a='v'>t</i>".repeat(10_000));
     let late = format!("<r>{}{}</r>", "t".repeat(20_000), "<i/>".repeat(10_000));
-    // (input, expected_nodes, nodes in the parsed document)
-    let table: &[(&str, usize, usize)] = &[
-        ("", 0, 0),
-        ("<r/>", 3, 2),
-        ("<r>t</r>", 5, 3),
-        (&text, 91, 3),
-        (&flat, 4096, 20_002),
+    // (input, max_events, expected_nodes, nodes in the parsed document)
+    let table: &[(&str, usize, usize, usize)] = &[
+        ("", usize::MAX, 0, 0),
+        ("<r/>", usize::MAX, 3, 2),
+        ("<r>t</r>", usize::MAX, 5, 3),
+        (&text, usize::MAX, 91, 3),
+        (&flat, usize::MAX, 40_034, 20_002),
+        // Never more than the event ceiling lets the parse store.
+        (&flat, 100, 100, 0),
         // A text prefix underestimates; the vector grows as usual.
-        (&late, 10, 10_003),
+        (&late, usize::MAX, 10, 10_003),
     ];
-    for &(input, expected, nodes) in table {
+    for &(input, max_events, expected, nodes) in table {
         assert_eq!(
-            expected_nodes(input.as_bytes()),
+            expected_nodes(input.as_bytes(), max_events),
             expected,
             "{}",
             &input[..input.len().min(20)]

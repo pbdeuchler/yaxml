@@ -662,25 +662,6 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Whether two resolved attribute names are the same expanded name (see
-    /// `expanded`); lent names compare the URIs bound to their prefixes.
-    fn same_expanded(&self, first: &Name<'_>, second: &Name<'_>) -> bool {
-        fn uri<'n>(state: &'n ParserState<'_>, name: &'n Name<'_>) -> Option<&'n str> {
-            match name.namespace() {
-                Some(LENT) => state
-                    .bound(name.prefix().unwrap_or(""))
-                    .map(|index| state.bindings[index].uri.as_ref()),
-                namespace => namespace,
-            }
-        }
-        let namespace = uri(self, first);
-        namespace == uri(self, second)
-            && match namespace {
-                None => first.qualified() == second.qualified(),
-                Some(_) => first.local() == second.local(),
-            }
-    }
-
     /// Removes the bindings of a scope closed by the previous token.
     /// Releases the previous token's lent values too.
     fn settle(&mut self) {
@@ -819,6 +800,26 @@ impl<'source> ParserState<'source> {
                 || (matches!(kind, TokenKind::Text)
                     && !self.in_content()
                     && bytes.iter().all(|byte| space(*byte))))
+    }
+
+    /// Tokens `max_events` still allows, elements `max_depth` still allows
+    /// open, and owned bytes `max_owned_bytes` still allows.
+    pub(crate) fn headroom(&self) -> (usize, usize, usize) {
+        let limits = &self.budget.limits;
+        let depth = limits.max_depth.saturating_sub(self.stack.len());
+        let owned = limits.max_owned_bytes - self.budget.owned_bytes;
+        (limits.max_events - self.events, depth, owned)
+    }
+
+    /// Counts `events` tokens published without parsing them.
+    pub(crate) fn skip_events(&mut self, events: usize) {
+        self.events += events;
+    }
+
+    /// The default namespace's binding in scope, unless it is undeclared.
+    pub(crate) fn default_namespace(&self) -> Option<&Cow<'source, str>> {
+        let index = self.bound("")?;
+        Some(&self.bindings[index].uri).filter(|uri| !uri.is_empty())
     }
 
     pub(crate) fn check_event_limit(&self, offset: usize) -> Result<(), Error> {
@@ -1374,68 +1375,10 @@ impl<'source> ParserState<'source> {
             }
         }
         let name = self.resolve_name(Cow::Borrowed(qualified), element_prefix, start + 1)?;
-        // Expanded-name uniqueness: equal URIs have equal namespace IDs, so
-        // short lists compare resolved names directly instead of hashing.
-        // Duplicates are kept, as libxml2 does; a QName repeated is a
-        // well-formedness error, other prefixes a namespace error.
-        let duplicate = |lexical| match lexical {
-            true => Error::new(ErrorKind::DuplicateAttribute, start),
-            false => Error::new(ErrorKind::Namespace, start),
-        };
-        if attributes.len() <= SMALL_ATTRIBUTES {
-            for index in 0..attributes.len() {
-                self.resolve_namespace(&mut attributes[index].name, true, start)?;
-                let (prior, rest) = attributes.split_at(index);
-                let name = &rest[0].name;
-                if prior
-                    .iter()
-                    .any(|other| self.same_expanded(&other.name, name))
-                {
-                    let lexical = prior
-                        .iter()
-                        .any(|other| other.name.qualified() == name.qualified());
-                    self.budget.recover(duplicate(lexical))?;
-                }
-            }
-        } else {
-            // Resolve in order up to the first failure. The interleaved check
-            // above would report any duplicate among the resolved attributes
-            // before reaching that failure, so sorting finds the same result.
-            let mut identities = Vec::new();
-            identities
-                .try_reserve(attributes.len())
-                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            let mut failure = None;
-            for attribute in &mut attributes {
-                match self.resolve_namespace(&mut attribute.name, true, start) {
-                    Ok(identity) => identities.push(identity),
-                    Err(error) => {
-                        failure = Some(error);
-                        break;
-                    }
-                }
-            }
-            let mut names = Vec::new();
-            names
-                .try_reserve(identities.len())
-                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
-            names.extend(
-                attributes
-                    .iter()
-                    .zip(identities)
-                    .map(|(attribute, identity)| {
-                        let (local, _) = expanded(&attribute.name);
-                        (sort_key(local), local, identity)
-                    }),
-            );
-            names.sort_unstable();
-            if names.windows(2).any(|pair| pair[0] == pair[1]) {
-                self.budget
-                    .recover(duplicate(repeated(&attributes, start)?))?;
-            }
-            if let Some(error) = failure {
-                return Err(error);
-            }
+        match &mut attributes[..] {
+            [] => {}
+            [attribute] => _ = self.resolve_attribute(&mut attribute.name, start)?,
+            attributes => self.resolve_attributes(attributes, start)?,
         }
         // An unbound element prefix is reported after its attributes', as
         // in libxml2.
@@ -1703,6 +1646,101 @@ impl<'source> ParserState<'source> {
         let mut name = Name::from_validated_parts(qualified, prefix_length, None);
         self.resolve_namespace(&mut name, false, offset)?;
         Ok(name)
+    }
+
+    /// Resolves two or more attribute names, reporting duplicates.
+    #[inline(never)]
+    fn resolve_attributes<'event>(
+        &mut self,
+        attributes: &mut [Attribute<'event>],
+        start: usize,
+    ) -> Result<(), Error>
+    where
+        'source: 'event,
+    {
+        // Expanded-name uniqueness: equal URIs have equal namespace IDs, so
+        // short lists compare (ID, local name) pairs directly instead of
+        // sorting.
+        // Duplicates are kept, as libxml2 does; a QName repeated is a
+        // well-formedness error, other prefixes a namespace error.
+        let duplicate = |lexical| match lexical {
+            true => Error::new(ErrorKind::DuplicateAttribute, start),
+            false => Error::new(ErrorKind::Namespace, start),
+        };
+        if attributes.len() <= SMALL_ATTRIBUTES {
+            let mut identities = [None; SMALL_ATTRIBUTES];
+            for index in 0..attributes.len() {
+                identities[index] = self.resolve_attribute(&mut attributes[index].name, start)?;
+                let (prior, rest) = attributes.split_at(index);
+                let name = &rest[0].name;
+                if prior.iter().zip(&identities).any(|(other, &identity)| {
+                    identity == identities[index] && expanded(&other.name).0 == expanded(name).0
+                }) {
+                    let lexical = prior
+                        .iter()
+                        .any(|other| other.name.qualified() == name.qualified());
+                    self.budget.recover(duplicate(lexical))?;
+                }
+            }
+        } else {
+            // Resolve in order up to the first failure. The interleaved check
+            // above would report any duplicate among the resolved attributes
+            // before reaching that failure, so sorting finds the same result.
+            let mut identities = Vec::new();
+            identities
+                .try_reserve(attributes.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            let mut failure = None;
+            for attribute in attributes.iter_mut() {
+                match self.resolve_attribute(&mut attribute.name, start) {
+                    Ok(identity) => identities.push(identity),
+                    Err(error) => {
+                        failure = Some(error);
+                        break;
+                    }
+                }
+            }
+            let mut names = Vec::new();
+            names
+                .try_reserve(identities.len())
+                .map_err(|_| Error::new(ErrorKind::Allocation, start))?;
+            names.extend(
+                attributes
+                    .iter()
+                    .zip(identities)
+                    .map(|(attribute, identity)| {
+                        let (local, _) = expanded(&attribute.name);
+                        (sort_key(local), local, identity)
+                    }),
+            );
+            names.sort_unstable();
+            if names.windows(2).any(|pair| pair[0] == pair[1]) {
+                self.budget
+                    .recover(duplicate(repeated(attributes, start)?))?;
+            }
+            if let Some(error) = failure {
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    /// Resolves an attribute name as `resolve_namespace` does. An unprefixed
+    /// attribute other than `xmlns` has no namespace, as it was built.
+    #[inline(always)]
+    fn resolve_attribute<'event>(
+        &mut self,
+        name: &mut Name<'event>,
+        offset: usize,
+    ) -> Result<Option<NamespaceId>, Error>
+    where
+        'source: 'event,
+    {
+        if name.prefix().is_none() && name.qualified() != "xmlns" {
+            debug_assert!(name.namespace().is_none());
+            return Ok(None);
+        }
+        self.resolve_namespace(name, true, offset)
     }
 
     /// Resolves `name`; an attribute's unbound prefix is a namespace error
@@ -2075,6 +2113,7 @@ pub(crate) fn space(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\r' | b'\n')
 }
 /// ASCII classes for one-pass Name scanning; non-ASCII bytes are class 0.
+/// A colon may start and continue a Name, so validity is one AND of classes.
 const START: u8 = 1;
 const CONTINUE: u8 = 2;
 const COLON: u8 = 4;
@@ -2089,7 +2128,7 @@ const NAME_BYTES: [u8; 256] = {
         } else if c.is_ascii_digit() || c == b'-' || c == b'.' {
             CONTINUE
         } else if c == b':' {
-            COLON
+            START | CONTINUE | COLON
         } else if matches!(
             c,
             b' ' | b'\t' | b'\r' | b'\n' | b'=' | b'/' | b'>' | b'\'' | b'"'
@@ -2166,43 +2205,35 @@ impl<'a> TagScanner<'a> {
     /// proves the QName split, returned as `Some(prefix length)`; `None`
     /// leaves `qname` to establish it (and its exact error).
     fn scan_name(&mut self) -> Result<(&'a str, Option<Option<NonZeroUsize>>), Error> {
-        let bytes = self.raw.as_bytes();
         let start = self.cursor;
-        let (mut valid, mut colons, mut colon) = (true, 0, 0);
-        while let Some(&byte) = bytes.get(self.cursor) {
+        let rest = &self.raw.as_bytes()[start..];
+        let (mut length, mut all, mut any, mut colon) = (0, CONTINUE, 0, 0);
+        while let Some(&byte) = rest.get(length) {
             let class = NAME_BYTES[usize::from(byte)];
             if class & DELIMITER != 0 {
                 break;
             }
-            let wanted = if self.cursor == start {
-                START
-            } else {
-                CONTINUE
-            };
-            valid &= class & (wanted | COLON) != 0;
-            if class & COLON != 0 {
-                colons += 1;
-                colon = self.cursor - start;
-            }
-            self.cursor += 1;
+            colon = if class & COLON != 0 { length } else { colon };
+            (all, any, length) = (all & class, any | class, length + 1);
         }
+        self.cursor += length;
         let name = &self.raw[start..self.cursor];
-        if !valid || name.is_empty() {
+        let first = rest
+            .first()
+            .map_or(0, |&byte| NAME_BYTES[usize::from(byte)]);
+        if all & CONTINUE == 0 || first & START == 0 || length == 0 {
             validate_name(name, self.offset + start, true)?;
         }
         // A valid Name is a QName when its only colon is followed by a
         // name-start character; prefix characters are already valid.
-        let split = match colons {
+        // `colon` is the last one: the split needs it to be the only one.
+        let split = match any & COLON {
             0 => Some(None),
-            1 if colon > 0
-                && name[colon + 1..]
-                    .chars()
-                    .next()
-                    .is_some_and(|c| crate::name::name_start(c, false)) =>
-            {
-                Some(NonZeroUsize::new(colon))
-            }
-            _ => None,
+            _ => (colon > 0
+                && !name.as_bytes()[..colon].contains(&b':')
+                && (name[colon + 1..].chars().next())
+                    .is_some_and(|c| crate::name::name_start(c, false)))
+            .then_some(NonZeroUsize::new(colon)),
         };
         Ok((name, split))
     }

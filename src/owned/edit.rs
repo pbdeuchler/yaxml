@@ -132,24 +132,25 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     fn is_kind(&self, index: usize, kind: OwnedNodeKind) -> bool {
-        self.view(NodeId(index))
-            .is_some_and(|node| node.kind() == kind)
+        self.view(index).is_some_and(|node| node.kind() == kind)
     }
 
     /// Whether `index` lies in entity-reference content, which `save`
     /// writes as the reference: such content is read-only.
     fn in_entity(&self, index: usize) -> bool {
         std::iter::successors(self.nodes[index].parent.get(), |id| {
-            self.nodes[id.0].parent.get()
+            self.nodes[id.index()].parent.get()
         })
-        .any(|id| matches!(self.nodes[id.0].content, Content::EntityRef(_)))
+        .any(|id| matches!(self.nodes[id.index()].content, Content::EntityRef(_)))
     }
 
     /// Elements on the path from `index` up to its root, `index` included.
     fn depth(&self, index: usize) -> usize {
-        std::iter::successors(Some(NodeId(index)), |id| self.nodes[id.0].parent.get())
-            .filter(|id| matches!(self.nodes[id.0].content, Content::Element { .. }))
-            .count()
+        std::iter::successors(Some(NodeId::new(index)), |id| {
+            self.nodes[id.index()].parent.get()
+        })
+        .filter(|id| matches!(self.nodes[id.index()].content, Content::Element { .. }))
+        .count()
     }
 
     /// Appends `attribute` to `element`'s attributes. A range at the arena
@@ -220,7 +221,7 @@ impl<A: Allocator> OwnedDocument<A> {
         }
         let owner = OwnedNodeId {
             document: self.identity,
-            slot: NodeId(element),
+            slot: element,
         };
         self.ids.retain(|&id| id != (owner, position));
         for (id, index) in &mut self.ids {
@@ -261,7 +262,7 @@ impl<A: Allocator> OwnedDocument<A> {
             }
             let up = match (at == root, context) {
                 (true, Some(context)) => Some(context),
-                _ => self.nodes[at].parent.get().map(|id| id.0),
+                _ => self.nodes[at].parent.get().map(|id| id.index()),
             };
             let Some(up) = up else {
                 return Ok(None);
@@ -335,7 +336,7 @@ impl<A: Allocator> OwnedDocument<A> {
                 _ => record.first_child.get(),
             };
             if let Some(child) = first {
-                current = child.0;
+                current = child.index();
                 continue;
             }
             loop {
@@ -344,10 +345,14 @@ impl<A: Allocator> OwnedDocument<A> {
                 }
                 let record = &self.nodes[current];
                 if let Some(next) = record.next_sibling.get() {
-                    current = next.0;
+                    current = next.index();
                     break;
                 }
-                current = record.parent.get().expect("subtree node has a parent").0;
+                current = record
+                    .parent
+                    .get()
+                    .expect("subtree node has a parent")
+                    .index();
             }
         }
     }
@@ -359,7 +364,7 @@ impl<A: Allocator> OwnedDocument<A> {
         let mut height = depth;
         loop {
             if let Some(child) = self.nodes[current].first_child.get() {
-                current = child.0;
+                current = child.index();
                 depth += element(current);
                 height = height.max(depth);
                 continue;
@@ -370,12 +375,16 @@ impl<A: Allocator> OwnedDocument<A> {
                 }
                 depth -= element(current);
                 if let Some(next) = self.nodes[current].next_sibling.get() {
-                    current = next.0;
+                    current = next.index();
                     depth += element(current);
                     height = height.max(depth);
                     break;
                 }
-                current = self.nodes[current].parent.get().expect("subtree node").0;
+                current = self.nodes[current]
+                    .parent
+                    .get()
+                    .expect("subtree node")
+                    .index();
             }
         }
     }
@@ -401,7 +410,7 @@ impl<A: Allocator> Editor<'_, A> {
     pub(super) fn id(&self, index: usize) -> OwnedNodeId {
         OwnedNodeId {
             document: self.document.identity,
-            slot: NodeId(index),
+            slot: index,
         }
     }
 
@@ -469,24 +478,25 @@ impl<A: Allocator> Editor<'_, A> {
     pub fn replace(&mut self, old: OwnedNodeId, new: OwnedNodeId) -> Result<(), EditError> {
         let (old, new) = (self.resolve(old)?, self.resolve(new)?);
         let document = &*self.document;
-        let root = old == document.root_element.0;
+        let root = old == document.root_element.index();
         if old == 0 || document.is_kind(old, OwnedNodeKind::DocumentType) || document.in_entity(old)
         {
             return Err(error(EditErrorKind::ProtectedNode));
         }
         self.check_movable(new)?;
         let parent = self.document.nodes[old].parent.get();
-        let parent = parent.ok_or(error(EditErrorKind::Hierarchy))?.0;
+        let parent = parent.ok_or(error(EditErrorKind::Hierarchy))?.index();
         if old == new || root && !self.document.is_kind(new, OwnedNodeKind::Element) {
             return Err(error(EditErrorKind::Hierarchy));
         }
         self.check_target(new, parent, root)?;
         self.reconcile(new, Some(parent))?;
         self.document.detach(new);
-        self.document.attach(new, parent, Link::new(NodeId(old)));
+        self.document
+            .attach(new, parent, Link::new(NodeId::new(old)));
         self.document.detach(old);
         if root {
-            self.document.root_element = NodeId(new);
+            self.document.root_element = NodeId::new(new);
         }
         Ok(())
     }
@@ -496,7 +506,7 @@ impl<A: Allocator> Editor<'_, A> {
     fn check_movable(&self, node: usize) -> Result<(), EditError> {
         let document = &*self.document;
         if node == 0
-            || node == document.root_element.0
+            || node == document.root_element.index()
             || document.is_kind(node, OwnedNodeKind::DocumentType)
             || document.in_entity(node)
         {
@@ -511,11 +521,11 @@ impl<A: Allocator> Editor<'_, A> {
     /// a move may not make the tree deeper than `max_depth`.
     fn check_target(&self, node: usize, parent: usize, root: bool) -> Result<(), EditError> {
         let document = &*self.document;
-        let parent_kind = document.view(NodeId(parent)).map(OwnedNode::kind);
+        let parent_kind = document.view(parent).map(OwnedNode::kind);
         if parent_kind == Some(OwnedNodeKind::EntityRef) || document.in_entity(parent) {
             return Err(error(EditErrorKind::ProtectedNode));
         }
-        let kind = document.view(NodeId(node)).map(OwnedNode::kind);
+        let kind = document.view(node).map(OwnedNode::kind);
         let top_level = matches!(
             kind,
             Some(OwnedNodeKind::Comment | OwnedNodeKind::ProcessingInstruction)
@@ -526,9 +536,10 @@ impl<A: Allocator> Editor<'_, A> {
             Some(OwnedNodeKind::Document) => return Err(error(EditErrorKind::Hierarchy)),
             _ => return Err(error(EditErrorKind::WrongNodeKind)),
         }
-        let mut ancestors =
-            std::iter::successors(Some(NodeId(parent)), |id| document.nodes[id.0].parent.get());
-        if ancestors.any(|id| id.0 == node) {
+        let mut ancestors = std::iter::successors(Some(NodeId::new(parent)), |id| {
+            document.nodes[id.index()].parent.get()
+        });
+        if ancestors.any(|id| id.index() == node) {
             return Err(error(EditErrorKind::Hierarchy));
         }
         // Only a move under a parent at least as deep as the node's current
@@ -549,13 +560,19 @@ impl<A: Allocator> Editor<'_, A> {
         let parent = match anchor {
             Anchor::Last(parent) => Some(parent),
             Anchor::Before(reference) | Anchor::After(reference) if reference != node => {
-                self.document.nodes[reference].parent.get().map(|id| id.0)
+                self.document.nodes[reference]
+                    .parent
+                    .get()
+                    .map(|id| id.index())
             }
             _ => None,
         };
         let parent = parent.ok_or(error(EditErrorKind::Hierarchy))?;
         self.check_target(node, parent, false)?;
-        let last = self.document.nodes[parent].last_child.get().map(|id| id.0);
+        let last = self.document.nodes[parent]
+            .last_child
+            .get()
+            .map(|id| id.index());
         if let Anchor::Last(_) = anchor {
             if last == Some(node) {
                 return Ok(self.id(node));
@@ -569,7 +586,7 @@ impl<A: Allocator> Editor<'_, A> {
         self.document.detach(node);
         let next = match anchor {
             Anchor::Last(_) => Link::NONE,
-            Anchor::Before(reference) => Link::new(NodeId(reference)),
+            Anchor::Before(reference) => Link::new(NodeId::new(reference)),
             Anchor::After(reference) => self.document.nodes[reference].next_sibling,
         };
         self.document.attach(node, parent, next);
@@ -690,7 +707,7 @@ impl<A: Allocator> Editor<'_, A> {
         item: Option<bool>,
     ) -> Result<Option<String>, EditError> {
         let is_element = item.is_none();
-        let node = self.document.view(NodeId(element)).expect("live element");
+        let node = self.document.view(element).expect("live element");
         let prefix = match (name.namespace, name.prefix) {
             (None, PrefixPolicy::Exact(None) | PrefixPolicy::Automatic) => {
                 if !is_element && name.local == "xmlns" {
@@ -751,7 +768,7 @@ impl<A: Allocator> Editor<'_, A> {
         if name.namespace == Some(XMLNS) {
             return Err(error(EditErrorKind::NamespaceDeclaration));
         }
-        let node = self.document.view(NodeId(index)).expect("live element");
+        let node = self.document.view(index).expect("live element");
         let exists = node.attributes().any(|attribute| {
             attribute.name.local() == name.local && attribute.name.namespace() == name.namespace
         });
@@ -810,7 +827,7 @@ impl<A: Allocator> Editor<'_, A> {
         document.push_attribute(index, stored);
         document.edit_created_attributes = created;
         let unbound = prefix.as_deref().is_some_and(|prefix| {
-            let node = document.view(NodeId(index)).expect("live element");
+            let node = document.view(index).expect("live element");
             node.search_ns(Some(prefix)) != name.namespace
         });
         if unbound && let Err(failure) = self.reconcile(index, None) {
@@ -837,7 +854,7 @@ impl<A: Allocator> Editor<'_, A> {
         local: &str,
     ) -> Result<(), EditError> {
         let index = self.editable_element(element)?;
-        let node = self.document.view(NodeId(index)).expect("live element");
+        let node = self.document.view(index).expect("live element");
         let position = node.attributes().position(|attribute| {
             attribute.name.local() == local && attribute.name.namespace() == namespace
         });
@@ -988,7 +1005,7 @@ impl<A: Allocator> Editor<'_, A> {
             unreachable!("checked element");
         };
         let previous = std::mem::replace(current, stored);
-        let node = document.view(NodeId(index)).expect("live element");
+        let node = document.view(index).expect("live element");
         let bound = node
             .search_ns(prefix.as_deref())
             .filter(|uri| !uri.is_empty());
@@ -1026,7 +1043,7 @@ impl<A: Allocator> Editor<'_, A> {
             .iter()
             .filter_map(|record| match &record.content {
                 Content::Element { attributes, .. } if !attributes.is_empty() => {
-                    Some((attributes.clone(), record.id.0, 0))
+                    Some((attributes.clone(), record.id.index(), 0))
                 }
                 _ => None,
             });
@@ -1096,7 +1113,7 @@ impl<A: Allocator> Editor<'_, A> {
 /// Node name as `is_id` compares it.
 fn node_name<A: Allocator>(document: &OwnedDocument<A>, index: usize) -> String {
     document
-        .view(NodeId(index))
+        .view(index)
         .and_then(OwnedNode::qualified_name)
         .unwrap_or_default()
         .to_owned()

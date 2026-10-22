@@ -150,7 +150,7 @@ impl Navigate for Document<'_> {
     }
 
     fn slot(&self, id: NodeId) -> usize {
-        id.0
+        id.index()
     }
 
     fn ranks(&self) -> Result<Option<Vec<usize>>, TryReserveError> {

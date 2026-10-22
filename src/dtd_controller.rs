@@ -16,13 +16,14 @@ pub(crate) const ENTITY_FIXED_COST: usize = 20;
 
 const WORK: ErrorKind = ErrorKind::LimitExceeded(Limit::EntityExpansion);
 
-/// Splits the shared expansion allowance between the two expanding components.
+/// Splits the shared expansion allowance between the two expanding
+/// components; returns what is left of it.
 pub(crate) fn share_expansion(
     limits: &DtdLimits,
     consumed: usize,
     frames: &mut EntityFrames,
     catalog: &mut DtdCatalog,
-) {
+) -> usize {
     let consumed = consumed.saturating_add(catalog.external_bytes());
     let counters = frames.counters();
     // Frames count entered replacement bytes; each reference adds libxml2's fixed cost.
@@ -38,6 +39,7 @@ pub(crate) fn share_expansion(
         .saturating_sub(catalog_used);
     frames.set_expansion_ceiling(counters.expanded_bytes.saturating_add(left));
     catalog.set_amplification_ceiling(catalog_used.saturating_add(left));
+    left
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

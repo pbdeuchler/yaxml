@@ -73,6 +73,35 @@ impl EntityFrames {
         self.counters
     }
 
+    /// The invocation the next entered entity gets.
+    pub(crate) fn next_invocation(&self) -> u64 {
+        self.next_invocation
+    }
+
+    /// What the counters' ceilings still allow.
+    pub(crate) fn headroom(&self) -> FrameCounters {
+        let (limits, counters) = (self.limits, self.counters);
+        let expansion = limits.expansion.min(self.expansion_ceiling);
+        FrameCounters {
+            reference_attempts: limits
+                .references
+                .saturating_sub(counters.reference_attempts),
+            work: limits.work.saturating_sub(counters.work),
+            expanded_bytes: expansion.saturating_sub(counters.expanded_bytes),
+        }
+    }
+
+    /// Charges a replayed expansion within `headroom`, as entering and
+    /// reading it would, numbering its `invocations` from the returned one.
+    pub(crate) fn replayed(&mut self, charged: FrameCounters, invocations: u64) -> u64 {
+        let counters = &mut self.counters;
+        counters.reference_attempts += charged.reference_attempts;
+        counters.work += charged.work;
+        counters.expanded_bytes += charged.expanded_bytes;
+        self.next_invocation += invocations;
+        self.next_invocation - invocations
+    }
+
     pub(crate) fn stack(&self) -> &[EntityFrame] {
         &self.frames
     }

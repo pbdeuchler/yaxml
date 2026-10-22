@@ -159,17 +159,17 @@ impl Staged {
             content => content.clone(),
         };
         content.visit_strings(&mut |range| self.bytes += range.len());
-        let mut record = OwnedRecord::detached(NodeId(slot), content);
+        let mut record = OwnedRecord::detached(NodeId::new(slot), content);
         if let Some(parent) = parent {
             let parent = &mut self.nodes[parent - base];
             record.parent = Link::new(parent.id);
             record.previous_sibling = parent.last_child;
-            parent.last_child = Link::new(NodeId(slot));
+            parent.last_child = Link::new(NodeId::new(slot));
             if record.previous_sibling == Link::NONE {
                 parent.first_child = parent.last_child;
             }
             if let Some(previous) = record.previous_sibling.get() {
-                self.nodes[previous.0 - base].next_sibling = Link::new(NodeId(slot));
+                self.nodes[previous.index() - base].next_sibling = Link::new(NodeId::new(slot));
             }
         }
         push(&mut self.nodes, record)?;
@@ -284,7 +284,7 @@ fn stage<A: Allocator, B: Allocator>(
                 let (slot, end) = (parent.expect("a copied parent"), base + staged.nodes.len());
                 let record = &mut staged.nodes[slot - base];
                 record.subtree_size = end - slot;
-                parent = record.parent.get().map(|id| id.0);
+                parent = record.parent.get().map(|id| id.index());
             }
         }
     }
@@ -434,7 +434,7 @@ impl<A: Allocator> Editor<'_, A> {
         let document_id = document.identity;
         let id = |slot| OwnedNodeId {
             document: document_id,
-            slot: NodeId(slot),
+            slot,
         };
         let ids = staged.ids.into_iter();
         document
@@ -533,7 +533,7 @@ impl<A: Allocator> Editor<'_, A> {
         options: ParseOptions,
     ) -> Result<Fragment, EditError> {
         let document = &*self.document;
-        let node = document.view(NodeId(self.resolve(context)?));
+        let node = document.view(self.resolve(context)?);
         let node = node.filter(|node| node.kind() != OwnedNodeKind::DocumentType);
         let node = node
             .filter(|_| !document.is_html())
@@ -556,7 +556,7 @@ impl<A: Allocator> Editor<'_, A> {
             OwnedDocument::parse_tree(input, options, unsupported, Global, context).map_err(
                 |error| EditError::new(EditErrorKind::Parse(error.kind), Some(error.offset)),
             )?;
-        let context = element.map_or(0, |element| element.record().id.0);
+        let context = element.map_or(0, |element| element.record().id.index());
         let target = Target {
             document,
             same: true,

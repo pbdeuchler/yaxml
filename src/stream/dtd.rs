@@ -182,11 +182,18 @@ impl StreamingSession {
         &mut self,
     ) -> Result<Option<(Event<'_>, SourceOrigin)>, crate::ReadError> {
         let ordinary = self.ordinary.as_mut().expect("DTD-free stream");
-        let at = ordinary.position();
         let origin = super::token_origin(&ordinary.tokenizer);
-        let event = super::parse_event(&ordinary.tokenizer, &mut ordinary.state)
-            .and_then(|event| event.ok_or_else(|| Error::new(ErrorKind::InvalidState, at)))
-            .map_err(crate::ReadError::Xml)?;
+        let event = match super::parse_event(&ordinary.tokenizer, &mut ordinary.state) {
+            Ok(Some(event)) => event,
+            Ok(None) => {
+                let at = ordinary.position();
+                return Err(crate::ReadError::Xml(Error::new(
+                    ErrorKind::InvalidState,
+                    at,
+                )));
+            }
+            Err(error) => return Err(crate::ReadError::Xml(error)),
+        };
         let (state, standalone) = (&mut ordinary.state, &mut self.standalone);
         Ok(Some(lent(
             state,
@@ -279,6 +286,7 @@ impl StreamingSession {
         })
     }
     /// Publish once and lend source storage until the returned borrow ends.
+    #[inline(always)]
     pub(crate) fn lend(&mut self) -> Result<(Event<'_>, SourceOrigin), Error> {
         self.failure = Some(Failure::Poisoned);
         match lend_current(&mut self.session, &mut self.origin) {
@@ -465,6 +473,8 @@ impl StreamingSession {
             }
         }
     }
+    #[cold]
+    #[inline(never)]
     fn start_dtd(&mut self) -> Result<(), Error> {
         let ordinary = self.ordinary.as_ref().expect("ordinary phase");
         let (_, _, span) = ordinary.tokenizer.current().expect("DTD prefix ready");
@@ -567,6 +577,33 @@ impl DtdSession {
             None => self.physical,
         })
     }
+    /// Hands the complete subset's state to the content phase. Out of line,
+    /// like `StreamingSession::start_dtd`: inlined, their controller moves
+    /// gave `prepare_inner` an 18 KiB frame, probed page by page each event.
+    #[cold]
+    #[inline(never)]
+    fn start_content(&mut self, limits: Limits, decode: DecodeLimits) -> Result<(), Error> {
+        self.physical = self.position();
+        let Phase::Declarations {
+            controller,
+            parser,
+            mut raw,
+        } = self.phase.take().expect("declaration owner")
+        else {
+            unreachable!("checked declaration phase")
+        };
+        let first = controller.decoded_position() - raw.len();
+        let body = controller.into_body_state()?;
+        self.replay = raw.split_off(body.resume_position().0 - first);
+        let content = ContentController::new(
+            body,
+            parser,
+            Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
+        )?;
+        self.phase = Some(Phase::Content(content));
+        Ok(())
+    }
+
     fn drain(&mut self, limits: Limits, decode: DecodeLimits) -> Result<SessionOutcome, Error> {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
@@ -583,24 +620,7 @@ impl DtdSession {
                         None => {}
                     }
                     if controller.is_complete() {
-                        self.physical = self.position();
-                        let Phase::Declarations {
-                            controller,
-                            parser,
-                            mut raw,
-                        } = self.phase.take().expect("declaration owner")
-                        else {
-                            unreachable!("checked declaration phase")
-                        };
-                        let first = controller.decoded_position() - raw.len();
-                        let body = controller.into_body_state()?;
-                        self.replay = raw.split_off(body.resume_position().0 - first);
-                        let content = ContentController::new(
-                            body,
-                            parser,
-                            Tokenizer::new(limits.max_token_bytes, decode.max_decoded_token_bytes),
-                        )?;
-                        self.phase = Some(Phase::Content(content));
+                        self.start_content(limits, decode)?;
                         continue;
                     }
                     let result = match self.decoder_finished {
@@ -669,6 +689,7 @@ struct LentSession<'event> {
     origin: FragmentOrigin,
     budget: &'event mut Budget,
 }
+#[inline(always)]
 fn lend_current<'event>(
     session: &'event mut [DtdSession],
     last_origin: &mut Option<SourceOrigin>,
