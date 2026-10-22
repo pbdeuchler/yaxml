@@ -289,6 +289,33 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 (`iso-8859-5.xml`: the pinned xmllint lacks the encoding), and 128 of 132 with
 `--noent` (the encodings, `ent2` and `ent10`: replacement-text context above).
 
+## Walker
+
+`Walker` (feature `textreader`) is libxml2's `xmlReaderWalker`: the reader
+cursor over an existing `OwnedDocument`, answered from the tree. `new`/`reset`
+are `xmlReaderWalker`/`xmlReaderNewWalker`; `read`, `next` and `next_sibling`
+port `xmlTextReaderReadTree`, `NextTree` and `NextSibling`; `current_node` and
+`document` are `CurrentNode`/`CurrentDoc`, borrowed for the document's
+lifetime (the walker frees nothing behind itself). The accessors are
+`TextReader`'s. libxml2's walk is kept, quirks included:
+
+- Each tree node is one node: adjacent text nodes (an `Editor::append_text`)
+  are not merged; the DOCTYPE and entity references are reported, not entered.
+- A childless element is empty and has no EndElement, however it was written.
+- `next` from a last child skips the parent's EndElement; two levels down it
+  ends the walk after the node it moves to.
+- After the end the last node stays current; `read_state` is always
+  `Initial`; `read_string` of an element is `None`; inner/outer XML of a
+  DOCTYPE or entity reference is empty. Inner/outer XML add the namespace
+  declarations a node uses (xmlDocCopyNode + xmlNodeDumpOutput).
+- Attributes, namespace declarations first then attributes in source order,
+  stay reachable from an EndElement, whose `attribute_count` is 0.
+
+Divergence: `next`/`next_sibling` leave the attribute cursor; libxml2 keeps a
+stale `curnode` there. `tests/walker.rs` compares every accessor on every
+node, for `read`, `next`, `next_sibling` and a mixed walk, against dumps of
+`harness/tooling/libxml2_walker.c` (`tests/fixtures/walker`).
+
 ## Gaps
 
 - Error handlers (`SetErrorHandler`, `SetStructuredErrorHandler`,
@@ -299,7 +326,8 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
   the parsing point (input consumed, ahead of the current node by one node
   of lookahead) in a caller's `LineIndex`, since the reader keeps no input;
   libxml2's point also depends on its 512-byte chunking.
-- `CurrentNode`, `CurrentDoc`, `Preserve` and `PreservePattern` do not fit.
+- On the parsing reader `CurrentNode`, `CurrentDoc`, `Preserve` and
+  `PreservePattern` do not fit (the [walker](#walker) has the first two).
   They hand out pointers into the tree libxml2's SAX handlers build as the
   reader advances, which the reader frees behind itself: `CurrentDoc` is
   whatever has not been freed yet (preserved nodes and their ancestors, plus
@@ -321,6 +349,5 @@ their EntityReference nodes: 130 of 132 agree, the two encodings differing.
 - `expand` returns a standalone copy; its source ranges are offsets into the
   outer XML, and nodes other than elements do not expand.
 - `ConstString` (interning into the reader's dictionary) has no use with
-  borrowed `&str`. `NextSibling` is not started: libxml2 implements it only
-  for `xmlReaderWalker` readers over an existing tree and returns -1 for
-  parsing ones. `Close` is `Drop`.
+  borrowed `&str`. `NextSibling` is the walker's only, as in libxml2, which
+  returns -1 for parsing readers. `Close` is `Drop`.

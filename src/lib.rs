@@ -120,6 +120,8 @@ mod textwriter;
 mod tokenizer;
 pub mod uri;
 pub mod valid;
+#[cfg(feature = "textreader")]
+mod walker;
 mod writer;
 #[cfg(feature = "xinclude")]
 pub mod xinclude;
@@ -162,6 +164,8 @@ pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader
 #[cfg(feature = "textwriter")]
 pub use textwriter::TextWriter;
 pub use uri::{Uri, UriError};
+#[cfg(feature = "textreader")]
+pub use walker::Walker;
 pub use writer::{Writer, WriterLimits};
 pub use xpath::tree::{NamespaceBinding, XML_NAMESPACE};
 

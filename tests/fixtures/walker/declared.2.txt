@@ -1,0 +1,7 @@
+state 0 ver 1.0 enc - sa 0
+before 0 0 - -1
+0 1 r r - - e0 v0 a0 h0 [-] lang=- base=declared.xml ns=- string=-
+  inner=<a>t</a>
+  outer=<r><a>t</a></r>
+  get - - - - - - - ns - - no - - - mv 0 r in - 0 r 0 r 0 r 0 r el 0 0 look - http://www.w3.org/XML/1998/namespace
+end 0 state 0 type 1

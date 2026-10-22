@@ -11,7 +11,7 @@ use crate::{Document, NodeId, NodeKind, OwnedDocument, OwnedNodeId, OwnedNodeKin
 
 /// The namespace bound to the `xml` prefix (`XML_XML_NAMESPACE`).
 pub const XML_NAMESPACE: &str = "http://www.w3.org/XML/1998/namespace";
-const XMLNS_NAMESPACE: &str = "http://www.w3.org/2000/xmlns/";
+pub(crate) const XMLNS_NAMESPACE: &str = "http://www.w3.org/2000/xmlns/";
 
 /// A tree XPath can navigate: [`Document`] and [`OwnedDocument`]. Sealed.
 pub trait Tree: Navigate {}

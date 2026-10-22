@@ -3325,9 +3325,9 @@ xmlreader.h	xmlReaderNewFd	function	not_marked	P0-P2	partial	https://github.com/
 xmlreader.h	xmlReaderNewFile	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::reset_with
 xmlreader.h	xmlReaderNewIO	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::reset_with
 xmlreader.h	xmlReaderNewMemory	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::reset_with
-xmlreader.h	xmlReaderNewWalker	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	reading an existing tree not started
+xmlreader.h	xmlReaderNewWalker	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::new, Walker::reset - over an OwnedDocument (docs/textreader.md#walker)
 xmlreader.h	xmlReaderTypes	enum	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	NodeType
-xmlreader.h	xmlReaderWalker	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	reading an existing tree not started
+xmlreader.h	xmlReaderWalker	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::new, Walker::reset - over an OwnedDocument (docs/textreader.md#walker)
 xmlreader.h	xmlTextReader	typedef	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader
 xmlreader.h	xmlTextReaderAttributeCount	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::attribute_count
 xmlreader.h	xmlTextReaderBaseUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::base_uri
@@ -3343,8 +3343,8 @@ xmlreader.h	xmlTextReaderConstString	function	not_marked	P0-P2	not-applicable	ht
 xmlreader.h	xmlTextReaderConstValue	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::value
 xmlreader.h	xmlTextReaderConstXmlLang	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_lang
 xmlreader.h	xmlTextReaderConstXmlVersion	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::xml_version
-xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
-xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+xmlreader.h	xmlTextReaderCurrentDoc	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
+xmlreader.h	xmlTextReaderCurrentNode	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
 xmlreader.h	xmlTextReaderDepth	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::depth
 xmlreader.h	xmlTextReaderErrorFunc	callback	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	no error callback; xsd_diagnostics/relaxng_diagnostics return values
 xmlreader.h	xmlTextReaderExpand	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::expand
@@ -3378,7 +3378,7 @@ xmlreader.h	xmlTextReaderMoveToNextAttribute	function	not_marked	P0-P2	implement
 xmlreader.h	xmlTextReaderName	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::name
 xmlreader.h	xmlTextReaderNamespaceUri	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::namespace_uri
 xmlreader.h	xmlTextReaderNext	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::next
-xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	libxml2 implements it only for xmlReaderWalker readers (-1 otherwise); walker not started
+xmlreader.h	xmlTextReaderNextSibling	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	Walker::next_sibling - walker only, as in libxml2 (-1 for parsing readers)
 xmlreader.h	xmlTextReaderNodeType	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::node_type
 xmlreader.h	xmlTextReaderNormalization	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::normalization
 xmlreader.h	xmlTextReaderPrefix	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlreader.h	TextReader::prefix

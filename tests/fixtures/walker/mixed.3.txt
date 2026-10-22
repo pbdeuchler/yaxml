@@ -1,0 +1,88 @@
+state 0 ver 1.0 enc UTF-8 sa 1
+before 0 0 - -1
+0 10 r r - - e0 v0 a0 h0 [-] lang=- base=mixed.xml ns=- string=-
+  inner=
+  outer=<!DOCTYPE r [
+<!ENTITY e "x<b>y</b>">
+]>
+  get - - - - - - - ns - - no - - - mv 0 r in - 0 r -1 r -1 r 0 r el 0 0 look - http://www.w3.org/XML/1998/namespace
+0 8 #comment #comment - - e0 v1 a0 h0 [c] lang=- base=mixed.xml ns=- string=-
+  inner=
+  outer=<!--c-->
+  get - - - - - - - ns - - no - - - mv 0 #comment in - 0 #comment -1 #comment -1 #comment 0 #comment el 0 0 look - http://www.w3.org/XML/1998/namespace
+0 1 r r - urn:d e0 v0 a5 h1 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=<a xmlns="urn:d"/><b xmlns="urn:d"/>t &e; <![CDATA[cd]]><?pi data?><?empty?><p:c xmlns:p="urn:p" xmlns="urn:d" xml:base="s/">  <d/></p:c>
+<x xmlns="urn:d"><y/></x>
+  outer=<r xmlns="urn:d" xmlns:p="urn:p" p:k="v" xml:lang="en" xml:base="http://h/d/"><a/><b/>t &e; <![CDATA[cd]]><?pi data?><?empty?><p:c xml:base="s/">  <d/></p:c>
+<x><y/></x></r>
+  get v urn:d urn:p - - - en ns v urn:p no urn:d v - mv 1 xml:lang in - 1 p:k 1 xmlns:p 0 r 1 xmlns el 1 0 look urn:p http://www.w3.org/XML/1998/namespace
+  @1 2 xmlns xmlns - http://www.w3.org/2000/xmlns/ e0 v1 a0 h0 [urn:d] decl1
+  @1 2 xmlns:p p xmlns http://www.w3.org/2000/xmlns/ e0 v1 a0 h0 [urn:p] decl1
+  @1 2 p:k k p urn:p e0 v1 a0 h0 [v] decl0
+  @1 2 xml:lang lang xml http://www.w3.org/XML/1998/namespace e0 v1 a0 h0 [en] decl0
+  @1 2 xml:base base xml http://www.w3.org/XML/1998/namespace e0 v1 a0 h0 [http://h/d/] decl0
+1 1 a a - urn:d e1 v0 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=<a xmlns="urn:d"/>
+  get - - - - - - - ns - - no - - - mv 0 a in - 0 a 0 a 0 a 0 a el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 1 b b - urn:d e1 v0 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=<b xmlns="urn:d"/>
+  get - - - - - - - ns - - no - - - mv 0 b in - 0 b 0 b 0 b 0 b el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 3 #text #text - - e0 v1 a0 h0 [t ] lang=en base=http://h/d/ ns=urn:d string=t 
+  inner=
+  outer=t 
+  get - - - - - - - ns - - no - - - mv 0 #text in - 0 #text -1 #text -1 #text 0 #text el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 5 e e - - e0 v0 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=&e;
+  get - - - - - - - ns - - no - - - mv 0 e in - 0 e -1 e -1 e 0 e el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 14 #text #text - - e0 v1 a0 h0 [ ] lang=en base=http://h/d/ ns=urn:d string= 
+  inner=
+  outer= 
+  get - - - - - - - ns - - no - - - mv 0 #text in - 0 #text -1 #text -1 #text 0 #text el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 4 #cdata-section #cdata-section - - e0 v1 a0 h0 [cd] lang=en base=http://h/d/ ns=urn:d string=cd
+  inner=
+  outer=<![CDATA[cd]]>
+  get - - - - - - - ns - - no - - - mv 0 #cdata-section in - 0 #cdata-section -1 #cdata-section -1 #cdata-section 0 #cdata-section el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 7 pi pi - - e0 v1 a0 h0 [data] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=<?pi data?>
+  get - - - - - - - ns - - no - - - mv 0 pi in - 0 pi -1 pi -1 pi 0 pi el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 7 empty empty - - e0 v1 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=<?empty?>
+  get - - - - - - - ns - - no - - - mv 0 empty in - 0 empty -1 empty -1 empty 0 empty el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 1 p:c c p urn:p e0 v0 a1 h1 [-] lang=en base=http://h/d/s/ ns=urn:d string=-
+  inner=  <d xmlns="urn:d"/>
+  outer=<p:c xmlns:p="urn:p" xmlns="urn:d" xml:base="s/">  <d/></p:c>
+  get - - - - - - - ns - - no s/ - - mv 0 p:c in - 0 p:c 0 p:c 0 p:c 1 xml:base el 1 0 look urn:p http://www.w3.org/XML/1998/namespace
+  @2 2 xml:base base xml http://www.w3.org/XML/1998/namespace e0 v1 a0 h0 [s/] decl0
+2 14 #text #text - - e0 v1 a0 h0 [  ] lang=en base=http://h/d/s/ ns=urn:d string=  
+  inner=
+  outer=  
+  get - - - - - - - ns - - no - - - mv 0 #text in - 0 #text -1 #text -1 #text 0 #text el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+2 1 d d - urn:d e1 v0 a0 h0 [-] lang=en base=http://h/d/s/ ns=urn:d string=-
+  inner=
+  outer=<d xmlns="urn:d"/>
+  get - - - - - - - ns - - no - - - mv 0 d in - 0 d 0 d 0 d 0 d el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 14 #text #text - - e0 v1 a0 h0 [
+] lang=en base=http://h/d/ ns=urn:d string=
+
+  inner=
+  outer=
+
+  get - - - - - - - ns - - no - - - mv 0 #text in - 0 #text -1 #text -1 #text 0 #text el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+1 1 x x - urn:d e0 v0 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=<y xmlns="urn:d"/>
+  outer=<x xmlns="urn:d"><y/></x>
+  get - - - - - - - ns - - no - - - mv 0 x in - 0 x 0 x 0 x 0 x el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+2 1 y y - urn:d e1 v0 a0 h0 [-] lang=en base=http://h/d/ ns=urn:d string=-
+  inner=
+  outer=<y xmlns="urn:d"/>
+  get - - - - - - - ns - - no - - - mv 0 y in - 0 y 0 y 0 y 0 y el 0 0 look urn:p http://www.w3.org/XML/1998/namespace
+0 7 after after - - e0 v1 a0 h0 [-] lang=- base=mixed.xml ns=- string=-
+  inner=
+  outer=<?after?>
+  get - - - - - - - ns - - no - - - mv 0 after in - 0 after -1 after -1 after 0 after el 0 0 look - http://www.w3.org/XML/1998/namespace
+end 0 state 0 type 7

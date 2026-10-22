@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE r [<!ENTITY e "x<b>y</b>">]>
+<!--c-->
+<r xmlns="urn:d" xmlns:p="urn:p" p:k="v" xml:lang="en" xml:base="http://h/d/"><a/><b></b>t &e; <![CDATA[cd]]><?pi data?><?empty?><p:c xml:base="s/">  <d/></p:c>
+<x><y/></x></r>
+<?after?>

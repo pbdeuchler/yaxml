@@ -696,7 +696,7 @@ A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath r
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new
 P|xmlReaderForFile xmlNewTextReaderFilename|TextReader::new - caller opens the file
 P|xmlReaderNewDoc xmlReaderNewFd xmlReaderNewFile xmlReaderNewIO xmlReaderNewMemory xmlTextReaderSetup|TextReader::reset_with
-N|xmlReaderWalker xmlReaderNewWalker|reading an existing tree not started
+I|xmlReaderWalker xmlReaderNewWalker|Walker::new, Walker::reset - over an OwnedDocument (docs/textreader.md#walker)
 A|xmlFreeTextReader xmlTextReaderClose|Drop
 I|xmlTextReader|TextReader
 A|xmlTextReaderPtr xmlTextReaderLocatorPtr|raw pointer alias
@@ -723,7 +723,8 @@ I|xmlTextReaderNormalization|TextReader::normalization
 I|xmlTextReaderStandalone|TextReader::standalone
 I|xmlTextReaderByteConsumed|TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
 I|xmlTextReaderGetRemainder|TextReader::into_remainder
-N|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+P|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode|Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
+N|xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
 I|xmlTextReaderHasAttributes|TextReader::has_attributes
 I|xmlTextReaderHasValue|TextReader::has_value
 I|xmlTextReaderIsEmptyElement|TextReader::is_empty_element
@@ -753,7 +754,7 @@ I|xmlTextReaderConstXmlVersion|TextReader::xml_version
 I|xmlTextReaderIsNamespaceDecl|TextReader::is_namespace_decl - false without a node (libxml2 -1)
 I|xmlTextReaderQuoteChar|TextReader::quote_char
 A|xmlTextReaderConstString|strings are borrowed &str; no reader dictionary
-N|xmlTextReaderNextSibling|libxml2 implements it only for xmlReaderWalker readers (-1 otherwise); walker not started
+I|xmlTextReaderNextSibling|Walker::next_sibling - walker only, as in libxml2 (-1 for parsing readers)
 N|xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|no error callback; locators belong to xmlTextReaderSetErrorHandler
 N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
 I|xmlReaderTypes|NodeType

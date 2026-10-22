@@ -215,3 +215,7 @@ unsafe_code = "forbid"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[[test]]
+name = "walker"
+required-features = ["textreader"]

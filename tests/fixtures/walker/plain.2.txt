@@ -1,0 +1,7 @@
+state 0 ver 1.0 enc - sa -1
+before 0 0 - -1
+0 1 r r - - e0 v0 a0 h0 [-] lang=- base=plain.xml ns=- string=-
+  inner=<x><y/><z><w/></z></x><!----><?p?><q a="1" b="&amp;"/>
+  outer=<r><x><y/><z><w/></z></x><!----><?p?><q a="1" b="&amp;"/></r>
+  get - - - - - - - ns - - no - - - mv 0 r in - 0 r 0 r 0 r 0 r el 0 0 look - http://www.w3.org/XML/1998/namespace
+end 0 state 0 type 1
