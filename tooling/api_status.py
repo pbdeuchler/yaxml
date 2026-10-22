@@ -553,7 +553,8 @@ P|xmlNewPI xmlNewDocPI|Editor::append_processing_instruction
 I|xmlNewNs|Editor::declare_namespace
 P|xmlNewProp xmlNewNsProp xmlNewDocProp|Editor::set_attribute
 A|xmlNewNodeEatName xmlNewNsPropEatName xmlNewDocNodeEatName|no dictionary or name ownership transfer
-N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd xmlCreateIntSubset|not started (no detached nodes, entity-reference or DTD construction)
+N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd|not started (no detached nodes, entity-reference or DTD construction)
+P|xmlCreateIntSubset|Editor::add_declarations - created by the first declarations, named after the document element
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
 I|xmlAddPrevSibling|Editor::insert_before
@@ -636,7 +637,8 @@ I|XML_EXTERNAL_PARAMETER_ENTITY|valid::EntityKind::ExternalParameter
 I|XML_INTERNAL_PREDEFINED_ENTITY|valid::EntityKind::Predefined
 P|xmlEntitiesTable|valid::Dtd::entities - an iterator, no table type
 A|xmlFreeEntity|Drop
-N|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity xmlNewEntity|no declaration construction (roadmap 8)
+P|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity|Editor::add_declarations - declarations as markup, appended to the internal subset
+N|xmlNewEntity|no detached entity declarations
 I|_xmlEntity.name|valid::Entity::name
 I|_xmlEntity.etype|valid::Entity::kind
 P|_xmlEntity.content|valid::Entity::content - also the text of loaded external entities, which libxml2 leaves unset
@@ -791,7 +793,10 @@ I|xmlGetDtdNotationDesc|valid::Dtd::notation
 P|xmlElementTable|valid::Dtd::elements - an iterator, no table type
 P|xmlAttributeTable|valid::Element::attributes - an iterator, no table type
 P|xmlNotationTable|valid::Dtd::notations - an iterator, no table type
-N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
+P|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl|Editor::add_declarations - declarations as markup, appended to the internal subset
+I|xmlIsID|OwnedDocument::is_id
+P|xmlAddID xmlAddIDSafe xmlRemoveID|Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
+N|xmlValidGetPotentialChildren xmlValidGetValidElements xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
 N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
 # ---- encoding.h
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum

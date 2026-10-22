@@ -73,19 +73,23 @@ fn declarations(
     out: &mut Out<'_>,
 ) -> Result<bool, Error> {
     let (mut seen, mut declared) = (HashSet::new(), false);
-    units(name, subset, |view, catalog| {
+    units(name, subset, None, |view, catalog| {
         declared |= declaration(view, catalog, &mut seen, notations, out);
     })?;
     Ok(declared)
 }
 
 /// Reads the internal subset again, expanding internal parameter entities,
-/// and passes each unit in order with the catalog read so far.
+/// and passes each unit in order with the catalog read so far; returns the
+/// declarations. A stored subset is read recovering (a recovered document's
+/// can hold what libxml2 reads on from); declarations added after `seed`'s
+/// are read strictly.
 pub(crate) fn units(
     name: &str,
     subset: &str,
+    seed: Option<&crate::valid::Dtd>,
     mut each: impl FnMut(DtdUnitView<'_>, &DtdCatalog),
-) -> Result<(), Error> {
+) -> Result<crate::valid::Dtd, Error> {
     // The subset is source text; parsing normalizes its line ends.
     let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
@@ -99,9 +103,13 @@ pub(crate) fn units(
         flags: crate::options::Flags(0),
         ..DtdLimits::new(limits, DecodeLimits::default())
     };
-    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false);
-    // A recovered document's subset can hold what libxml2 reads on from.
-    let mut budget = Budget::new(limits).recovering();
+    let standalone = seed.is_some_and(|dtd| dtd.standalone);
+    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, standalone);
+    let mut budget = Budget::new(limits);
+    match seed {
+        Some(dtd) => controller.catalog_mut().resume(dtd),
+        None => budget = budget.recovering(),
+    }
     while !controller.is_complete() {
         match controller.current() {
             Some((DtdEvent::Item(unit), _)) => each(unit.view(), controller.catalog()),
@@ -113,7 +121,12 @@ pub(crate) fn units(
         }
         controller.release();
     }
-    Ok(())
+    // Added declarations must not close the subset (`]>`) early.
+    let end = controller.physical_position();
+    if seed.is_some() && end < text.len() {
+        return Err(Error::new(ErrorKind::InvalidDtd, end));
+    }
+    Ok(controller.catalog_mut().take_dtd())
 }
 
 /// The default libxml2 stores for an attribute definition: references

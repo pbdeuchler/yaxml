@@ -413,9 +413,10 @@ content (here `WrongNodeKind`).
 | `declare_namespace(element, prefix, uri)` | `xmlNewNs` | Adds a declaration (`None`: default, `""` undeclares it). The prefix must not already be declared there (`DuplicateAttribute`); `xml`, `xmlns` and the XML/XMLNS URIs are reserved. |
 | `set_name(element, NameSpec)` | `xmlNodeSetName` + `xmlSetNs` | Renames; `Automatic` prefers the in-scope default, then a prefixed binding, then `nsN`. |
 | `set_url(url)` | `doc->URL` | The URL `base_uri` resolves against. |
+| `add_declarations(markup)` | `xmlAddEntity`, `xmlAddElementDecl`, `xmlAddAttributeDecl`, `xmlAddNotationDecl`, `xmlCreateIntSubset` | Appends markup declarations to the internal subset, read after the existing declarations (first declaration of a name wins; earlier parameter entities expand); creates a DOCTYPE named after the document element before it when there is none. Malformed markup, or markup that closes the subset, is `Parse` and changes nothing; HTML documents are `WrongNodeKind`. Attributes already in the tree are not retyped. |
 
 New attributes join the ID table when libxml2's `xmlIsID` would: `xml:id`,
-HTML `id` (`name` on `a`), or a DTD-declared `ID`; removal drops the entry.
+HTML `id` (`name` on `a`), or a DTD-declared `ID` (`OwnedDocument::is_id`); removal drops the entry.
 Single-item name errors locate attribute or namespace item 0; the rename locates
 the element name. HTML documents take no namespaces. Like construction, these
 methods copy strings before returning and check lengths, characters and names
@@ -810,7 +811,7 @@ implemented behavior from pending coverage, review and performance evidence.
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
 adapters. Slot reuse (a renumbering
-rebuild), DOCTYPE and declaration editing, entity-interpreting setters
+rebuild), removing or replacing declarations and the DOCTYPE's identifiers, entity-interpreting setters
 (`xmlNodeSetContent`), foreign registries, an allocator-aware string pool,
 formatting and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open

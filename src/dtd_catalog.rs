@@ -219,6 +219,17 @@ impl DtdCatalog {
         }
     }
 
+    /// Takes all of `dtd`'s declarations as already applied, so more can
+    /// follow them (`Editor::add_declarations`).
+    pub(crate) fn resume(&mut self, dtd: &Dtd) {
+        self.seed(dtd);
+        let entities = std::mem::take(&mut self.dtd.entities);
+        self.dtd = Dtd {
+            entities,
+            ..dtd.clone()
+        };
+    }
+
     /// Takes `dtd`'s entity and notation declarations as already applied.
     pub(crate) fn seed(&mut self, dtd: &Dtd) {
         // Replacement texts are no longer spelled in the input.

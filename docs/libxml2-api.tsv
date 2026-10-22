@@ -407,9 +407,9 @@ entities.h	_xmlEntity.owner	field	not_marked	P0-P2	not-applicable	https://github
 entities.h	_xmlEntity.parent	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
 entities.h	_xmlEntity.prev	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
 entities.h	_xmlEntity.type	field	not_marked	P0-P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	tree links and bookkeeping; valid::Entity is a borrowed view
-entities.h	xmlAddDocEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
-entities.h	xmlAddDtdEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
-entities.h	xmlAddEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
+entities.h	xmlAddDocEntity	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	Editor::add_declarations - declarations as markup, appended to the internal subset
+entities.h	xmlAddDtdEntity	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	Editor::add_declarations - declarations as markup, appended to the internal subset
+entities.h	xmlAddEntity	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	Editor::add_declarations - declarations as markup, appended to the internal subset
 entities.h	xmlCopyEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
 entities.h	xmlCreateEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
 entities.h	xmlDumpEntitiesTable	function	yes	P0-P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	deprecated in 2.15.4
@@ -425,7 +425,7 @@ entities.h	xmlGetDocEntity	function	not_marked	P0-P2	implemented	https://github.
 entities.h	xmlGetDtdEntity	function	not_marked	P0-P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::entities, valid::Entity::external_subset - filter; a name both subsets declare keeps only its internal declaration
 entities.h	xmlGetParameterEntity	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::Dtd::parameter_entity
 entities.h	xmlGetPredefinedEntity	function	not_marked	P0-P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	valid::predefined_entity
-entities.h	xmlNewEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no declaration construction (roadmap 8)
+entities.h	xmlNewEntity	function	not_marked	P0-P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/entities.h	no detached entity declarations
 hash.h	XML_CAST_FPTR	macro	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 hash.h	xmlHashAdd	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 hash.h	xmlHashAdd2	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/hash.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
@@ -1911,7 +1911,7 @@ tree.h	xmlCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOM
 tree.h	xmlCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::copy - one node at a time
 tree.h	xmlCopyProp	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
 tree.h	xmlCopyPropList	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes; copied with their element by Editor::import/copy
-tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not started (no detached nodes, entity-reference or DTD construction)
+tree.h	xmlCreateIntSubset	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::add_declarations - created by the first declarations, named after the document element
 tree.h	xmlDOMWrapAcquireNsFunction	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no custom namespace callback; copies never rename
 tree.h	xmlDOMWrapAdoptNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	handles name one document: Editor::import + remove_subtree (docs/bindings.md#moving-nodes-between-documents)
 tree.h	xmlDOMWrapCloneNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - declarations on the copy root; no prefix renaming or oldNs (docs/owned-dom.md#copying-and-importing)
@@ -2138,11 +2138,11 @@ valid.h	_xmlValidCtxt.vstateMax	field	not_marked	P2	not-applicable	https://githu
 valid.h	_xmlValidCtxt.vstateNr	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
 valid.h	_xmlValidCtxt.vstateTab	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
 valid.h	_xmlValidCtxt.warning	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator keeps its state private; valid::validate takes none
-valid.h	xmlAddAttributeDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlAddElementDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlAddID	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlAddIDSafe	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
-valid.h	xmlAddNotationDecl	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
+valid.h	xmlAddAttributeDecl	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::add_declarations - declarations as markup, appended to the internal subset
+valid.h	xmlAddElementDecl	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::add_declarations - declarations as markup, appended to the internal subset
+valid.h	xmlAddID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
+valid.h	xmlAddIDSafe	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
+valid.h	xmlAddNotationDecl	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::add_declarations - declarations as markup, appended to the internal subset
 valid.h	xmlAddRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlAttributeTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Element::attributes - an iterator, no table type
 valid.h	xmlAttributeTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
@@ -2179,7 +2179,7 @@ valid.h	xmlGetID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2
 valid.h	xmlGetRefs	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlIDTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlIDTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlIsID	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
+valid.h	xmlIsID	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	OwnedDocument::is_id
 valid.h	xmlIsMixedElement	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlIsRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlNewDocElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2189,7 +2189,7 @@ valid.h	xmlNotationTable	typedef	not_marked	P2	partial	https://github.com/GNOME/
 valid.h	xmlNotationTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlRefTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
 valid.h	xmlRefTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlRemoveID	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration model (docs/compatibility.md DTD rows)
+valid.h	xmlRemoveID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
 valid.h	xmlRemoveRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlSnprintfElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlSprintfElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4

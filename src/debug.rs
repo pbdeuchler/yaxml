@@ -564,7 +564,7 @@ impl<'d, A: Allocator> Dump<'d, A> {
         };
         let children = self.entity_children();
         let mut seen = HashSet::new();
-        let walked = units(declared.name, subset, |view, catalog| {
+        let walked = units(declared.name, subset, None, |view, catalog| {
             let mut first = |kind: &str, name: &str| seen.insert(format!("{kind} {name}"));
             match view {
                 DtdUnitView::Element(element) if first("element", element.name()) => {

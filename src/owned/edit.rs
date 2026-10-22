@@ -1141,9 +1141,12 @@ pub(super) fn reserve_attributes<A: Allocator>(
 }
 
 impl<A: Allocator> OwnedDocument<A> {
-    /// libxml2's `xmlIsID` for an attribute being added: `xml:id`, an HTML
-    /// `id` (or `name` on `a`), or one the DTD declares `ID`.
-    pub(super) fn is_id(&self, element: &str, attribute: &str) -> bool {
+    /// libxml2's `xmlIsID`: whether an attribute of this qualified name on
+    /// an element of this qualified name is an ID (`xml:id`, an HTML `id`, or
+    /// `name` on `a`, or one the DTD declares `ID`). Setting such an
+    /// attribute adds it to the IDs [`element_by_id`](Self::element_by_id)
+    /// finds, removing it removes it (`xmlAddID`, `xmlRemoveID`).
+    pub fn is_id(&self, element: &str, attribute: &str) -> bool {
         attribute == "xml:id"
             || self.html.is_some() && (attribute == "id" || element == "a" && attribute == "name")
             || self

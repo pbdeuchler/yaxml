@@ -8,9 +8,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 104 | 533 | 64 | 0 | 86 | 8 | 154 | 971 |
-| partial | 1 | 20 | 232 | 40 | 0 | 87 | 50 | 93 | 523 |
-| not-started | 0 | 26 | 587 | 47 | 0 | 43 | 14 | 432 | 1149 |
+| implemented | 22 | 104 | 533 | 64 | 0 | 87 | 8 | 154 | 972 |
+| partial | 1 | 23 | 233 | 40 | 0 | 93 | 50 | 93 | 533 |
+| not-started | 0 | 23 | 586 | 47 | 0 | 36 | 14 | 432 | 1138 |
 | not-applicable | 24 | 21 | 447 | 32 | 75 | 181 | 84 | 256 | 1120 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 142 | 297 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
@@ -188,6 +188,14 @@ Edition classes) and `is_base_char`, `is_ideographic`, `is_combining`,
 the regexp tables by `tooling/gen_unicode.py` from libxml2's
 `codegen/ranges.def`). Each takes a `u32`, `char` or `u8`, which covers the
 function, `Q` and `_ch` forms.
+
+`Editor::add_declarations(markup)` adds declarations to an owned document
+(`xmlAddEntity`, `xmlAddElementDecl`, `xmlAddAttributeDecl`,
+`xmlAddNotationDecl`; `xmlCreateIntSubset` when there is no DOCTYPE): the
+markup is read as more of the internal subset, after the declarations the
+document has, and saved with it; `OwnedDocument::is_id` is `xmlIsID`.
+Declarations are given as markup rather than one call per C struct, and
+cannot be removed or replaced (`xmlFreeDtd`, `xmlUnlinkNode` on a declaration).
 
 Differences from libxml2, by design:
 

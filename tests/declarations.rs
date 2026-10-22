@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use yaxml::valid::{
     self, AttributeDefault, AttributeKind, ContentKind, Dtd, Entity, EntityKind, Notation,
 };
-use yaxml::{Document, OwnedDocument, ParseOptions, Request, Resolver, options, save};
+use yaxml::{
+    Document, EditErrorKind, EditLimits, ErrorKind, OwnedDocument, ParseOptions, Request, Resolver,
+    options, save,
+};
 
 const SUBSET: &str = r#"<!DOCTYPE r SYSTEM "ext.dtd" [
 <!NOTATION gif PUBLIC "-//GIF//EN" "viewer">
@@ -499,5 +502,136 @@ fn values_match_libxml2_name_validators() {
         .map(|kind| value_matches(kind, value));
         assert_eq!(found, [name, names, nmtoken, nmtokens], "{value:?}");
         assert!(value_matches(AttributeKind::Cdata, value), "{value:?}");
+    }
+}
+
+fn saved(document: &OwnedDocument) -> String {
+    String::from_utf8(save::to_vec(document, &save::Options::default()).unwrap()).unwrap()
+}
+
+#[test]
+fn editors_add_declarations_after_the_documents() {
+    // Outputs of xmlCreateIntSubset/xmlAddDocEntity/xmlAddNotationDecl and
+    // xmlDocDumpMemory in libxml2 2.15.4 (the DOCTYPE takes the qualified name).
+    let cases = [
+        // xmlCreateIntSubset: a DOCTYPE named after the document element.
+        (
+            "<p:r xmlns:p='u'/>",
+            "<!ENTITY e 'v'>",
+            "<!DOCTYPE p:r [\n<!ENTITY e \"v\">\n]>\n<p:r xmlns:p=\"u\"/>\n",
+        ),
+        // The first declaration of a name wins; new ones follow.
+        (
+            "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>",
+            "<!ENTITY a 'y'><!ENTITY b 'z'>",
+            "<!DOCTYPE r [\n<!ENTITY a \"x\">\n<!ENTITY b \"z\">\n]>\n<r/>\n",
+        ),
+        // Parameter entities declared before expand.
+        (
+            "<!DOCTYPE r [<!ENTITY % p '<!ELEMENT r EMPTY>'>]><r/>",
+            "%p;<!ATTLIST r a CDATA 'd'>",
+            "<!DOCTYPE r [\n<!ENTITY % p \"<!ELEMENT r EMPTY>\">\n<!ELEMENT r EMPTY>\n<!ATTLIST r a CDATA \"d\">\n]>\n<r/>\n",
+        ),
+        (
+            "<?pi?><!--c--><r/>",
+            "<!NOTATION n SYSTEM 'n'>",
+            "<?pi?>\n<!--c-->\n<!DOCTYPE r [\n<!NOTATION n SYSTEM \"n\" >\n]>\n<r/>\n",
+        ),
+    ];
+    for (input, markup, expected) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        editor.add_declarations(markup).unwrap();
+        let expected = format!("<?xml version=\"1.0\"?>\n{expected}");
+        assert_eq!(saved(&document), expected, "{markup}");
+    }
+}
+
+#[test]
+fn added_declarations_type_and_validate_later_edits() {
+    let mut document = OwnedDocument::parse("<r><a id='x'/>t</r>").unwrap();
+    let root = document.root_element().id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    editor
+        .add_declarations("<!ELEMENT r (a)*><!ELEMENT a EMPTY><!ATTLIST a id ID #IMPLIED>")
+        .unwrap();
+    assert!(editor.document().is_id("a", "id"));
+    assert!(!editor.document().is_id("r", "id"));
+    assert!(editor.document().is_id("r", "xml:id"));
+    // As in libxml2, the attribute already in the tree is not retyped.
+    assert!(editor.document().element_by_id("x").is_none());
+    let a = editor.document().root_element().first_child().unwrap().id();
+    editor.remove_attribute(a, None, "id").unwrap();
+    let name = yaxml::NameSpec {
+        local: "id",
+        namespace: None,
+        prefix: yaxml::PrefixPolicy::Automatic,
+    };
+    editor.set_attribute(a, name, "y").unwrap();
+    assert_eq!(
+        editor.document().element_by_id("y").map(|n| n.id()),
+        Some(a)
+    );
+    let codes: Vec<_> = document.validate().iter().map(|d| d.code).collect();
+    assert_eq!(codes.len(), 1, "text in element content of {root:?}");
+}
+
+#[test]
+fn malformed_or_misplaced_declarations_change_nothing() {
+    let parse = |kind| EditErrorKind::Parse(kind);
+    let cases = [
+        (
+            "<r/>",
+            "<!ENTITY a>",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            Some(10),
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>]><x/>",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ELEMENT r EMPTY",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>",
+            "&a;",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>",
+            EditLimits::DEFAULT.max_created_nodes(0),
+            EditErrorKind::LimitExceeded(yaxml::EditLimit::CreatedNodes),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>",
+            EditLimits::DEFAULT.max_value_bytes(4),
+            EditErrorKind::LimitExceeded(yaxml::EditLimit::ValueBytes),
+            None,
+        ),
+    ];
+    for (input, markup, limits, kind, offset) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let before = saved(&document);
+        let mut editor = document.edit(limits).unwrap();
+        let error = editor.add_declarations(markup).unwrap_err();
+        assert_eq!(error.kind, kind, "{markup}");
+        if offset.is_some() {
+            assert_eq!(error.value_offset, offset, "{markup}");
+        }
+        assert_eq!(saved(&document), before, "{markup}");
     }
 }

@@ -1506,6 +1506,116 @@ impl<A: Allocator> Editor<'_, A> {
         }
     }
 
+    /// Appends markup declarations (`<!ENTITY>`, `<!ELEMENT>`, `<!ATTLIST>`,
+    /// `<!NOTATION>`, PIs, comments, parameter-entity references) to the
+    /// internal subset, creating it before the document element when the
+    /// document has no DOCTYPE (`xmlCreateIntSubset`, named after the
+    /// document element). They are read after the declarations the document
+    /// already has, as more of its internal subset (`xmlAddEntity`,
+    /// `xmlAddElementDecl`, `xmlAddAttributeDecl`, `xmlAddNotationDecl`): a
+    /// name declared before keeps its first declaration, and they are saved.
+    /// As in libxml2, attributes already in the tree are not retyped:
+    /// [`OwnedDocument::element_by_id`] finds only IDs set after an `ID`
+    /// declaration.
+    ///
+    /// # Errors
+    ///
+    /// Malformed markup is [`EditErrorKind::Parse`] at its byte offset, and
+    /// nothing changes; an HTML or rootless document without a DOCTYPE is
+    /// `WrongNodeKind`.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, save};
+    /// let mut document = OwnedDocument::parse("<r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.add_declarations("<!ENTITY who 'world'><!ELEMENT r (#PCDATA)>")?;
+    /// let dtd = editor.document().dtd().unwrap();
+    /// assert_eq!(dtd.entity("who").unwrap().content, Some("world"));
+    /// let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+    /// assert!(saved.contains("<!DOCTYPE r [\n<!ENTITY who \"world\">\n<!ELEMENT r (#PCDATA)>\n]>"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_declarations(&mut self, markup: &str) -> Result<(), EditError> {
+        validate_value_length(markup, self.limits.max_value_bytes)?;
+        let document = &*self.document;
+        let wrong = EditError::new(EditErrorKind::WrongNodeKind, None);
+        if document.is_html() {
+            return Err(wrong);
+        }
+        let doctype = document
+            .root()
+            .children()
+            .find(|node| node.kind() == OwnedNodeKind::DocumentType);
+        let (name, subset) = match doctype.and_then(OwnedNode::doctype) {
+            Some(doctype) => (doctype.name, doctype.internal_subset.unwrap_or_default()),
+            None => (
+                document
+                    .document_element()
+                    .and_then(OwnedNode::qualified_name)
+                    .ok_or(wrong)?,
+                "",
+            ),
+        };
+        let empty = crate::valid::Dtd::default();
+        let seed = document.dtd().unwrap_or(&empty);
+        // Offsets in markup: the subset is read as `<!DOCTYPE name [markup]>`.
+        let start = "<!DOCTYPE  [".len() + name.len();
+        let mut dtd =
+            crate::save::dtd::units(name, markup, Some(seed), |_, _| {}).map_err(|error| {
+                let offset = error.offset.saturating_sub(start).min(markup.len());
+                EditError::new(EditErrorKind::Parse(error.kind), Some(offset))
+            })?;
+        // New diagnostics have no offset in the document.
+        for issue in &mut dtd.issues[seed.issues.len()..] {
+            issue.1 = None;
+        }
+        let joined = crate::fallible::concat(&[subset, markup])
+            .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+        let doctype = doctype.map(|node| node.id().slot.0);
+        let name = (doctype.is_none()).then(|| name.to_owned());
+        let created = self.document.edit_created_nodes + usize::from(doctype.is_none());
+        if created > self.limits.max_created_nodes {
+            let limit = EditLimit::CreatedNodes;
+            return Err(EditError::new(EditErrorKind::LimitExceeded(limit), None));
+        }
+        let (spent, limit) = (
+            &mut self.document.edit_owned_bytes,
+            self.limits.max_owned_bytes,
+        );
+        let subset = self.document.pool.store_edit(&joined, spent, limit)?;
+        match doctype {
+            Some(index) => {
+                let Content::DocumentType(doctype) = &mut self.document.nodes[index].content else {
+                    unreachable!("a DOCTYPE node");
+                };
+                doctype.internal_subset = Some(subset);
+            }
+            None => {
+                let name = name.unwrap_or_default();
+                let (spent, limit) = (
+                    &mut self.document.edit_owned_bytes,
+                    self.limits.max_owned_bytes,
+                );
+                let name = self.document.pool.store_edit(&name, spent, limit)?;
+                let id = NodeId(self.document.nodes.len());
+                (self.document.nodes.try_reserve(1))
+                    .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+                let content = Content::DocumentType(StoredDoctype {
+                    name,
+                    public_id: None,
+                    system_id: None,
+                    internal_subset: Some(subset),
+                });
+                self.document.nodes.push(OwnedRecord::detached(id, content));
+                let root = self.document.root_element;
+                self.document.attach(id.0, 0, Link::new(root));
+                self.document.edit_created_nodes = created;
+            }
+        }
+        self.document.dtd = Some(Box::new(dtd));
+        Ok(())
+    }
+
     /// Replaces the value of an existing attribute, selected by expanded name
     /// (`Some("")` and `None` are different namespaces). Its spelling and
     /// position are kept.
