@@ -128,6 +128,15 @@ impl StreamingSession {
     pub(crate) fn event_origin(&self) -> Option<SourceOrigin> {
         self.origin
     }
+    /// Input converters for the document: only before input.
+    pub(crate) fn set_converters(
+        &mut self,
+        converters: Option<std::sync::Arc<dyn crate::Converters>>,
+    ) {
+        if let Some(stream) = &mut self.ordinary {
+            stream.set_converters(converters);
+        }
+    }
     pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
         let loader = crate::resolve::Loader::new(base, resolver, &self.limits);
         self.loader = Some(loader.with_flags(self.options.flags));
@@ -571,10 +580,13 @@ fn capture(
 
 impl DtdSession {
     fn position(&self) -> usize {
-        self.decoder.position().max(match &self.phase {
-            Some(Phase::Declarations { controller, .. }) => controller.physical_position(),
-            Some(Phase::Content(controller)) => controller.position().1,
-            None => self.physical,
+        let position = self.decoder.position();
+        self.decoder.converting().unwrap_or_else(|| {
+            position.max(match &self.phase {
+                Some(Phase::Declarations { controller, .. }) => controller.physical_position(),
+                Some(Phase::Content(controller)) => controller.position().1,
+                None => self.physical,
+            })
         })
     }
     /// Hands the complete subset's state to the content phase. Out of line,

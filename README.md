@@ -150,8 +150,9 @@ libxml2 and every known difference. The [API mapping](docs/libxml2-api.tsv)
 has one row per libxml2 function, and [conformance](docs/conformance.md)
 covers the W3C test suite results.
 
-Not yet supported: XML 1.1, multi-byte encodings that libxml2 reads only through iconv or
-ICU (Shift_JIS, EUC-JP, GBK and others), and the SAX2 handler table. The
+Not yet supported: XML 1.1, and built-in decoding of the multi-byte encodings that
+libxml2 reads only through iconv or ICU (Shift_JIS, EUC-JP, GBK and others); a
+caller can supply them through `ParseOptions::converters`. The
 [remaining work](docs/remaining-work.md) lists what is left.
 
 ## Cargo features

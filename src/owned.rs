@@ -732,7 +732,8 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             allocator,
         )?;
         let content = context.is_some();
-        let document = if !content && crate::encoding::needs_decoding(input) {
+        let converts = options.input_converters().is_some();
+        let document = if !content && crate::encoding::needs_decoding(input, converts) {
             let mut parser = PushParser::configured(limits, decode, flags, options);
             let end = parser
                 .feed_with(input, |event, origin, budget| {

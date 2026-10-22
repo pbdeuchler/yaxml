@@ -2444,7 +2444,8 @@ fn validate_encoding(
     };
     let kind = match (source, crate::encoding::charset(label)) {
         // libxml2 records a UCS-4 document's label without checking it.
-        (SourceEncoding::Ucs4 { .. }, _) => return Ok(source),
+        // A caller's converter was opened for the label.
+        (SourceEncoding::Ucs4 { .. } | SourceEncoding::Custom, _) => return Ok(source),
         (_, None) => ErrorKind::UnsupportedEncoding,
         (SourceEncoding::Utf8, Some(Charset::Utf8)) => return Ok(source),
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {

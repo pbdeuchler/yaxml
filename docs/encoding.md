@@ -117,6 +117,28 @@ declaration character (tab/LF in some pages, `"` in 1026), and has no 200-byte
 window. The supported pages are the macOS iconv's (no IBM1047/1140). Under
 `IGNORE_ENC` EBCDIC stays IBM037. Error messages differ. HTML reads neither.
 
+## Caller converters
+
+`ParseOptions::converters` takes an `Arc<dyn Converters>`, which libxml2's
+`xmlCtxtSetCharEncConvImpl` corresponds to. When a document starts with an XML
+declaration (no BOM or UTF-16/UCS-4/EBCDIC signature) whose label no built-in
+charset matches, the parser calls `Converters::open(label)`; a returned
+`Converter` decodes the whole input to UTF-8, from the first byte, in 16 KiB
+windows (`decode(input, output, last)`; a sequence may straddle calls, `last`
+marks the end). `None` leaves the label `UnsupportedEncoding`; built-in labels
+never reach a converter, and `IGNORE_ENC` disables them. `decode` returning
+false is `UnmappedByte` at the offset of the text converted before it. Every
+surface that decodes reads them: `PushParser`, `BufferedReader`, `TextReader`,
+the `OwnedDocument` byte constructors and `Transcoded`.
+
+Differences from libxml2: offsets, `errors()` and origins count the converted
+UTF-8 text (as for [transcoded input](#transcoded-input)), so `LineIndex` over
+the raw input misplaces columns after a multi-byte character; the declaration
+must end within 4 KiB (a longer one is read as UTF-8, and its label is then
+unsupported); external entities, HTML and output are never converted; there is
+no global handler registry (`xmlRegisterCharEncodingHandler`), the converters
+belong to one parse.
+
 ## Transcoded input
 
 `Transcoded::new(input, &options)` decodes complete input once for

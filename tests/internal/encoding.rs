@@ -297,10 +297,10 @@ fn semantic_offsets_use_unnormalized_scalar_prefixes() {
             .offset,
         104
     );
-    assert!(needs_decoding(&utf16("<r/>", true, true)));
-    assert!(needs_decoding(&utf16("<?xml", false, false)));
-    assert!(!needs_decoding(b"\xef\xbb\xbf<r/>"));
-    assert!(!needs_decoding(b"<r/>"));
+    assert!(needs_decoding(&utf16("<r/>", true, true), false));
+    assert!(needs_decoding(&utf16("<?xml", false, false), false));
+    assert!(!needs_decoding(b"\xef\xbb\xbf<r/>", false));
+    assert!(!needs_decoding(b"<r/>", true));
 }
 
 #[test]
@@ -644,22 +644,38 @@ fn labels_resolve_like_libxml2_without_iconv() {
 #[test]
 fn owned_routing_peeks_only_at_a_byte_charset_label() {
     for (input, expected) in [
-        (&b"<?xml version='1.0' encoding='latin1'?><r/>"[..], true),
+        (
+            &b"<?xml version='1.0' encoding='latin1'?><r/>"[..],
+            (true, true),
+        ),
         (
             b"<?xml version=\"1.0\" encoding = \"ISO-8859-2\" ?><r/>",
-            true,
+            (true, true),
         ),
-        (b"<?xml version='1.0' encoding='UTF-8'?><r/>", false),
-        (b"<?xml version='1.0' encoding='Shift_JIS'?><r/>", false),
-        (b"<?xml version='1.0'?><r a='encoding=\"latin1\"'/>", false),
-        (b"<?xml version='1.0' encoding='latin1", false),
-        (b"<?xml version='1.0' encoding latin1?>", false),
-        (b"<?xml version='1.0' encoding=`latin1`?>", false),
-        (b"<?xml\x0cversion='1.0' encoding='latin1'?>", false),
-        (b"<?xml version='1.0' encoding='latin1'", false),
-        (b"<r/>", false),
-        (b"Lo\xa7\x94", true),
+        (
+            b"<?xml version='1.0' encoding='UTF-8'?><r/>",
+            (false, false),
+        ),
+        (
+            b"<?xml version='1.0' encoding='Shift_JIS'?><r/>",
+            (false, true),
+        ),
+        (
+            b"<?xml version='1.0'?><r a='encoding=\"latin1\"'/>",
+            (false, false),
+        ),
+        (b"<?xml version='1.0' encoding='latin1", (false, false)),
+        (b"<?xml version='1.0' encoding latin1?>", (false, false)),
+        (b"<?xml version='1.0' encoding=`latin1`?>", (false, false)),
+        (
+            b"<?xml\x0cversion='1.0' encoding='latin1'?>",
+            (false, false),
+        ),
+        (b"<?xml version='1.0' encoding='latin1'", (false, false)),
+        (b"<r/>", (false, false)),
+        (b"Lo\xa7\x94", (true, true)),
     ] {
-        assert_eq!(needs_decoding(input), expected, "{input:?}");
+        let found = (needs_decoding(input, false), needs_decoding(input, true));
+        assert_eq!(found, expected, "{input:?}");
     }
 }

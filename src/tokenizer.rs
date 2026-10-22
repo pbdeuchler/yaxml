@@ -529,7 +529,7 @@ impl Tokenizer {
                 .max(64)
                 .max(needed)
                 .min(match self.encoding {
-                    SourceEncoding::Utf8 => self.limit,
+                    SourceEncoding::Utf8 | SourceEncoding::Custom => self.limit,
                     // A UTF-16 code unit produces at most three UTF-8 bytes;
                     // surrogate pairs produce fewer bytes per source byte.
                     SourceEncoding::Utf16 { .. } => (self.limit / 2).saturating_mul(3),

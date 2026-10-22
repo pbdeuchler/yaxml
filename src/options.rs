@@ -28,8 +28,9 @@
 //! ```
 
 use std::fmt;
+use std::sync::Arc;
 
-use crate::{DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
+use crate::{Converters, DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
 /// `XML_PARSE_RECOVER`: build what is parsable of a malformed document, as
 /// libxml2 does (DOMs only).
@@ -153,9 +154,12 @@ pub struct ParseOptions {
     /// request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`) and
     /// never with `NO_XXE`.
     pub resolver: Option<Box<dyn Resolver>>,
+    /// Input converters for declared charsets without a built-in table
+    /// ([`Converters`], `xmlCtxtSetCharEncConvImpl`); unused under `IGNORE_ENC`.
+    pub converters: Option<Arc<dyn Converters>>,
 }
 
-setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>> });
+setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>>, converters: Option<Arc<dyn Converters>> });
 
 impl Default for ParseOptions {
     fn default() -> Self {
@@ -171,6 +175,7 @@ impl fmt::Debug for ParseOptions {
             .field("decode_limits", &self.decode_limits)
             .field("base", &self.base)
             .field("resolver", &self.resolver.as_ref().map(|_| ".."))
+            .field("converters", &self.converters.as_ref().map(|_| ".."))
             .finish()
     }
 }
@@ -183,6 +188,7 @@ impl ParseOptions {
         decode_limits: DecodeLimits::DEFAULT,
         base: None,
         resolver: None,
+        converters: None,
     };
 
     /// Default options with `flags` set.
@@ -219,6 +225,11 @@ impl ParseOptions {
     /// Whether any bit of `flag` is set.
     pub fn has(&self, flag: u32) -> bool {
         self.flags & flag != 0
+    }
+
+    /// The converters input decoding uses: none under `IGNORE_ENC`.
+    pub(crate) fn input_converters(&self) -> Option<Arc<dyn Converters>> {
+        self.converters.clone().filter(|_| !self.has(IGNORE_ENC))
     }
 
     /// The ceilings in effect, after [`HUGE`] raises them.

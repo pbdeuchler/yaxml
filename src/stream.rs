@@ -105,10 +105,19 @@ impl Stream {
         }
     }
 
+    pub(crate) fn set_converters(
+        &mut self,
+        converters: Option<std::sync::Arc<dyn crate::Converters>>,
+    ) {
+        self.decoder.set_converters(converters);
+    }
+
     pub(crate) fn position(&self) -> usize {
-        self.tokenizer
-            .source_position()
-            .max(self.decoder.position())
+        self.decoder.converting().unwrap_or_else(|| {
+            self.tokenizer
+                .source_position()
+                .max(self.decoder.position())
+        })
     }
 
     pub(crate) fn has_token(&self) -> bool {
@@ -522,7 +531,14 @@ fn decode(
 ) -> Result<DecodeProgress, Error> {
     match decoded {
         Decoded::Start { encoding, bom } => {
-            tokenizer.configure(encoding, bom);
+            // Converted input is UTF-8 to the tokenizer.
+            tokenizer.configure(
+                match encoding {
+                    SourceEncoding::Custom => SourceEncoding::Utf8,
+                    encoding => encoding,
+                },
+                bom,
+            );
             let initial = if encoding == crate::encoding::SourceEncoding::Utf8 {
                 bom
             } else {

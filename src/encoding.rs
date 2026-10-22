@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::{Error, ErrorKind, Limit, ParseOptions};
 
@@ -81,7 +82,8 @@ impl<'a> Transcoded<'a> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
-        if !needs_decoding(input) {
+        let converters = options.input_converters();
+        if !needs_decoding(input, converters.is_some()) {
             return Ok(Self {
                 text: Cow::Borrowed(input),
                 decoded: None,
@@ -92,7 +94,13 @@ impl<'a> Transcoded<'a> {
             .filter(|_| !options.has(crate::options::IGNORE_ENC))
             .filter(|_| !recovers || recovered_label(&ascii_head(input)).is_some());
         let mut text = Vec::new();
-        let (encoding, end) = transcode(input, switch, decode.max_decoded_bytes, &mut text);
+        let (encoding, end) = transcode(
+            input,
+            switch,
+            converters,
+            decode.max_decoded_bytes,
+            &mut text,
+        );
         let cut = match end {
             Ok(()) => None,
             Err(error)
@@ -129,6 +137,105 @@ impl<'a> Transcoded<'a> {
     pub fn as_bytes(&self) -> &[u8] {
         &self.text
     }
+}
+
+/// Input converters for charsets the built-in tables lack, as libxml2 takes
+/// them from iconv, ICU or `xmlCtxtSetCharEncConvImpl`
+/// ([`ParseOptions::converters`]). A BOM-less document whose `<?xml`
+/// declaration names a label no built-in charset has is read through the
+/// converter [`Converters::open`] returns for it, from its first byte; the
+/// built-in charsets keep precedence, and `IGNORE_ENC` disables converters.
+///
+/// Offsets, errors and [`Transcoded::source_offset`] of converted input
+/// count bytes of the converted UTF-8 text.
+///
+/// ```
+/// use std::sync::Arc;
+/// use yaxml::{Converter, Converters, Document, ParseOptions, Transcoded};
+///
+/// /// A toy charset: bytes 0x80..=0xFF are U+0400 + byte - 0x80.
+/// struct Shifted;
+/// impl Converter for Shifted {
+///     fn decode(&mut self, input: &[u8], output: &mut String, _last: bool) -> bool {
+///         for &byte in input {
+///             match byte {
+///                 0x80.. => output.push(char::from_u32(0x380 + u32::from(byte)).unwrap()),
+///                 0 => return false,
+///                 _ => output.push(char::from(byte)),
+///             }
+///         }
+///         true
+///     }
+/// }
+/// struct Labels;
+/// impl Converters for Labels {
+///     fn open(&self, label: &str) -> Option<Box<dyn Converter>> {
+///         label.eq_ignore_ascii_case("X-SHIFTED").then(|| Box::new(Shifted) as _)
+///     }
+/// }
+///
+/// let input = b"<?xml version='1.0' encoding='x-shifted'?><r>\x90</r>";
+/// let options = ParseOptions::DEFAULT.converters(Some(Arc::new(Labels)));
+/// let text = Transcoded::new(input, &options)?;
+/// let document = Document::parse_transcoded(&text, options)?;
+/// assert_eq!(document.root_element().text_chunks().collect::<String>(), "\u{410}");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub trait Converters: Send + Sync {
+    /// A converter for `label` as the declaration spells it, or `None`.
+    fn open(&self, label: &str) -> Option<Box<dyn Converter>>;
+}
+
+/// One document's input conversion to UTF-8 (`xmlCharEncConvFunc`).
+pub trait Converter: Send {
+    /// Appends `input` converted to `output`, keeping an incomplete trailing
+    /// sequence for the next call; `last` marks the end of the input, where
+    /// such a sequence is an error. False, after appending the text before
+    /// it, at a sequence the charset does not map (`UnmappedByte`).
+    fn decode(&mut self, input: &[u8], output: &mut String, last: bool) -> bool;
+}
+
+/// A decoder's caller-supplied converters: while `sniffing`, `head` collects
+/// a leading declaration through its `?>`, whose label selects a converter
+/// or plain UTF-8; `head` (no converter) or `out` (converted) is then
+/// forwarded from `cursor`; an unmapped sequence fails (`failed`) once the
+/// text before it is forwarded.
+pub(crate) struct Custom {
+    converters: Arc<dyn Converters>,
+    converter: Option<Box<dyn Converter>>,
+    sniffing: bool,
+    head: Vec<u8>,
+    out: String,
+    cursor: usize,
+    last: bool,
+    failed: Option<Error>,
+}
+
+/// A converted declaration longer than this is read as UTF-8.
+const HEAD_LIMIT: usize = 4096;
+/// Input bytes converted per call, bounding `Custom::out`.
+const CONVERT_WINDOW: usize = 16 * 1024;
+
+/// Replaces `custom.out` with `input` converted, whose text starts at
+/// converted offset `at`; an unmapped sequence fails there (`failed`).
+fn convert(custom: &mut Custom, input: &[u8], last: bool, at: usize) -> Result<(), Error> {
+    let Custom {
+        converter,
+        out,
+        cursor,
+        failed,
+        ..
+    } = custom;
+    let converter = converter.as_deref_mut().expect("converter");
+    out.clear();
+    *cursor = 0;
+    out.try_reserve(input.len().saturating_mul(3))
+        .map_err(|_| Error::new(ErrorKind::Allocation, at))?;
+    if !converter.decode(input, out, last) {
+        *failed = Some(Error::new(ErrorKind::UnmappedByte, at + out.len()));
+    }
+    custom.last = last;
+    Ok(())
 }
 
 mod charsets;
@@ -275,12 +382,14 @@ pub(crate) enum SourceEncoding {
     /// An EBCDIC code page: IBM037 until a declaration names another.
     #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
     Ebcdic(&'static [u16; 256]),
+    /// Converted by a caller's [`Converter`]: the tokenizer reads its UTF-8.
+    Custom,
 }
 
 impl SourceEncoding {
     pub(crate) fn source_length(self, bytes: &[u8]) -> usize {
         match self {
-            Self::Utf8 => bytes.len(),
+            Self::Utf8 | Self::Custom => bytes.len(),
             Self::Utf16 { .. } => bytes
                 .iter()
                 .map(|b| match b {
@@ -356,6 +465,7 @@ pub(crate) struct Decoder {
     pending: [u8; 4],
     pending_cursor: usize,
     pending_len: usize,
+    custom: Option<Box<Custom>>,
 }
 
 impl Decoder {
@@ -373,11 +483,35 @@ impl Decoder {
             pending: [0; 4],
             pending_cursor: 0,
             pending_len: 0,
+            custom: None,
         }
+    }
+
+    /// Reads a declared label no built-in charset has through `converters`;
+    /// only before input.
+    pub(crate) fn set_converters(&mut self, converters: Option<Arc<dyn Converters>>) {
+        self.custom = converters.map(|converters| {
+            Box::new(Custom {
+                converters,
+                converter: None,
+                sniffing: true,
+                head: Vec::new(),
+                out: String::new(),
+                cursor: 0,
+                last: false,
+                failed: None,
+            })
+        });
     }
 
     pub(crate) fn position(&self) -> usize {
         self.position
+    }
+
+    /// The input taken while a converter runs: token offsets then count
+    /// converted text, so they say nothing about it.
+    pub(crate) fn converting(&self) -> Option<usize> {
+        (self.encoding == Some(SourceEncoding::Custom)).then_some(self.position)
     }
 
     /// Decoded bytes still allowed once plain UTF-8 forwarding is active.
@@ -403,6 +537,18 @@ impl Decoder {
         {
             return self.forward_utf8(input, false, &mut emit);
         }
+        if self.encoding == Some(SourceEncoding::Custom) {
+            let progress = self.advance_custom(input, &mut emit)?;
+            if progress.suspended || self.encoding == Some(SourceEncoding::Custom) {
+                return Ok(progress);
+            }
+            // Plain UTF-8 or a built-in charset follows a replayed head.
+            let rest = self.advance(&input[progress.consumed..], emit)?;
+            return Ok(DecodeProgress {
+                consumed: progress.consumed + rest.consumed,
+                ..rest
+            });
+        }
         let mut cursor = 0;
         loop {
             let Some(encoding) = self.encoding else {
@@ -417,7 +563,25 @@ impl Decoder {
                 self.position += 1;
                 cursor += 1;
                 if let Some(selection) = select(&self.preamble[..self.preamble_len], false) {
-                    self.start(selection?, &mut emit)?;
+                    let selection = selection?;
+                    let read = &self.preamble[..self.preamble_len];
+                    if self.custom.is_some()
+                        && selection == (SourceEncoding::Utf8, 0)
+                        && b"<?xml".starts_with(read)
+                    {
+                        // libxml2 reads the declaration's label before it
+                        // switches to a converter.
+                        let custom = self.custom.as_mut().expect("converters");
+                        custom.head.extend_from_slice(read);
+                        (self.preamble_len, self.encoding) = (0, Some(SourceEncoding::Custom));
+                        let progress = self.advance(&input[cursor..], emit)?;
+                        return Ok(DecodeProgress {
+                            consumed: cursor + progress.consumed,
+                            ..progress
+                        });
+                    }
+                    self.custom = None;
+                    self.start(selection, &mut emit)?;
                 }
                 continue;
             };
@@ -522,6 +686,128 @@ impl Decoder {
     /// Applies a declaration-selected encoding to the bytes after the declaration.
     pub(crate) fn switch(&mut self, encoding: SourceEncoding) {
         self.encoding = Some(encoding);
+        self.custom = None;
+    }
+
+    /// [`Decoder::advance`] while caller-supplied converters decide or convert.
+    fn advance_custom(
+        &mut self,
+        input: &[u8],
+        emit: &mut impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<DecodeProgress, Error> {
+        let mut custom = self.custom.take().expect("converters");
+        let mut cursor = 0;
+        let mut step = || loop {
+            if !custom.sniffing {
+                let pending = match custom.converter {
+                    Some(_) => custom.out.as_bytes(),
+                    None => &custom.head,
+                };
+                if custom.cursor < pending.len() {
+                    let progress = self.forward_utf8(&pending[custom.cursor..], true, emit)?;
+                    custom.cursor += progress.consumed;
+                    if progress.suspended {
+                        break Ok(DecodeProgress {
+                            consumed: cursor,
+                            suspended: true,
+                        });
+                    }
+                    continue;
+                }
+                if let Some(error) = custom.failed {
+                    break Err(error);
+                }
+                if custom.converter.is_none() {
+                    // The head ends at its `?>`: what follows is UTF-8 or the
+                    // built-in charset the declaration switches to.
+                    self.encoding = Some(SourceEncoding::Utf8);
+                    break Ok(DecodeProgress {
+                        consumed: cursor,
+                        suspended: false,
+                    });
+                }
+            }
+            let rest = &input[cursor..];
+            if rest.is_empty() {
+                break Ok(DecodeProgress {
+                    consumed: cursor,
+                    suspended: false,
+                });
+            }
+            if custom.sniffing {
+                let take = match custom.head.last() == Some(&b'?') && rest[0] == b'>' {
+                    true => 1,
+                    false => memchr::memmem::find(rest, b"?>").map_or(rest.len(), |end| end + 2),
+                }
+                .min(HEAD_LIMIT - custom.head.len());
+                (custom.head)
+                    .try_reserve(take)
+                    .map_err(|_| Error::new(ErrorKind::Allocation, self.position))?;
+                custom.head.extend_from_slice(&rest[..take]);
+                (self.position, cursor) = (self.position + take, cursor + take);
+                if custom.head.ends_with(b"?>") || custom.head.len() == HEAD_LIMIT {
+                    self.decide(&mut custom, false, emit)?;
+                }
+                continue;
+            }
+            let window = &rest[..rest.len().min(CONVERT_WINDOW)];
+            convert(&mut custom, window, false, self.decoded)?;
+            (self.position, cursor) = (self.position + window.len(), cursor + window.len());
+        };
+        let progress = step();
+        if self.encoding == Some(SourceEncoding::Custom) {
+            self.custom = Some(custom);
+        }
+        progress
+    }
+
+    /// Ends sniffing: the head's label selects a converter, which converts
+    /// the head too, or the head is read as UTF-8.
+    fn decide(
+        &mut self,
+        custom: &mut Custom,
+        last: bool,
+        emit: &mut impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<(), Error> {
+        custom.sniffing = false;
+        let label = declared_label(&custom.head).filter(|label| charset(label).is_none());
+        custom.converter = label.and_then(|label| custom.converters.open(label));
+        let encoding = match custom.converter {
+            Some(_) => {
+                let head = std::mem::take(&mut custom.head);
+                convert(custom, &head, last, 0)?;
+                SourceEncoding::Custom
+            }
+            None => SourceEncoding::Utf8,
+        };
+        let progress = emit(Decoded::Start { encoding, bom: 0 })?;
+        check_progress(progress, 0, self.position)
+    }
+
+    /// Ends a converted input: decides an undecided head, then flushes the
+    /// converter once its output so far is forwarded. True when it produced
+    /// output to forward.
+    fn finish_custom(
+        &mut self,
+        emit: &mut impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
+    ) -> Result<bool, Error> {
+        let mut custom = self.custom.take().expect("converters");
+        let mut flush = || {
+            if custom.sniffing {
+                self.decide(&mut custom, true, emit)?;
+            }
+            let flush = custom.converter.is_some()
+                && !custom.last
+                && custom.failed.is_none()
+                && custom.cursor == custom.out.len();
+            if flush {
+                convert(&mut custom, &[], true, self.decoded)?;
+            }
+            Ok(flush)
+        };
+        let flushed = flush();
+        self.custom = Some(custom);
+        flushed
     }
 
     pub(crate) fn finish_step(
@@ -531,9 +817,19 @@ impl Decoder {
         if self.encoding.is_none() {
             let selection = select(&self.preamble[..self.preamble_len], true)
                 .expect("final encoding selection");
+            self.custom = None;
             self.start(selection?, &mut emit)?;
         }
-        if self.advance(&[], emit)?.suspended {
+        if self.encoding == Some(SourceEncoding::Custom) {
+            self.finish_custom(&mut emit)?;
+        }
+        if self.advance(&[], &mut emit)?.suspended {
+            return Ok(true);
+        }
+        if self.encoding == Some(SourceEncoding::Custom)
+            && self.finish_custom(&mut emit)?
+            && self.advance(&[], &mut emit)?.suspended
+        {
             return Ok(true);
         }
         if let Some((_, offset)) = self.high {
@@ -602,7 +898,9 @@ impl Decoder {
                     .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
                 return self.carry(scalar);
             }
-            SourceEncoding::Utf8 | SourceEncoding::Byte(_) => unreachable!("forwarded as UTF-8"),
+            SourceEncoding::Utf8 | SourceEncoding::Byte(_) | SourceEncoding::Custom => {
+                unreachable!("forwarded as UTF-8")
+            }
         };
         let (mut bytes, length, unit_offset) = self.unit;
         let unit_offset = if length == 0 { offset } else { unit_offset };
@@ -813,8 +1111,11 @@ pub(crate) fn repair_utf8(input: &[u8]) -> Option<Result<(String, Error), Error>
 }
 
 /// Choose the owning constructor's path without decoding or allocating.
-pub(crate) fn needs_decoding(input: &[u8]) -> bool {
-    input.starts_with(&[0xff, 0xfe])
+/// Whether `input` is not plain UTF-8: also, given `converters`, when its
+/// declaration names a label no built-in charset has.
+pub(crate) fn needs_decoding(input: &[u8], converters: bool) -> bool {
+    converters && declared_label(input).is_some_and(|label| charset(label).is_none())
+        || input.starts_with(&[0xff, 0xfe])
         || input.starts_with(&[0xfe, 0xff])
         || input.starts_with(&[0, b'<', 0, b'?'])
         || input.starts_with(&[b'<', 0, b'?', 0])
@@ -871,10 +1172,12 @@ fn recovered_label(input: &[u8]) -> Option<&str> {
 pub(crate) fn transcode(
     input: &[u8],
     switch: Option<SourceEncoding>,
+    converters: Option<Arc<dyn Converters>>,
     limit: usize,
     output: &mut Vec<u8>,
 ) -> (SourceEncoding, Result<(), Error>) {
     let mut decoder = Decoder::new(limit);
+    decoder.set_converters(converters);
     let mut encoding = SourceEncoding::Utf8;
     let mut sink = |decoded: Decoded<'_>| {
         let consumed = match decoded {

@@ -443,7 +443,8 @@ I|xmlHasFeature|features::has
 A|xmlInitParser xmlCleanupParser xmlInitGlobals xmlCleanupGlobals|no global state
 A|xml*Default xml*DefaultValue __xml*DefaultValue __xmlIndentTreeOutput __xmlSaveNoEmptyTags __xmlTreeIndentString xmlIndentTreeOutput xmlSaveNoEmptyTags xmlTreeIndentString xmlThrDef*|global default; per-call ParseOptions or save::Options flags
 A|xmlNewInputFrom* xmlNewIOInputStream xmlParserInputGrow xmlParserInputRead xmlParserInputDeallocate xmlSetupParserForBuffer xmlParserInputBufferCreate* xmlAllocParserInputBuffer|std::io::Read/BufRead or byte slices replace input streams
-N|xmlInputSetEncodingHandler xmlCtxtSetCharEncConvImpl|no caller-provided encoding handler
+N|xmlInputSetEncodingHandler|no caller-provided encoding handler per input
+P|xmlCtxtSetCharEncConvImpl|ParseOptions::converters - input of the document only (not HTML, external entities or output)
 N|xmlParserAddNodeInfo xmlParserFindNodeInfo xmlParserFindNodeInfoIndex xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserNodeInfo xmlParserNodeInfoSeq|no node-info table; Node::range gives byte ranges
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
 A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
@@ -851,10 +852,14 @@ I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at
 N|xmlDumpNotationTable xmlValidState xmlValidStatePtr|xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
 N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
 # ---- encoding.h
+P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only
+P|xmlCharEncConvFunc xmlCharEncodingInputFunc|Converter::decode - to UTF-8 only
+P|xmlRegisterCharEncodingHandler xmlCharEncNewCustomHandler|ParseOptions::converters - per parse, no global registry; input only
+P|XML_ENC_ERR_INPUT|Converter::decode - false = UnmappedByte
 P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
 P|XML_CHAR_ENCODING_UCS4BE XML_CHAR_ENCODING_UCS4LE XML_CHAR_ENCODING_EBCDIC|OwnedDocument::parse_bytes - feature encodings; detected by signature, no public encoding enum
 N|XML_CHAR_ENCODING_UCS4_2143 XML_CHAR_ENCODING_UCS4_3412 XML_CHAR_ENCODING_UCS2 XML_CHAR_ENCODING_2022_JP XML_CHAR_ENCODING_SHIFT_JIS XML_CHAR_ENCODING_EUC_JP XML_CHAR_ENCODING_HTML XML_CHAR_ENCODING_NONE XML_CHAR_ENCODING_ERROR|encoding unsupported (docs/encoding.md)
-N|xmlCharEnc* xmlCharEncoding* xmlCreateCharEncodingHandler xmlDetectCharEncoding xmlFindCharEncodingHandler xmlGetCharEncodingHandler xmlGetCharEncodingName xmlLookupCharEncodingHandler xmlNewCharEncodingHandler xmlOpenCharEncodingHandler xmlParseCharEncoding xmlRegisterCharEncodingHandler xmlIsolat1ToUTF8 xmlUTF8ToIsolat1 UTF8Toisolat1 isolat1ToUTF8 XML_ENC_*|no public encoding handlers or registry (roadmap 22)
+N|xmlCharEnc* xmlCharEncoding* xmlCreateCharEncodingHandler xmlDetectCharEncoding xmlFindCharEncodingHandler xmlGetCharEncodingHandler xmlGetCharEncodingName xmlLookupCharEncodingHandler xmlNewCharEncodingHandler xmlOpenCharEncodingHandler xmlParseCharEncoding xmlIsolat1ToUTF8 xmlUTF8ToIsolat1 UTF8Toisolat1 isolat1ToUTF8 XML_ENC_*|no public encoding handlers or registry (roadmap 22)
 # ---- HTMLparser.h / HTMLtree.h
 I|htmlReadDoc htmlReadMemory htmlParseDoc|html::parse
 P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse - bytes in, no ctxt reuse
