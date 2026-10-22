@@ -1152,3 +1152,95 @@ fn compile_flags_match_libxml2() {
         assert_eq!(got, code, "{flags} {expression}");
     }
 }
+
+/// Recorded from libxml2 2.15.4 (a variable callback answering names that
+/// start with `c` as `cb:uri:local`, a function callback answering them as
+/// `cbf`, registered `mapf` functions).
+#[test]
+fn lookup_callbacks_match_libxml2() {
+    let text = |s: &str| Ok::<_, u16>(s.to_owned());
+    let cases = [
+        (false, "$v", text("map")),
+        (false, "$cv", text("mapc")),
+        (false, "$cz", Err(1205)),
+        (false, "$p:v", text("mapns")),
+        (false, "$p:cz", Err(1205)),
+        (false, "$q:v", Err(1219)),
+        (false, "f()", text("mapf")),
+        (false, "cz()", Err(1209)),
+        (false, "p:f()", text("mapf")),
+        (false, "q:f()", Err(1219)),
+        // Arguments are evaluated before the prefix and the function.
+        (false, "z($z)", Err(1205)),
+        (false, "q:f($z)", Err(1205)),
+        // An unprefixed variable asks only the callback once one is set.
+        (true, "$v", Err(1205)),
+        (true, "$cv", text("cb::cv")),
+        (true, "$cz", text("cb::cz")),
+        (true, "$z", Err(1205)),
+        (true, "$p:v", text("mapns")),
+        (true, "$p:cv", text("cb:urn:p:cv")),
+        (true, "$p:z", Err(1205)),
+        (true, "f()", text("mapf")),
+        (true, "cf()", text("cbf")),
+        (true, "cz()", text("cbf")),
+        (true, "z()", Err(1209)),
+        (true, "p:cz()", text("cbf")),
+        (true, "p:z()", Err(1209)),
+        (true, "count(1)", Err(1211)),
+        (true, "string(cz($z))", Err(1205)),
+    ];
+    let document = Document::parse("<r/>").unwrap();
+    let string = |s: &str| Value::String(s.into());
+    let mapf = || Box::new(|_: &[Value<NodeId>]| Ok(Value::String("mapf".into())));
+    for (lookups, expression, expected) in cases {
+        let mut context = Context::<NodeId>::new()
+            .with_namespace("p", "urn:p")
+            .with_variable("v", string("map"))
+            .with_variable("cv", string("mapc"))
+            .with_variable_ns("urn:p", "v", string("mapns"))
+            .with_variable_ns("urn:p", "cv", string("mapnsc"))
+            .with_function("f", mapf())
+            .with_function("cf", mapf())
+            .with_function_ns("urn:p", "f", mapf());
+        if lookups {
+            context = context
+                .with_variable_lookup(Box::new(|uri, local| {
+                    local
+                        .starts_with('c')
+                        .then(|| Value::String(format!("cb:{uri}:{local}")))
+                }))
+                .with_function_lookup(Box::new(|_, local, _| {
+                    local
+                        .starts_with('c')
+                        .then(|| Ok(Value::String("cbf".into())))
+                }));
+        }
+        let got = XPath::compile(expression)
+            .and_then(|xpath| xpath.evaluate(&document, document.root().id(), &context))
+            .map_err(|error| error.libxml2(expression).0)
+            .map(|value| match value {
+                Value::String(text) => text,
+                other => panic!("{other:?}"),
+            });
+        assert_eq!(got, expected, "{lookups} {expression}");
+    }
+}
+
+#[test]
+fn context_queries_follow_evaluation_lookup() {
+    let context = Context::<NodeId>::new()
+        .with_namespace("p", "urn:p")
+        .with_variable_ns("urn:p", "v", Value::Number(1.0))
+        .with_function("f", Box::new(|args| Ok(Value::Number(args.len() as f64))));
+    assert_eq!(context.namespace("p"), Some("urn:p"));
+    assert_eq!(context.namespace("xml"), Some(yaxml::XML_NAMESPACE));
+    assert_eq!(context.namespace("q"), None);
+    assert_eq!(context.variable("urn:p", "v"), Ok(Some(Value::Number(1.0))));
+    assert_eq!(context.variable("", "v"), Ok(None));
+    let args = [Value::Boolean(true)];
+    assert_eq!(context.call("", "f", &args), Some(Ok(Value::Number(1.0))));
+    assert_eq!(context.call("urn:p", "f", &args), None);
+    // Core functions are bound at compilation, not looked up.
+    assert_eq!(context.call("", "count", &args), None);
+}

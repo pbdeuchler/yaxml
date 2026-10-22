@@ -83,13 +83,22 @@ Not compared, and deliberately different:
   character, `$` without a name) come first, since the expression is
   tokenized before it is parsed. `tests/xpath.rs` pins 27 verdicts recorded
   from libxml2.
+- Lookup callbacks (`Context::with_variable_lookup`, `with_function_lookup`)
+  follow libxml2's order: a variable callback first, then the bound
+  variables, except that an unprefixed variable asks only the callback once
+  one is set (`xmlXPathVariableLookup`); core functions, then the function
+  callback, then registered functions; arguments are evaluated before the
+  prefix and the function are resolved (OP_FUNCTION). `Context::variable`,
+  `call` and `namespace` answer as evaluation does. The function callback
+  is a dispatcher (it calls rather than returns the function). There is no
+  object cache (`xmlXPathContextSetCache`) or error handler (errors are
+  returned); `tests/xpath.rs` pins 27 lookups recorded from libxml2.
 - `namespace::p:x` and `namespace::p:*` select nothing, since namespace nodes
   have a null namespace URI; libxml2 ignores the test's prefix.
 
 ## Gaps
 
-XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`. Variable and
-function lookup callbacks are static maps. Extension functions receive their
+XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`. Extension functions receive their
 evaluated arguments, not the context node or tree. Entity-reference nodes do
 not exist in the current DOMs.
 

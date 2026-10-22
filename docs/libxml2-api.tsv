@@ -3859,7 +3859,7 @@ xpath.h	xmlXPathCompiledEval	function	not_marked	P2	implemented	https://github.c
 xpath.h	xmlXPathCompiledEvalToBoolean	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate
 xpath.h	xmlXPathContext	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context
 xpath.h	xmlXPathContextPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
-xpath.h	xmlXPathContextSetCache	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	lookup callbacks not started (docs/xpath.md)
+xpath.h	xmlXPathContextSetCache	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no object cache; values are plain Rust values
 xpath.h	xmlXPathConvertBoolean	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
 xpath.h	xmlXPathConvertFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathConvertNumber	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
@@ -3875,7 +3875,7 @@ xpath.h	xmlXPathFreeContext	function	not_marked	P2	not-applicable	https://github
 xpath.h	xmlXPathFreeNodeSet	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	Drop
 xpath.h	xmlXPathFreeNodeSetList	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	Drop
 xpath.h	xmlXPathFreeObject	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	Drop
-xpath.h	xmlXPathFuncLookupFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
+xpath.h	xmlXPathFuncLookupFunc	callback	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::FunctionLookup - returns the result, not the function
 xpath.h	xmlXPathFuncPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
 xpath.h	xmlXPathFunct	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathFunction	callback	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Function
@@ -3898,12 +3898,12 @@ xpath.h	xmlXPathOrderDocElems	function	not_marked	P2	not-applicable	https://gith
 xpath.h	xmlXPathPINF	variable	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	deprecated; use f64::NAN and f64::INFINITY
 xpath.h	xmlXPathParserContext	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathParserContextPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
-xpath.h	xmlXPathSetContextNode	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	lookup callbacks not started (docs/xpath.md)
-xpath.h	xmlXPathSetErrorHandler	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	lookup callbacks not started (docs/xpath.md)
+xpath.h	xmlXPathSetContextNode	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	the node argument of xpath::XPath::evaluate
+xpath.h	xmlXPathSetErrorHandler	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	errors are returned (xpath::Error)
 xpath.h	xmlXPathType	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathTypePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
 xpath.h	xmlXPathVariable	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
-xpath.h	xmlXPathVariableLookupFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
+xpath.h	xmlXPathVariableLookupFunc	callback	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::VariableLookup
 xpath.h	xmlXPathVariablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	raw pointer alias
 xpathInternals.h	CAST_TO_BOOLEAN	macro	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	CAST_TO_NUMBER	macro	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
@@ -3939,8 +3939,8 @@ xpathInternals.h	xmlXPathEvaluatePredicateResult	function	not_marked	P2-P3	parti
 xpathInternals.h	xmlXPathFalseFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
 xpathInternals.h	xmlXPathFloorFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
 xpathInternals.h	xmlXPathFreeParserContext	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	Drop
-xpathInternals.h	xmlXPathFunctionLookup	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
-xpathInternals.h	xmlXPathFunctionLookupNS	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathFunctionLookup	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::call - extension functions only; core functions are bound at compilation
+xpathInternals.h	xmlXPathFunctionLookupNS	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::call - extension functions only; core functions are bound at compilation
 xpathInternals.h	xmlXPathGetContextNode	macro	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathGetDocument	macro	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathGetError	macro	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
@@ -3993,7 +3993,7 @@ xpathInternals.h	xmlXPathNodeTrailingSorted	function	not_marked	P2-P3	not-applic
 xpathInternals.h	xmlXPathNormalizeFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
 xpathInternals.h	xmlXPathNotEqualValues	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - operators run inside evaluation
 xpathInternals.h	xmlXPathNotFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
-xpathInternals.h	xmlXPathNsLookup	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathNsLookup	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::namespace
 xpathInternals.h	xmlXPathNumberFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
 xpathInternals.h	xmlXPathParseNCName	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathParseName	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
@@ -4003,13 +4003,13 @@ xpathInternals.h	xmlXPathPopNodeSet	function	not_marked	P2-P3	not-applicable	htt
 xpathInternals.h	xmlXPathPopNumber	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathPopString	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathPositionFunction	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - core function library, not individually callable
-xpathInternals.h	xmlXPathRegisterAllFunctions	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathRegisterAllFunctions	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	core functions are built into compilation
 xpathInternals.h	xmlXPathRegisterFunc	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_function
-xpathInternals.h	xmlXPathRegisterFuncLookup	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathRegisterFuncLookup	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_function_lookup - a dispatcher that calls the function
 xpathInternals.h	xmlXPathRegisterFuncNS	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_function_ns
 xpathInternals.h	xmlXPathRegisterNs	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_namespace
 xpathInternals.h	xmlXPathRegisterVariable	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_variable
-xpathInternals.h	xmlXPathRegisterVariableLookup	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathRegisterVariableLookup	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_variable_lookup
 xpathInternals.h	xmlXPathRegisterVariableNS	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::with_variable_ns
 xpathInternals.h	xmlXPathRegisteredFuncsCleanup	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	Drop
 xpathInternals.h	xmlXPathRegisteredNsCleanup	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	Drop
@@ -4046,8 +4046,8 @@ xpathInternals.h	xmlXPathTrueFunction	function	not_marked	P2-P3	partial	https://
 xpathInternals.h	xmlXPathValueFlipSign	function	not_marked	P2-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::XPath::evaluate - operators run inside evaluation
 xpathInternals.h	xmlXPathValuePop	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathValuePush	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
-xpathInternals.h	xmlXPathVariableLookup	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
-xpathInternals.h	xmlXPathVariableLookupNS	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	lookup callbacks not started (docs/xpath.md)
+xpathInternals.h	xmlXPathVariableLookup	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::variable
+xpathInternals.h	xmlXPathVariableLookupNS	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	xpath::Context::variable
 xpathInternals.h	xmlXPathWrapCString	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathWrapExternal	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 xpathInternals.h	xmlXPathWrapNodeSet	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpathInternals.h	XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API

@@ -428,16 +428,8 @@ impl<'a, T: Navigate> Eval<'a, T> {
             Expr::Literal(text) => Value::String(copied(text.text(self.source))?),
             Expr::Variable(name) => {
                 let (uri, local) = self.expand(name)?;
-                let context = self.context;
-                let value = context
-                    .variables
-                    .get(uri)
-                    .and_then(|scope| scope.get(local));
-                self.checked(
-                    value
-                        .ok_or(Error::at(ErrorKind::UndefinedVariable, name.start()))?
-                        .try_clone()?,
-                )?
+                let value = self.context.variable(uri, local)?;
+                self.checked(value.ok_or(Error::at(ErrorKind::UndefinedVariable, name.start()))?)?
             }
             Expr::Call(function, args) => self.call(function, &ast.lists[args.range()], focus)?,
             Expr::Binary(op, left, right) => self.binary(op, left, right, focus)?,
@@ -910,18 +902,15 @@ impl<'a, T: Navigate> Eval<'a, T> {
         let core = match function {
             Function::Core(core) => core,
             Function::Extension(name) => {
-                let (uri, local) = self.expand(name)?;
-                let context = self.context;
-                let function = context
-                    .functions
-                    .get(uri)
-                    .and_then(|scope| scope.get(local))
-                    .ok_or(Error::at(ErrorKind::UnknownFunction, name.start()))?;
+                // libxml2's OP_FUNCTION order: arguments, prefix, function.
                 let values = args
                     .iter()
                     .map(|&arg| self.expr(arg, focus))
                     .collect::<Result<Vec<_>>>()?;
-                return self.checked(function(&values)?);
+                let (uri, local) = self.expand(name)?;
+                let result = self.context.call(uri, local, &values);
+                return self
+                    .checked(result.ok_or(Error::at(ErrorKind::UnknownFunction, name.start()))??);
             }
         };
         let string = |eval: &mut Self, index| eval.argument_string(args, index, focus);

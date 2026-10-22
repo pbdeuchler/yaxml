@@ -667,7 +667,17 @@ I|xmlXPathRegisterVariable|xpath::Context::with_variable
 I|xmlXPathRegisterVariableNS|xpath::Context::with_variable_ns
 I|xmlXPathRegisterFunc|xpath::Context::with_function
 I|xmlXPathRegisterFuncNS|xpath::Context::with_function_ns
-N|xmlXPathRegisterFuncLookup xmlXPathRegisterVariableLookup xmlXPathFunctionLookup xmlXPathFunctionLookupNS xmlXPathVariableLookup xmlXPathVariableLookupNS xmlXPathNsLookup xmlXPathRegisterAllFunctions xmlXPathSetErrorHandler xmlXPathContextSetCache xmlXPathSetContextNode|lookup callbacks not started (docs/xpath.md)
+I|xmlXPathRegisterVariableLookup|xpath::Context::with_variable_lookup
+I|xmlXPathVariableLookupFunc|xpath::VariableLookup
+I|xmlXPathFuncLookupFunc|xpath::FunctionLookup - returns the result, not the function
+I|xmlXPathRegisterFuncLookup|xpath::Context::with_function_lookup - a dispatcher that calls the function
+I|xmlXPathVariableLookup xmlXPathVariableLookupNS|xpath::Context::variable
+P|xmlXPathFunctionLookup xmlXPathFunctionLookupNS|xpath::Context::call - extension functions only; core functions are bound at compilation
+I|xmlXPathNsLookup|xpath::Context::namespace
+A|xmlXPathRegisterAllFunctions|core functions are built into compilation
+A|xmlXPathSetContextNode|the node argument of xpath::XPath::evaluate
+A|xmlXPathContextSetCache|no object cache; values are plain Rust values
+A|xmlXPathSetErrorHandler|errors are returned (xpath::Error)
 I|XML_XPATH_CHECKNS XML_XPATH_NOVAR|xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
 I|_xmlXPathContext.flags|xpath::Context::with_flags
 A|xmlXPathFreeContext xmlXPathFreeCompExpr xmlXPathFreeNodeSet xmlXPathFreeNodeSetList xmlXPathFreeObject xmlXPathFreeParserContext xmlXPathRegisteredFuncsCleanup xmlXPathRegisteredNsCleanup xmlXPathRegisteredVariablesCleanup xmlXPathInit|Drop
@@ -675,7 +685,7 @@ I|xmlXPathObject xmlXPathObjectType|xpath::Value
 I|xmlXPathCompExpr|xpath::XPath
 P|xmlXPathContext|xpath::Context
 A|xmlXPathContextPtr xmlXPathCompExprPtr xmlXPathObjectPtr xmlXPathParserContextPtr xmlNodeSetPtr xmlXPathAxisPtr xmlXPathFuncPtr xmlXPathTypePtr xmlXPathVariablePtr|raw pointer alias
-A|xmlNodeSet xmlXPathParserContext xmlXPathAxis xmlXPathType xmlXPathVariable xmlXPathFunct xmlXPathAxisFunc xmlXPathConvertFunc xmlXPathEvalFunc xmlXPathFuncLookupFunc xmlXPathVariableLookupFunc|internal XPath machinery; Vec<xpath::Node> and closures
+A|xmlNodeSet xmlXPathParserContext xmlXPathAxis xmlXPathType xmlXPathVariable xmlXPathFunct xmlXPathAxisFunc xmlXPathConvertFunc xmlXPathEvalFunc|internal XPath machinery; Vec<xpath::Node> and closures
 I|xmlXPathFunction|xpath::Function
 I|XPATH_NODESET XPATH_BOOLEAN XPATH_NUMBER XPATH_STRING|xpath::Value
 N|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|no such XPath value type (range extensions removed in 2.15)

@@ -319,6 +319,15 @@ impl From<TryReserveError> for Error {
 /// An extension function. It receives evaluated arguments.
 pub type Function<Id> = Box<dyn Fn(&[Value<Id>]) -> Result<Value<Id>, Error> + Send + Sync>;
 
+/// A variable lookup callback (`xmlXPathVariableLookupFunc`): `(uri, local)`
+/// to a value, `""` for no namespace.
+pub type VariableLookup<Id> = Box<dyn Fn(&str, &str) -> Option<Value<Id>> + Send + Sync>;
+
+/// A function lookup callback (`xmlXPathFuncLookupFunc`): `(uri, local,
+/// arguments)` to a result, or `None` when it does not know the function.
+pub type FunctionLookup<Id> =
+    Box<dyn Fn(&str, &str, &[Value<Id>]) -> Option<Result<Value<Id>, Error>> + Send + Sync>;
+
 /// Static evaluation context: prefix bindings, variables, extension functions
 /// and limits. Names are expanded as (namespace URI, local name), with `""`
 /// for no namespace. The `xml` prefix is always bound.
@@ -327,6 +336,8 @@ pub struct Context<Id> {
     namespaces: HashMap<String, String>,
     variables: HashMap<String, HashMap<String, Value<Id>>>,
     functions: HashMap<String, HashMap<String, Function<Id>>>,
+    variable_lookup: Option<VariableLookup<Id>>,
+    function_lookup: Option<FunctionLookup<Id>>,
     limits: Limits,
 }
 
@@ -337,6 +348,8 @@ impl<Id> Default for Context<Id> {
             namespaces: HashMap::new(),
             variables: HashMap::new(),
             functions: HashMap::new(),
+            variable_lookup: None,
+            function_lookup: None,
             limits: Limits::default(),
         }
     }
@@ -415,11 +428,62 @@ impl<Id> Context<Id> {
         self
     }
 
-    fn namespace(&self, prefix: &str) -> Option<&str> {
+    /// Consults `lookup` for variables (`xmlXPathRegisterVariableLookup`), as
+    /// [`Self::variable`] describes.
+    pub fn with_variable_lookup(mut self, lookup: VariableLookup<Id>) -> Self {
+        self.variable_lookup = Some(lookup);
+        self
+    }
+
+    /// Consults `lookup` for extension functions before the registered ones
+    /// (`xmlXPathRegisterFuncLookup`), as [`Self::call`] describes.
+    pub fn with_function_lookup(mut self, lookup: FunctionLookup<Id>) -> Self {
+        self.function_lookup = Some(lookup);
+        self
+    }
+
+    /// The URI bound to `prefix`; `xml` is always bound (`xmlXPathNsLookup`).
+    pub fn namespace(&self, prefix: &str) -> Option<&str> {
         match prefix {
             "xml" => Some(tree::XML_NAMESPACE),
             _ => self.namespaces.get(prefix).map(String::as_str),
         }
+    }
+
+    /// The value of variable `local` in namespace `uri` (`""` for none), as
+    /// evaluation sees it (`xmlXPathVariableLookupNS`): the lookup callback,
+    /// then the bound variables. As in libxml2, an unprefixed variable is
+    /// only asked of the callback when one is set (`xmlXPathVariableLookup`).
+    pub fn variable(&self, uri: &str, local: &str) -> Result<Option<Value<Id>>, Error>
+    where
+        Id: Copy,
+    {
+        let lookup = self.variable_lookup.as_ref();
+        let found = lookup.and_then(|lookup| lookup(uri, local));
+        if found.is_some() || (uri.is_empty() && lookup.is_some()) {
+            return Ok(found);
+        }
+        let bound = self.variables.get(uri).and_then(|scope| scope.get(local));
+        Ok(bound.map(Value::try_clone).transpose()?)
+    }
+
+    /// Calls extension function `local` in namespace `uri` as evaluation does
+    /// (`xmlXPathFunctionLookupNS`): the lookup callback, then the registered
+    /// functions; `None` when neither knows it. Core functions are bound at
+    /// compilation and never looked up here.
+    pub fn call(
+        &self,
+        uri: &str,
+        local: &str,
+        args: &[Value<Id>],
+    ) -> Option<Result<Value<Id>, Error>> {
+        let lookup = self.function_lookup.as_ref();
+        lookup
+            .and_then(|lookup| lookup(uri, local, args))
+            .or_else(|| {
+                let function = self.functions.get(uri).and_then(|scope| scope.get(local))?;
+                Some(function(args))
+            })
     }
 }
 
