@@ -596,3 +596,29 @@ impl XPath {
         }
     }
 }
+
+/// C's `printf("%g")`: six significant digits, exponent form outside
+/// [1e-4, 1e6), trailing zeros removed.
+#[cfg(any(feature = "schemas", feature = "debug"))]
+pub(crate) fn printf_g(value: f64) -> String {
+    if !value.is_finite() {
+        let text = match value {
+            _ if value.is_nan() => "nan",
+            _ if value > 0.0 => "inf",
+            _ => "-inf",
+        };
+        return text.to_owned();
+    }
+    let trim = |text: &str| match text.contains('.') {
+        true => text.trim_end_matches('0').trim_end_matches('.').to_owned(),
+        false => text.to_owned(),
+    };
+    let scientific = format!("{value:.5e}");
+    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((&scientific, "0"));
+    let exponent: i32 = exponent.parse().unwrap_or(0);
+    if (-4..6).contains(&exponent) {
+        return trim(&format!("{value:.*}", (5 - exponent) as usize));
+    }
+    let sign = if exponent < 0 { '-' } else { '+' };
+    format!("{}e{sign}{:02}", trim(mantissa), exponent.unsigned_abs())
+}

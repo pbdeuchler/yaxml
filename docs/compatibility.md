@@ -8,9 +8,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 107 | 545 | 64 | 0 | 97 | 13 | 159 | 1007 |
+| implemented | 22 | 107 | 545 | 64 | 0 | 97 | 14 | 159 | 1008 |
 | partial | 1 | 25 | 233 | 40 | 0 | 92 | 52 | 99 | 542 |
-| not-started | 0 | 18 | 574 | 47 | 0 | 27 | 3 | 421 | 1090 |
+| not-started | 0 | 18 | 574 | 47 | 0 | 27 | 2 | 421 | 1089 |
 | not-applicable | 24 | 21 | 447 | 32 | 75 | 181 | 85 | 256 | 1121 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 34 | 142 | 300 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
@@ -570,7 +570,8 @@ Match observable success behavior first: event/tree shape, namespace identity, n
 `OwnedDocument`: `dump_document` (`xmlDebugDumpDocument`, `xmllint --debug`),
 `dump_document_head`, `dump_dtd`, `dump_entities`, `dump_node`,
 `dump_one_node`, `dump_node_list`, `dump_attribute`, `dump_attributes`,
-`dump_string` and `check_document` (`xmlDebugCheckDocument`). Each returns
+`dump_string`, `check_document` (`xmlDebugCheckDocument`) and, with
+`xpath`, `dump_xpath_object` (`xmlXPathDebugDumpObject`). Each returns
 the text libxml2 writes. `tests/debug.rs` pins xmllint output for XML and HTML
 documents and every entry point; its ignored differential runs every XMLTS
 document both parsers accept through `xmllint --debug` (`YAXML_XMLLINT`,

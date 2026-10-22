@@ -1,6 +1,7 @@
 //! libxml2's debugging dumps (`debugXML.h`): `xmlDebugDumpDocument` and
 //! the other `xmlDebugDump*` functions, which `xmllint --debug` prints, and
-//! `xmlDebugCheckDocument`. Every function returns the text libxml2 writes to
+//! `xmlDebugCheckDocument`, and with feature `xpath` `xmlXPathDebugDumpObject`
+//! ([`dump_xpath_object`]). Every function returns the text libxml2 writes to
 //! its `FILE *`.
 //!
 //! The tree is an [`OwnedDocument`]'s; `xmllint --debug` output matches for
@@ -35,11 +36,15 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
+#[cfg(feature = "xpath")]
+use crate::OwnedNodeId;
 use crate::allocator::Allocator;
 use crate::dtd::{AttributeKind, DtdUnitView, ElementContentView};
 use crate::save::dtd::{content_model, stored_default, units};
 use crate::valid::{Entity, EntityKind};
 use crate::xpath::tree::{QName, XML_NAMESPACE};
+#[cfg(feature = "xpath")]
+use crate::xpath::{Node, Value, printf_g, tree::namespaces};
 use crate::{OwnedDocument, OwnedNode, OwnedNodeKind};
 
 const NO_PARENT: u32 = 5013;
@@ -180,6 +185,63 @@ pub fn dump_attribute<A: Allocator>(
 pub fn dump_attributes<A: Allocator>(element: OwnedNode<'_, A>, depth: usize) -> String {
     let mut dump = Dump::new(element.document(), depth, false);
     dump.attributes(element);
+    dump.out
+}
+
+/// `xmlXPathDebugDumpObject`: an XPath result over `document`; each node of
+/// a node-set follows its 1-based position, dumped one level deeper.
+#[cfg(feature = "xpath")]
+pub fn dump_xpath_object<A: Allocator>(
+    document: &OwnedDocument<A>,
+    value: &Value<OwnedNodeId>,
+    depth: usize,
+) -> String {
+    let shift = "  ".repeat(depth.min(25));
+    let nodes = match value {
+        Value::Boolean(b) => return format!("{shift}Object is a Boolean : {b}\n"),
+        Value::String(s) => return format!("{shift}Object is a string : {}\n", dump_string(s)),
+        Value::Number(n) => {
+            let number = match *n {
+                n if n.is_nan() => "NaN".into(),
+                f64::INFINITY => "Infinity".into(),
+                f64::NEG_INFINITY => "-Infinity".into(),
+                0.0 => "0".into(), // also -0.0
+                n => printf_g(n),
+            };
+            return format!("{shift}Object is a number : {number}\n");
+        }
+        Value::NodeSet(nodes) => nodes,
+    };
+    let mut dump = Dump::new(document, depth + 1, false);
+    dump.out = format!(
+        "{shift}Object is a Node Set :\nSet contains {} nodes:\n",
+        nodes.len()
+    );
+    for (position, &node) in nodes.iter().enumerate() {
+        _ = write!(dump.out, "{shift}{}", position + 1);
+        let (Node::Tree(id) | Node::Attribute(id, _) | Node::Namespace(id, _)) = node;
+        let tree = document.node(id);
+        match node {
+            Node::Tree(_) if tree.is_some_and(|n| n.kind() == OwnedNodeKind::Document) => {
+                dump.spaces();
+                dump.put(" /\n");
+            }
+            Node::Tree(_) => tree.into_iter().for_each(|n| dump.one_node(n)),
+            Node::Attribute(_, index) => tree.into_iter().for_each(|n| dump.attribute(n, index)),
+            Node::Namespace(_, index) => {
+                let Some(&(prefix, uri)) = namespaces(document, id).get(index) else {
+                    continue;
+                };
+                dump.spaces();
+                match prefix {
+                    "" => dump.put("default namespace href="),
+                    prefix => dump.put(&format!("namespace {prefix} href=")),
+                }
+                dump.string(uri);
+                dump.put("\n");
+            }
+        }
+    }
     dump.out
 }
 

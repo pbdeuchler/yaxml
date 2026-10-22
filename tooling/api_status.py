@@ -708,7 +708,8 @@ A|xmlXPathIsInf xmlXPathIsNaN|f64::is_infinite, f64::is_nan
 R|xmlXPathNAN xmlXPathPINF xmlXPathNINF|deprecated; use f64::NAN and f64::INFINITY
 A|xmlXPathNodeSet* xmlXPathEmptyNodeSet xmlXPathNewNodeSet* xmlXPathNewBoolean xmlXPathNewCString xmlXPathNewFloat xmlXPathNewString xmlXPathNewValueTree xmlXPathWrap* xmlXPathReturn* xmlXPathObjectCopy xmlXPathDifference xmlXPathDistinct* xmlXPathHasSameNodes xmlXPathIntersection xmlXPathLeading* xmlXPathNodeLeading* xmlXPathNodeTrailing* xmlXPathTrailing* xmlXPathPop* xmlXPathValue* xmlXPathStackIs* xmlXPathNewParserContext xmlXPathParseNCName xmlXPathParseName xmlXPathRoot xmlXPathSetArityError xmlXPathSetError xmlXPathSetTypeError xmlXPathCheckError xmlXPathGetContextNode xmlXPathGetDocument xmlXPathGetError xmlXPathErr xmlXPatherror xmlXPathIsNodeType CAST_TO_* CHECK_* XP_ERROR XP_ERROR0 valuePop valuePush|XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 I|xmlXPathCmpNodes|xpath::compare - namespace nodes ordered by their element
-N|xmlXPathDebugDump*|not started
+I|xmlXPathDebugDumpObject|debug::dump_xpath_object - features debug + xpath
+N|xmlXPathDebugDumpCompExpr|prints libxml2's compiled step array; yaxml compiles XPath to its own expression tree
 A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath ranks nodes with its own order keys
 # ---- xmlreader.h
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new

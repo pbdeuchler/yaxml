@@ -490,3 +490,144 @@ fn xmlts_documents_dump_like_xmllint_debug() {
         differences.len()
     );
 }
+
+/// `xmlXPathDebugDumpObject` at depths 0 and 1 for each expression, as
+/// libxml2 2.15.4 prints them (after `== expression` lines).
+#[cfg(feature = "xpath")]
+const XPATH_OBJECTS: &str = r#"
+== /
+Object is a Node Set :
+Set contains 1 nodes:
+1   /
+  Object is a Node Set :
+Set contains 1 nodes:
+  1     /
+== /*/@*
+Object is a Node Set :
+Set contains 2 nodes:
+1  ATTRIBUTE a
+    TEXT
+      content=1
+2  ATTRIBUTE b
+    TEXT
+      content=x#C3#A9
+  Object is a Node Set :
+Set contains 2 nodes:
+  1    ATTRIBUTE a
+      TEXT
+        content=1
+  2    ATTRIBUTE b
+      TEXT
+        content=x#C3#A9
+== //namespace::*
+Object is a Node Set :
+Set contains 6 nodes:
+1  namespace xml href=http://www.w3.org/XML/1998/namespace
+2  namespace p href=urn:p
+3  default namespace href=urn:d
+4  namespace xml href=http://www.w3.org/XML/1998/namespace
+5  namespace p href=urn:p
+6  default namespace href=urn:d
+  Object is a Node Set :
+Set contains 6 nodes:
+  1    namespace xml href=http://www.w3.org/XML/1998/namespace
+  2    namespace p href=urn:p
+  3    default namespace href=urn:d
+  4    namespace xml href=http://www.w3.org/XML/1998/namespace
+  5    namespace p href=urn:p
+  6    default namespace href=urn:d
+== /*/node()
+Object is a Node Set :
+Set contains 3 nodes:
+1  ELEMENT e
+2  COMMENT
+    content=c
+3  PI pi
+    content=d
+  Object is a Node Set :
+Set contains 3 nodes:
+  1    ELEMENT e
+  2    COMMENT
+      content=c
+  3    PI pi
+      content=d
+== 1 div 0
+Object is a number : Infinity
+  Object is a number : Infinity
+== -1 div 0
+Object is a number : -Infinity
+  Object is a number : -Infinity
+== 0 div 0
+Object is a number : NaN
+  Object is a number : NaN
+== -0
+Object is a number : 0
+  Object is a number : 0
+== 1234567
+Object is a number : 1.23457e+06
+  Object is a number : 1.23457e+06
+== 0.0001
+Object is a number : 0.0001
+  Object is a number : 0.0001
+== 0.00001
+Object is a number : 1e-05
+  Object is a number : 1e-05
+== 1.5
+Object is a number : 1.5
+  Object is a number : 1.5
+== 'abc  d'
+Object is a string : abc  d
+  Object is a string : abc  d
+== true()
+Object is a Boolean : true
+  Object is a Boolean : true
+== //nothing
+Object is a Node Set :
+Set contains 0 nodes:
+  Object is a Node Set :
+Set contains 0 nodes:
+== /*
+Object is a Node Set :
+Set contains 1 nodes:
+1  ELEMENT r
+    default namespace href=urn:d
+    namespace p href=urn:p
+    ATTRIBUTE a
+      TEXT
+        content=1
+    ATTRIBUTE b
+      TEXT
+        content=x#C3#A9
+  Object is a Node Set :
+Set contains 1 nodes:
+  1    ELEMENT r
+      default namespace href=urn:d
+      namespace p href=urn:p
+      ATTRIBUTE a
+        TEXT
+          content=1
+      ATTRIBUTE b
+        TEXT
+          content=x#C3#A9
+"#;
+
+#[test]
+#[cfg(feature = "xpath")]
+fn xpath_objects_dump_like_libxml2() {
+    use yaxml::xpath::{Context, XPath};
+    let input =
+        r#"<r xmlns="urn:d" xmlns:p="urn:p" a="1" p:b="x&#233;"><e>t</e><!--c--><?pi d?></r>"#;
+    let document = OwnedDocument::parse(input).unwrap();
+    let mut transcript = String::from("\n");
+    for expression in XPATH_OBJECTS.lines().filter_map(|l| l.strip_prefix("== ")) {
+        let value = XPath::compile(expression)
+            .unwrap()
+            .evaluate(&document, document.root().id(), &Context::new())
+            .unwrap();
+        transcript += &format!("== {expression}\n");
+        for depth in [0, 1] {
+            transcript += &debug::dump_xpath_object(&document, &value, depth);
+        }
+    }
+    assert_eq!(transcript, XPATH_OBJECTS);
+}

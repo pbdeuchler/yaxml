@@ -31,7 +31,7 @@ use crate::pattern::{self, Pattern as Matcher};
 use crate::xpath::tree::{
     Item, Navigate, Tree, attributes, descendants, namespaces, visible_preorder,
 };
-use crate::xpath::{self, Context, Node, Value, XPath, truthy};
+use crate::xpath::{self, Context, Node, Value, XPath, printf_g, truthy};
 use crate::{Document, ErrorKind, LineIndex, ParseOptions, Resolver, options};
 
 /// The ISO Schematron and Schematron 1.5 namespaces, both accepted.
@@ -958,31 +958,6 @@ fn value_name<T: Navigate>(tree: &T, node: Node<T::Id>) -> Option<&str> {
         // An `xmlNs` read as a node: its "name" is the URI.
         Node::Namespace(owner, index) => namespaces(tree, owner).get(index).map(|&(_, uri)| uri),
     }
-}
-
-/// C's `printf("%g")`: six significant digits, exponent form outside
-/// [1e-4, 1e6), trailing zeros removed.
-fn printf_g(value: f64) -> String {
-    if !value.is_finite() {
-        let text = match value {
-            _ if value.is_nan() => "nan",
-            _ if value > 0.0 => "inf",
-            _ => "-inf",
-        };
-        return text.to_owned();
-    }
-    let trim = |text: &str| match text.contains('.') {
-        true => text.trim_end_matches('0').trim_end_matches('.').to_owned(),
-        false => text.to_owned(),
-    };
-    let scientific = format!("{value:.5e}");
-    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((&scientific, "0"));
-    let exponent: i32 = exponent.parse().unwrap_or(0);
-    if (-4..6).contains(&exponent) {
-        return trim(&format!("{value:.*}", (5 - exponent) as usize));
-    }
-    let sign = if exponent < 0 { '-' } else { '+' };
-    format!("{}e{sign}{:02}", trim(mantissa), exponent.unsigned_abs())
 }
 
 #[cfg(test)]
