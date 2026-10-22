@@ -676,6 +676,41 @@ impl Pattern {
         self.alts.iter().any(|alt| walk(tree, &alt.ops, &chain))
     }
 
+    /// `xmlPatternStreamable`: whether [`Pattern::stream`] is available.
+    pub fn streamable(&self) -> bool {
+        self.alts.iter().all(|alt| alt.stream.is_some())
+    }
+
+    /// `xmlPatternMinDepth`: the fewest stream steps of any alternative (0
+    /// when `.` is one); `None` if not streamable.
+    pub fn min_depth(&self) -> Option<usize> {
+        let depths = self
+            .alts
+            .iter()
+            .map(|alt| alt.stream.as_ref().map(|s| s.steps.len()));
+        depths.min().flatten()
+    }
+
+    /// `xmlPatternMaxDepth`: the most stream steps of any alternative, or
+    /// `Some(None)` when one has a descendant step (`//`, or a relative
+    /// pattern without [`XPATH`]-style flags); `None` if not streamable.
+    pub fn max_depth(&self) -> Option<Option<usize>> {
+        self.alts
+            .iter()
+            .try_fold(Some(0), |max: Option<usize>, alt| {
+                let steps = &alt.stream.as_ref()?.steps;
+                let bounded = !steps.iter().any(|step| step.desc);
+                Some(max.filter(|_| bounded).map(|max| max.max(steps.len())))
+            })
+    }
+
+    /// `xmlPatternFromRoot`: whether an alternative starts at `/`; `None` if
+    /// not streamable.
+    pub fn from_root(&self) -> Option<bool> {
+        let rooted = self.alts.iter().any(|alt| alt.flags & FROM_ROOT != 0);
+        self.streamable().then_some(rooted)
+    }
+
     /// `xmlPatternGetStreamCtxt`, already at the document node as after
     /// `xmlStreamPush(NULL, NULL)`; `None` if any alternative is not streamable.
     pub fn stream(&self) -> Option<StreamMatcher> {

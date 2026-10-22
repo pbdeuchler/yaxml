@@ -921,7 +921,10 @@ I|xmlStreamWantsAnyNode|pattern::StreamMatcher::wants_any_node
 I|xmlPattern|pattern::Pattern
 I|xmlStreamCtxt|pattern::StreamMatcher
 A|xmlFreePattern xmlFreePatternList xmlFreeStreamCtxt xmlPatternPtr xmlStreamCtxtPtr|Drop or raw pointer alias
-N|xmlPatternFromRoot xmlPatternMaxDepth xmlPatternMinDepth xmlPatternStreamable|depth queries not started (docs/pattern.md)
+I|xmlPatternStreamable|pattern::Pattern::streamable
+I|xmlPatternMinDepth|pattern::Pattern::min_depth
+I|xmlPatternMaxDepth|pattern::Pattern::max_depth - None = not streamable, Some(None) = unbounded (-2)
+I|xmlPatternFromRoot|pattern::Pattern::from_root
 I|xmlPatternFlags|pattern
 I|XML_PATTERN_XPATH|pattern::XPATH
 I|XML_PATTERN_XSSEL|pattern::XS_SELECTOR

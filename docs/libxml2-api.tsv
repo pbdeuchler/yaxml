@@ -1128,13 +1128,13 @@ pattern.h	xmlFreeStreamCtxt	function	not_marked	P2	not-applicable	https://github
 pattern.h	xmlPattern	typedef	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern
 pattern.h	xmlPatternCompileSafe	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::compile
 pattern.h	xmlPatternFlags	enum	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern
-pattern.h	xmlPatternFromRoot	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	depth queries not started (docs/pattern.md)
+pattern.h	xmlPatternFromRoot	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::from_root
 pattern.h	xmlPatternGetStreamCtxt	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::stream
 pattern.h	xmlPatternMatch	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::matches
-pattern.h	xmlPatternMaxDepth	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	depth queries not started (docs/pattern.md)
-pattern.h	xmlPatternMinDepth	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	depth queries not started (docs/pattern.md)
+pattern.h	xmlPatternMaxDepth	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::max_depth - None = not streamable, Some(None) = unbounded (-2)
+pattern.h	xmlPatternMinDepth	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::min_depth
 pattern.h	xmlPatternPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	Drop or raw pointer alias
-pattern.h	xmlPatternStreamable	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	depth queries not started (docs/pattern.md)
+pattern.h	xmlPatternStreamable	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::streamable
 pattern.h	xmlPatterncompile	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::Pattern::compile
 pattern.h	xmlStreamCtxt	typedef	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::StreamMatcher
 pattern.h	xmlStreamCtxtPtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	Drop or raw pointer alias

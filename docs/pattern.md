@@ -48,6 +48,12 @@ whether the node matches, `reset` returns to the document node. State is a
 list of `(step, level)` pairs, deduplicated, pruned on `pop`, so memory is at
 most steps times depth and never depends on document size.
 
+The stream shape is queryable without building a matcher: `streamable()`
+(`xmlPatternStreamable`), `min_depth()`, `max_depth()` (`Some(None)` = unbounded,
+libxml2's -2) and `from_root()`. Each is `None` where libxml2 returns -1 (not
+streamable). `tests/pattern.rs` `depth_queries_match_libxml2` pins values
+probed from libxml2 2.15.4.
+
 ## Limits
 
 `Limits { max_bytes: 64 KiB, max_steps: 256 per alternative, max_depth: 1024 }`
@@ -75,6 +81,6 @@ streamed result equals the DOM match in pattern mode, and that both DOMs agree.
 - `/.//.` also selects the document's descendants in a stream; libxml2 selects
   only the document.
 - `child::p:n` keeps libxml2's reading as the single name `p:n` (no namespace).
-- Not ported: dictionaries, `xmlPatternMinDepth`/`MaxDepth`/`FromRoot`/`Streamable`,
+- Not ported: dictionaries,
   `xmlStreamPushNode` node-type values beyond `push_other`, and the
   `xmlTextReaderPreservePattern` reader integration (see [textreader.md](textreader.md)).

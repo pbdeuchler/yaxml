@@ -500,6 +500,50 @@ fn stream_availability_and_needs() {
 }
 
 #[test]
+fn depth_queries_match_libxml2() {
+    // (pattern, flags, streamable, min, max, from root) as libxml2 2.15.4's
+    // xmlPatternStreamable/MinDepth/MaxDepth/FromRoot report them (-2 = None).
+    for (source, flags, streamable, min, max, rooted) in [
+        ("a", 0, true, Some(1), Some(None), Some(false)),
+        ("/a", 0, true, Some(1), Some(Some(1)), Some(true)),
+        ("/a/b/c", 0, true, Some(3), Some(Some(3)), Some(true)),
+        ("//a", 0, true, Some(1), Some(None), Some(true)),
+        (".", 0, true, Some(0), Some(Some(0)), Some(false)),
+        ("/a|/b/c", 0, true, Some(1), Some(Some(2)), Some(true)),
+        ("a|/b", 0, true, Some(1), Some(None), Some(true)),
+        ("x//.", 0, true, Some(2), Some(None), Some(false)),
+        ("/.//.", 0, true, Some(1), Some(None), Some(true)),
+        ("a", XPATH, true, Some(1), Some(Some(1)), Some(false)),
+        ("a|.", XPATH, true, Some(0), Some(Some(1)), Some(false)),
+        ("a/@b", XPATH, true, Some(2), Some(Some(2)), Some(false)),
+        ("a/.", XPATH, true, Some(1), Some(Some(1)), Some(false)),
+        ("a/b|c//d", XPATH, true, Some(2), Some(None), Some(false)),
+        (
+            "a/b/c|d",
+            XS_SELECTOR,
+            true,
+            Some(1),
+            Some(Some(3)),
+            Some(false),
+        ),
+        (".//a", XS_FIELD, true, Some(1), Some(None), Some(false)),
+        ("a|/b", XPATH, false, None, None, None),
+        ("/a|.//b", 0, false, None, None, None),
+        ("./.", 0, false, None, None, None),
+    ] {
+        let pattern = Pattern::compile(source, NS, flags).expect(source);
+        let found = (
+            pattern.streamable(),
+            pattern.min_depth(),
+            pattern.max_depth(),
+            pattern.from_root(),
+        );
+        assert_eq!(found, (streamable, min, max, rooted), "{source} {flags}");
+        assert_eq!(pattern.stream().is_some(), streamable, "{source} {flags}");
+    }
+}
+
+#[test]
 fn stream_depth_is_bounded() {
     let limits = Limits::default().max_depth(3);
     let pattern = Pattern::compile_with_limits("//a", &[], 0, limits).unwrap();
