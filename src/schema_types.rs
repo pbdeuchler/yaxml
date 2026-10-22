@@ -739,6 +739,67 @@ impl Value {
             }
     }
 
+    /// The canonical lexical form, libxml2's `xmlSchemaGetCanonValueWhtsp`
+    /// (`xmlSchemaGetCanonValue` with [`WhiteSpace::Preserve`]):
+    /// `whitespace` applies to string and normalizedString values, the
+    /// others are already collapsed. Numbers drop redundant signs and zeros
+    /// (`12.5`, `0.0`, `-3`), floats and doubles take C's `%.14e`
+    /// (`1.50000000000000e+00`, `INF`, `NaN`), booleans `true`/`false`,
+    /// binaries their upper-case hex or base64 alphabet. `None` for list
+    /// types and anySimpleType, which libxml2 answers with `"???"`.
+    pub fn canonical(&self, whitespace: WhiteSpace) -> Option<String> {
+        let exponent = |number: f64| match number {
+            n if n.is_nan() => "NaN".into(),
+            f64::INFINITY => "INF".into(),
+            f64::NEG_INFINITY => "-INF".into(),
+            n => {
+                let text = format!("{n:.14e}");
+                let (mantissa, exponent) = text.split_once('e').unwrap_or((&text, "0"));
+                let exponent: i32 = exponent.parse().unwrap_or(0);
+                let sign = if exponent < 0 { '-' } else { '+' };
+                format!("{mantissa}e{sign}{:02}", exponent.unsigned_abs())
+            }
+        };
+        Some(match &self.data {
+            Data::Text(_) if self.ty.item().is_some() || self.ty == Type::AnySimpleType => {
+                return None;
+            }
+            Data::Text(text) => normalize(text, whitespace).into_owned(),
+            Data::Boolean(b) => b.to_string(),
+            Data::Decimal(d) => d.canonical(self.ty != Type::Decimal),
+            Data::Float(f) => exponent(f64::from(*f)),
+            Data::Double(d) => exponent(*d),
+            Data::Duration(d) => d.canonical(),
+            Data::Date(d) => d.canonical(self.ty),
+            Data::Binary { text, .. } => text.to_string(),
+            Data::QName {
+                namespace: None,
+                local,
+            } => local.to_string(),
+            Data::QName {
+                namespace: Some(namespace),
+                local,
+            } => format!("{{{namespace}}}{local}"),
+        })
+    }
+
+    /// The normalized text of a string, name or anyURI value, libxml2's
+    /// `xmlSchemaValueGetAsString`; `None` for other types.
+    pub fn as_str(&self) -> Option<&str> {
+        match &self.data {
+            Data::Text(text) if self.ty.item().is_none() => Some(text),
+            _ => None,
+        }
+    }
+
+    /// A boolean value, libxml2's `xmlSchemaValueGetAsBoolean`.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self.data {
+            Data::Boolean(b) => Some(b),
+            _ => None,
+        }
+    }
+
     /// A hash consistent with [`Value::equals`], for identity-constraint
     /// tables; dates and durations, whose equality is not canonical, share one.
     pub(crate) fn hash_key(&self) -> u64 {

@@ -72,6 +72,19 @@ impl Decimal {
         self.digits.len().max(1) as u64
     }
 
+    /// The canonical form: `-1.5`, `0.0` and `12.0` for `xs:decimal`, and
+    /// digits alone for the integer types.
+    pub(super) fn canonical(&self, integer: bool) -> String {
+        let (integral, fraction) = self.digits.split_at(self.integral as usize);
+        let integral = if integral.is_empty() { "0" } else { integral };
+        let sign = if self.negative { "-" } else { "" };
+        match (integer, fraction.is_empty()) {
+            (true, _) => format!("{sign}{integral}"),
+            (false, true) => format!("{sign}{integral}.0"),
+            (false, false) => format!("{sign}{integral}.{fraction}"),
+        }
+    }
+
     /// Digits after the point (`fractionDigits`).
     pub(super) fn fraction_digits(&self) -> u64 {
         (self.digits.len() - self.integral as usize) as u64

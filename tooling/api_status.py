@@ -918,7 +918,10 @@ I|xmlSchemaValidateFacet xmlSchemaValidateFacetWhtsp|schema_types::Facet::check
 P|xmlSchemaValidateLengthFacet xmlSchemaValidateLengthFacetWhtsp xmlSchemaValidateListSimpleTypeFacet|schema_types::Facet::check
 I|xmlSchemaCollapseString xmlSchemaWhiteSpaceReplace|schema_types::normalize
 A|xmlSchemaCopyValue xmlSchemaFreeValue xmlSchemaFreeFacet xmlSchemaInitTypes xmlSchemaCleanupTypes|Clone/Drop; no global type table
-N|xmlSchemaGetCanonValue xmlSchemaGetCanonValueWhtsp xmlSchemaGetFacetValueAsULong xmlSchemaIsBuiltInTypeFacet xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue xmlSchemaNewStringValue xmlSchemaValueAppend xmlSchemaValueGetAsBoolean xmlSchemaValueGetAsString xmlSchemaValueGetNext|not started (canonical values, list values; docs/schema-types.md)
+I|xmlSchemaGetCanonValue xmlSchemaGetCanonValueWhtsp|schema_types::Value::canonical - WhiteSpace::Preserve = GetCanonValue; None for lists/anySimpleType (libxml2 ???); fixes value-changing and non-lexical forms (docs/schema-types.md)
+I|xmlSchemaValueGetAsString|schema_types::Value::as_str
+I|xmlSchemaValueGetAsBoolean|schema_types::Value::as_bool - None for non-booleans (libxml2 0)
+N|xmlSchemaGetFacetValueAsULong xmlSchemaIsBuiltInTypeFacet xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue xmlSchemaNewStringValue xmlSchemaValueAppend xmlSchemaValueGetNext|not started (list values, value constructors; docs/schema-types.md)
 I|xmlSchemaWhitespaceValueType|schema_types::WhiteSpace
 I|XML_SCHEMA_WHITESPACE_PRESERVE|schema_types::WhiteSpace::Preserve
 I|XML_SCHEMA_WHITESPACE_REPLACE|schema_types::WhiteSpace::Replace
