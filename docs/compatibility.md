@@ -8,9 +8,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 104 | 533 | 64 | 0 | 86 | 8 | 147 | 964 |
-| partial | 1 | 20 | 232 | 40 | 0 | 87 | 50 | 89 | 519 |
-| not-started | 0 | 26 | 587 | 47 | 0 | 43 | 14 | 443 | 1160 |
+| implemented | 22 | 104 | 533 | 64 | 0 | 86 | 8 | 154 | 971 |
+| partial | 1 | 20 | 232 | 40 | 0 | 87 | 50 | 93 | 523 |
+| not-started | 0 | 26 | 587 | 47 | 0 | 43 | 14 | 432 | 1149 |
 | not-applicable | 24 | 21 | 447 | 32 | 75 | 181 | 84 | 256 | 1120 |
 | removed-upstream | 0 | 5 | 45 | 19 | 12 | 43 | 31 | 142 | 297 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
@@ -154,6 +154,11 @@ Single-byte decoding follows libxml2 built without iconv/ICU but with
 reports ISO-8859-2..16 as unsupported while yaxml decodes them. A UTF-8 BOM
 with a single-byte label is rejected where libxml2 warns and continues as UTF-8.
 
+A `#` in a system literal is an error only in an `<!ENTITY>` declaration's
+system identifier ("Fragment not allowed", as libxml2's `xmlParseEntityDecl`
+reports it). DOCTYPE and NOTATION system identifiers may contain one (XMLTS
+`oasis/p11pass1.xml`).
+
 ## DTD declaration model
 
 `valid::Dtd` (`Document::dtd`, `OwnedDocument::dtd`, `valid::Dtd::load` and
@@ -258,7 +263,7 @@ Priority is dependency order and migration value. P0 is the first usable secure 
 | P2 | Patterns: streaming pattern matching, namespace-aware patterns. **Implemented** as `pattern::Pattern` (`compile`, `matches` over both DOMs, `stream` for incremental matching); 4 of 4 libxml2 `test/pattern` inputs match byte for byte. See [pattern.md](pattern.md) for differences and gaps (no dictionaries, no `Preserve` reader integration) | `pattern.h`; `xmlPatterncompile`, `xmlPatternMatch`, `xmlStreamPush*` |
 | P3 | XML recovery modes, deprecated SAX1 and parser-internal entry points: reproduce only against named option/release fixtures; malformed-input recovery is not a specification. **Partial**: `RECOVER` on `Document`, `OwnedDocument` and every stream with one repair decision per error site (`tests/recover.rs`; `yaxmllint --recover` agrees with `xmllint --recover` on 37 of 45 `test/errors` inputs and 1305 of 1498 XMLTS not-wf documents, the push parser's tree with libxml2's on 36 of 45 and 1290 of 1498, figures recorded under Recovery); still open: SAX1 handlers (`SAX1` accepted as a no-op, `OLDSAX` rejected), `parserInternals.h` entry points and the deprecated `xmlParse*`/`xmlRecover*`/`xmlSAX*` families, and the divergences listed under Recovery | `SAX.h`, `parserInternals.h`, deprecated `xmlParse*`, `xmlRecover*`, `xmlSAX*` |
 | P3 | Schematron validation and reporting, XLink callbacks, public regex/automata/datatype helper APIs. Schematron is **implemented** as `schematron::Schema` (`parse`, `from_tree`, `validate` over both DOMs with `XML_SCHEMATRON_OUT_*` flags and libxml2's report text; [schematron.md](schematron.md); all 42 libxml2 `test/schematron` results byte for byte, 195 of 195 oracle runs across eight output modes and with entity references kept or substituted; no SVRL, as in libxml2). `xmlRegexpCompile`/`xmlRegexpExec` (`yaxml::regexp`, linear-time, budgeted) and `xmlSchemaValidatePredefinedType`/`xmlSchemaCompareValues`/facet checks (`yaxml::schema_types`) are **implemented** and differential-tested ([schema-types.md](schema-types.md)); still open: `xmlRegExec*` push contexts, `xmlAutomata*`, canonical values | `schematron.h`, `xlink.h`, `xmlregexp.h`, `xmlautomata.h`, `xmlschemastypes.h` |
-| P3 | Public utility APIs: dictionaries/interning, hashes, lists, buffers, UTF-8/string helpers, Unicode categories/blocks, diagnostic tree dumps/shell (regexp category and block tables exist but are not public). `chvalid.h` is **implemented** as `yaxml::chars` (every code point differential-tested, see [DTD declaration model](#dtd-declaration-model)). **Not started** as public API: dictionaries, hashes, lists, buffers, `xmlstring.h` helpers, `xmlunicode.h` category and block queries (the tables exist inside `regexp` and are private), `debugXML.h` dumps and shell (`yaxmllint` lacks `--debug` and `--shell`); Rust `std` types replace most, so only Unicode queries and tree dumps have migration value | `dict.h`, `hash.h`, `list.h`, `tree.h`, `xmlstring.h`, `xmlunicode.h`, `debugXML.h` |
+| P3 | Public utility APIs: dictionaries/interning, hashes, lists, buffers, UTF-8/string helpers, Unicode categories/blocks, diagnostic tree dumps/shell (regexp category and block tables exist but are not public). `chvalid.h` is **implemented** as `yaxml::chars` (every code point differential-tested, see [DTD declaration model](#dtd-declaration-model)). **Not started** as public API: dictionaries, hashes, lists, buffers, `xmlstring.h` helpers, `xmlunicode.h` category and block queries (the tables exist inside `regexp` and are private), the `debugXML.h` shell (`yaxmllint` lacks `--shell`); Rust `std` types replace most, so only Unicode queries have migration value. The `debugXML.h` dumps and `xmlDebugCheckDocument` are **implemented** as `yaxml::debug` (feature `debug`, `yaxmllint --debug`; 1,991 of 1,999 XMLTS documents match `xmllint --debug`, see [Debugging dumps](#debugging-dumps)) | `dict.h`, `hash.h`, `list.h`, `tree.h`, `xmlstring.h`, `xmlunicode.h`, `debugXML.h` |
 | P3 | Legacy process/thread globals, initialization/cleanup, memory debugging and callbacks, dynamic modules, removed HTTP/FTP compatibility stubs, build/version/export macros. **Not started, mostly by design**: the crate keeps no global state, so `xmlInitParser`/`xmlCleanupParser`, `globals.h`, `threads.h`, `xmlmemory.h` callbacks and `xmlmodule.h` have nothing to port; the removed HTTP and FTP clients stay out; version constants and `xmlCheckVersion` live in `yaxml::features` (see the I/O row); the build macros (`xmlversion.h` `LIBXML_*_ENABLED`) map to `Feature` | `globals.h`, `threads.h`, `xmlmemory.h`, `xmlmodule.h`, `nanohttp.h`, `nanoftp.h`, `xmlversion.h`, `xmlexports.h` |
 | P4 | Language adapters and migration packages: document/node ownership, byte/text conversion, structured exceptions, iteration, cancellation, cleanup and batching across runtime boundaries. **Not started**: [bindings.md](bindings.md) is a design outline and no binding crate exists; the core prerequisites exist (`OwnedNodeId` handles, `TextReader`, `allocator_api`, `ErrorKind` mapping); a C ABI or any unsafe adapter needs owner sign-off | Python, Ruby, JavaScript/TypeScript, Go; separate from safe-core dependencies |
 
@@ -534,6 +539,35 @@ and errors are identical in both modes, and reports the boundaries:
   copies, `TextReader` and the HTML parser substitute.
 
 Match observable success behavior first: event/tree shape, namespace identity, normalized values, text coalescing, entity visibility and serialization bytes where specified. Error code/domain/severity and position matter next. Exact human error wording, allocation count, callback text-chunk boundaries and historical recovery quirks need separate documented contracts; streaming may split text into different chunks while preserving concatenated content. HTML parser options, reader properties, save flags and schema options keep their own mappings (`html::Options`, `ParserProperty`, `save::Options`, `xinclude::Options`).
+
+## Debugging dumps
+
+`yaxml::debug` (feature `debug`, in `full`) ports debugXML.c's dumps over an
+`OwnedDocument`: `dump_document` (`xmlDebugDumpDocument`, `xmllint --debug`),
+`dump_document_head`, `dump_dtd`, `dump_entities`, `dump_node`,
+`dump_one_node`, `dump_node_list`, `dump_attribute`, `dump_attributes`,
+`dump_string` and `check_document` (`xmlDebugCheckDocument`). Each returns
+the text libxml2 writes. `tests/debug.rs` pins xmllint output for XML and HTML
+documents and every entry point; its ignored differential runs every XMLTS
+document both parsers accept through `xmllint --debug` (`YAXML_XMLLINT`,
+`YAXML_SUITES`): 1,991 of 1,999 agree, and the 8 that differ are listed there
+with their reasons.
+
+Differences:
+
+- Text nodes never show libxml2's ` compact`/` interned` storage notes.
+- An entity declaration's children come from a kept reference to it, in
+  content or in an attribute value. Under `NOENT` there is none, so a
+  declaration has no children, and an ATTLIST default always shows its
+  references (libxml2 substitutes them under `NOENT`).
+- Entity values hold normalized line ends; libxml2 keeps the CR of a CRLF.
+- A PI without data never shows `content=`; libxml2 prints an empty one for
+  `<?pi ?>`.
+- `dump_entities` lists entities in declaration order (libxml2: hash order)
+  and never prints `orig`.
+- `check_document` reports detached roots (5013) and names outside the Name
+  production (5034). libxml2's link, dictionary, parent and namespace-scope
+  checks test invariants the owned tree keeps by construction.
 
 ## Constraints and deliberate boundaries
 

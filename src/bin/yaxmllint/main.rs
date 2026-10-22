@@ -157,7 +157,12 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
         for diagnostic in &parsed.diagnostics {
             eprint!("{}", diagnostic.render(name, &lines));
         }
-        return Ok(parsed.document);
+        // htmlReadFile records the file name as the document URL.
+        let mut document = parsed.document;
+        if let Ok(mut editor) = document.edit(yaxml::EditLimits::DEFAULT) {
+            _ = editor.set_url(Some(name));
+        }
+        return Ok(document);
     }
     let options = ParseOptions::new(flags(o)).with_limits(limits);
     OwnedDocument::parse_with(input, options.with_resolver(name, resolver(o)))
@@ -356,6 +361,9 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         .as_deref()
         .map_or(0, |expression| query(&document, expression, o, &mut out));
     let saved = if o.noout {
+        0
+    } else if o.debug {
+        out.extend_from_slice(yaxml::debug::dump_document(&document).as_bytes());
         0
     } else {
         save(o, &document, &mut out)

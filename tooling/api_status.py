@@ -987,7 +987,17 @@ I|xmlIsPubidChar xmlIsPubidCharQ xmlIsPubidChar_ch|chars::is_pubid_char
 P|xmlIsPubidChar_tab|chars::is_pubid_char - a predicate, no table
 A|xmlChLRange* xmlChRange* xmlChSRange* xmlCharInRange xmlIs*Group|the chars predicates keep their range tables private
 A|xmlDict* xmlInitializeDict xmlHash* xmlLink* xmlList* XML_CAST_FPTR|no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
-N|xmlDebug*|diagnostic dumps not started (roadmap 22)
+I|xmlDebugDumpString|debug::dump_string
+I|xmlDebugDumpDocumentHead|debug::dump_document_head
+I|xmlDebugDumpNode|debug::dump_node
+I|xmlDebugDumpOneNode|debug::dump_one_node
+I|xmlDebugDumpNodeList|debug::dump_node_list
+I|xmlDebugDumpAttr|debug::dump_attribute - attribute by position
+I|xmlDebugDumpAttrList|debug::dump_attributes
+P|xmlDebugDumpDocument|debug::dump_document - no NOENT entity-declaration children, CRLF and `<?pi ?>` divergences (feature `debug`)
+P|xmlDebugDumpDTD|debug::dump_dtd - the internal subset re-read, as save reads it
+P|xmlDebugDumpEntities|debug::dump_entities - declaration order, no `orig`
+P|xmlDebugCheckDocument|debug::check_document - detached roots and non-Name names; the tree keeps libxml2's other checked invariants
 A|xmlMem* xmlGcMem* xmlMalloc* xmlRealloc* xmlFree xmlFreeFunc xmlCleanupMemory xmlInitMemory xmlMemoryStrdup xmlMemoryDump xmlStrdupFunc __xmlFree __xmlMalloc __xmlMallocAtomic __xmlMemStrdup __xmlRealloc|global allocator and Drop; no allocation callbacks
 A|xmlCheckThreadLocalStorage xmlCleanupThreads xmlFreeMutex xmlFreeRMutex xmlInitThreads xmlLockLibrary xmlMutex xmlMutexLock xmlMutexPtr xmlMutexUnlock xmlNewMutex xmlNewRMutex xmlRMutex xmlRMutexLock xmlRMutexPtr xmlRMutexUnlock xmlUnlockLibrary|no global state; types are Send
 R|xmlModule* XML_MODULE_*|dynamic modules removed from default builds (Feature::Modules is false)

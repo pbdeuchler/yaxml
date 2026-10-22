@@ -17,6 +17,8 @@ pub const XPATH_EMPTY: i32 = 11;
 #[derive(Default)]
 pub struct Opts {
     pub noout: bool,
+    /// `--debug`: `xmlDebugDumpDocument` instead of the saved document.
+    pub debug: bool,
     pub quiet: bool,
     pub timing: bool,
     pub version: bool,
@@ -79,6 +81,7 @@ fn number(value: &str) -> Option<usize> {
 
 const TABLE: &[Spec] = &[
     flag("noout", |o, _| Opts { noout: true, ..o }),
+    flag("debug", |o, _| Opts { debug: true, ..o }),
     flag("quiet", |o, _| Opts { quiet: true, ..o }),
     flag("timing", |o, _| Opts { timing: true, ..o }),
     flag("version", |o, _| Opts { version: true, ..o }),

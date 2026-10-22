@@ -901,7 +901,7 @@ impl<'a, 'r> Parser<'a, 'r> {
             let run = match kind {
                 LiteralKind::EntityValue => memchr::memchr3(quote, b'%', b'&', rest),
                 LiteralKind::AttributeValue => memchr::memchr3(quote, b'<', b'&', rest),
-                LiteralKind::SystemIdentifier => memchr::memchr2(quote, b'#', rest),
+                LiteralKind::SystemIdentifier => memchr::memchr(quote, rest),
                 _ => Some(0),
             };
             if let Some(run @ 1..) = run {
@@ -910,9 +910,6 @@ impl<'a, 'r> Parser<'a, 'r> {
             }
             let character = self.remaining().chars().next().expect("byte exists");
             match (kind, byte) {
-                (LiteralKind::SystemIdentifier, b'#') => {
-                    return Err(self.error(ErrorKind::InvalidDtd));
-                }
                 // The closing quote returned above.
                 (LiteralKind::PublicIdentifier, _) if !pubid_char(character) => {
                     return Err(self.error(ErrorKind::InvalidDtd));
@@ -1157,6 +1154,14 @@ impl<'a, 'r> Parser<'a, 'r> {
             (None, false)
         } else {
             let identifier = self.external_identifier(false)?;
+            // xmlParseEntityDecl: "Fragment not allowed" (not for a
+            // DOCTYPE or NOTATION system identifier).
+            if let Some(system) = identifier.system {
+                let range = self.tokens[system].range.clone();
+                if let Some(at) = self.raw[range.clone()].find('#') {
+                    return Err(Error::new(ErrorKind::InvalidDtd, range.start + at));
+                }
+            }
             let ndata = !parameter
                 && !self
                     .remaining()

@@ -9,10 +9,11 @@ use std::collections::HashSet;
 
 use super::Out;
 use crate::dtd::{
-    AttributeKind, Connector, DefaultDeclarationView, DtdLimits, DtdUnitView, ElementContentView,
-    EntityDefinitionView, ExternalIdView, ModelTokenView, Occurrence,
+    AttributeDefinitionView, AttributeKind, Connector, DefaultDeclarationView, DtdLimits,
+    DtdUnitView, ElementContentView, EntityDefinitionView, ExternalIdView, ModelTokenView,
+    Occurrence,
 };
-use crate::dtd_catalog::DtdCatalog;
+use crate::dtd_catalog::{DtdCatalog, StoredDefault};
 use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::parser::Budget;
 use crate::{DecodeLimits, Doctype, Error, ErrorKind, Limits};
@@ -71,6 +72,20 @@ fn declarations(
     notations: &mut Out<'_>,
     out: &mut Out<'_>,
 ) -> Result<bool, Error> {
+    let (mut seen, mut declared) = (HashSet::new(), false);
+    units(name, subset, |view, catalog| {
+        declared |= declaration(view, catalog, &mut seen, notations, out);
+    })?;
+    Ok(declared)
+}
+
+/// Reads the internal subset again, expanding internal parameter entities,
+/// and passes each unit in order with the catalog read so far.
+pub(crate) fn units(
+    name: &str,
+    subset: &str,
+    mut each: impl FnMut(DtdUnitView<'_>, &DtdCatalog),
+) -> Result<(), Error> {
     // The subset is source text; parsing normalizes its line ends.
     let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
@@ -79,17 +94,17 @@ fn declarations(
         max_dtd_bytes: defaults.max_dtd_bytes.max(text.len()),
         ..defaults
     };
-    let options = DtdLimits::new(limits, DecodeLimits::default());
+    // Without NOENT, so defaults keep their references (`StoredDefault` `kept`).
+    let options = DtdLimits {
+        flags: crate::options::Flags(0),
+        ..DtdLimits::new(limits, DecodeLimits::default())
+    };
     let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false);
     // A recovered document's subset can hold what libxml2 reads on from.
     let mut budget = Budget::new(limits).recovering();
-    let (mut seen, mut declared) = (HashSet::new(), false);
     while !controller.is_complete() {
         match controller.current() {
-            Some((DtdEvent::Item(unit), _)) => {
-                let view = unit.view();
-                declared |= declaration(view, controller.catalog(), &mut seen, notations, out);
-            }
+            Some((DtdEvent::Item(unit), _)) => each(unit.view(), controller.catalog()),
             Some(_) => {}
             None => {
                 controller.advance_borrowed(&mut budget)?;
@@ -98,7 +113,33 @@ fn declarations(
         }
         controller.release();
     }
-    Ok(declared)
+    Ok(())
+}
+
+/// The default libxml2 stores for an attribute definition: references
+/// expanded, then normalized.
+pub(crate) fn stored_default<'a>(
+    catalog: &'a DtdCatalog,
+    element: &str,
+    definition: &AttributeDefinitionView<'a>,
+    kept: bool,
+) -> Option<&'a str> {
+    let DefaultDeclarationView::Value { literal, .. } = definition.default() else {
+        return None;
+    };
+    let stored = catalog
+        .attributes(element)
+        .find(|binding| binding.name == definition.name())
+        .and_then(|binding| match (&binding.default, kept) {
+            (
+                StoredDefault::Value {
+                    kept: Some(form), ..
+                },
+                true,
+            ) => Some(form.as_str()),
+            (default, _) => default.value(),
+        });
+    Some(stored.unwrap_or(literal.content().0))
 }
 
 /// Writes one unit unless it repeats a declaration; true for declarations.
@@ -160,22 +201,13 @@ fn declaration(
                     }
                     out.raw(")");
                 }
-                let (keyword, literal) = match definition.default() {
-                    DefaultDeclarationView::Required => (" #REQUIRED", None),
-                    DefaultDeclarationView::Implied => (" #IMPLIED", None),
-                    DefaultDeclarationView::Value { fixed, literal } => (
-                        if fixed { " #FIXED" } else { "" },
-                        Some(literal.content().0),
-                    ),
-                };
-                out.raw(keyword);
-                if let Some(literal) = literal {
-                    // The stored default: references expanded, then normalized.
-                    let value = catalog
-                        .attributes(element)
-                        .find(|binding| binding.name == definition.name())
-                        .and_then(|binding| binding.default.value())
-                        .unwrap_or(literal);
+                out.raw(match definition.default() {
+                    DefaultDeclarationView::Required => " #REQUIRED",
+                    DefaultDeclarationView::Implied => " #IMPLIED",
+                    DefaultDeclarationView::Value { fixed: true, .. } => " #FIXED",
+                    DefaultDeclarationView::Value { .. } => "",
+                });
+                if let Some(value) = stored_default(catalog, element, &definition, false) {
                     out.raw(" \"");
                     out.text(value, true);
                     out.raw("\"");

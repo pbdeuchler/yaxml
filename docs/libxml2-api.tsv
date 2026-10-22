@@ -265,17 +265,17 @@ chvalid.h	xmlIsPubidChar	function	yes	P0	implemented	https://github.com/GNOME/li
 chvalid.h	xmlIsPubidCharQ	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char
 chvalid.h	xmlIsPubidChar_ch	macro	not_marked	P0	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char
 chvalid.h	xmlIsPubidChar_tab	variable	not_marked	P0	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	chars::is_pubid_char - a predicate, no table
-debugXML.h	xmlDebugCheckDocument	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpAttr	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpAttrList	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpDTD	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpDocument	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpDocumentHead	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpEntities	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpNode	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpNodeList	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpOneNode	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
-debugXML.h	xmlDebugDumpString	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	diagnostic dumps not started (roadmap 22)
+debugXML.h	xmlDebugCheckDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::check_document - detached roots and non-Name names; the tree keeps libxml2's other checked invariants
+debugXML.h	xmlDebugDumpAttr	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_attribute - attribute by position
+debugXML.h	xmlDebugDumpAttrList	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_attributes
+debugXML.h	xmlDebugDumpDTD	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_dtd - the internal subset re-read, as save reads it
+debugXML.h	xmlDebugDumpDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_document - no NOENT entity-declaration children, CRLF and `<?pi ?>` divergences (feature `debug`)
+debugXML.h	xmlDebugDumpDocumentHead	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_document_head
+debugXML.h	xmlDebugDumpEntities	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_entities - declaration order, no `orig`
+debugXML.h	xmlDebugDumpNode	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_node
+debugXML.h	xmlDebugDumpNodeList	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_node_list
+debugXML.h	xmlDebugDumpOneNode	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_one_node
+debugXML.h	xmlDebugDumpString	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/debugXML.h	debug::dump_string
 dict.h	xmlDict	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 dict.h	xmlDictCleanup	function	yes	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
 dict.h	xmlDictCreate	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/dict.h	no dictionary, hash or list API; HashMap/Vec/VecDeque replace them

@@ -177,6 +177,7 @@ yaxml = { version = "0.1", default-features = false, features = ["xpath"] }
 | `html` | `html`, `save::AS_HTML` | | 6,250 |
 | `textreader` | `TextReader` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 1,700 |
 | `textwriter` | `TextWriter` | | 1,200 |
+| `debug` | `debug` (libxml2's debugXML dumps, `yaxmllint --debug`) | | 750 |
 | `encodings` | UCS-4 and EBCDIC input and `save` output (the code pages of the macOS iconv) | | 450 |
 | `full` | all of the above (default) | | |
 | `allocator_api` | Rust 1.100+: `OwnedDocument` storage in any `Allocator` (`OwnedDocument::parse_in`); not in `full` | | |

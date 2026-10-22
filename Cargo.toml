@@ -29,7 +29,7 @@ memchr = "2.8.0"
 # Editor, DTD processing and validation (`valid`), diagnostics, `save`,
 # `Writer`, `uri` and `chars`. README.md#features lists what each adds.
 default = ["full"]
-full = ["xpath", "c14n", "xinclude", "catalog", "schemas", "html", "textreader", "textwriter", "encodings"]
+full = ["xpath", "c14n", "xinclude", "catalog", "schemas", "html", "textreader", "textwriter", "encodings", "debug"]
 # XPath 1.0 compile/evaluate (`xpath`), `xpointer`, `pattern`.
 xpath = []
 # Canonical XML (`c14n`).
@@ -49,6 +49,8 @@ textreader = ["schemas"]
 textwriter = []
 # UCS-4 and EBCDIC input (the EBCDIC code pages of the macOS iconv).
 encodings = []
+# libxml2's debugging dumps (`debug`, `xmllint --debug`).
+debug = []
 # Allocator-aware OwnedDocument storage; requires Rust 1.100 (std allocator API).
 allocator_api = []
 
@@ -81,11 +83,15 @@ required-features = ["catalog"]
 
 [[test]]
 name = "catalog_pi"
-required-features = ["catalog", "textreader"]
+required-features = ["catalog", "textreader", "debug"]
 
 [[test]]
 name = "encodings"
 required-features = ["encodings"]
+
+[[test]]
+name = "debug"
+required-features = ["debug", "html"]
 
 [[test]]
 name = "defaults"

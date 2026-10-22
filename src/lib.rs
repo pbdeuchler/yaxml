@@ -67,6 +67,8 @@ pub mod c14n;
 #[cfg(feature = "catalog")]
 pub mod catalog;
 pub mod chars;
+#[cfg(feature = "debug")]
+pub mod debug;
 pub mod diagnostic;
 mod dom;
 mod dtd;
