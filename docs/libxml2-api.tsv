@@ -3711,13 +3711,13 @@ xmlwriter.h	xmlTextWriterWriteVFormatElementNS	function	not_marked	P1	not-applic
 xmlwriter.h	xmlTextWriterWriteVFormatPI	function	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	format!/write! replace printf-style formatting
 xmlwriter.h	xmlTextWriterWriteVFormatRaw	function	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	format!/write! replace printf-style formatting
 xmlwriter.h	xmlTextWriterWriteVFormatString	function	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlwriter.h	format!/write! replace printf-style formatting
-xpath.h	XML_XPATH_CHECKNS	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	CHECKNS/NOVAR flags not implemented (docs/xpath.md)
-xpath.h	XML_XPATH_NOVAR	macro	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	CHECKNS/NOVAR flags not implemented (docs/xpath.md)
+xpath.h	XML_XPATH_CHECKNS	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
+xpath.h	XML_XPATH_NOVAR	macro	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
 xpath.h	XPATH_BOOLEAN	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Value
 xpath.h	XPATH_ENCODING_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
 xpath.h	XPATH_EXPRESSION_OK	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	success is Ok(..)
 xpath.h	XPATH_EXPR_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::Expression - category only; no numeric code
-xpath.h	XPATH_FORBID_VARIABLE_ERROR	enum_value	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	no matching xpath::ErrorKind
+xpath.h	XPATH_FORBID_VARIABLE_ERROR	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::ForbiddenVariable
 xpath.h	XPATH_INVALID_ARITY	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidArity - category only; no numeric code
 xpath.h	XPATH_INVALID_CHAR_ERROR	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidChar - category only; no numeric code
 xpath.h	XPATH_INVALID_CTXT	enum_value	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind::InvalidContext - category only; no numeric code
@@ -3767,7 +3767,7 @@ xpath.h	_xmlXPathContext.dict	field	not_marked	P2	not-applicable	https://github.
 xpath.h	_xmlXPathContext.doc	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
 xpath.h	_xmlXPathContext.error	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
 xpath.h	_xmlXPathContext.extra	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
-xpath.h	_xmlXPathContext.flags	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
+xpath.h	_xmlXPathContext.flags	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context::with_flags
 xpath.h	_xmlXPathContext.funcHash	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
 xpath.h	_xmlXPathContext.funcLookupData	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
 xpath.h	_xmlXPathContext.funcLookupFunc	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::Context is a builder; no public fields
@@ -3864,7 +3864,7 @@ xpath.h	xmlXPathConvertBoolean	function	not_marked	P2	partial	https://github.com
 xpath.h	xmlXPathConvertFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	internal XPath machinery; Vec<xpath::Node> and closures
 xpath.h	xmlXPathConvertNumber	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
 xpath.h	xmlXPathConvertString	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate - conversions run inside evaluation
-xpath.h	xmlXPathCtxtCompile	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::compile_with_limits
+xpath.h	xmlXPathCtxtCompile	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::compile_in
 xpath.h	xmlXPathError	enum	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::ErrorKind
 xpath.h	xmlXPathEval	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate
 xpath.h	xmlXPathEvalExpression	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xpath.h	xpath::XPath::evaluate

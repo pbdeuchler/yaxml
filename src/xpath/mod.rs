@@ -18,7 +18,7 @@
 //! ```
 
 mod eval;
-mod parse;
+pub(crate) mod parse;
 // Shared helpers: some are unused when features are off.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
 pub(crate) mod tree;
@@ -219,6 +219,8 @@ pub enum ErrorKind {
     UndefinedPrefix,
     /// `XPATH_INVALID_CHAR_ERROR`
     InvalidChar,
+    /// `XPATH_FORBID_VARIABLE_ERROR`: a variable reference under [`NOVAR`].
+    ForbiddenVariable,
     /// `XPATH_INVALID_CTXT`: a node that does not belong to the evaluated tree.
     InvalidContext,
     /// `XPATH_OP_LIMIT_EXCEEDED` / `XPATH_RECURSION_LIMIT_EXCEEDED` and size ceilings.
@@ -279,6 +281,7 @@ impl Error {
             ErrorKind::UndefinedPrefix => (19, "Undefined namespace prefix"),
             ErrorKind::InvalidChar => (21, "Char out of XML range"),
             ErrorKind::InvalidContext => (22, "Invalid or incomplete context"),
+            ErrorKind::ForbiddenVariable => (24, "Forbidden variable"),
             ErrorKind::LimitExceeded(Limit::Depth) => (26, "Recursion limit exceeded"),
             ErrorKind::LimitExceeded(_) => (25, "Operation limit exceeded"),
             ErrorKind::Allocation => (15, "Memory allocation error"),
@@ -320,6 +323,7 @@ pub type Function<Id> = Box<dyn Fn(&[Value<Id>]) -> Result<Value<Id>, Error> + S
 /// and limits. Names are expanded as (namespace URI, local name), with `""`
 /// for no namespace. The `xml` prefix is always bound.
 pub struct Context<Id> {
+    flags: u32,
     namespaces: HashMap<String, String>,
     variables: HashMap<String, HashMap<String, Value<Id>>>,
     functions: HashMap<String, HashMap<String, Function<Id>>>,
@@ -329,6 +333,7 @@ pub struct Context<Id> {
 impl<Id> Default for Context<Id> {
     fn default() -> Self {
         Self {
+            flags: 0,
             namespaces: HashMap::new(),
             variables: HashMap::new(),
             functions: HashMap::new(),
@@ -340,6 +345,7 @@ impl<Id> Default for Context<Id> {
 impl<Id> fmt::Debug for Context<Id> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Context")
+            .field("flags", &self.flags)
             .field("namespaces", &self.namespaces)
             .field("limits", &self.limits)
             .finish_non_exhaustive()
@@ -402,6 +408,13 @@ impl<Id> Context<Id> {
         self
     }
 
+    /// libxml2's `XML_XPATH_*` compilation flags ([`CHECKNS`], [`NOVAR`]),
+    /// applied by [`XPath::compile_in`]; other bits are unused, as in libxml2.
+    pub fn with_flags(mut self, flags: u32) -> Self {
+        self.flags = flags;
+        self
+    }
+
     fn namespace(&self, prefix: &str) -> Option<&str> {
         match prefix {
             "xml" => Some(tree::XML_NAMESPACE),
@@ -409,6 +422,12 @@ impl<Id> Context<Id> {
         }
     }
 }
+
+/// `XML_XPATH_CHECKNS`: [`XPath::compile_in`] rejects a name test whose
+/// prefix the context does not bind.
+pub const CHECKNS: u32 = 1 << 0;
+/// `XML_XPATH_NOVAR`: [`XPath::compile_in`] rejects variable references.
+pub const NOVAR: u32 = 1 << 1;
 
 /// A compiled XPath 1.0 expression, reusable across documents and threads.
 #[derive(Clone, Debug)]
@@ -425,10 +444,47 @@ impl XPath {
 
     /// Compiles an expression within `limits`.
     pub fn compile_with_limits(expression: &str, limits: &Limits) -> Result<Self, Error> {
+        Self::compiled(expression, limits, parse::Checks::NONE)
+    }
+
+    pub(crate) fn compiled(
+        expression: &str,
+        limits: &Limits,
+        checks: parse::Checks<'_>,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            ast: parse::parse(expression, limits)?,
+            ast: parse::parse(expression, limits, checks)?,
             source: copied(expression)?.into(),
         })
+    }
+
+    /// Compiles within `context`'s limits and [flags](Context::with_flags)
+    /// (`xmlXPathCtxtCompile`): under [`CHECKNS`] a name-test prefix the
+    /// context does not bind is `UndefinedPrefix`, under [`NOVAR`] a variable
+    /// reference is `ForbiddenVariable`, where the parser meets it (before any later
+    /// syntax error, after lexical ones).
+    ///
+    /// ```
+    /// use yaxml::xpath::{CHECKNS, Context, ErrorKind, NOVAR, XPath};
+    /// use yaxml::NodeId;
+    ///
+    /// let context = Context::<NodeId>::new()
+    ///     .with_namespace("p", "urn:p")
+    ///     .with_flags(CHECKNS | NOVAR);
+    /// assert!(XPath::compile_in("/p:a/@p:b", &context).is_ok());
+    /// let kind = |expression| XPath::compile_in(expression, &context).unwrap_err().kind;
+    /// assert_eq!(kind("q:a"), ErrorKind::UndefinedPrefix);
+    /// assert_eq!(kind("a[$v]/q:b"), ErrorKind::ForbiddenVariable);
+    /// assert!(XPath::compile_in("q:a[$v]", &Context::<NodeId>::new()).is_ok());
+    /// ```
+    pub fn compile_in<Id>(expression: &str, context: &Context<Id>) -> Result<Self, Error> {
+        let bound =
+            |prefix: &str| context.flags & CHECKNS == 0 || context.namespace(prefix).is_some();
+        let checks = parse::Checks {
+            bound: &bound,
+            variables: context.flags & NOVAR == 0,
+        };
+        Self::compiled(expression, &context.limits, checks)
     }
 
     /// The source expression.
@@ -457,24 +513,6 @@ impl XPath {
         budget: &mut u64,
     ) -> Result<Value<T::Id>, Error> {
         eval::evaluate(tree, &self.source, &self.ast, node, context, budget)
-    }
-
-    /// libxml2's `XML_XPATH_CHECKNS` compilation: the first name-test prefix
-    /// that `bound` rejects is an `UndefinedPrefix` error at its offset.
-    #[cfg(feature = "schemas")]
-    pub(crate) fn check_prefixes(&self, bound: impl Fn(&str) -> bool) -> Result<(), Error> {
-        let unbound = (self.ast.steps.iter())
-            .filter_map(|step| match step.test {
-                parse::Test::Name(name) => name.prefix,
-                parse::Test::Any(prefix) => prefix,
-                _ => None,
-            })
-            .filter(|prefix| !bound(prefix.text(&self.source)))
-            .map(|prefix| prefix.range().start)
-            .min();
-        unbound.map_or(Ok(()), |offset| {
-            Err(Error::at(ErrorKind::UndefinedPrefix, offset))
-        })
     }
 
     /// Evaluates an expression that must produce a node-set.

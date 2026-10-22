@@ -1109,3 +1109,46 @@ fn compare_rejects_foreign_and_disconnected_nodes() {
     assert_eq!(compare(&owned, a, c), None);
     assert_eq!(compare(&owned, c, b), None);
 }
+
+/// `xmlXPathCtxtCompile` verdicts of libxml2 2.15.4 for a context binding
+/// `p` with `flags` (1 = CHECKNS, 2 = NOVAR): 0 or the error code.
+#[test]
+fn compile_flags_match_libxml2() {
+    let cases = [
+        (1, "q:a", 1219),
+        (1, "/p:a/q:b", 1219),
+        (1, "q:*", 1219),
+        (1, "@q:a", 1219),
+        (1, "namespace::q:a", 1219),
+        (1, "xml:a", 0),
+        (1, "q:f()", 0),
+        (1, "$q:v", 0),
+        (1, "p:a", 0),
+        (1, "/a//b", 0),
+        (1, "a[q:b]", 1219),
+        (1, "a | q:b", 1219),
+        (1, "q:a +", 1219),
+        (0, "q:a", 0),
+        (2, "$v", 1224),
+        (2, "a[$v]", 1224),
+        (2, "count($v)", 1224),
+        (2, "$v +", 1224),
+        (2, "a[", 1207),
+        (3, "q:a[$v]", 1219),
+        (3, "a[$v]/q:b", 1224),
+        (3, "$v/q:b", 1224),
+        (3, "q:b[$v", 1219),
+        (2, "p:a", 0),
+        (0, "$v", 0),
+        (3, "child::q:a", 1219),
+        (3, "self::node()", 0),
+    ];
+    for (flags, expression, code) in cases {
+        let context = Context::<NodeId>::new()
+            .with_namespace("p", "urn:p")
+            .with_flags(flags);
+        let result = XPath::compile_in(expression, &context);
+        let got = result.err().map_or(0, |error| error.libxml2(expression).0);
+        assert_eq!(got, code, "{flags} {expression}");
+    }
+}

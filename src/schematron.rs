@@ -456,8 +456,11 @@ impl<'a, T: Navigate> Parser<'a, T> {
         let bound = |prefix: &str| {
             prefix == "xml" || self.namespaces.iter().any(|(bound, _)| bound == prefix)
         };
-        let compiled = XPath::compile_with_limits(expression, &self.limits.xpath)
-            .and_then(|xpath| xpath.check_prefixes(bound).map(|()| xpath));
+        let checks = xpath::parse::Checks {
+            bound: &bound,
+            variables: true,
+        };
+        let compiled = XPath::compiled(expression, &self.limits.xpath, checks);
         compiled
             .map_err(|error| {
                 self.push(xpath_error(error, expression, true));

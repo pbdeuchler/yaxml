@@ -658,7 +658,7 @@ I|xmlErrorLevel|diagnostic::Level
 I|xmlParserErrors|diagnostic::code - codes yaxml produces; ErrorKind::libxml2_code
 # ---- xpath.h / xpathInternals.h
 I|xmlXPathCompile|xpath::XPath::compile
-P|xmlXPathCtxtCompile|xpath::XPath::compile_with_limits
+I|xmlXPathCtxtCompile|xpath::XPath::compile_in
 I|xmlXPathCompiledEval|xpath::XPath::evaluate
 P|xmlXPathCompiledEvalToBoolean xmlXPathEval xmlXPathEvalExpression xmlXPathNodeEval xmlXPathEvalPredicate xmlXPathEvaluatePredicateResult|xpath::XPath::evaluate
 I|xmlXPathNewContext|xpath::Context::new
@@ -668,7 +668,8 @@ I|xmlXPathRegisterVariableNS|xpath::Context::with_variable_ns
 I|xmlXPathRegisterFunc|xpath::Context::with_function
 I|xmlXPathRegisterFuncNS|xpath::Context::with_function_ns
 N|xmlXPathRegisterFuncLookup xmlXPathRegisterVariableLookup xmlXPathFunctionLookup xmlXPathFunctionLookupNS xmlXPathVariableLookup xmlXPathVariableLookupNS xmlXPathNsLookup xmlXPathRegisterAllFunctions xmlXPathSetErrorHandler xmlXPathContextSetCache xmlXPathSetContextNode|lookup callbacks not started (docs/xpath.md)
-N|XML_XPATH_CHECKNS XML_XPATH_NOVAR|CHECKNS/NOVAR flags not implemented (docs/xpath.md)
+I|XML_XPATH_CHECKNS XML_XPATH_NOVAR|xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
+I|_xmlXPathContext.flags|xpath::Context::with_flags
 A|xmlXPathFreeContext xmlXPathFreeCompExpr xmlXPathFreeNodeSet xmlXPathFreeNodeSetList xmlXPathFreeObject xmlXPathFreeParserContext xmlXPathRegisteredFuncsCleanup xmlXPathRegisteredNsCleanup xmlXPathRegisteredVariablesCleanup xmlXPathInit|Drop
 I|xmlXPathObject xmlXPathObjectType|xpath::Value
 I|xmlXPathCompExpr|xpath::XPath
@@ -680,8 +681,9 @@ I|XPATH_NODESET XPATH_BOOLEAN XPATH_NUMBER XPATH_STRING|xpath::Value
 N|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|no such XPath value type (range extensions removed in 2.15)
 A|XPATH_EXPRESSION_OK|success is Ok(..)
 A|XPATH_MEMORY_ERROR|allocation failure aborts
-N|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_ENCODING_ERROR XPATH_STACK_ERROR XPATH_FORBID_VARIABLE_ERROR XPTR_SYNTAX_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|no matching xpath::ErrorKind
+N|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_ENCODING_ERROR XPATH_STACK_ERROR XPTR_SYNTAX_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|no matching xpath::ErrorKind
 P|xmlXPathError|xpath::ErrorKind
+I|XPATH_FORBID_VARIABLE_ERROR|xpath::ErrorKind::ForbiddenVariable
 P|xmlXPathCast* xmlXPathConvert* xmlXPathStringEvalNumber|xpath::XPath::evaluate - conversions run inside evaluation
 P|xmlXPath*Function|xpath::XPath::evaluate - core function library, not individually callable
 P|xmlXPathNext*|xpath::XPath::evaluate - axes run inside evaluation

@@ -77,13 +77,18 @@ Not compared, and deliberately different:
   yaxml (evaluation and `xpath::compare`, its port) orders them by their
   element, after it and before its attributes, so unions mixing namespace
   nodes with other nodes may sort differently.
+- `XPath::compile_in` applies `Context::with_flags` (`CHECKNS`, `NOVAR`) as
+  `xmlXPathCtxtCompile`, reporting where the parser meets the name test or
+  variable, as libxml2 does; lexical errors (unfinished literal, invalid
+  character, `$` without a name) come first, since the expression is
+  tokenized before it is parsed. `tests/xpath.rs` pins 27 verdicts recorded
+  from libxml2.
 - `namespace::p:x` and `namespace::p:*` select nothing, since namespace nodes
   have a null namespace URI; libxml2 ignores the test's prefix.
 
 ## Gaps
 
-XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`, compile-time namespace checking
-(`XML_XPATH_CHECKNS`) or variable forbidding (`XML_XPATH_NOVAR`). Variable and
+XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`. Variable and
 function lookup callbacks are static maps. Extension functions receive their
 evaluated arguments, not the context node or tree. Entity-reference nodes do
 not exist in the current DOMs.
