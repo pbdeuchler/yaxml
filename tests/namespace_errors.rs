@@ -508,3 +508,98 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
         assert_eq!(strict, Err(ErrorKind::MismatchedEndTag), "{surface}");
     }
 }
+
+#[test]
+fn flagged_warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
+    use yaxml::Warning;
+    use yaxml::options::PEDANTIC;
+    // (input, flag, warning, code, column, message), from the libxml2 2.15.4
+    // error helper; without the flag every input is silent.
+    #[rustfmt::skip]
+    let cases: &[(&str, u32, Warning, u16, usize, &str)] = &[
+        ("<r xml:lang='en-us-x'/>", PEDANTIC, Warning::LangValue, 98, 22,
+         "Malformed value for xml:lang : en-us-x"),
+        ("<r xml:lang=\"de-CH-1996\" a=\"1\"/>", PEDANTIC, Warning::LangValue, 98, 25,
+         "Malformed value for xml:lang : de-CH-1996"),
+        ("<r xmlns:p='rel'/>", PEDANTIC, Warning::RelativeNamespaceUri, 100, 17,
+         "xmlns:p: URI rel is not absolute"),
+        ("<!DOCTYPE r [<!ENTITY e \"a\"><!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 41, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY % p \"a\"><!ENTITY % p 'b'>]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 45, "Entity(p) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY e SYSTEM \"x\"><!ENTITY e \"b\" >]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 49, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY % d \"<!ENTITY e 'b'>\"><!ENTITY e \"a\">%d;]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 61, "Entity(e) already defined in the internal subset"),
+        // libxml2's column lags one per entity value earlier on the line.
+        ("<!DOCTYPE r [<!ENTITY e \"x\"><!ENTITY f \"y\"><!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 55, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY e \"a\"><!ENTITY % p \"\">%p;<!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 59, "Entity(e) already defined in the internal subset"),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog bogus?><r/>", yaxml::options::CATALOG_PI, Warning::CatalogPi, 93,
+         28, "Catalog PI syntax error: bogus"),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog catalog=\"x\" junk?><r/>", yaxml::options::CATALOG_PI,
+         Warning::CatalogPi, 93, 39, "Catalog PI syntax error: catalog=\"x\" junk"),
+        #[cfg(feature = "catalog")]
+        ("<r><?oasis-xml-catalog catalog=x?></r>", yaxml::options::CATALOG_PI,
+         Warning::CatalogPi, 93, 35, "Catalog PI syntax error: catalog=x"),
+    ];
+    for &(input, flag, warning, code, column, message) in cases {
+        let (_, silent) = document(input.as_bytes(), 0).unwrap();
+        assert_eq!(silent, [], "{input}");
+        let (_, reference) = document(input.as_bytes(), flag).unwrap();
+        let kinds: Vec<_> = reference.iter().map(|error| error.kind).collect();
+        assert_eq!(kinds, [ErrorKind::Warning(warning)], "{input}");
+        for flags in [flag, flag | RECOVER] {
+            for (surface, parse) in SURFACES {
+                let (_, errors) = parse(input.as_bytes(), flags)
+                    .unwrap_or_else(|error| panic!("{surface} {flags} rejected {input}: {error}"));
+                assert_eq!(errors, reference, "{surface} flags {flags}: {input}");
+            }
+        }
+        let found = reference[0].describe(&LineIndex::new(input.as_bytes()));
+        assert_eq!(
+            (found.code, found.line, found.column),
+            (code, 1, column),
+            "{input}"
+        );
+        assert_eq!(found.message, message, "{input}");
+    }
+    // Tags libxml2's xmlCheckLanguageID accepts (checked with xmllint
+    // --pedantic), a catalog instruction without `=`, and an entity declared
+    // in each subset.
+    #[rustfmt::skip]
+    let silent: &[(&str, u32)] = &[
+        ("<r xml:lang='en'/>", PEDANTIC), ("<r xml:lang='en-US'/>", PEDANTIC),
+        ("<r xml:lang='i-klingon'/>", PEDANTIC), ("<r xml:lang='abcd'/>", PEDANTIC),
+        ("<r xml:lang='zh-Hant-TW'/>", PEDANTIC), ("<r xml:lang='de-419'/>", PEDANTIC),
+        ("<r xmlns:p='http://x'/>", PEDANTIC),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog catalog x?><r/>", yaxml::options::CATALOG_PI),
+    ];
+    for &(input, flags) in silent {
+        assert_eq!(document(input.as_bytes(), flags).unwrap().1, [], "{input}");
+    }
+    for tag in [
+        "x-foo-bar",
+        "abcdefghi",
+        "e1",
+        "en-",
+        "1en",
+        "sr-Latn-RS-a-b",
+    ] {
+        let input = format!("<r xml:lang='{tag}'/>");
+        let (_, errors) = document(input.as_bytes(), PEDANTIC).unwrap();
+        assert_eq!(errors.len(), 1, "{tag}");
+    }
+    let resolver = |_: yaxml::Request<'_>| Ok(Some(b"<!ENTITY e 'b'>".to_vec()));
+    let input = b"<!DOCTYPE r SYSTEM 'x.dtd' [<!ENTITY e 'a'>]><r/>";
+    let options = ParseOptions::new(PEDANTIC | yaxml::options::DTDLOAD)
+        .with_resolver("doc.xml", Box::new(resolver));
+    assert_eq!(
+        OwnedDocument::parse_with(input, options).unwrap().errors(),
+        []
+    );
+}

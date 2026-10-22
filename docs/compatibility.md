@@ -311,7 +311,8 @@ README.md#cargo-features). `tests/options.rs` covers each row; the `dom`, `owned
 | `DTDLOAD` | With a resolver, loads the external subset and external parameter entities. |
 | `DTDATTR` | Adds non-namespace default attributes (defaulted `xmlns` declarations always apply, as in libxml2); implies `DTDLOAD`. |
 | `DTDVALID` | DOMs: validates after parsing; `Document::validity`/`OwnedDocument::validity` hold the diagnostics. `TextReader`: validates while reading (`dtd_diagnostics`). Loads the subset and external entities (unless `NO_XXE`). Rejected by the other streams (`valid::StreamValidator` validates their events). |
-| `NOERROR`, `NOWARNING`, `PEDANTIC` | Accepted: they only silence or add printed reports in libxml2; yaxml prints nothing and returns diagnostics. Default-on warnings are kept in `errors()` regardless ([Warnings](#warnings)); `PEDANTIC`-only warnings are not raised. |
+| `NOERROR`, `NOWARNING` | Accepted: they only silence printed reports in libxml2; yaxml prints nothing and returns diagnostics. Warnings are kept in `errors()` regardless ([Warnings](#warnings)). |
+| `PEDANTIC` | Adds libxml2's pedantic warnings to `errors()`: `LangValue`, `EntityRedefined` and `RelativeNamespaceUri` for a prefix ([Warnings](#warnings)). |
 | `NOBLANKS` | DOMs: drops ignorable whitespace text with libxml2's `areBlanks` rules (DTD element content, `xml:space`, text kept earlier in an element without `xml:space`, sibling heuristic, which never drops text before an entity reference). `TextReader` drops them as libxml2's reader does, deciding when the text is queued (`TextReader::with_options`; [textreader.md](textreader.md)), and `PushParser` and `BufferedReader` drop the text events by the same rules ([streaming.md](streaming.md#recovery-and-blanks)); rejected by `Reader`. |
 | `SAX1`, `OLDSAX` | `SAX1` accepted (no SAX1 handlers; `sax::Handler` is the SAX2 shape); `OLDSAX` rejected (it changes predefined-entity lookup). |
 | `XINCLUDE` | `OwnedDocument::parse_with`: processes XInclude through the same resolver (`xinclude::process`); failures are `ErrorKind::XInclude`. Rejected by the borrowed DOM, streams and `TextReader`. |
@@ -346,7 +347,10 @@ on `Diagnostic::level`.
 | `UnknownVersion` (`XML_WAR_UNKNOWN_VERSION`, warning) | `version` other than `1.0` |
 | `SpaceValue` (`XML_WAR_SPACE_VALUE`, warning) | `xml:space` other than `default`/`preserve` |
 | `NamespaceUri` (`XML_WAR_NS_URI`, error: `xmlNsErr`, not namespace-well-formed) | a namespace name that is not a URI reference |
-| `RelativeNamespaceUri` (`XML_WAR_NS_URI_RELATIVE`, warning) | a relative default namespace name |
+| `RelativeNamespaceUri` (`XML_WAR_NS_URI_RELATIVE`, warning) | a relative default namespace name; with `PEDANTIC` also a prefixed one |
+| `LangValue` (`XML_WAR_LANG_VALUE`, warning; `PEDANTIC`) | an `xml:lang` value `xmlCheckLanguageID` rejects (RFC 3066/4646 shape) |
+| `EntityRedefined` (`XML_WAR_ENTITY_REDEFINED`, warning; `PEDANTIC`) | a second internal-subset declaration of an entity (the first is kept) |
+| `CatalogPi` (`XML_WAR_CATALOG_PI`, warning; `CATALOG_PI`) | an `oasis-xml-catalog` instruction whose data is not `catalog="URL"` (silent without `=` after `catalog`) |
 | `ReservedTarget` (`XML_ERR_RESERVED_XML_NAME`, warning) | a PI target starting with `xml` (not `xml-stylesheet`/`xml-model`) |
 | `EncodingMismatch` (`XML_WAR_ENCODING_MISMATCH`, warning) | a BOM or signature that disagrees with the declared label |
 | `UndeclaredEntity` (`XML_WAR_UNDECLARED_ENTITY`; error with `NOENT`/`DTDLOAD`/`DTDATTR`) | an undeclared reference libxml2 does not make fatal (unread external subset or parameter entity), in content, attribute values and the internal subset |
@@ -354,7 +358,7 @@ on `Diagnostic::level`.
 | `XmlIdValue` (`XML_DTD_XMLID_VALUE`, error) | an `xml:id` value (specified, or a `DTDATTR` default) that is no NCName once normalized and trimmed, as SAX2 checks it: not in entity content, not when the value keeps entity references (no `NOENT`), not when `DTDVALID` validates a DOCTYPE |
 | `XmlIdType` (`XML_DTD_XMLID_TYPE`, error) | an `xml:id` attribute declared with a type other than `ID` (every definition, also under `DTDVALID`) |
 
-Not matched: `PEDANTIC`-only warnings; the I/O warning for an external
+Not matched: `EntityRedefined` inside the external subset (libxml2's `already defined in the external subset`); the I/O warning for an external
 subset or entity that fails to load (`Ok(None)` from a resolver); warnings
 inside the external subset, ATTLIST defaults and entity values; a strict
 fatal error drops the warnings recorded before it (the parse returns only the

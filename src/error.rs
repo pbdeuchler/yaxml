@@ -54,8 +54,8 @@ pub enum Warning {
     /// A namespace declaration's value is not a URI reference
     /// (`XML_WAR_NS_URI`, which libxml2 reports at error level).
     NamespaceUri,
-    /// A default namespace declaration's URI is relative
-    /// (`XML_WAR_NS_URI_RELATIVE`).
+    /// A default namespace declaration's URI is relative, or under
+    /// `PEDANTIC` any declaration's (`XML_WAR_NS_URI_RELATIVE`).
     RelativeNamespaceUri,
     /// An `xml:space` value other than `default` or `preserve`
     /// (`XML_WAR_SPACE_VALUE`).
@@ -88,6 +88,15 @@ pub enum Warning {
     /// An internal-subset `xml:id` attribute declared with a type other
     /// than ID (`XML_DTD_XMLID_TYPE`, at error level).
     XmlIdType,
+    /// Under `PEDANTIC`, an `xml:lang` value that is not a language tag as
+    /// libxml2's `xmlCheckLanguageID` reads RFC 4646 (`XML_WAR_LANG_VALUE`).
+    LangValue,
+    /// Under `PEDANTIC`, a second declaration of an entity in the internal
+    /// subset, which is ignored (`XML_WAR_ENTITY_REDEFINED`).
+    EntityRedefined,
+    /// Under `CATALOG_PI`, an `oasis-xml-catalog` instruction that is not
+    /// `catalog="URL"`; it is ignored (`XML_WAR_CATALOG_PI`).
+    CatalogPi,
 }
 
 /// What went wrong in an [`Error`].

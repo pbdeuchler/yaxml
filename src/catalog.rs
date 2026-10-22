@@ -1050,21 +1050,26 @@ fn dump_sgml(entry: &Named) -> String {
 
 /// `xmlParseCatalogPI`: the `catalog` pseudo-attribute of an
 /// `oasis-xml-catalog` processing instruction's data (`catalog="URL"`, either
-/// quote), or `None` for a syntax error.
-pub(crate) fn pi_catalog(data: &str) -> Option<&str> {
+/// quote); `Ok(None)` without `=` (ignored), `Err` for libxml2's syntax
+/// warning.
+pub(crate) fn pi_catalog(data: &str) -> Result<Option<&str>, ()> {
     fn after<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
         let rest = text.trim_start_matches(blank_char).strip_prefix(prefix)?;
         Some(rest.trim_start_matches(blank_char))
     }
-    let rest = after(after(data, "catalog")?, "=")?;
-    let quote = rest
-        .chars()
-        .next()
-        .filter(|quote| matches!(quote, '"' | '\''))?;
-    let (url, tail) = rest[1..].split_once(quote)?;
-    tail.trim_start_matches(blank_char)
-        .is_empty()
-        .then_some(url)
+    let rest = after(data, "catalog").ok_or(())?;
+    // libxml2 ignores `catalog` without `=` silently.
+    let Some(rest) = after(rest, "=") else {
+        return Ok(None);
+    };
+    let quote = (rest.chars().next())
+        .filter(|quote| matches!(quote, '"' | '\''))
+        .ok_or(())?;
+    let (url, tail) = rest[1..].split_once(quote).ok_or(())?;
+    match tail.trim_start_matches(blank_char).is_empty() {
+        true => Ok(Some(url)),
+        false => Err(()),
+    }
 }
 
 fn blank_char(c: char) -> bool {

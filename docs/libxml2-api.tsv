@@ -540,7 +540,7 @@ parser.h	XML_PARSER_START_TAG	enum_value	not_marked	P0-P3	not-applicable	https:/
 parser.h	XML_PARSER_SYSTEM_LITERAL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_PARSER_XML_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_PARSE_BIG_LINES	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::BIG_LINES
-parser.h	XML_PARSE_CATALOG_PI	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::CATALOG_PI - acts only through a resolver that takes the instruction (catalog::CatalogResolver)
+parser.h	XML_PARSE_CATALOG_PI	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::CATALOG_PI - acts only through a resolver that takes the instruction (catalog::CatalogResolver); syntax errors = Warning::CatalogPi
 parser.h	XML_PARSE_COMPACT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::COMPACT
 parser.h	XML_PARSE_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_DTDATTR	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::DTDATTR
@@ -562,7 +562,7 @@ parser.h	XML_PARSE_NO_XXE	enum_value	not_marked	P0-P3	implemented	https://github
 parser.h	XML_PARSE_NSCLEAN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NSCLEAN
 parser.h	XML_PARSE_OLD10	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLD10 - Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names
 parser.h	XML_PARSE_OLDSAX	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLDSAX - constant defined, rejected with UnsupportedOption
-parser.h	XML_PARSE_PEDANTIC	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::PEDANTIC - accepted; libxml2 only prints more warnings
+parser.h	XML_PARSE_PEDANTIC	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::PEDANTIC - xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported
 parser.h	XML_PARSE_PUSH_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_PUSH_SAX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_READER	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
@@ -3115,10 +3115,10 @@ xmlerror.h	XML_TREE_INVALID_DEC	enum_value	not_marked	P0-P3	not-applicable	https
 xmlerror.h	XML_TREE_INVALID_HEX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_TREE_NOT_UTF8	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_TREE_UNTERMINATED_ENTITY	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
-xmlerror.h	XML_WAR_CATALOG_PI	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
+xmlerror.h	XML_WAR_CATALOG_PI	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_CATALOG_PI
 xmlerror.h	XML_WAR_ENCODING_MISMATCH	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_ENCODING_MISMATCH
-xmlerror.h	XML_WAR_ENTITY_REDEFINED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
-xmlerror.h	XML_WAR_LANG_VALUE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	no per-code diagnostic
+xmlerror.h	XML_WAR_ENTITY_REDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_ENTITY_REDEFINED
+xmlerror.h	XML_WAR_LANG_VALUE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_LANG_VALUE
 xmlerror.h	XML_WAR_NS_COLUMN	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	never raised by libxml2 2.15.4
 xmlerror.h	XML_WAR_NS_URI	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_NS_URI
 xmlerror.h	XML_WAR_NS_URI_RELATIVE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlerror.h	diagnostic::code::WAR_NS_URI_RELATIVE

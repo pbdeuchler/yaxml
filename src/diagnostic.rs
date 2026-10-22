@@ -225,10 +225,14 @@ pub mod code {
     pub const ENTITY_PE_INTERNAL: u16 = 88;
     /// `XML_ERR_ENTITY_LOOP`.
     pub const ENTITY_LOOP: u16 = 89;
+    /// `XML_WAR_CATALOG_PI`.
+    pub const WAR_CATALOG_PI: u16 = 93;
     /// `XML_ERR_VERSION_MISSING`.
     pub const VERSION_MISSING: u16 = 96;
     /// `XML_WAR_UNKNOWN_VERSION`.
     pub const WAR_UNKNOWN_VERSION: u16 = 97;
+    /// `XML_WAR_LANG_VALUE`.
+    pub const WAR_LANG_VALUE: u16 = 98;
     /// `XML_WAR_NS_URI`.
     pub const WAR_NS_URI: u16 = 99;
     /// `XML_WAR_NS_URI_RELATIVE`.
@@ -237,6 +241,8 @@ pub mod code {
     pub const WAR_SPACE_VALUE: u16 = 102;
     /// `XML_ERR_NOTATION_PROCESSING`.
     pub const NOTATION_PROCESSING: u16 = 105;
+    /// `XML_WAR_ENTITY_REDEFINED`.
+    pub const WAR_ENTITY_REDEFINED: u16 = 107;
     /// `XML_ERR_UNKNOWN_VERSION`.
     pub const UNKNOWN_VERSION: u16 = 108;
     /// `XML_ERR_USER_STOP`.
@@ -298,6 +304,9 @@ impl Warning {
             Self::PredefinedEntity => (REDECL_PREDEF_ENTITY, Domain::Parser),
             Self::XmlIdValue => (DTD_XMLID_VALUE, Domain::Parser),
             Self::XmlIdType => (DTD_XMLID_TYPE, Domain::Parser),
+            Self::LangValue => (WAR_LANG_VALUE, Domain::Parser),
+            Self::EntityRedefined => (WAR_ENTITY_REDEFINED, Domain::Parser),
+            Self::CatalogPi => (WAR_CATALOG_PI, Domain::Parser),
         };
         let level = match self {
             Self::NamespaceUri

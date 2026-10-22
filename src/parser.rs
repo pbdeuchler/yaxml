@@ -429,16 +429,22 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Records the catalog of an `oasis-xml-catalog` instruction when the
-    /// flags ask for it (`xmlParseCatalogPI`; a syntax error is ignored).
+    /// Records the catalog of an `oasis-xml-catalog` instruction at `start`
+    /// when the flags ask for it (`xmlParseCatalogPI`; a syntax error is a
+    /// warning).
     #[cfg(feature = "catalog")]
-    fn note_catalog(&mut self, target: &str, data: &str) {
-        if self.flags.catalog_pi()
-            && target == "oasis-xml-catalog"
-            && let Some(url) = crate::catalog::pi_catalog(data)
-        {
-            (self.catalogs.get_or_insert_default()).push(url.to_owned());
+    fn note_catalog(&mut self, target: &str, data: &str, start: usize) -> Result<(), Error> {
+        if self.flags.catalog_pi() && target == "oasis-xml-catalog" {
+            match crate::catalog::pi_catalog(data) {
+                Ok(Some(url)) => (self.catalogs.get_or_insert_default()).push(url.to_owned()),
+                Ok(None) => {}
+                Err(()) => {
+                    let warning = ErrorKind::Warning(crate::Warning::CatalogPi);
+                    self.budget.recover(Error::new(warning, start))?;
+                }
+            }
         }
+        Ok(())
     }
 
     /// The recorded catalog URLs, in document order.
@@ -1233,7 +1239,7 @@ impl<'source> ParserState<'source> {
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
         #[cfg(feature = "catalog")]
-        self.note_catalog(target, data);
+        self.note_catalog(target, data, start)?;
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
             data: self.normalized::<REREADS>(data, offset, false, false, true)?,
@@ -1356,6 +1362,10 @@ impl<'source> ParserState<'source> {
                     let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
                     self.budget.recover(Error::new(warning, offset))?;
                 }
+                "xml:lang" if self.flags.pedantic() && !language_id(self.unlent(&value)) => {
+                    let warning = ErrorKind::Warning(crate::Warning::LangValue);
+                    self.budget.recover(Error::new(warning, offset))?;
+                }
                 // SAX2 checks `xml:id` unless the value keeps references, the
                 // element is entity content or a DOCTYPE validates it.
                 "xml:id"
@@ -1384,7 +1394,7 @@ impl<'source> ParserState<'source> {
                 let warning = match crate::uri::has_scheme(&value) {
                     _ if value.is_empty() => None,
                     None => Some(crate::Warning::NamespaceUri),
-                    Some(false) if bound_prefix.is_empty() => {
+                    Some(false) if bound_prefix.is_empty() || self.flags.pedantic() => {
                         Some(crate::Warning::RelativeNamespaceUri)
                     }
                     Some(_) => None,
@@ -2079,6 +2089,61 @@ fn expanded<'n>(name: &'n Name<'_>) -> (&'n str, Option<&'n str>) {
     match name.namespace() {
         None => (name.qualified(), None),
         namespace => (name.local(), namespace),
+    }
+}
+
+/// `xmlCheckLanguageID`: libxml2's reading of an RFC 4646 tag, a language
+/// then optional extlang, script, region (letters or three digits) and
+/// variant subtags in that order; anything may follow a variant.
+fn language_id(tag: &str) -> bool {
+    #[derive(Clone, Copy, PartialEq)]
+    enum At {
+        Language,
+        Extlang,
+        Script,
+        Region,
+        Variant,
+    }
+    let b = tag.as_bytes();
+    let letters = |from: usize| {
+        from + b[from..]
+            .iter()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .count()
+    };
+    if let [b'i' | b'I' | b'x' | b'X', b'-', ..] = b {
+        return letters(2) == b.len();
+    }
+    let mut end = letters(0);
+    let mut at = match end {
+        2 | 3 => At::Language,
+        4..=8 => return end == b.len(),
+        _ => return false,
+    };
+    loop {
+        match b.get(end) {
+            None => return true,
+            Some(b'-') if at == At::Variant => return true,
+            Some(b'-') => {}
+            Some(_) => return false,
+        }
+        let start = end + 1;
+        if at != At::Region && b.get(start).is_some_and(u8::is_ascii_digit) {
+            let digits = b.get(start..start + 3);
+            if !digits.is_some_and(|digits| digits.iter().all(u8::is_ascii_digit)) {
+                return false;
+            }
+            (end, at) = (start + 3, At::Region);
+            continue;
+        }
+        end = letters(start);
+        at = match (at, end - start) {
+            (_, 5..=8) => At::Variant,
+            (At::Language, 3) => At::Extlang,
+            (At::Language | At::Extlang, 4) => At::Script,
+            (At::Language | At::Extlang | At::Script, 2) => At::Region,
+            _ => return false,
+        };
     }
 }
 

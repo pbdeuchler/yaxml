@@ -1959,8 +1959,27 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             "Invalid value \"{value}\" for xml:space : \"default\" or \"preserve\" expected"
         ))
         .strs(&value, None),
-        Warning::RelativeNamespaceUri => {
-            past(format!("xmlns: URI {value} is not absolute")).strs(&value, None)
+        Warning::RelativeNamespaceUri => match name.strip_prefix("xmlns:") {
+            Some(prefix) => past(format!("xmlns:{prefix}: URI {value} is not absolute"))
+                .strs(prefix, Some(&value)),
+            None => past(format!("xmlns: URI {value} is not absolute")).strs(&value, None),
+        },
+        Warning::LangValue => {
+            past(format!("Malformed value for xml:lang : {value}")).strs(&value, None)
+        }
+        // Raised past the instruction; its data follows the target.
+        Warning::CatalogPi => {
+            let end = memchr::memmem::find(&t[c.i..], b"?>").map_or(t.len(), |k| c.i + k);
+            let mut target = Cur { i: c.i + 2, ..*c };
+            target.name(true);
+            let data = String::from_utf8_lossy(&t[target.i.min(end)..end]);
+            let data = data.trim_start_matches([' ', '\t', '\r', '\n']);
+            fail(
+                code,
+                (end + 2).min(t.len()),
+                format!("Catalog PI syntax error: {data}"),
+            )
+            .strs(data, None)
         }
         Warning::NamespaceUri => match name.strip_prefix("xmlns:") {
             Some(prefix) => past(format!("xmlns:{prefix}: '{value}' is not a valid URI"))
@@ -1980,8 +1999,27 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
         // Raised by the SAX handler past the declaration's value, or past the
         // parameter-entity reference whose text declares it; libxml2's
         // column after an entity value (or a reference) is that of its last
-        // character.
-        Warning::PredefinedEntity => {
+        // character, less a lag.
+        Warning::PredefinedEntity | Warning::EntityRedefined => {
+            let literal = |text: &str| {
+                (text.split_ascii_whitespace().filter(|&word| word != "%"))
+                    .nth(1)
+                    .is_some_and(|value| value.starts_with(['"', '\'']))
+            };
+            // libxml2's column falls one behind per entity value earlier on
+            // the line (one less at a reference).
+            let line = memchr::memrchr(b'\n', &t[..c.i]).map_or(0, |i| i + 1);
+            let declarations = std::iter::successors(Some((line, line)), |&(_, from)| {
+                let start = from + memchr::memmem::find(&t[from..c.i], b"<!ENTITY")?;
+                Some((
+                    start,
+                    unquoted(t, start, b">").map_or(c.i, |end| end.min(c.i)),
+                ))
+            });
+            let values = (declarations.skip(1))
+                .filter(|&(start, end)| literal(&String::from_utf8_lossy(&t[start + 8..end])))
+                .count();
+            let lag = values.saturating_sub(usize::from(c.b() == b'%'));
             let mut r = Cur { i: c.i + 1, ..*c };
             let (text, end) = match c.b() {
                 b'%' => {
@@ -1989,23 +2027,35 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
                         Ok(Declared::Internal(text)) => text,
                         _ => String::new(),
                     };
-                    (text, r.i)
+                    (text, r.i - lag)
                 }
                 _ => {
                     let end = unquoted(t, c.i, b">").unwrap_or(t.len());
                     let text = String::from_utf8_lossy(&t[c.i..end]).into_owned();
-                    let literal = (text.split_ascii_whitespace().nth(2))
-                        .is_some_and(|value| value.starts_with(['"', '\'']));
                     let last = (c.i..end).rfind(|&i| !blank(t[i])).unwrap_or(c.i);
-                    (text, last + usize::from(!literal))
+                    let past = usize::from(!literal(&text["<!ENTITY".len().min(text.len())..]));
+                    (text, last + past - lag)
                 }
             };
-            let name = (text.split("<!ENTITY").skip(1))
-                .filter_map(|declaration| declaration.split_ascii_whitespace().next())
-                .find(|name| predefined(name).is_some())
-                .unwrap_or_default();
-            let message = format!("Invalid redeclaration of predefined entity '{name}'");
-            fail(code, end, message).strs(name, None)
+            let mut names = (text.split("<!ENTITY").skip(1)).filter_map(|declaration| {
+                let mut words = declaration.split_ascii_whitespace();
+                words
+                    .next()
+                    .filter(|&word| word != "%")
+                    .or_else(|| words.next())
+            });
+            let (name, message) = match warning {
+                Warning::PredefinedEntity => {
+                    let name = names.find(|name| predefined(name).is_some());
+                    (name, "Invalid redeclaration of predefined entity '{}'")
+                }
+                _ => (
+                    names.next(),
+                    "Entity({}) already defined in the internal subset",
+                ),
+            };
+            let name = name.unwrap_or_default();
+            fail(code, end, message.replace("{}", name)).strs(name, None)
         }
         // Raised by SAX2 at the tag's `/>` or `>` (one column early once the
         // tag expanded a declared entity) with the normalized value; a

@@ -164,11 +164,11 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "RECOVER": ("P", "every surface; repair differences in compatibility.md#recovery-recover"),
     "DTDVALID": ("P", "DOMs and TextReader; valid::StreamValidator for other streams"),
     "NOBLANKS": ("P", "every surface but the slice Reader"),
-    "PEDANTIC": ("P", "accepted; libxml2 only prints more warnings"),
+    "PEDANTIC": ("P", "xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported"),
     "OLD10": ("P", "Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
     "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
-    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver)"),
+    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver); syntax errors = Warning::CatalogPi"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
 HTML_OPT = {"HTML5": ("I", "token-level events; trees follow them unbalanced, as in libxml2")}

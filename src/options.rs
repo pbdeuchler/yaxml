@@ -68,9 +68,9 @@ pub const DTDVALID: u32 = 1 << 4;
 pub const NOERROR: u32 = 1 << 5;
 /// `XML_PARSE_NOWARNING`: accepted; yaxml returns warnings and never prints them.
 pub const NOWARNING: u32 = 1 << 6;
-/// `XML_PARSE_PEDANTIC`: accepted; it only adds printed warnings in libxml2
-/// (default-on warnings are kept in `errors()` without it; pedantic ones are
-/// not raised).
+/// `XML_PARSE_PEDANTIC`: also keep libxml2's pedantic warnings in `errors()`
+/// (a malformed `xml:lang`, a redefined entity, a relative URI in a prefixed
+/// namespace declaration); default-on warnings are kept without it.
 pub const PEDANTIC: u32 = 1 << 7;
 /// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs and `TextReader`), with
 /// libxml2's `areBlanks` rules.
@@ -307,6 +307,10 @@ impl Flags {
 
     pub(crate) fn recovers(self) -> bool {
         self.has(RECOVER)
+    }
+
+    pub(crate) fn pedantic(self) -> bool {
+        self.has(PEDANTIC)
     }
 
     pub(crate) fn old10(self) -> bool {

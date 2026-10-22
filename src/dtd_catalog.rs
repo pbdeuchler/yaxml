@@ -480,7 +480,8 @@ impl DtdCatalog {
 
     /// Applies one declaration, returning the warning libxml2 raises for it
     /// and where in `unit`: an invalid redeclaration of a predefined entity
-    /// (dropped) or an `xml:id` attribute declared other than ID. Failure
+    /// (dropped), a redefined entity under `PEDANTIC` or an `xml:id`
+    /// attribute declared other than ID. Failure
     /// offsets are relative to `unit`, or absent inside replacement text.
     pub(crate) fn apply(
         &mut self,
@@ -525,11 +526,21 @@ impl DtdCatalog {
                 // entities from external markup, so they are stored (libxml2
                 // still finds them for ENTITY attributes) but never bound.
                 let bound = parameter || !self.standalone || context.internal_subset;
-                let duplicate = match (parameter, bound) {
-                    (true, _) => self.dtd.parameter.contains_key(entity.name()),
-                    (false, true) => self.dtd.general.contains_key(entity.name()),
-                    (false, false) => self.dtd.declared(entity.name()).is_some(),
+                let existing = match (parameter, bound) {
+                    (true, _) => self.dtd.parameter.get(entity.name()).copied(),
+                    (false, true) => self.dtd.general.get(entity.name()).copied(),
+                    (false, false) => self.dtd.declared(entity.name()),
                 };
+                let duplicate = existing.is_some();
+                // libxml2 keeps one table per subset and warns under PEDANTIC
+                // about a second declaration in the same one.
+                let redefined = existing
+                    .filter(|id| {
+                        self.limits.flags.pedantic()
+                            && self.dtd.entities[id.0].external_subset
+                                == self.reading_external_subset
+                    })
+                    .map(|_| (crate::Warning::EntityRedefined, 0));
                 let (body, bytes) = match entity.definition() {
                     EntityDefinitionView::Internal(literal) => {
                         let (content, offset) = literal.content();
@@ -547,7 +558,7 @@ impl DtdCatalog {
                             return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(None);
+                            return Ok(redefined);
                         }
                         let bytes = result.len();
                         input = context.input.filter(|_| result == content);
@@ -562,7 +573,7 @@ impl DtdCatalog {
                             return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(None);
+                            return Ok(redefined);
                         }
                         let bytes = checked_sum(&[
                             identifier
