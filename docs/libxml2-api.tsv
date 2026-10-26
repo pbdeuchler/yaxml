@@ -3542,9 +3542,9 @@ xmlschemastypes.h	xmlSchemaGetValType	function	not_marked	P3	implemented	https:/
 xmlschemastypes.h	xmlSchemaInitTypes	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	Clone/Drop; no global type table
 xmlschemastypes.h	xmlSchemaIsBuiltInTypeFacet	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Type::allows_facet - by facet name
 xmlschemastypes.h	xmlSchemaNewFacet	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Facet::new
-xmlschemastypes.h	xmlSchemaNewNOTATIONValue	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	not started (list values, value constructors; docs/schema-types.md)
-xmlschemastypes.h	xmlSchemaNewQNameValue	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	not started (list values, value constructors; docs/schema-types.md)
-xmlschemastypes.h	xmlSchemaNewStringValue	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	not started (list values, value constructors; docs/schema-types.md)
+xmlschemastypes.h	xmlSchemaNewNOTATIONValue	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Value::qname
+xmlschemastypes.h	xmlSchemaNewQNameValue	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Value::qname
+xmlschemastypes.h	xmlSchemaNewStringValue	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Value::string
 xmlschemastypes.h	xmlSchemaValPredefTypeNode	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Type::parse
 xmlschemastypes.h	xmlSchemaValPredefTypeNodeNoNorm	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Type::parse
 xmlschemastypes.h	xmlSchemaValidateFacet	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Facet::check
@@ -3553,10 +3553,10 @@ xmlschemastypes.h	xmlSchemaValidateLengthFacet	function	not_marked	P3	partial	ht
 xmlschemastypes.h	xmlSchemaValidateLengthFacetWhtsp	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Facet::check
 xmlschemastypes.h	xmlSchemaValidateListSimpleTypeFacet	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Facet::check
 xmlschemastypes.h	xmlSchemaValidatePredefinedType	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Type::parse
-xmlschemastypes.h	xmlSchemaValueAppend	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	not started (list values, value constructors; docs/schema-types.md)
+xmlschemastypes.h	xmlSchemaValueAppend	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	a list is one Value of a list type
 xmlschemastypes.h	xmlSchemaValueGetAsBoolean	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Value::as_bool - None for non-booleans (libxml2 0)
 xmlschemastypes.h	xmlSchemaValueGetAsString	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::Value::as_str
-xmlschemastypes.h	xmlSchemaValueGetNext	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	not started (list values, value constructors; docs/schema-types.md)
+xmlschemastypes.h	xmlSchemaValueGetNext	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	a list is one Value of a list type
 xmlschemastypes.h	xmlSchemaWhiteSpaceReplace	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::normalize
 xmlschemastypes.h	xmlSchemaWhitespaceValueType	enum	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemastypes.h	schema_types::WhiteSpace
 xmlstring.h	BAD_CAST	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlstring.h	str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)

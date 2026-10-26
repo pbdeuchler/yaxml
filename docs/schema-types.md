@@ -15,7 +15,9 @@ The shared foundation for XML Schema and RELAX NG validation.
   `Type::allows_facet` (`xmlSchemaIsBuiltInTypeFacet`: primitive types only),
   `Value::canonical` (`xmlSchemaGetCanonValueWhtsp`; with
   `WhiteSpace::Preserve`, `xmlSchemaGetCanonValue`), `Value::as_str` and
-  `Value::as_bool` (`xmlSchemaValueGetAsString`/`GetAsBoolean`). `QName`,
+  `Value::as_bool` (`xmlSchemaValueGetAsString`/`GetAsBoolean`),
+  `Value::string` and `Value::qname` (`xmlSchemaNewStringValue`,
+  `xmlSchemaNewQNameValue`, `xmlSchemaNewNOTATIONValue`). `QName`,
   `NOTATION`, `ENTITY` and `ENTITIES` consult a caller `Context` for
   namespaces, notations and unparsed entities.
 
@@ -126,8 +128,8 @@ exceeds the budget.
   with a fraction in one digit (`13:20:0.5`) and negative years in three
   (`-044`). Lists and anySimpleType have no canonical form (`None`; libxml2
   `"???"`).
-- Values are UTF-8 Rust strings; there are no list-value APIs
-  (`xmlSchemaValueAppend`/`GetNext`) or value constructors yet, and the
+- Values are UTF-8 Rust strings; a list is one `Value` of a list type, so
+  there is no value chaining (`xmlSchemaValueAppend`/`GetNext`), and the
   progressive `xmlRegExec*`/`xmlAutomata*` interfaces are not implemented.
 
 ## Fuzzing

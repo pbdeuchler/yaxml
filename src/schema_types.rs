@@ -701,6 +701,28 @@ fn compare_text(x: &str, xt: Type, y: &str, yt: Type) -> Comparison {
 }
 
 impl Value {
+    /// A string value of `text` as given, libxml2's
+    /// `xmlSchemaNewStringValue` (which accepts only `XML_SCHEMAS_STRING`).
+    pub fn string(text: &str) -> Value {
+        Value {
+            ty: Type::String,
+            data: Data::Text(text.into()),
+        }
+    }
+
+    /// A `QName` or `NOTATION` value, libxml2's `xmlSchemaNewQNameValue`
+    /// and `xmlSchemaNewNOTATIONValue`; `None` for other types. The names
+    /// are taken as given.
+    pub fn qname(ty: Type, namespace: Option<&str>, local: &str) -> Option<Value> {
+        matches!(ty, Type::QName | Type::Notation).then(|| Value {
+            ty,
+            data: Data::QName {
+                namespace: namespace.map(Into::into),
+                local: local.into(),
+            },
+        })
+    }
+
     /// The value's type.
     pub fn ty(&self) -> Type {
         self.ty

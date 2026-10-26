@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use yaxml::schema_types::{
-    Comparison, Context, Facet, FacetError, InvalidValue, Type, WhiteSpace, normalize,
+    Comparison, Context, Facet, FacetError, InvalidValue, Type, Value, WhiteSpace, normalize,
 };
 
 #[test]
@@ -968,5 +968,57 @@ fn canonical_whitespace_and_getters() {
             (string, boolean),
             "{ty:?}"
         );
+    }
+}
+
+#[test]
+fn constructed_values() {
+    // xmlSchemaNewStringValue keeps the text as given.
+    let string = Value::string(" a\t ");
+    assert_eq!(
+        (string.ty(), string.as_str()),
+        (Type::String, Some(" a\t "))
+    );
+    assert!(string.equals(&Type::String.parse(" a\t ", None).unwrap()));
+    // xmlSchemaNewQNameValue / xmlSchemaNewNOTATIONValue compare like
+    // parsed names: equal namespace and local name, else indeterminate.
+    let document: Option<&dyn Context> = Some(&Document);
+    let cases = [
+        (
+            Type::QName,
+            Some("urn:p"),
+            "a",
+            "p:a",
+            Comparison::Equal,
+            "{urn:p}a",
+        ),
+        (Type::QName, None, "a", "a", Comparison::Indeterminate, "a"),
+        (
+            Type::QName,
+            Some("urn:default"),
+            "a",
+            "a",
+            Comparison::Equal,
+            "{urn:default}a",
+        ),
+        (Type::Notation, None, "gif", "gif", Comparison::Equal, "gif"),
+        (
+            Type::Notation,
+            Some("urn:p"),
+            "n",
+            "p:n",
+            Comparison::Equal,
+            "{urn:p}n",
+        ),
+    ];
+    for (ty, namespace, local, lexical, expected, canonical) in cases {
+        let value = Value::qname(ty, namespace, local).unwrap();
+        let parsed = ty.parse(lexical, document).unwrap();
+        assert_eq!(value.ty(), ty);
+        assert_eq!(value.compare(&parsed), expected, "{ty:?} {lexical:?}");
+        assert_eq!(value.canonical(WhiteSpace::Preserve).unwrap(), canonical);
+    }
+    for ty in [Type::String, Type::Token, Type::AnyUri, Type::Entity] {
+        assert!(Value::qname(ty, None, "a").is_none(), "{ty:?}");
     }
 }

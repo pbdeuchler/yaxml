@@ -1007,7 +1007,9 @@ I|xmlSchemaValueGetAsString|schema_types::Value::as_str
 I|xmlSchemaValueGetAsBoolean|schema_types::Value::as_bool - None for non-booleans (libxml2 0)
 I|xmlSchemaGetFacetValueAsULong|schema_types::Facet::count - length and digits facets
 I|xmlSchemaIsBuiltInTypeFacet|schema_types::Type::allows_facet - by facet name
-N|xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue xmlSchemaNewStringValue xmlSchemaValueAppend xmlSchemaValueGetNext|not started (list values, value constructors; docs/schema-types.md)
+I|xmlSchemaNewStringValue|schema_types::Value::string
+I|xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue|schema_types::Value::qname
+A|xmlSchemaValueAppend xmlSchemaValueGetNext|a list is one Value of a list type
 I|xmlSchemaWhitespaceValueType|schema_types::WhiteSpace
 I|XML_SCHEMA_WHITESPACE_PRESERVE|schema_types::WhiteSpace::Preserve
 I|XML_SCHEMA_WHITESPACE_REPLACE|schema_types::WhiteSpace::Replace
