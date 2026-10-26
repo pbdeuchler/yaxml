@@ -980,8 +980,11 @@ I|xmlSchema|xsd::Schema
 P|xmlSchemaNewValidCtxt xmlSchemaValidCtxt|xsd::StreamValidator::new
 A|xmlSchemaFree xmlSchemaFreeParserCtxt xmlSchemaFreeValidCtxt xmlSchemaPtr xmlSchemaParserCtxt xmlSchemaParserCtxtPtr xmlSchemaValidCtxtPtr|Drop or raw pointer alias
 A|xmlSchemaSet*Errors xmlSchemaSet*StructuredErrors xmlSchemaGet*Errors xmlSchemaValidity*Func|diagnostics are returned as Vec<xsd::Diagnostic>
-N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaSetValidOptions xmlSchemaValidCtxtGetOptions xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator xmlSchemaValidOption XML_SCHEMA_VAL_VC_I_CREATE|not started (docs/xsd.md)
+N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator|not started (docs/xsd.md)
 I|xmlSchemaValidateOneElement|xsd::Schema::validate_element
+I|XML_SCHEMA_VAL_VC_I_CREATE|xsd::Schema::validate_creating
+P|xmlSchemaSetValidOptions xmlSchemaValidOption|xsd::Schema::validate_creating - the one option is a method
+A|xmlSchemaValidCtxtGetOptions|options are chosen per call
 A|xmlSchemaValidError XML_SCHEMAS_ERR_*|never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 # ---- schemasInternals.h
 N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttribute xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaAttributePtr xmlSchemaContentType xmlSchemaElement xmlSchemaElementPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaType xmlSchemaTypeLink xmlSchemaTypeLinkPtr xmlSchemaTypePtr xmlSchemaTypeType xmlSchemaVal xmlSchemaValPtr xmlSchemaWildcard xmlSchemaWildcardNs xmlSchemaWildcardNsPtr xmlSchemaWildcardPtr XML_SCHEMAS_* XML_SCHEMA_CONTENT_* XML_SCHEMA_TYPE_* XML_SCHEMA_EXTRA_*|no public schema component model; xsd::Schema is opaque

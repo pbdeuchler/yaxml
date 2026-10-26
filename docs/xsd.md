@@ -36,6 +36,10 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   source offset, message); `xsd::is_valid` ignores warnings.
   `Schema::validate_element(&tree, id)` validates one subtree as the
   validation root (`xmlSchemaValidateOneElement`; `None` for a non-element).
+  `Schema::validate_creating(&mut editor)` validates an `OwnedDocument` and
+  then adds the schema's defaults to it (`XML_SCHEMA_VAL_VC_I_CREATE`): absent
+  attributes with a default or fixed value, normalized by their type, and the
+  default value of each empty, non-nilled element as a text child.
 - `Schema::validate_stream(input, options)` parses a `BufRead` with
   `BufferedReader` and validates in the same pass (`xmlSchemaValidateStream`).
   `StreamValidator::new(&schema)` (no lifetime: `Schema` clones share one `Arc` of compiled data) takes each `Event` and its `SourceOrigin`
@@ -102,6 +106,12 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
 
 ## Differences
 
+- **Created namespaced defaults.** With `XML_SCHEMA_VAL_VC_I_CREATE`,
+  libxml2 gives a qualified default attribute the innermost declaration of
+  its URI even when that is the default namespace, so the saved attribute is
+  unqualified. `validate_creating` takes the innermost *prefixed* binding,
+  else declares `p0`, `p1`, ... on the document element as libxml2 does when
+  none is in scope.
 - **Counter quirks, deliberately not reproduced.** libxml2's epsilon
   reduction lets a counted repetition inside a nullable loop, such as
   `(x{2,3})*`, end below `minOccurs`, so it accepts an invalid instance; yaxml

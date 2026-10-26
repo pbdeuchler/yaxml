@@ -3478,7 +3478,7 @@ xmlschemas.h	XML_SCHEMAS_ERR_UNDECLAREDELEM	enum_value	not_marked	P3	not-applica
 xmlschemas.h	XML_SCHEMAS_ERR_VALUE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 xmlschemas.h	XML_SCHEMAS_ERR_WRONGELEM	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 xmlschemas.h	XML_SCHEMAS_ERR_XXX	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
-xmlschemas.h	XML_SCHEMA_VAL_VC_I_CREATE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	XML_SCHEMA_VAL_VC_I_CREATE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_creating
 xmlschemas.h	xmlSchema	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema
 xmlschemas.h	xmlSchemaDump	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaFree	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	Drop or raw pointer alias
@@ -3503,14 +3503,14 @@ xmlschemas.h	xmlSchemaSetParserErrors	function	not_marked	P3	not-applicable	http
 xmlschemas.h	xmlSchemaSetParserStructuredErrors	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	diagnostics are returned as Vec<xsd::Diagnostic>
 xmlschemas.h	xmlSchemaSetResourceLoader	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::with_resolver
 xmlschemas.h	xmlSchemaSetValidErrors	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	diagnostics are returned as Vec<xsd::Diagnostic>
-xmlschemas.h	xmlSchemaSetValidOptions	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	xmlSchemaSetValidOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_creating - the one option is a method
 xmlschemas.h	xmlSchemaSetValidStructuredErrors	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	diagnostics are returned as Vec<xsd::Diagnostic>
 xmlschemas.h	xmlSchemaValidCtxt	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::StreamValidator::new
-xmlschemas.h	xmlSchemaValidCtxtGetOptions	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	xmlSchemaValidCtxtGetOptions	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	options are chosen per call
 xmlschemas.h	xmlSchemaValidCtxtGetParserCtxt	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	Drop or raw pointer alias
 xmlschemas.h	xmlSchemaValidError	enum	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
-xmlschemas.h	xmlSchemaValidOption	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	xmlSchemaValidOption	enum	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_creating - the one option is a method
 xmlschemas.h	xmlSchemaValidateDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate
 xmlschemas.h	xmlSchemaValidateFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_stream - caller opens the file
 xmlschemas.h	xmlSchemaValidateOneElement	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_element
