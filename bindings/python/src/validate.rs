@@ -6,8 +6,8 @@ use pyo3::prelude::*;
 use yaxml::diagnostic::{Diagnostic, Domain, Level};
 use yaxml::{LineIndex, relaxng, schematron, valid, xsd};
 
-use crate::doc::Tree;
-use crate::errors::{Row, raise, row};
+use crate::doc::{LIMITS, Tree};
+use crate::errors::{self, Row, raise, row};
 use crate::parse::{or_none, resolver};
 use crate::query::target;
 
@@ -78,17 +78,20 @@ where
 #[pyclass(frozen, module = "yaxml", name = "_XMLSchema")]
 pub struct XmlSchema {
     schema: xsd::Schema,
+    /// lxml `attribute_defaults`: validation adds the schema's defaults.
+    defaults: bool,
 }
 
 #[pymethods]
 impl XmlSchema {
     #[new]
-    #[pyo3(signature = (data, uri, resolver = None))]
+    #[pyo3(signature = (data, uri, resolver = None, defaults = false))]
     fn new(
         py: Python<'_>,
         data: Vec<u8>,
         uri: &str,
         resolver: Option<&Bound<'_, PyAny>>,
+        defaults: bool,
     ) -> PyResult<Self> {
         let (resolver, failure) = self::resolver(resolver)?;
         let built =
@@ -118,10 +121,24 @@ impl XmlSchema {
                 .collect();
             parse_error(py, "XMLSchemaParseError", rows)
         })?;
-        Ok(Self { schema })
+        Ok(Self { schema, defaults })
     }
 
     fn validate(&self, py: Python<'_>, document: &Bound<'_, PyAny>) -> PyResult<(bool, Vec<Row>)> {
+        if self.defaults {
+            let (doc, _) = target(py, document)?;
+            let mut tree = doc.write(py);
+            let tree = &mut *tree;
+            let created = py.detach(|| {
+                let mut editor = tree.doc.edit(LIMITS)?;
+                self.schema.validate_creating(&mut editor)
+            });
+            let diagnostics = created.map_err(|e| errors::edit(py, e))?;
+            return Ok((
+                xsd::is_valid(&diagnostics),
+                rows(tree, &diagnostics, |d, l| d.describe(l)),
+            ));
+        }
         validate_with(py, document, |tree| {
             let diagnostics = self.schema.validate(&tree.doc);
             (
