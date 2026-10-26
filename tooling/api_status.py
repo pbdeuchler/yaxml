@@ -414,7 +414,7 @@ P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment, Editor::parse
 I|xmlParseBalancedChunkMemory|Editor::parse_content - on OwnedDocument::root with default options
 P|xmlParseBalancedChunkMemoryRecover|Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
 P|xmlParseCtxtExternalEntity xmlParseExternalEntity|Editor::parse_external_entity - takes the entity bytes, not a URL; no SAX callbacks
-N|xmlParseExtParsedEnt xmlParseEntity|an external parsed entity as a standalone document not started (Editor::parse_external_entity parses one into a document)
+P|xmlParseExtParsedEnt xmlParseEntity|Editor::parse_external_entity - on a new document's root(): the content comes back as detached nodes, not as document children (a document holds one element and no text)
 I|xmlSAXUserParseMemory|sax::parse
 P|xmlSAXUserParseFile|sax::parse - on the bytes read by the caller
 P|xmlSAXParseMemory xmlSAXParseMemoryWithData xmlSAXParseDoc xmlSAXParseFile xmlSAXParseFileWithData|sax::parse - callbacks only, no tree is built
@@ -760,7 +760,7 @@ R|xmlXPathNAN xmlXPathPINF xmlXPathNINF|deprecated; use f64::NAN and f64::INFINI
 A|xmlXPathNodeSet* xmlXPathEmptyNodeSet xmlXPathNewNodeSet* xmlXPathNewBoolean xmlXPathNewCString xmlXPathNewFloat xmlXPathNewString xmlXPathNewValueTree xmlXPathWrap* xmlXPathReturn* xmlXPathObjectCopy xmlXPathDifference xmlXPathDistinct* xmlXPathHasSameNodes xmlXPathIntersection xmlXPathLeading* xmlXPathNodeLeading* xmlXPathNodeTrailing* xmlXPathTrailing* xmlXPathPop* xmlXPathValue* xmlXPathStackIs* xmlXPathNewParserContext xmlXPathParseNCName xmlXPathParseName xmlXPathRoot xmlXPathSetArityError xmlXPathSetError xmlXPathSetTypeError xmlXPathCheckError xmlXPathGetContextNode xmlXPathGetDocument xmlXPathGetError xmlXPathErr xmlXPatherror xmlXPathIsNodeType CAST_TO_* CHECK_* XP_ERROR XP_ERROR0 valuePop valuePush|XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
 I|xmlXPathCmpNodes|xpath::compare - namespace nodes ordered by their element
 I|xmlXPathDebugDumpObject|debug::dump_xpath_object - features debug + xpath
-N|xmlXPathDebugDumpCompExpr|prints libxml2's compiled step array; yaxml compiles XPath to its own expression tree
+A|xmlXPathDebugDumpCompExpr|declined: prints libxml2's compiled step array; yaxml compiles XPath to its own expression tree
 A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath ranks nodes with its own order keys
 # ---- xmlreader.h
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new
@@ -983,7 +983,7 @@ I|xmlSchema|xsd::Schema
 P|xmlSchemaNewValidCtxt xmlSchemaValidCtxt|xsd::StreamValidator::new
 A|xmlSchemaFree xmlSchemaFreeParserCtxt xmlSchemaFreeValidCtxt xmlSchemaPtr xmlSchemaParserCtxt xmlSchemaParserCtxtPtr xmlSchemaValidCtxtPtr|Drop or raw pointer alias
 A|xmlSchemaSet*Errors xmlSchemaSet*StructuredErrors xmlSchemaGet*Errors xmlSchemaValidity*Func|diagnostics are returned as Vec<xsd::Diagnostic>
-N|xmlSchemaDump|not started (docs/xsd.md)
+A|xmlSchemaDump|declined: debug printer of libxml2's schema component model, which yaxml does not keep (xsd::Schema is opaque)
 P|xmlSchemaSAXPlug xmlSchemaSAXUnplug|xsd::StreamValidator - the caller feeds it each event; no SAX handler wrapping
 A|xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaValidCtxtGetParserCtxt|no parser or validation contexts
 P|xmlSchemaValidateSetLocator|xsd::StreamValidator - positions come from each event's SourceOrigin
