@@ -527,7 +527,7 @@ P|xmlDtd|valid::Dtd
 I|xmlElementType|NodeKind, OwnedNodeKind
 A|xmlDocPtr xmlNodePtr xmlAttrPtr xmlNsPtr xmlDtdPtr xmlElementPtr xmlAttributePtr xmlEntityPtr xmlNotationPtr xmlIDPtr xmlRefPtr xmlEnumerationPtr xmlElementContentPtr xmlBufferPtr xmlBufPtr xmlErrorPtr|raw pointer alias; references and OwnedNodeId
 P|xmlEntity|valid::Entity - a borrowed view
-P|xmlElement|valid::Element - a borrowed view; the content model is printed, not a tree
+P|xmlElement|valid::Element, valid::Element::content - a borrowed view; the content model as a valid::Particle tree
 P|xmlAttribute|valid::Attribute - a borrowed view
 P|xmlNotation|valid::Notation - a borrowed view
 P|xmlEnumeration|valid::Attribute::values
@@ -667,7 +667,7 @@ A|xmlDOMWrapAcquireNsFunction|no custom namespace callback; copies never rename
 A|xmlDOMWrap*|no DOM-wrapper context; copies plan namespaces themselves
 A|xmlSetTreeDoc xmlSetListDoc|a node belongs to its arena; Editor::import copies
 P|xmlGetIntSubset|Document::doctype, OwnedDocument::doctype
-P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_vec - returns bytes; caller writes the file
+P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
 I|xmlDocDumpMemory xmlDocDumpFormatMemory xmlDocDumpMemoryEnc xmlDocDumpFormatMemoryEnc|save::to_vec
 P|xmlNodeDump xmlElemDump xmlNodeDumpOutput xmlAttrSerializeTxtContent|save::to_vec, save::Tree
 P|xmlValidateNCName xmlValidateNMToken xmlValidateName xmlValidateQName|Name::new
@@ -832,7 +832,10 @@ A|xmlParserSeverities XML_PARSER_SEVERITY_*|argument of the xmlTextReaderErrorFu
 A|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|READING is never set in libxml2; CLOSED only by xmlTextReaderClose, which is Drop here
 # ---- xmlsave.h
 I|xmlSaveDoc xmlSaveTree|save::to_vec
-P|xmlSaveToBuffer xmlSaveToFd xmlSaveToFilename xmlSaveToIO xmlSaveClose xmlSaveFinish xmlSaveFlush xmlSaveSetIndentString|save::to_vec, save::Options - returns a Vec; no Write sink yet
+I|xmlSaveToIO|save::to_writer
+I|xmlSaveSetIndentString|save::Options::indent
+P|xmlSaveToBuffer xmlSaveToFd xmlSaveToFilename|save::to_writer, save::to_vec - any Write sink (the caller opens files or fds) or a Vec
+P|xmlSaveClose xmlSaveFinish xmlSaveFlush|save::to_writer - one call per tree, the sink flushed at its end; no open save context
 I|xmlSaveOption|save::Options
 P|xmlSaveCtxt|save::Options
 A|xmlSaveCtxtPtr|raw pointer alias

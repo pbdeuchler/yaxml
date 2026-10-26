@@ -1789,7 +1789,7 @@ tree.h	_xmlDtd.parent	field	not_marked	P0-P3	not-applicable	https://github.com/G
 tree.h	_xmlDtd.pentities	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd::entities - an iterator over both subsets
 tree.h	_xmlDtd.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
 tree.h	_xmlDtd.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links; valid::Dtd is read through its accessors
-tree.h	_xmlElement	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element - a borrowed view; the content model is printed, not a tree
+tree.h	_xmlElement	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element, valid::Element::content - a borrowed view; the content model as a valid::Particle tree
 tree.h	_xmlElement._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
 tree.h	_xmlElement.attributes	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element::attributes
 tree.h	_xmlElement.children	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	tree links and bookkeeping; valid::Element is a borrowed view
@@ -1928,12 +1928,12 @@ tree.h	xmlDeregisterNodeFunc	callback	not_marked	P0-P3	removed-upstream	https://
 tree.h	xmlDoc	typedef	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
 tree.h	xmlDocCopyNode	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - deep, or extended 2 when shallow
 tree.h	xmlDocCopyNodeList	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::import - one node at a time
-tree.h	xmlDocDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
+tree.h	xmlDocDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
 tree.h	xmlDocDumpFormatMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocDumpFormatMemoryEnc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocDumpMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
 tree.h	xmlDocDumpMemoryEnc	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec
-tree.h	xmlDocFormatDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
+tree.h	xmlDocFormatDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
 tree.h	xmlDocGetRootElement	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::document_element, OwnedDocument::document_element
 tree.h	xmlDocProperties	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties
 tree.h	xmlDocPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
@@ -1941,7 +1941,7 @@ tree.h	xmlDocSetRootElement	function	not_marked	P0-P3	partial	https://github.com
 tree.h	xmlDtd	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Dtd
 tree.h	xmlDtdPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlElemDump	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec, save::Tree
-tree.h	xmlElement	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element - a borrowed view; the content model is printed, not a tree
+tree.h	xmlElement	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Element, valid::Element::content - a borrowed view; the content model as a valid::Particle tree
 tree.h	xmlElementContent	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Particle, valid::Element::content - n-ary groups read from the printed model (same-connector groups without an indicator merge); no parent links
 tree.h	xmlElementContentOccur	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence
 tree.h	xmlElementContentPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
@@ -2057,12 +2057,12 @@ tree.h	xmlSAXHandler	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/l
 tree.h	xmlSAXHandlerPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias
 tree.h	xmlSAXLocator	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	sax::Locator - declaration callbacks and entity content get the place of the DOCTYPE, root or reference
 tree.h	xmlSAXLocatorPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias
-tree.h	xmlSaveFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
-tree.h	xmlSaveFileEnc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
-tree.h	xmlSaveFileTo	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
-tree.h	xmlSaveFormatFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
-tree.h	xmlSaveFormatFileEnc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
-tree.h	xmlSaveFormatFileTo	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_vec - returns bytes; caller writes the file
+tree.h	xmlSaveFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
+tree.h	xmlSaveFileEnc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
+tree.h	xmlSaveFileTo	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
+tree.h	xmlSaveFormatFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
+tree.h	xmlSaveFormatFileEnc	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
+tree.h	xmlSaveFormatFileTo	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
 tree.h	xmlSearchNs	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::search_ns, OwnedNode::search_ns
 tree.h	xmlSearchNsByHref	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::search_ns_by_href, OwnedNode::search_ns_by_href
 tree.h	xmlSetBufferAllocationScheme	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -3434,20 +3434,20 @@ xmlsave.h	XML_SAVE_NO_INDENT	enum_value	not_marked	P1	implemented	https://github
 xmlsave.h	XML_SAVE_NO_XHTML	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::NO_XHTML
 xmlsave.h	XML_SAVE_WSNONSIG	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::WSNONSIG
 xmlsave.h	XML_SAVE_XHTML	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::XHTML
-xmlsave.h	xmlSaveClose	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
+xmlsave.h	xmlSaveClose	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer - one call per tree, the sink flushed at its end; no open save context
 xmlsave.h	xmlSaveCtxt	typedef	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::Options
 xmlsave.h	xmlSaveCtxtPtr	typedef	not_marked	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	raw pointer alias
 xmlsave.h	xmlSaveDoc	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec
-xmlsave.h	xmlSaveFinish	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
-xmlsave.h	xmlSaveFlush	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
+xmlsave.h	xmlSaveFinish	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer - one call per tree, the sink flushed at its end; no open save context
+xmlsave.h	xmlSaveFlush	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer - one call per tree, the sink flushed at its end; no open save context
 xmlsave.h	xmlSaveOption	enum	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::Options
 xmlsave.h	xmlSaveSetAttrEscape	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	deprecated in 2.15.4
 xmlsave.h	xmlSaveSetEscape	function	yes	P1	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	deprecated in 2.15.4
-xmlsave.h	xmlSaveSetIndentString	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
-xmlsave.h	xmlSaveToBuffer	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
-xmlsave.h	xmlSaveToFd	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
-xmlsave.h	xmlSaveToFilename	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
-xmlsave.h	xmlSaveToIO	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec, save::Options - returns a Vec; no Write sink yet
+xmlsave.h	xmlSaveSetIndentString	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::Options::indent
+xmlsave.h	xmlSaveToBuffer	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer, save::to_vec - any Write sink (the caller opens files or fds) or a Vec
+xmlsave.h	xmlSaveToFd	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer, save::to_vec - any Write sink (the caller opens files or fds) or a Vec
+xmlsave.h	xmlSaveToFilename	function	not_marked	P1	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer, save::to_vec - any Write sink (the caller opens files or fds) or a Vec
+xmlsave.h	xmlSaveToIO	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_writer
 xmlsave.h	xmlSaveTree	function	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::to_vec
 xmlsave.h	xmlThrDefIndentTreeOutput	function	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	global default; per-call ParseOptions or save::Options flags
 xmlsave.h	xmlThrDefSaveNoEmptyTags	function	yes	P1	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	global default; per-call ParseOptions or save::Options flags
