@@ -1,6 +1,10 @@
 use std::{io::Cursor, ops::ControlFlow};
 
-use yaxml::{BufferedReader, Document, ErrorKind, Event, OwnedDocument, PushParser, Reader};
+use yaxml::diagnostic::LineIndex;
+use yaxml::{
+    BufferedReader, Document, ErrorKind, Event, NodeKind, OwnedDocument, OwnedNodeKind,
+    ParseOptions, PushParser, Reader,
+};
 
 #[test]
 fn utf8_bom_ranges_survive_normalization_and_eof() {
@@ -87,5 +91,73 @@ fn utf16_cancellation_keeps_the_delivered_origin() {
             Err(error)
         );
         assert_eq!(parser.event_origin(), latest);
+    }
+}
+
+type NodeInfo = (&'static str, Option<(usize, usize, usize, usize)>);
+
+/// libxml2's node-info table (`record_info`, `xmlParserFindNodeInfo`) is
+/// each element's range with the lines of its two ends; entity content (under
+/// a reference or substituted) has none. Expected rows are libxml2 2.15.4's `begin_pos end_pos begin_line
+/// end_line`.
+#[test]
+fn element_ranges_are_libxml2_node_info() {
+    let entity = "<!DOCTYPE r [<!ENTITY x \"<g/>\">]><r>&x;<h/></r>";
+    let cases: [(&str, u32, &[NodeInfo]); 3] = [
+        (
+            "<?xml version=\"1.0\"?>\n<r a=\"1\">t<e/>\n<f>x</f><!--c--><?p?></r>",
+            0,
+            &[
+                ("r", Some((22, 62, 2, 3))),
+                ("e", Some((32, 36, 2, 2))),
+                ("f", Some((37, 45, 3, 3))),
+            ],
+        ),
+        (
+            entity,
+            yaxml::options::NOENT,
+            &[
+                ("r", Some((33, 47, 1, 1))),
+                ("g", None),
+                ("h", Some((39, 43, 1, 1))),
+            ],
+        ),
+        (
+            entity,
+            0,
+            &[
+                ("r", Some((33, 47, 1, 1))),
+                ("g", None),
+                ("h", Some((39, 43, 1, 1))),
+            ],
+        ),
+    ];
+    for (input, flags, expected) in cases {
+        let options = || ParseOptions::DEFAULT.flags(flags);
+        let lines = LineIndex::new(input.as_bytes());
+        let info = |range: Option<std::ops::Range<usize>>| {
+            range.map(|r| (r.start, r.end, lines.line(r.start), lines.line(r.end)))
+        };
+        let owned = OwnedDocument::parse_with(input.as_bytes(), options()).unwrap();
+        let found: Vec<_> = (owned.nodes())
+            .filter(|node| node.kind() == OwnedNodeKind::Element)
+            .map(|node| {
+                (
+                    node.name().unwrap().qualified().to_owned(),
+                    info(node.range()),
+                )
+            })
+            .collect();
+        let named: Vec<_> = (expected.iter())
+            .map(|(name, info)| (name.to_string(), *info))
+            .collect();
+        assert_eq!(found, named, "{input}");
+        let borrowed = Document::parse_with(input.as_bytes(), options()).unwrap();
+        let ranges: Vec<_> = (borrowed.nodes())
+            .filter(|node| matches!(node.kind(), NodeKind::Element(_)))
+            .map(|node| info(node.range()))
+            .collect();
+        let expected: Vec<_> = expected.iter().map(|(_, info)| *info).collect();
+        assert_eq!(ranges, expected, "{input}");
     }
 }

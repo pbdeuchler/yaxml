@@ -278,8 +278,6 @@ ENC = {"UTF16LE": "Utf16Le", "UTF16BE": "Utf16Be", "UCS4LE": "Ucs4Le", "UCS4BE":
 FIELD_DEFAULT = {
     "_xmlParserCtxt": ("A", "internal parser state; parsers are opaque Rust types"),
     "_xmlParserInput": ("A", "internal input state; std Read/BufRead replace it"),
-    "_xmlParserNodeInfo": ("N", "no node-info table (Node::range gives byte ranges)"),
-    "_xmlParserNodeInfoSeq": ("N", "no node-info table (Node::range gives byte ranges)"),
     "_xmlBuffer": ("A", "Vec<u8>/String replace xmlBuffer"),
     "_xmlOutputBuffer": ("A", "std::io::Write replaces xmlOutputBuffer"),
     "_xmlParserInputBuffer": ("A", "std::io::Read replaces xmlParserInputBuffer"),
@@ -335,9 +333,9 @@ TREE_FIELDS = {
     "_xmlAttr.next": ("P", "Node::attributes - iteration replaces links"),
     "_xmlAttr.prev": ("P", "Node::attributes - iteration replaces links"),
     "_xmlAttr.last": ("P", "Node::attributes - iteration replaces links"),
-    "_xmlAttr.parent": ("N", "attributes do not point to their element"),
+    "_xmlAttr.parent": ("A", "attributes are reached through their element, by position"),
     "_xmlAttr.doc": ("A", "attributes borrow their document"),
-    "_xmlAttr.atype": ("N", "no public attribute type"),
+    "_xmlAttr.atype": ("P", "Editor::is_id - xmlIsID by name; libxml2 marks the attribute XML_ATTRIBUTE_ID, the only value it stores"),
     "_xmlAttr.type": ("A", "attributes are not nodes"),
     "_xmlAttr._private": ("A", "no user pointer"),
     "_xmlAttr.psvi": ("A", "no schema PSVI"),
@@ -351,10 +349,10 @@ TREE_FIELDS = {
     "_xmlDoc.ids": ("P", "Document::element_by_id, OwnedDocument::element_by_id"),
     "_xmlDoc.type": ("P", "OwnedDocument::is_html"),
     "_xmlDoc.extSubset": ("N", "external subset not exposed"),
-    "_xmlDoc.name": ("N", "not stored"),
+    "_xmlDoc.name": ("A", "libxml2 never sets it (only xmlCopyDoc copies it)"),
     "_xmlDoc.properties": ("I", "Document::properties, OwnedDocument::properties"),
     "_xmlDoc.parseFlags": ("N", "flags are not stored"),
-    "_xmlDoc.charset": ("N", "not stored"),
+    "_xmlDoc.charset": ("A", "always XML_CHAR_ENCODING_UTF8: documents hold UTF-8"),
     "_xmlDoc.compression": ("A", "no compression"),
     "_xmlDoc.dict": ("A", "no dictionary"),
     "_xmlDoc.oldNs": ("A", "internal"),
@@ -445,7 +443,11 @@ A|xml*Default xml*DefaultValue __xml*DefaultValue __xmlIndentTreeOutput __xmlSav
 A|xmlNewInputFrom* xmlNewIOInputStream xmlParserInputGrow xmlParserInputRead xmlParserInputDeallocate xmlSetupParserForBuffer xmlParserInputBufferCreate* xmlAllocParserInputBuffer|std::io::Read/BufRead or byte slices replace input streams
 N|xmlInputSetEncodingHandler|no caller-provided encoding handler per input
 P|xmlCtxtSetCharEncConvImpl|ParseOptions::converters - input of the document only (not HTML, external entities or output)
-N|xmlParserAddNodeInfo xmlParserFindNodeInfo xmlParserFindNodeInfoIndex xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserNodeInfo xmlParserNodeInfoSeq|no node-info table; Node::range gives byte ranges
+P|_xmlParserNodeInfo xmlParserNodeInfo xmlParserFindNodeInfo|Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
+I|_xmlParserNodeInfo.begin_pos _xmlParserNodeInfo.end_pos|Node::range, OwnedNode::range
+I|_xmlParserNodeInfo.begin_line _xmlParserNodeInfo.end_line|diagnostic::LineIndex::line - at the range's ends
+A|_xmlParserNodeInfo.node|the node is the lookup key
+A|_xmlParserNodeInfoSeq _xmlParserNodeInfoSeq.buffer _xmlParserNodeInfoSeq.length _xmlParserNodeInfoSeq.maximum xmlParserNodeInfoSeq xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserAddNodeInfo xmlParserFindNodeInfoIndex|the table's storage and upkeep; each node carries its own range
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
 A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
 N|xmlParserStatus XML_STATUS_*|no xmlParserStatus
@@ -592,7 +594,9 @@ I|XML_DOC_OLD10|properties::OLD10
 I|XML_DOC_XINCLUDE|properties::XINCLUDE - never set, as in libxml2 2.15.4
 I|XML_DOC_INTERNAL|properties::INTERNAL - never set: marks libxml2's scratch documents
 I|xmlDocProperties|properties
-N|XML_ELEMENT_DECL XML_ENTITY_DECL XML_NAMESPACE_DECL|no public DTD declaration nodes
+A|XML_ELEMENT_DECL XML_ENTITY_DECL XML_ATTRIBUTE_DECL XML_NAMESPACE_DECL|type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
+A|XML_ENTITY_NODE XML_NOTATION_NODE|libxml2 2.15.4 never creates nodes of these types
+P|XML_DOCUMENT_FRAG_NODE|Fragment - parsed content comes back as detached nodes (Fragment::nodes), not under a fragment node
 R|XML_DOCB_DOCUMENT_NODE xmlRegisterNodeFunc xmlDeregisterNodeFunc|DocBook and node registration callbacks removed upstream
 A|XML_XINCLUDE_START XML_XINCLUDE_END|xinclude never adds marker nodes (NOXINCNODE behaviour)
 I|xmlNewDoc|OwnedDocument::create

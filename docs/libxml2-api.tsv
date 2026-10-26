@@ -753,16 +753,16 @@ parser.h	_xmlParserInput.length	field	yes	P0-P3	not-applicable	https://github.co
 parser.h	_xmlParserInput.line	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal input state; std Read/BufRead replace it
 parser.h	_xmlParserInput.parentConsumed	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal input state; std Read/BufRead replace it
 parser.h	_xmlParserInput.version	field	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal input state; std Read/BufRead replace it
-parser.h	_xmlParserNodeInfo	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
-parser.h	_xmlParserNodeInfo.begin_line	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfo.begin_pos	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfo.end_line	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfo.end_pos	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfo.node	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfoSeq	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
-parser.h	_xmlParserNodeInfoSeq.buffer	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfoSeq.length	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
-parser.h	_xmlParserNodeInfoSeq.maximum	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table (Node::range gives byte ranges)
+parser.h	_xmlParserNodeInfo	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
+parser.h	_xmlParserNodeInfo.begin_line	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	diagnostic::LineIndex::line - at the range's ends
+parser.h	_xmlParserNodeInfo.begin_pos	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Node::range, OwnedNode::range
+parser.h	_xmlParserNodeInfo.end_line	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	diagnostic::LineIndex::line - at the range's ends
+parser.h	_xmlParserNodeInfo.end_pos	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Node::range, OwnedNode::range
+parser.h	_xmlParserNodeInfo.node	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the node is the lookup key
+parser.h	_xmlParserNodeInfoSeq	struct	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
+parser.h	_xmlParserNodeInfoSeq.buffer	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
+parser.h	_xmlParserNodeInfoSeq.length	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
+parser.h	_xmlParserNodeInfoSeq.maximum	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	_xmlSAXHandler	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
 parser.h	_xmlSAXHandler._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	C handler-table bookkeeping; a Handler is a Rust value
 parser.h	_xmlSAXHandler.attributeDecl	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler::attribute_decl
@@ -864,7 +864,7 @@ parser.h	xmlAttrHashBucket	typedef	not_marked	P0-P3	not-applicable	https://githu
 parser.h	xmlByteConsumed	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::position
 parser.h	xmlCleanupGlobals	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
 parser.h	xmlCleanupParser	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
-parser.h	xmlClearNodeInfoSeq	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
+parser.h	xmlClearNodeInfoSeq	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	xmlClearParserCtxt	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::reset_with, BufferedReader::reset_with, TextReader::reset_with - not for DOM builders or Reader
 parser.h	xmlCreateDocParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
 parser.h	xmlCreateIOParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
@@ -922,7 +922,7 @@ parser.h	xmlHasFeature	function	not_marked	P0-P3	implemented	https://github.com/
 parser.h	xmlIOParseDTD	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse
 parser.h	xmlIndentTreeOutput	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlInitGlobals	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
-parser.h	xmlInitNodeInfoSeq	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
+parser.h	xmlInitNodeInfoSeq	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	xmlInitParser	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
 parser.h	xmlInitParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
 parser.h	xmlInputSetEncodingHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no caller-provided encoding handler per input
@@ -953,18 +953,18 @@ parser.h	xmlParseExternalEntity	function	yes	P0-P3	partial	https://github.com/GN
 parser.h	xmlParseFile	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlParseInNodeContext	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
 parser.h	xmlParseMemory	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Document::parse_with, OwnedDocument::parse_with
-parser.h	xmlParserAddNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
-parser.h	xmlParserFindNodeInfo	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
-parser.h	xmlParserFindNodeInfoIndex	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
+parser.h	xmlParserAddNodeInfo	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
+parser.h	xmlParserFindNodeInfo	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
+parser.h	xmlParserFindNodeInfoIndex	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	xmlParserInputDeallocate	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlParserInputFlags	enum	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	xmlParserInputGrow	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlParserInputRead	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	std::io::Read/BufRead or byte slices replace input streams
 parser.h	xmlParserInputState	enum	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	xmlParserMode	enum	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
-parser.h	xmlParserNodeInfo	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
+parser.h	xmlParserNodeInfo	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
 parser.h	xmlParserNodeInfoPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	input stream or raw pointer alias
-parser.h	xmlParserNodeInfoSeq	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no node-info table; Node::range gives byte ranges
+parser.h	xmlParserNodeInfoSeq	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	xmlParserNodeInfoSeqPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	input stream or raw pointer alias
 parser.h	xmlParserNsData	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	xmlParserOption	enum	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options
@@ -1637,7 +1637,7 @@ threads.h	xmlRMutexUnlock	function	not_marked	P3	not-applicable	https://github.c
 threads.h	xmlUnlockLibrary	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/threads.h	no global state; types are Send
 tree.h	LIBXML2_NEW_BUFFER	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	XML_ATTRIBUTE_CDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Cdata
-tree.h	XML_ATTRIBUTE_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
+tree.h	XML_ATTRIBUTE_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
 tree.h	XML_ATTRIBUTE_ENTITIES	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Entities
 tree.h	XML_ATTRIBUTE_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Entity
 tree.h	XML_ATTRIBUTE_ENUMERATION	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::AttributeKind::Enumeration
@@ -1661,7 +1661,7 @@ tree.h	XML_BUFFER_ALLOC_IO	enum_value	not_marked	P0-P3	not-applicable	https://gi
 tree.h	XML_CDATA_SECTION_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Cdata, OwnedNodeKind::Cdata
 tree.h	XML_COMMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Comment, OwnedNodeKind::Comment
 tree.h	XML_DOCB_DOCUMENT_NODE	macro	not_marked	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	DocBook and node registration callbacks removed upstream
-tree.h	XML_DOCUMENT_FRAG_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no document fragment node
+tree.h	XML_DOCUMENT_FRAG_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Fragment - parsed content comes back as detached nodes (Fragment::nodes), not under a fragment node
 tree.h	XML_DOCUMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Document, OwnedNodeKind::Document
 tree.h	XML_DOCUMENT_TYPE_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Doctype, OwnedNodeKind::DocumentType
 tree.h	XML_DOC_DTDVALID	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	properties::DTDVALID
@@ -1681,22 +1681,22 @@ tree.h	XML_ELEMENT_CONTENT_OR	enum_value	not_marked	P0-P3	implemented	https://gi
 tree.h	XML_ELEMENT_CONTENT_PCDATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Pcdata
 tree.h	XML_ELEMENT_CONTENT_PLUS	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Occurrence::OneOrMore
 tree.h	XML_ELEMENT_CONTENT_SEQ	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ParticleKind::Sequence
-tree.h	XML_ELEMENT_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
+tree.h	XML_ELEMENT_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
 tree.h	XML_ELEMENT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Element, OwnedNodeKind::Element
 tree.h	XML_ELEMENT_TYPE_ANY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Any
 tree.h	XML_ELEMENT_TYPE_ELEMENT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Element
 tree.h	XML_ELEMENT_TYPE_EMPTY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Empty
 tree.h	XML_ELEMENT_TYPE_MIXED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Mixed
 tree.h	XML_ELEMENT_TYPE_UNDEFINED	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::ContentKind::Undefined
-tree.h	XML_ENTITY_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
-tree.h	XML_ENTITY_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no entity-declaration node
+tree.h	XML_ENTITY_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
+tree.h	XML_ENTITY_NODE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	libxml2 2.15.4 never creates nodes of these types
 tree.h	XML_ENTITY_REF_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::EntityRef, OwnedNodeKind::EntityRef
 tree.h	XML_GET_CONTENT	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	XML_GET_LINE	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
 tree.h	XML_HTML_DOCUMENT_NODE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedDocument::is_html - HTML documents are OwnedDocument with a flag
 tree.h	XML_LOCAL_NAMESPACE	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Vec<u8>/String or field-alias macro
-tree.h	XML_NAMESPACE_DECL	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public DTD declaration nodes
-tree.h	XML_NOTATION_NODE	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no notation node
+tree.h	XML_NAMESPACE_DECL	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
+tree.h	XML_NOTATION_NODE	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	libxml2 2.15.4 never creates nodes of these types
 tree.h	XML_PI_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::ProcessingInstruction, OwnedNodeKind::ProcessingInstruction
 tree.h	XML_TEXT_NODE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NodeKind::Text, OwnedNodeKind::Text
 tree.h	XML_XINCLUDE_END	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	xinclude never adds marker nodes (NOXINCNODE behaviour)
@@ -1707,7 +1707,7 @@ tree.h	__xmlDeregisterNodeDefaultValue	function	yes	P0-P3	not-applicable	https:/
 tree.h	__xmlRegisterNodeDefaultValue	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	_xmlAttr	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute
 tree.h	_xmlAttr._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no user pointer
-tree.h	_xmlAttr.atype	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public attribute type
+tree.h	_xmlAttr.atype	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Editor::is_id - xmlIsID by name; libxml2 marks the attribute XML_ATTRIBUTE_ID, the only value it stores
 tree.h	_xmlAttr.children	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute::value, Node::unexpanded_attribute
 tree.h	_xmlAttr.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes borrow their document
 tree.h	_xmlAttr.id	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1715,7 +1715,7 @@ tree.h	_xmlAttr.last	field	not_marked	P0-P3	partial	https://github.com/GNOME/lib
 tree.h	_xmlAttr.name	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Attribute::name
 tree.h	_xmlAttr.next	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attributes - iteration replaces links
 tree.h	_xmlAttr.ns	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Name::namespace
-tree.h	_xmlAttr.parent	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes do not point to their element
+tree.h	_xmlAttr.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are reached through their element, by position
 tree.h	_xmlAttr.prev	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attributes - iteration replaces links
 tree.h	_xmlAttr.psvi	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no schema PSVI
 tree.h	_xmlAttr.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	attributes are not nodes
@@ -1750,7 +1750,7 @@ tree.h	_xmlDOMWrapCtxt.type	field	not_marked	P0-P3	not-applicable	https://github
 tree.h	_xmlDoc	struct	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document, OwnedDocument
 tree.h	_xmlDoc.URL	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::url, OwnedDocument::url
 tree.h	_xmlDoc._private	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no user pointer
-tree.h	_xmlDoc.charset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not stored
+tree.h	_xmlDoc.charset	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	always XML_CHAR_ENCODING_UTF8: documents hold UTF-8
 tree.h	_xmlDoc.children	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::root, OwnedDocument::root
 tree.h	_xmlDoc.compression	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no compression
 tree.h	_xmlDoc.dict	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no dictionary
@@ -1760,7 +1760,7 @@ tree.h	_xmlDoc.extSubset	field	not_marked	P0-P3	not-started	https://github.com/G
 tree.h	_xmlDoc.ids	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::element_by_id, OwnedDocument::element_by_id
 tree.h	_xmlDoc.intSubset	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::doctype, OwnedDocument::doctype
 tree.h	_xmlDoc.last	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::root, OwnedDocument::root
-tree.h	_xmlDoc.name	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	not stored
+tree.h	_xmlDoc.name	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	libxml2 never sets it (only xmlCopyDoc copies it)
 tree.h	_xmlDoc.next	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
 tree.h	_xmlDoc.oldNs	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	internal
 tree.h	_xmlDoc.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
