@@ -111,6 +111,40 @@ fn content_parses_in_context() {
     }
 }
 
+/// `xmlStringGetNodeList` and `xmlNewReference` (C helper results): text
+/// with references parses to Text and entity-ref nodes. libxml2 also makes
+/// nodes for undeclared entities and keeps a bare `<`, and drops a `&`
+/// without `;`; here they are malformed content.
+#[test]
+fn references_parse_like_xml_string_get_node_list() {
+    use OwnedNodeKind::{EntityRef, Text};
+    let xml = format!("{DTD}<r xmlns:p='urn:p'/>");
+    // The saved document's end and the parsed kinds, or None: malformed.
+    type Parsed<'a> = Option<(&'a str, &'a [OwnedNodeKind])>;
+    let cases: &[(&str, Parsed<'_>)] = &[
+        (
+            "a&amp;b&e;c&#65;",
+            Some(("a&amp;b&e;cA</r>", &[Text, EntityRef, Text])),
+        ),
+        ("&e;", Some(("&e;</r>", &[EntityRef]))),
+        ("&m;", Some(("&m;</r>", &[EntityRef]))),
+        ("&u;", None),
+        ("&e", None),
+        ("x<y", None),
+    ];
+    for &(content, ref expected) in cases {
+        let result = parse_and_append(&xml, 2, 2, content, 0);
+        match (result, expected) {
+            (Ok((saved, kinds, _)), Some((end, expected))) => {
+                assert!(saved.ends_with(end), "{content:?}: {saved}");
+                assert_eq!(kinds, *expected, "{content:?}");
+            }
+            (Err(EditErrorKind::Parse(_)), None) => {}
+            (result, _) => panic!("{content:?}: {result:?}"),
+        }
+    }
+}
+
 #[test]
 fn the_document_node_parses_a_balanced_chunk() {
     // `xmlParseBalancedChunkMemory`: the document's entities, no bindings.

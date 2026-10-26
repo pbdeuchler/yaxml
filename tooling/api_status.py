@@ -604,7 +604,10 @@ P|xmlNewPI xmlNewDocPI|Editor::append_processing_instruction
 I|xmlNewNs|Editor::declare_namespace
 P|xmlNewProp xmlNewNsProp xmlNewDocProp|Editor::set_attribute
 A|xmlNewNodeEatName xmlNewNsPropEatName xmlNewDocNodeEatName|no dictionary or name ownership transfer
-N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd|not started (no detached nodes, entity-reference or DTD construction)
+P|xmlNewReference|Editor::parse_content - of `&name;`: declared entities only (libxml2 also makes predefined and undeclared ones)
+A|xmlNewCharRef|a character reference is its character (Editor::append_text)
+P|xmlNewDocFragment|Fragment - Editor::parse_content returns detached top-level nodes; there is no fragment node
+N|xmlNewDtd|not started (no detached DTD construction)
 P|xmlCreateIntSubset|Editor::add_declarations, Editor::set_internal_subset - created by the first declarations, named after the document element
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
@@ -632,7 +635,7 @@ P|xmlNodeBufGetContent xmlBufGetNodeContent|Node::content, OwnedNode::content
 P|xmlNodeSetContent xmlNodeSetContentLen|Editor::set_node_value
 I|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat|Editor::add_content
 P|xmlTextMerge|Editor::add_content - then Editor::remove_subtree on the second node
-N|xmlStringGetNodeList xmlStringLenGetNodeList|not started
+P|xmlStringGetNodeList xmlStringLenGetNodeList|Editor::parse_content - `<` must be escaped; undeclared references and a `&` without `;` fail (libxml2: empty entity-ref node, dropped `&`)
 I|xmlNodeListGetString|Node::list_string, OwnedNode::list_string
 P|xmlNodeListGetRawString|OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 I|xmlNodeSetName|Editor::set_name

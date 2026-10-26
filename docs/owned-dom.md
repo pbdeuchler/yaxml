@@ -580,6 +580,7 @@ visit the same tree in the same order. It fails only on allocation
 | --- | --- | --- |
 | `editor.parse_content(node, input, options)` | `xmlParseInNodeContext(node, data, len, options, &list)`, `xmlCtxtParseContent(ctxt, input, node, 0)` | The top-level nodes of `input`, parsed as content of `node`, detached in this document. |
 | `editor.parse_content(document.root().id(), input, ParseOptions::default())` | `xmlParseBalancedChunkMemory(doc, NULL, NULL, 0, string, &list)` | The same, with the document's entities and no namespaces. |
+| `editor.parse_content(node, b"a&amp;b&e;", ParseOptions::default())` | `xmlStringGetNodeList(doc, value)`, `xmlNewReference(doc, "e")` | Text and entity-reference nodes. Only declared entities parse (libxml2 also makes nodes for predefined and undeclared names), `<` must be escaped, and a `&` without `;` fails (libxml2 drops it). |
 | `editor.parse_external_entity(document.root().id(), bytes, options)` | `xmlParseCtxtExternalEntity(ctxt, URL, ID, &list)`, `xmlCtxtParseContent(ctxt, input, node, 1)` | An external parsed entity (`TextDecl? content`): a BOM or the text declaration picks the encoding, then as `parse_content`. Any context node works. |
 
 `input` is any sequence of content: text, several elements, comments, PIs,
