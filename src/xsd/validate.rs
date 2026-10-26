@@ -52,9 +52,14 @@ pub(crate) fn schema_locations<T: Tree>(tree: &T) -> Vec<(Option<String>, String
     out
 }
 
-/// Feeds a tree's nodes from its document element to a validator. The ID
-/// attributes the parser recorded are all known before validation starts.
-pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> {
+/// Feeds a tree's nodes from `root` (default: the document element) to a
+/// validator. The ID attributes the parser recorded are all known before
+/// validation starts.
+pub(crate) fn run<T: Tree>(
+    schema: &Schema,
+    tree: &T,
+    root: Option<T::Id>,
+) -> Vec<Diagnostic<T::Id>> {
     let recorded = tree.ids();
     let mut ids = HashMap::new();
     if ids.try_reserve(recorded.len()).is_err() {
@@ -70,8 +75,10 @@ pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> 
         id,
         offset: tree.offset(id),
     };
-    let root = std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
-        .find(|&n| matches!(tree.item(n), Item::Element(_)));
+    let root = root.or_else(|| {
+        std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
+            .find(|&n| matches!(tree.item(n), Item::Element(_)))
+    });
     let Some(root) = root else {
         return validator.finish();
     };

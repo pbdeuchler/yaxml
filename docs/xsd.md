@@ -34,6 +34,8 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   keeps the rest.
 - `Schema::validate(&tree)` returns `Vec<Diagnostic<Id>>` (code, element id,
   source offset, message); `xsd::is_valid` ignores warnings.
+  `Schema::validate_element(&tree, id)` validates one subtree as the
+  validation root (`xmlSchemaValidateOneElement`; `None` for a non-element).
 - `Schema::validate_stream(input, options)` parses a `BufRead` with
   `BufferedReader` and validates in the same pass (`xmlSchemaValidateStream`).
   `StreamValidator::new(&schema)` (no lifetime: `Schema` clones share one `Arc` of compiled data) takes each `Event` and its `SourceOrigin`

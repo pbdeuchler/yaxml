@@ -1522,6 +1522,72 @@ fn restriction_keeps_the_base_fixed_value() {
     }
 }
 
+/// `validate_element` against `xmlSchemaValidateOneElement` (results
+/// recorded from libxml2 2.15.4); `path` = child indices from the document.
+#[test]
+fn validate_element_matches_validate_one_element() {
+    let text = schema(
+        "<xs:element name='r'><xs:complexType><xs:sequence><xs:element ref='b'/>\
+         <xs:element name='c' type='xs:int'/></xs:sequence></xs:complexType></xs:element>\
+         <xs:element name='b'><xs:complexType><xs:sequence><xs:element name='d' type='xs:int'/>\
+         </xs:sequence><xs:attribute name='ref' type='xs:IDREF'/><xs:attribute name='id' type='xs:ID'/>\
+         </xs:complexType></xs:element>",
+    );
+    let built = Schema::parse(text.as_bytes(), "schema.xsd").unwrap();
+    let int =
+        |name| format!("Element '{name}': 'x' is not a valid value of the atomic type 'xs:int'.");
+    let root = |name| {
+        format!(
+            "Element '{name}': No matching global declaration available for the validation root."
+        )
+    };
+    let cases = [
+        ("<r><b><d>1</d></b><c>x</c></r>", "00", Some(vec![])),
+        (
+            "<r><b><d>x</d></b><c>1</c></r>",
+            "00",
+            Some(vec![(1824, int("d"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "0",
+            Some(vec![(1824, int("c"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "01",
+            Some(vec![(1845, root("c"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "000",
+            Some(vec![(1845, root("d"))]),
+        ),
+        (
+            "<r><b ref='z'><d>1</d></b><b id='z'><d>1</d></b><c>1</c></r>",
+            "00",
+            Some(vec![]),
+        ),
+        ("<r><b ref='z' id='z'><d>1</d></b></r>", "00", Some(vec![])),
+        ("<r>text<b/></r>", "00", None),
+    ];
+    for (instance, path, expected) in cases {
+        let document = OwnedDocument::parse(instance).unwrap();
+        let mut node = document.root();
+        for index in path.bytes().map(|b| usize::from(b - b'0')) {
+            node = node.children().nth(index).unwrap();
+        }
+        let got = built
+            .validate_element(&document, node.id())
+            .map(|diagnostics| {
+                (diagnostics.iter())
+                    .map(|d| (d.code as u16, d.message.trim_end().to_owned()))
+                    .collect::<Vec<_>>()
+            });
+        assert_eq!(got, expected, "{instance} at {path}");
+    }
+}
+
 /// Compiled schemas are shared across threads.
 const _: () = {
     const fn assert_send_sync<T: Send + Sync>() {}

@@ -3513,7 +3513,7 @@ xmlschemas.h	xmlSchemaValidError	enum	not_marked	P3	not-applicable	https://githu
 xmlschemas.h	xmlSchemaValidOption	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidateDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate
 xmlschemas.h	xmlSchemaValidateFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_stream - caller opens the file
-xmlschemas.h	xmlSchemaValidateOneElement	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
+xmlschemas.h	xmlSchemaValidateOneElement	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_element
 xmlschemas.h	xmlSchemaValidateSetFilename	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidateSetLocator	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	not started (docs/xsd.md)
 xmlschemas.h	xmlSchemaValidateStream	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlschemas.h	xsd::Schema::validate_stream

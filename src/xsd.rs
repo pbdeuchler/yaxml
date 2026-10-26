@@ -539,7 +539,19 @@ impl Schema {
 
     /// Validates a document (`xmlSchemaValidateDoc`).
     pub fn validate<T: Tree>(&self, tree: &T) -> Vec<Diagnostic<T::Id>> {
-        validate::run(self, tree)
+        validate::run(self, tree, None)
+    }
+
+    /// Validates the subtree of `element` as if it were the document element
+    /// (`xmlSchemaValidateOneElement`); IDs the parser recorded anywhere in
+    /// the document count. `None` when `element` is not an element.
+    pub fn validate_element<T: Tree>(
+        &self,
+        tree: &T,
+        element: T::Id,
+    ) -> Option<Vec<Diagnostic<T::Id>>> {
+        matches!(tree.item(element), crate::xpath::tree::Item::Element(_))
+            .then(|| validate::run(self, tree, Some(element)))
     }
 
     /// Parses and validates a document in one pass without building a tree
