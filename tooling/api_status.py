@@ -983,7 +983,11 @@ I|xmlSchema|xsd::Schema
 P|xmlSchemaNewValidCtxt xmlSchemaValidCtxt|xsd::StreamValidator::new
 A|xmlSchemaFree xmlSchemaFreeParserCtxt xmlSchemaFreeValidCtxt xmlSchemaPtr xmlSchemaParserCtxt xmlSchemaParserCtxtPtr xmlSchemaValidCtxtPtr|Drop or raw pointer alias
 A|xmlSchemaSet*Errors xmlSchemaSet*StructuredErrors xmlSchemaGet*Errors xmlSchemaValidity*Func|diagnostics are returned as Vec<xsd::Diagnostic>
-N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator|not started (docs/xsd.md)
+N|xmlSchemaDump|not started (docs/xsd.md)
+P|xmlSchemaSAXPlug xmlSchemaSAXUnplug|xsd::StreamValidator - the caller feeds it each event; no SAX handler wrapping
+A|xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaValidCtxtGetParserCtxt|no parser or validation contexts
+P|xmlSchemaValidateSetLocator|xsd::StreamValidator - positions come from each event's SourceOrigin
+P|xmlSchemaValidateSetFilename|diagnostic::Diagnostic::render - the file name is given when rendering
 I|xmlSchemaValidateOneElement|xsd::Schema::validate_element
 I|XML_SCHEMA_VAL_VC_I_CREATE|xsd::Schema::validate_creating
 P|xmlSchemaSetValidOptions xmlSchemaValidOption|xsd::Schema::validate_creating - the one option is a method
