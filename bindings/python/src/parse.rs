@@ -11,7 +11,7 @@ use pyo3::exceptions::{PyOSError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::sync::MutexExt;
 use pyo3::types::{PyByteArray, PyBytes, PyString};
-use yaxml::diagnostic::Level;
+use yaxml::diagnostic::{Level, code};
 use yaxml::{
     EditLimits, ErrorKind, LineIndex, NodeType, OwnedDocument, OwnedNodeId, ParseOptions,
     ReadError, Request, Resolver, ResourceKind, TextReader, options,
@@ -177,8 +177,14 @@ pub fn parse_document(
         .map(|d| row(d, filename))
         .collect();
     // lxml raises the namespace errors libxml2 only reports, unless
-    // recovering; warnings are only logged.
-    if flags & options::RECOVER == 0 && rows.iter().any(|r| r.3 >= Level::Error as u8) {
+    // recovering; warnings are only logged. Without NOENT or DTDVALID it
+    // ignores undeclared entities (`_handleParseResult`).
+    let entities = flags & (options::NOENT | options::DTDVALID) != 0;
+    let raises = |r: &Row| {
+        r.3 >= Level::Error as u8
+            && (entities || !matches!(r.2, code::UNDECLARED_ENTITY | code::WAR_UNDECLARED_ENTITY))
+    };
+    if flags & options::RECOVER == 0 && rows.iter().any(raises) {
         return Err(errors::syntax_from(py, &rows));
     }
     let validity: Vec<Row> = (doc.validity().iter())
