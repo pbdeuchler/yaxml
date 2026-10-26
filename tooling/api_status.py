@@ -1027,7 +1027,8 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
-N|xmlRelaxNGValidateFullElement XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+A|xmlRelaxNGValidateFullElement|relaxng::Stream never asks for a subtree (docs/relaxng.md)
+A|XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 A|xmlRelaxNGDump xmlRelaxNGDumpTree|declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
 P|xmlRelaxParserSetIncLImit|relaxng::Limits::max_include_depth
 A|XML_RELAXNGP_FREE_DOC XML_RELAXNGP_NONE XML_RELAXNG_OK|no parser flags or success code

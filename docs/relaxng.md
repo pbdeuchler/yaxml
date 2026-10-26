@@ -177,7 +177,7 @@ and stdout on all 798 schema and instance pairs of `tests/yaxmllint.rs`.
 
 ## Gaps
 
-- No compact syntax or user-registered datatype libraries.
+- No compact syntax (libxml2's `XML_RELAXNGP_CRNG` flag is stored but never read) or user-registered datatype libraries.
 - `xmlRelaxNGDump` and `xmlRelaxNGDumpTree` are declined; see below.
 - The DTD compatibility annotations (`a:defaultValue`) are ignored and IDs
   are checked as libxml2 does, not with the ID-type consistency rules of

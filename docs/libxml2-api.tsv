@@ -1143,7 +1143,7 @@ pattern.h	xmlStreamPush	function	not_marked	P2	implemented	https://github.com/GN
 pattern.h	xmlStreamPushAttr	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::StreamMatcher::push_attr
 pattern.h	xmlStreamPushNode	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::StreamMatcher::push
 pattern.h	xmlStreamWantsAnyNode	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::StreamMatcher::wants_any_node
-relaxng.h	XML_RELAXNGP_CRNG	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
+relaxng.h	XML_RELAXNGP_CRNG	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 relaxng.h	XML_RELAXNGP_FREE_DOC	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
 relaxng.h	XML_RELAXNGP_NONE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no parser flags or success code
 relaxng.h	XML_RELAXNG_ERR_ATTREXTRANS	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
@@ -1203,7 +1203,7 @@ relaxng.h	xmlRelaxNGNewValidCtxt	function	not_marked	P3	not-applicable	https://g
 relaxng.h	xmlRelaxNGParse	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Schema::parse
 relaxng.h	xmlRelaxNGParserCtxt	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGParserCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
-relaxng.h	xmlRelaxNGParserFlag	enum	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
+relaxng.h	xmlRelaxNGParserFlag	enum	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 relaxng.h	xmlRelaxNGPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGSetParserErrors	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGSetParserStructuredErrors	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
@@ -1215,13 +1215,13 @@ relaxng.h	xmlRelaxNGValidCtxtClearErrors	function	not_marked	P3	not-applicable	h
 relaxng.h	xmlRelaxNGValidCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGValidErr	enum	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code
 relaxng.h	xmlRelaxNGValidateDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Schema::validate
-relaxng.h	xmlRelaxNGValidateFullElement	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
+relaxng.h	xmlRelaxNGValidateFullElement	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Stream never asks for a subtree (docs/relaxng.md)
 relaxng.h	xmlRelaxNGValidatePopElement	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Stream::event
 relaxng.h	xmlRelaxNGValidatePushCData	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Stream::event
 relaxng.h	xmlRelaxNGValidatePushElement	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Stream::event
 relaxng.h	xmlRelaxNGValidityErrorFunc	callback	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
 relaxng.h	xmlRelaxNGValidityWarningFunc	callback	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	Drop, raw pointer alias, or diagnostics returned as Vec
-relaxng.h	xmlRelaxParserSetFlag	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	not started (docs/relaxng.md)
+relaxng.h	xmlRelaxParserSetFlag	function	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 relaxng.h	xmlRelaxParserSetIncLImit	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Limits::max_include_depth
 schemasInternals.h	XML_SCHEMAS_ANYATTR_LAX	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no public schema component model; xsd::Schema is opaque
 schemasInternals.h	XML_SCHEMAS_ANYATTR_SKIP	macro	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no public schema component model; xsd::Schema is opaque
