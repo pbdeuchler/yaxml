@@ -1329,3 +1329,53 @@ fn emptiness_follows_entries_like_libxml2() {
         assert_eq!(catalog.is_empty(), removed, "{}", catalog.dump());
     }
 }
+
+/// `xmlLoadSGMLSuperCatalog` (libxml2 helper results): `CATALOG` entries
+/// stay unloaded under their written names, and XML or malformed content
+/// fails.
+#[test]
+fn super_catalogs_keep_catalog_entries_unloaded() {
+    let files = [
+        (
+            "super.sgml",
+            "CATALOG \"n.sgml\"\nCATALOG \"n.sgml\"\nCATALOG \"missing.sgml\"\n\
+             PUBLIC p \"x.dtd\"\nBASE \"http://b/\"\nSYSTEM s y\n",
+        ),
+        ("n.sgml", "PUBLIC n \"n.dtd\"\n"),
+        ("xml.sgml", &xml("<public publicId='p' uri='x'/>")),
+        ("bad.sgml", "PUBLIC p\n"),
+    ];
+    let (resolver, log) = served(&files);
+    let mut catalog = Catalog::load_super("super.sgml", Limits::default(), resolver).unwrap();
+    let loaded: Vec<String> = (log.lock().unwrap().iter())
+        .map(|(_, uri)| uri.clone())
+        .collect();
+    assert_eq!(loaded, ["super.sgml"]);
+    let lookups = [
+        (Some("p"), None, Some("x.dtd")),
+        (Some("n"), None, None),
+        (None, Some("s"), Some("http://b/y")),
+    ];
+    for (public, system, expected) in lookups {
+        assert_eq!(catalog.resolve(public, system).as_deref(), expected);
+    }
+    let dumped = catalog.dump();
+    let mut dump: Vec<&str> = dumped.lines().collect();
+    dump.sort_unstable();
+    assert_eq!(
+        dump,
+        [
+            "CATALOG \"missing.sgml\"",
+            "CATALOG \"n.sgml\"",
+            "PUBLIC \"p\" \"x.dtd\"",
+            "SYSTEM \"s\" \"http://b/y\""
+        ]
+    );
+    for url in ["xml.sgml", "bad.sgml", "nope.sgml"] {
+        let (resolver, _) = served(&files);
+        assert!(
+            Catalog::load_super(url, Limits::default(), resolver).is_err(),
+            "{url}"
+        );
+    }
+}

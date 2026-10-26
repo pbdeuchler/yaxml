@@ -390,11 +390,11 @@ TREE_FIELDS = {
     "_xmlURI.server": ("I", "Uri::host"),
     "_xmlURI.port": ("I", "Uri::port"),
     "_xmlURI.path": ("I", "Uri::path"),
-    "_xmlURI.query": ("I", "Uri::query"),
+    "_xmlURI.query": ("P", "Uri::query - as written; uri::unescape gives libxml2's unescaped query"),
     "_xmlURI.fragment": ("I", "Uri::fragment"),
     "_xmlURI.authority": ("P", "Uri::has_authority"),
-    "_xmlURI.opaque": ("N", "not stored"),
-    "_xmlURI.query_raw": ("N", "not stored"),
+    "_xmlURI.opaque": ("A", "xmlParseURI never sets it; only xmlSaveUri reads it, for hand-built URIs"),
+    "_xmlURI.query_raw": ("I", "Uri::query"),
     "_xmlURI.cleanup": ("A", "internal flag"),
 }
 
@@ -492,7 +492,7 @@ I|_xmlSAXLocator.getSystemId|sax::Locator::system_id
 A|_xmlSAXLocator.getPublicId|always null in libxml2
 A|xmlDefaultSAXLocator|sax::Locator - sax::parse supplies it
 A|xmlSAXLocatorPtr|raw pointer alias
-N|xmlExternalEntityLoader|use Resolver
+A|xmlExternalEntityLoader|the global loader's type; no global loader, a Resolver per parse
 P|xmlParserCtxt|PushParser
 A|xmlParserInput xmlParserCtxtPtr xmlParserInputPtr xmlParserNodeInfoPtr xmlParserNodeInfoSeqPtr|input stream or raw pointer alias
 A|xmlParserInputBuffer xmlParserInputBufferPtr xmlOutputBuffer xmlOutputBufferPtr|std::io::Read/Write
@@ -966,7 +966,7 @@ P|xmlCatalogAddLocal|catalog::CatalogResolver::catalog_pi - the resolver of a CA
 A|xmlCatalogFreeLocal|the resolver owns the list and drops it with the parse
 A|xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlLoadCatalogs xmlCatalogGetPublic xmlCatalogGetSystem|operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
 A|xmlCatalogConvert xmlConvertSGMLCatalog|declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
-N|xmlLoadSGMLSuperCatalog|not started (docs/catalog.md)
+I|xmlLoadSGMLSuperCatalog|catalog::Catalog::load_super
 I|xmlCatalogIsEmpty|catalog::Catalog::is_empty - not lazy (docs/catalog.md)
 A|xmlCatalogCleanup xmlInitializeCatalog xmlCatalogSetDefaults xmlCatalogGetDefaults xmlCatalogSetDefaultPrefer xmlCatalogSetDebug xmlCatalogAllow xmlCatalogPrefer XML_CATA_ALLOW_* XML_CATA_PREFER_NONE xmlFreeCatalog|no global catalog state
 P|XML_CATA_PREFER_PUBLIC XML_CATA_PREFER_SYSTEM|catalog::Catalog::parse - read from the catalog file's prefer attribute

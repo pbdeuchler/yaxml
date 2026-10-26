@@ -224,6 +224,7 @@ loads as a name).
   `Resolver` cannot report the URI it served.
 - `Catalog::is_empty` (`xmlCatalogIsEmpty`) is false for a loaded XML catalog
   with entries; libxml2 returns 1 until a lookup loads the file.
-- Not ported: SGML super catalogs (`xmlLoadSGMLSuperCatalog`),
-  `xmlCatalogConvert` (declined, above) and debugging
-  output.
+- `Catalog::load_super` (`xmlLoadSGMLSuperCatalog`) reads an SGML catalog
+  whose `CATALOG` entries are kept unloaded under their written system
+  literal (never resolved against `BASE`, never matched); XML content fails.
+- Not ported: `xmlCatalogConvert` (declined, above) and debugging output.

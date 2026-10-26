@@ -365,20 +365,32 @@ impl Catalog {
         url: &str,
         resolver: Box<dyn Resolver>,
     ) -> Result<Self, Error> {
-        Self::build(input, url, Fetcher::new(resolver, limits))
+        Self::build(input, url, Fetcher::new(resolver, limits), false)
     }
 
     /// Fetches `url` through `resolver`, then [`Catalog::parse`]s it.
     pub fn load(url: &str, limits: Limits, resolver: Box<dyn Resolver>) -> Result<Self, Error> {
         let mut fetch = Fetcher::new(resolver, limits);
-        Self::build(&fetch.get(url)?, url, fetch)
+        Self::build(&fetch.get(url)?, url, fetch, false)
     }
 
-    fn build(input: &[u8], url: &str, mut fetch: Fetcher) -> Result<Self, Error> {
+    /// Fetches the SGML super catalog at `url` (`xmlLoadSGMLSuperCatalog`):
+    /// its `CATALOG` entries are kept by the name as written and never
+    /// loaded, and the content is SGML whatever it looks like.
+    pub fn load_super(
+        url: &str,
+        limits: Limits,
+        resolver: Box<dyn Resolver>,
+    ) -> Result<Self, Error> {
+        let mut fetch = Fetcher::new(resolver, limits);
+        Self::build(&fetch.get(url)?, url, fetch, true)
+    }
+
+    fn build(input: &[u8], url: &str, mut fetch: Fetcher, super_: bool) -> Result<Self, Error> {
         let first = (input.iter())
             .find(|&&byte| matches!(byte, 0 | b'-' | b'<') || byte.is_ascii_alphabetic());
         let body = match first {
-            Some(b'<') => {
+            Some(b'<') if !super_ => {
                 let (entries, found) = parse_xml(input, url, true)?;
                 fetch.note(url, found);
                 Body::Xml {
@@ -389,7 +401,7 @@ impl Catalog {
             }
             _ => {
                 let mut map = HashMap::new();
-                let parsed = parse_sgml(&mut map, &mut fetch, input, url, 0);
+                let parsed = parse_sgml(&mut map, &mut fetch, input, url, (!super_).then_some(0));
                 // A refusal in a nested catalog fails the whole.
                 match (fetch.refused, parsed) {
                     (true, _) => return Err(Error::Allocation),
@@ -1226,16 +1238,18 @@ fn sgml_literal(text: &[u8]) -> Option<(String, &[u8])> {
     Some((value.iter().copied().map(char::from).collect(), rest))
 }
 
-/// `xmlParseSGMLCatalog`, loading `CATALOG` entries as `xmlExpandCatalog`
-/// does. `None` is libxml2's -1; entries before the error are kept.
+/// `xmlParseSGMLCatalog`, loading `CATALOG` entries at `depth` as
+/// `xmlExpandCatalog` does, or keeping them unloaded by their written name
+/// when `depth` is `None` (a super catalog). `None` is libxml2's -1; entries
+/// before the error are kept.
 fn parse_sgml(
     map: &mut HashMap<String, Named>,
     fetch: &mut Fetcher,
     input: &[u8],
     file: &str,
-    depth: usize,
+    depth: Option<usize>,
 ) -> Option<()> {
-    if depth > fetch.limits.max_depth {
+    if depth.is_some_and(|depth| depth > fetch.limits.max_depth) {
         return None;
     }
     let mut text = &input[..memchr::memchr(0, input).unwrap_or(input.len())];
@@ -1295,10 +1309,11 @@ fn parse_sgml(
                 if keyword == b"BASE" {
                     base = literal;
                 } else if keyword == b"CATALOG" {
-                    let Some(url) = build(&literal, &base)
-                        .ok()
-                        .filter(|url| !map.contains_key(url))
-                    else {
+                    let key = match depth {
+                        Some(_) => build(&literal, &base).ok(),
+                        None => Some(literal.clone()),
+                    };
+                    let Some(url) = key.filter(|url| !map.contains_key(url)) else {
                         continue;
                     };
                     let named = Named {
@@ -1312,8 +1327,10 @@ fn parse_sgml(
                     }
                     map.insert(url.clone(), named);
                     // Nested failures are ignored, as by xmlExpandCatalog.
-                    if let Ok(nested) = fetch.get(&url) {
-                        parse_sgml(map, fetch, &nested, &url, depth + 1);
+                    if let Some(depth) = depth
+                        && let Ok(nested) = fetch.get(&url)
+                    {
+                        parse_sgml(map, fetch, &nested, &url, Some(depth + 1));
                     }
                 }
             }

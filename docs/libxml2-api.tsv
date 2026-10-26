@@ -215,7 +215,7 @@ catalog.h	xmlInitializeCatalog	function	not_marked	P2	not-applicable	https://git
 catalog.h	xmlLoadACatalog	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::load
 catalog.h	xmlLoadCatalog	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::load
 catalog.h	xmlLoadCatalogs	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
-catalog.h	xmlLoadSGMLSuperCatalog	function	yes	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	not started (docs/catalog.md)
+catalog.h	xmlLoadSGMLSuperCatalog	function	yes	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::load_super
 catalog.h	xmlNewCatalog	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
 catalog.h	xmlParseCatalogFile	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/catalog.h	catalog::Catalog::parse
 chvalid.h	_xmlChLRange	struct	not_marked	P0	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/chvalid.h	the chars predicates keep their range tables private
@@ -913,7 +913,7 @@ parser.h	xmlCtxtValidateDtd	function	not_marked	P0-P3	partial	https://github.com
 parser.h	xmlDefaultSAXHandler	variable	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Handler - its default methods do nothing; OwnedDocument builds trees
 parser.h	xmlDefaultSAXLocator	variable	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Locator - sax::parse supplies it
 parser.h	xmlDoValidityCheckingDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
-parser.h	xmlExternalEntityLoader	callback	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	use Resolver
+parser.h	xmlExternalEntityLoader	callback	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the global loader's type; no global loader, a Resolver per parse
 parser.h	xmlFeature	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	features::Feature
 parser.h	xmlFreeParserCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Drop
 parser.h	xmlGetExternalEntityLoader	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global loader; ParseOptions::with_resolver per parse
@@ -2092,11 +2092,11 @@ uri.h	_xmlURI	struct	not_marked	P2	implemented	https://github.com/GNOME/libxml2/
 uri.h	_xmlURI.authority	field	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::has_authority
 uri.h	_xmlURI.cleanup	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	internal flag
 uri.h	_xmlURI.fragment	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::fragment
-uri.h	_xmlURI.opaque	field	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	not stored
+uri.h	_xmlURI.opaque	field	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	xmlParseURI never sets it; only xmlSaveUri reads it, for hand-built URIs
 uri.h	_xmlURI.path	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::path
 uri.h	_xmlURI.port	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::port
-uri.h	_xmlURI.query	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::query
-uri.h	_xmlURI.query_raw	field	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	not stored
+uri.h	_xmlURI.query	field	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::query - as written; uri::unescape gives libxml2's unescaped query
+uri.h	_xmlURI.query_raw	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::query
 uri.h	_xmlURI.scheme	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::scheme
 uri.h	_xmlURI.server	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::host
 uri.h	_xmlURI.user	field	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/uri.h	Uri::user
