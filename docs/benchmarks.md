@@ -64,6 +64,104 @@ normalization in every element, so the DTD path is measured too. Set
 `YAXML_BENCH_ITERATIONS` to fix their batch size. Record this runner before and
 after the shared-stream refactor with identical fixture bytes and settings.
 
+### Safe SIMD kernels (2026-10-26, from `bdb4788e0`)
+
+`#![forbid(unsafe_code)]` rules out `core::arch` intrinsics: calling a
+`#[target_feature]` intrinsic needs `unsafe` even with NEON enabled, and
+`std::simd` is nightly-only. What is left is plain Rust that LLVM
+vectorizes. A fixed block from `as_chunks::<N>()` folded with a bool
+`any | test(b)` compiles to NEON compares, `orr` and one `umaxv`. Byte
+masks built with `wrapping_neg` and plain-Rust movemask emulation (about
+60 instructions per 16-byte mask) don't vectorize well.
+
+Equivalence: a digest tool linked against `bdb4788e0` and this tree hashes
+1,884,742 outputs:
+
+- inputs: 17,040 synthetic files with special bytes at block edges in text,
+  attributes, comments, CDATA and the prolog; the benchmark fixtures; the
+  fuzz corpus; `tests/fixtures`; XMLTS;
+- flags: 0, RECOVER, NOENT, NOENT|DTDATTR, NOBLANKS, RECOVER|NOENT;
+- surfaces:
+  - DOM and owned `save::to_vec` plus `errors()`, and owned saves in UTF-8,
+    ISO-8859-1, UTF-16 and US-ASCII, each with and without FORMAT;
+  - slice-reader events with `position()`;
+  - push at chunk sizes 1, 7 and 64 KiB, with origins;
+  - a buffered reader at capacity 13;
+  - `encode_entities` (Xml, Ascii, Html) and `encode_special_chars`.
+
+Every output is byte-identical. Planted screen bugs give 52,235 diffs
+(`invalid_char`) and 92 diffs (a `\r` dropped from the save screen), so the
+inputs reach the block paths.
+
+- `escape::invalid_char` (every token; whole slice-reader input). Text
+  shorter than 16 bytes still uses the table. Longer text is screened in
+  128-byte blocks, then 64-byte blocks, for C0 controls and `EF`. A hit is
+  re-checked with a branch-free test for `EF BF BE/BF` over three shifted
+  views of the block, because `EF` alone is common (U+F000..U+FFFF, CJK
+  punctuation). Only a confirmed block is searched.
+- `escape::find_byte` (shared by `save::Out::text` and `save::escape_into`):
+  - Runs under 16 bytes, and a marked first byte, use the exact test.
+  - Longer runs are screened in 16-byte blocks by a superset test, and a
+    block that passes is searched exactly.
+  - `Out::text` gets exact `SPECIAL` tables from the same `const fn` as its
+    screen.
+  - A run of non-ASCII characters is written by the out-of-line
+    `Out::encoded` in one loop, instead of one `chars().next()` per
+    character.
+  - `char_reference` is inlined, so hex references divide by a constant 16.
+
+Parse, instructions (min of 3):
+
+| Workload | Instructions |
+|---|---:|
+| dom cjk (576 KB, CJK text) | -41.70% |
+| push cjk | -40.49% |
+| reader text | -6.43% |
+| push text | -6.36% |
+| dom text | -5.55% |
+| svg, unicode, mixed, push svg/7, buffered svg, owned attributes, tiny | within ±0.24% |
+
+Save and escape (owned document parsed once, `to_vec` repeated; `save` =
+default options, which escape non-ASCII as `&#x..;` when no encoding is
+declared; `save_utf8` = UTF-8 output):
+
+| Workload | Instructions | Cycles |
+|---|---:|---:|
+| save text | -79.43% | -66.26% |
+| save cjk | -34.85% | -33.54% |
+| save unicode | -11.70% | -14.36% |
+| save_utf8 cjk | -58.33% | -50.54% |
+| save svg | +0.21% | -1.45% |
+| save attributes | +0.26% | +0.77% |
+| save mixed (1–3 byte texts) | +1.62% | +0.28% |
+| save tiny | -0.33% | -2.85% |
+| `encode_entities` text | -77.66% | -68.35% |
+| `encode_entities` attributes | -73.47% | -62.91% |
+| `encode_entities` svg | -19.43% | -20.92% |
+| `encode_entities` Ascii cjk | -37.51% | -33.93% |
+| `encode_entities` Html mixed | -5.57% | -5.00% |
+| `encode_entities` tiny | -3.88% | -5.13% |
+
+Measured and dropped:
+
+- SWAR movemask for `tokenizer::tag_close`: 2.5× slower than `memchr`.
+- A cheap superset screen for `invalid_char` without the `EF BF` re-check:
+  pretty-printed documents have a newline or `EF` in most 64-byte blocks
+  (svg 51%, dtd 98-100%).
+- A `find_byte` block loop written as `filter` + `find_map`, or as a `for`
+  loop with a running offset: `position` over the blocks is 5 points better
+  on save text.
+- A screen-only first check, which looked up the first byte twice
+  (cjk +8.6%).
+- The non-ASCII run inlined into `Out::text`: cjk -37%, but text, svg and
+  attributes +2%.
+- `find_byte` for the attribute arm of `needs_normalization` (one pass
+  instead of `memchr3` + `memchr`): attributes, svg, namespaces and tiny
+  -0.03..-0.33% instructions. Too small to keep.
+
+`from_utf8` can't be skipped or fused with the screen: it is the only safe
+way to get a `&str`.
+
 ### Start tags and node links (2026-10-22, from `10757c81c`)
 
 Instruction counts (`instructions retired` from `/usr/bin/time -l`, min of

@@ -23,47 +23,124 @@ pub(crate) fn suspect(byte: u8) -> bool {
     SUSPECT[usize::from(byte)]
 }
 
+/// Offset of the first byte from `from` on that `marked` accepts. Runs under
+/// 16 bytes are searched byte by byte; longer ones are screened in blocks of
+/// 16 by `screen`, a branch-free test of a superset of `marked` (the fold
+/// vectorizes), and only a block that passes the screen is searched.
+#[inline(always)]
+pub(crate) fn find_byte(
+    bytes: &[u8],
+    from: usize,
+    marked: impl Fn(u8) -> bool,
+    screen: impl Fn(u8) -> bool,
+) -> Option<usize> {
+    let rest = &bytes[from..];
+    let search = |run: &[u8], at: usize| {
+        run.iter()
+            .position(|&b| marked(b))
+            .map(|offset| at + offset)
+    };
+    if rest.first().is_some_and(|&b| marked(b)) {
+        return Some(from);
+    }
+    if rest.len() < 16 {
+        return search(rest, from);
+    }
+    let (blocks, tail) = rest.as_chunks::<16>();
+    let mut skip = 0;
+    while let Some(n) = blocks[skip..]
+        .iter()
+        .position(|block| block.iter().fold(false, |any, &b| any | screen(b)))
+    {
+        let n = skip + n;
+        if let Some(found) = search(&blocks[n], from + n * 16) {
+            return Some(found);
+        }
+        skip = n + 1;
+    }
+    search(tail, from + blocks.len() * 16)
+}
+
 /// Byte offset of the first character outside `xml_char`. In valid UTF-8
-/// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail, so
-/// 64-byte blocks are screened with a branch-free byte test first; text
-/// shorter than 16 bytes (most tokens) is scanned through a lookup table.
+/// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail.
+/// Text shorter than 16 bytes (most tokens) is searched through a lookup
+/// table; longer text is screened in blocks of 128, then 64 bytes by a
+/// branch-free byte test that vectorizes, a hit is re-checked exactly the
+/// same way (`EF` alone is common: U+F000..U+FFFF), and only a confirmed
+/// block is searched. The tail under 64 bytes is screened as one run.
 pub(crate) fn invalid_char(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();
     if bytes.len() < 16 {
-        let mut from = 0;
-        while let Some(index) = bytes[from..].iter().position(|&b| SUSPECT[usize::from(b)]) {
-            let at = from + index;
-            if bytes[at] != 0xef
-                || bytes
-                    .get(at + 1..at + 3)
-                    .is_some_and(|tail| matches!(tail, [0xbf, 0xbe | 0xbf]))
-            {
-                return Some(at);
-            }
-            from = at + 1;
-        }
-        return None;
+        return search(bytes, 0);
     }
-    let control = |b: u8| (b < 0x20) & (b != b'\t') & (b != b'\n') & (b != b'\r');
-    let mut start = 0;
-    for block in bytes.chunks(64) {
-        if block
-            .iter()
-            .fold(false, |any, &b| any | control(b) | (b == 0xef))
+    let rest = match blocks::<128>(bytes, 0).and_then(|at| blocks::<64>(bytes, at)) {
+        Ok(rest) => rest,
+        Err(at) => return Some(at),
+    };
+    bytes[rest..]
+        .iter()
+        .fold(false, |any, &b| any | suspect_byte(b))
+        .then(|| search(bytes, rest))
+        .flatten()
+}
+
+/// The table search for a character outside `xml_char` from `from`.
+fn search(bytes: &[u8], from: usize) -> Option<usize> {
+    let mut from = from;
+    while let Some(index) = bytes[from..].iter().position(|&b| SUSPECT[usize::from(b)]) {
+        let at = from + index;
+        if bytes[at] != 0xef
+            || bytes
+                .get(at + 1..at + 3)
+                .is_some_and(|tail| matches!(tail, [0xbf, 0xbe | 0xbf]))
         {
-            let found = block.iter().enumerate().position(|(i, &b)| {
-                control(b)
-                    || (b == 0xef
-                        && bytes.get(start + i + 1) == Some(&0xbf)
-                        && matches!(bytes.get(start + i + 2), Some(0xbe | 0xbf)))
-            });
-            if let Some(i) = found {
-                return Some(start + i);
-            }
+            return Some(at);
         }
-        start += block.len();
+        from = at + 1;
     }
     None
+}
+
+/// `suspect` as arithmetic, which vectorizes.
+#[inline(always)]
+fn suspect_byte(b: u8) -> bool {
+    (b < 0x20) & (b != b'\t') & (b != b'\n') & (b != b'\r') | (b == 0xef)
+}
+
+/// Screens the `N`-byte blocks of `bytes[from..]`: `Err` = the first
+/// character outside `xml_char`, `Ok` = where the blocks end.
+#[inline(always)]
+fn blocks<const N: usize>(bytes: &[u8], from: usize) -> Result<usize, usize> {
+    let (blocks, _) = bytes[from..].as_chunks::<N>();
+    for (n, block) in blocks.iter().enumerate() {
+        let at = from + n * N;
+        let end = (at + N + 2).min(bytes.len());
+        if block.iter().fold(false, |any, &b| any | suspect_byte(b))
+            && (end < at + N + 2 || exact::<N>(&bytes[at..end]))
+            && let Some(found) = search(&bytes[..end], at)
+        {
+            return Err(found);
+        }
+    }
+    Ok(from + blocks.len() * N)
+}
+
+/// Whether the first `N` of the `N + 2` bytes start a character outside
+/// `xml_char`.
+#[inline(always)]
+fn exact<const N: usize>(window: &[u8]) -> bool {
+    let (Ok(first), Ok(second), Ok(third)) = (
+        <&[u8; N]>::try_from(&window[..N]),
+        <&[u8; N]>::try_from(&window[1..N + 1]),
+        <&[u8; N]>::try_from(&window[2..N + 2]),
+    ) else {
+        unreachable!("an N + 2 byte window")
+    };
+    (0..N).fold(false, |any, i| {
+        let b = first[i];
+        let control = (b < 0x20) & (b != b'\t') & (b != b'\n') & (b != b'\r');
+        any | control | ((b == 0xef) & (second[i] == 0xbf) & (third[i] & 0xfe == 0xbe))
+    })
 }
 
 pub(crate) fn needs_normalization(raw: &str, attribute: bool, references: bool) -> bool {

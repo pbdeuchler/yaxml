@@ -71,6 +71,79 @@ fn text_escapes_and_references_follow_the_encoding() {
     }
 }
 
+/// Texts with each byte class `find_byte` screens at every offset across
+/// two 16-byte blocks and the tail, and in runs.
+fn screened_texts() -> Vec<String> {
+    let specials = [
+        "&",
+        "<",
+        ">",
+        "\"",
+        "\t",
+        "\n",
+        "\r",
+        "\u{1}",
+        "\u{e9}",
+        "\u{4e2d}",
+        "\u{fffe}",
+        "\u{1f600}",
+    ];
+    let mut texts: Vec<String> = specials.iter().map(|s| s.repeat(20)).collect();
+    texts.push(specials.concat().repeat(3));
+    texts.push("a".repeat(70));
+    for special in specials {
+        for at in 0..40 {
+            texts.push(format!(
+                "{}{special}{}",
+                "a".repeat(at),
+                "b".repeat(40 - at)
+            ));
+        }
+    }
+    texts
+}
+
+#[test]
+fn screened_text_escapes_as_character_by_character() {
+    // A single character never reaches the block screen, so each text must
+    // come out as its characters written one at a time.
+    let labels = [
+        None,
+        Some("UTF-8"),
+        Some("ISO-8859-1"),
+        Some("US-ASCII"),
+        Some("UTF-16"),
+    ];
+    for text in screened_texts() {
+        for label in labels {
+            for attribute in [false, true] {
+                let (mut whole, mut chars) = (out(label), out(label));
+                whole.text(&text, attribute);
+                for c in text.chars() {
+                    chars.text(c.encode_utf8(&mut [0; 4]), attribute);
+                }
+                assert_eq!(done(whole), done(chars), "{label:?} {attribute} {text:?}");
+            }
+        }
+        for (table, hex) in [
+            (&ATTRIBUTE, true),
+            (&QUOT, false),
+            (&CONTENT, true),
+            (&CONTENT, false),
+            (&HTML, false),
+        ] {
+            let (mut whole, mut chars) = (String::new(), String::new());
+            escape_into(&text, table, hex, |piece| whole.push_str(piece));
+            for c in text.chars() {
+                escape_into(c.encode_utf8(&mut [0; 4]), table, hex, |piece| {
+                    chars.push_str(piece)
+                });
+            }
+            assert_eq!(whole, chars, "{hex} {text:?}");
+        }
+    }
+}
+
 #[test]
 fn markup_fails_where_references_would_change_it() {
     // (encoding, markup, first unrepresentable output offset)

@@ -526,20 +526,28 @@ pub(crate) fn escape_text(out: &mut String, text: &str, html: bool, ascii: bool)
 /// non-ASCII as `&#xH;` when `hex` (U+FFFE and U+FFFF as U+FFFD), otherwise
 /// as is.
 pub(crate) fn escape_into(text: &str, table: &Table, hex: bool, mut push: impl FnMut(&str)) {
+    let bytes = text.as_bytes();
+    let marked = |b: u8| table.get(usize::from(b)).map_or(hex, Option::is_some);
+    // Every table escapes only C0 controls and `&<>"`.
+    let screen = |b: u8| {
+        (b < 0x20) | (b == b'&') | (b == b'<') | (b == b'>') | (b == b'"') | (hex & (b >= 0x80))
+    };
     let mut start = 0;
-    for (index, c) in text.char_indices() {
-        let mut buffer = [0; 12];
-        let replacement = match (c.is_ascii(), hex) {
-            (true, _) => match table[c as usize] {
-                Some(replacement) => replacement,
-                None => continue,
-            },
-            (false, true) => char_reference(unicode_char(c), true, &mut buffer),
-            (false, false) => continue,
-        };
+    while let Some(index) = crate::escape::find_byte(bytes, start, marked, screen) {
         push(&text[start..index]);
-        push(replacement);
-        start = index + c.len_utf8();
+        match table.get(usize::from(bytes[index])) {
+            Some(escape) => {
+                push(escape.unwrap_or_default());
+                start = index + 1;
+            }
+            None => {
+                start = index;
+                for c in text[index..].chars().take_while(|c| !c.is_ascii()) {
+                    push(char_reference(unicode_char(c), true, &mut [0; 12]));
+                    start += c.len_utf8();
+                }
+            }
+        }
     }
     push(&text[start..]);
 }
@@ -613,6 +621,33 @@ const HTML: Table = {
     table[b'<' as usize] = CONTENT[b'<' as usize];
     table[b'>' as usize] = CONTENT[b'>' as usize];
     table
+};
+
+/// Whether [`Out::text`] escapes `b`: exactly the bytes `ATTRIBUTE`
+/// (`attribute`) or `CONTENT` escapes, and non-ASCII unless kept (`unicode`).
+#[inline(always)]
+const fn special(b: u8, attribute: bool, unicode: bool) -> bool {
+    (b < 0x20) & (attribute | (b != b'\t') & (b != b'\n'))
+        | (b == b'&')
+        | (b == b'<')
+        | (b == b'>')
+        | (attribute & (b == b'"'))
+        | (!unicode & (b >= 0x80))
+}
+
+/// [`special`] as tables, by `attribute` and `unicode`.
+const SPECIAL: [[[bool; 256]; 2]; 2] = {
+    let mut tables = [[[false; 256]; 2]; 2];
+    let mut b = 0;
+    while b < 256 {
+        let mut mode = 0;
+        while mode < 4 {
+            tables[mode / 2][mode % 2][b] = special(b as u8, mode / 2 == 1, mode % 2 == 1);
+            mode += 1;
+        }
+        b += 1;
+    }
+    tables
 };
 
 impl<'s> Out<'s> {
@@ -747,36 +782,42 @@ impl<'s> Out<'s> {
         if !unicode && !self.room(text.len()) {
             return;
         }
+        let marks = &SPECIAL[usize::from(attribute)][usize::from(unicode)];
+        let marked = |b: u8| marks[usize::from(b)];
         let bytes = text.as_bytes();
-        let (mut start, mut index) = (0, 0);
-        while index < bytes.len() {
-            let byte = bytes[index];
-            if byte < 0x80 {
-                let Some(escape) = table[usize::from(byte)] else {
-                    index += 1;
-                    continue;
-                };
-                self.raw(&text[start..index]);
-                self.raw(escape);
-                index += 1;
-            } else if unicode {
-                index += 1;
-                continue;
-            } else {
-                self.raw(&text[start..index]);
-                let c = text[index..].chars().next().unwrap_or_default();
-                if self.ascii {
-                    self.reference(unicode_char(c), true);
-                } else if !self.output.push(&mut self.bytes, c) {
-                    self.reference(c, false);
+        let mut start = 0;
+        while let Some(index) =
+            crate::escape::find_byte(bytes, start, marked, |b| special(b, attribute, unicode))
+        {
+            self.raw(&text[start..index]);
+            match table.get(usize::from(bytes[index])) {
+                Some(escape) => {
+                    self.raw(escape.unwrap_or_default());
+                    start = index + 1;
                 }
-                index += c.len_utf8();
+                None => start = index + self.encoded(&text[index..]),
             }
-            start = index;
         }
         self.raw(&text[start..]);
     }
 
+    /// Writes the non-ASCII characters `text` starts with in the output
+    /// encoding, as references where it lacks them; returns their length.
+    #[inline(never)]
+    fn encoded(&mut self, text: &str) -> usize {
+        let mut length = 0;
+        for c in text.chars().take_while(|c| !c.is_ascii()) {
+            if self.ascii {
+                self.reference(unicode_char(c), true);
+            } else if !self.output.push(&mut self.bytes, c) {
+                self.reference(c, false);
+            }
+            length += c.len_utf8();
+        }
+        length
+    }
+
+    #[inline(always)]
     fn reference(&mut self, c: char, hex: bool) {
         self.raw(char_reference(c, hex, &mut [0; 12]));
     }
@@ -829,6 +870,7 @@ impl<'s> Out<'s> {
 }
 
 /// `&#xH;` as `xmlSerializeHexCharRef` writes it, or the encoders' `&#N;`.
+#[inline(always)]
 pub(crate) fn char_reference(c: char, hex: bool, buffer: &mut [u8; 12]) -> &str {
     let (base, prefix) = if hex { (16, "&#x") } else { (10, "&#") };
     let (mut value, mut start) = (u32::from(c), buffer.len() - 1);
