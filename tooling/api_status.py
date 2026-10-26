@@ -1027,6 +1027,8 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
+A|XML_RELAXNG_ERR_ELEMNOTEMPTY XML_RELAXNG_ERR_LACKDATA|never raised by libxml2 2.15.4: relaxng.c only names them in its message table
+A|XML_RELAXNG_ERR_NOGRAMMAR XML_RELAXNG_ERR_NOSTATE XML_RELAXNG_ERR_NODEFINE XML_RELAXNG_ERR_INTERNODATA|raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
 A|xmlRelaxNGValidateFullElement|relaxng::Stream never asks for a subtree (docs/relaxng.md)
 A|XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 A|xmlRelaxNGDump xmlRelaxNGDumpTree|declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)

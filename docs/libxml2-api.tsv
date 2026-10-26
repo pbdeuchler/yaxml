@@ -1158,26 +1158,26 @@ relaxng.h	XML_RELAXNG_ERR_DUPID	enum_value	not_marked	P3	implemented	https://git
 relaxng.h	XML_RELAXNG_ERR_ELEMEXTRANS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementExtraNamespace
 relaxng.h	XML_RELAXNG_ERR_ELEMNAME	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementName
 relaxng.h	XML_RELAXNG_ERR_ELEMNONS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementNoNamespace
-relaxng.h	XML_RELAXNG_ERR_ELEMNOTEMPTY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_ELEMNOTEMPTY	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4: relaxng.c only names them in its message table
 relaxng.h	XML_RELAXNG_ERR_ELEMWRONG	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::UnexpectedElement
 relaxng.h	XML_RELAXNG_ERR_ELEMWRONGNS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ElementWrongNamespace
 relaxng.h	XML_RELAXNG_ERR_EXTRACONTENT	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_EXTRADATA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_INTEREXTRA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_INTERNAL	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Internal
-relaxng.h	XML_RELAXNG_ERR_INTERNODATA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_INTERNODATA	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
 relaxng.h	XML_RELAXNG_ERR_INTERSEQ	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_INVALIDATTR	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::InvalidAttribute
-relaxng.h	XML_RELAXNG_ERR_LACKDATA	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_LACKDATA	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4: relaxng.c only names them in its message table
 relaxng.h	XML_RELAXNG_ERR_LIST	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::List
 relaxng.h	XML_RELAXNG_ERR_LISTELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ListElement
 relaxng.h	XML_RELAXNG_ERR_LISTEMPTY	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	never raised by libxml2 2.15.4
 relaxng.h	XML_RELAXNG_ERR_LISTEXTRA	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::ListExtra
 relaxng.h	XML_RELAXNG_ERR_MEMORY	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Allocation
-relaxng.h	XML_RELAXNG_ERR_NODEFINE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_NODEFINE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
 relaxng.h	XML_RELAXNG_ERR_NOELEM	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::MissingElement
-relaxng.h	XML_RELAXNG_ERR_NOGRAMMAR	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
-relaxng.h	XML_RELAXNG_ERR_NOSTATE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
+relaxng.h	XML_RELAXNG_ERR_NOGRAMMAR	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
+relaxng.h	XML_RELAXNG_ERR_NOSTATE	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
 relaxng.h	XML_RELAXNG_ERR_NOTELEM	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	no yaxml diagnostic carries this XML_RELAXNG_ERR code
 relaxng.h	XML_RELAXNG_ERR_TEXTWRONG	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::UnexpectedText
 relaxng.h	XML_RELAXNG_ERR_TYPE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/relaxng.h	relaxng::Code::Datatype
