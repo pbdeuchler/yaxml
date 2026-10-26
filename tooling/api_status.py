@@ -1300,7 +1300,7 @@ def error_rule(i, ctx):
 def header_rule(h, i, k, ctx):
     if h == "xmlerror.h":
         s, note = error_rule(i, ctx) or (None, None)
-        unused = s == "N" and k == "enum_value" and i not in ctx.raised
+        unused = (s == "N" or s == "P" and i.startswith("XML_ERR_")) and k == "enum_value" and i not in ctx.raised
         return ("A", "never raised by libxml2 2.15.4") if unused else (s, note) if s else None
     if m := re.fullmatch(r"XML_PARSE_(\w+)", i):
         n = m.group(1)
