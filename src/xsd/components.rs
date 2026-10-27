@@ -227,6 +227,14 @@ pub(crate) struct AttributeDecl {
     pub(crate) value: Option<ValueConstraint>,
 }
 
+/// A global attribute group, its references expanded (libxml2 `attrUses`).
+#[derive(Clone, Debug)]
+pub(crate) struct AttrGroup {
+    pub(crate) name: QName,
+    pub(crate) uses: Vec<AttrUse>,
+    pub(crate) wildcard: Option<WildId>,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct AttrUse {
     pub(crate) decl: AttrId,

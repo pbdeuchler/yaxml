@@ -40,8 +40,9 @@ mod validate;
 mod view;
 
 pub use view::{
-    AttributeDeclaration, AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations,
-    ElementDeclaration, Namespaces, ProcessContents, SimpleVariety, TypeDefinition, TypeKind,
+    AttributeDeclaration, AttributeGroup, AttributeUse, AttributeWildcard, Constraint, ContentType,
+    Derivations, ElementDeclaration, Namespaces, ProcessContents, SimpleVariety, TypeDefinition,
+    TypeKind,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -58,7 +59,8 @@ use crate::{
 };
 
 use components::{
-    AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, Sym, TypeDef, TypeId, Wildcard,
+    AttrGroup, AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, Sym, TypeDef, TypeId,
+    Wildcard,
 };
 
 /// A schema or validity diagnostic code; the discriminant is libxml2's
@@ -499,6 +501,8 @@ pub(crate) struct Compiled {
     pub(crate) global_elements: HashMap<QName, ElemId>,
     pub(crate) global_types: HashMap<QName, TypeId>,
     pub(crate) global_attributes: HashMap<QName, AttrId>,
+    pub(crate) attribute_groups: Vec<AttrGroup>,
+    pub(crate) global_attribute_groups: HashMap<QName, usize>,
     pub(crate) notations: HashSet<QName>,
     pub(crate) warnings: Vec<SchemaDiagnostic>,
     pub(crate) max_counter_vectors: usize,

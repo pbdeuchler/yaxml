@@ -3,9 +3,9 @@
 
 use super::Schema;
 use super::components::{
-    AttrId, AttrUse, AttributeDecl, Content, EXTENSION, ElemId, Kind, LIST, NO_NS, NsConstraint,
-    Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION, ValueConstraint, Variety,
-    WildId,
+    AttrGroup, AttrId, AttrUse, AttributeDecl, Content, EXTENSION, ElemId, Kind, LIST, NO_NS,
+    NsConstraint, Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION, ValueConstraint,
+    Variety, WildId,
 };
 use crate::regexp::Regex;
 use crate::schema_types::{Facet, WhiteSpace};
@@ -112,7 +112,8 @@ pub enum Namespaces<'a> {
     Set(Vec<Option<&'a str>>),
 }
 
-/// A complex type's attribute wildcard (`xmlSchemaWildcard`).
+/// A complex type's or attribute group's attribute wildcard
+/// (`xmlSchemaWildcard`).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct AttributeWildcard<'a> {
@@ -143,16 +144,45 @@ pub struct AttributeDeclaration<'a> {
     id: AttrId,
 }
 
-/// An attribute use of a complex type, inherited ones included.
+/// An attribute use of a complex type (inherited ones included) or of an
+/// attribute group.
 #[derive(Clone, Copy)]
 pub struct AttributeUse<'a> {
     schema: &'a Schema,
     used: &'a AttrUse,
 }
 
+/// A global attribute group definition (`xmlSchemaAttributeGroup`).
+#[derive(Clone, Copy)]
+pub struct AttributeGroup<'a> {
+    schema: &'a Schema,
+    id: usize,
+}
+
 impl Schema {
     fn ns(&self, sym: u32) -> Option<&str> {
         (sym != NO_NS).then(|| self.data.names.str(sym))
+    }
+
+    fn wildcard(&self, id: Option<WildId>) -> Option<AttributeWildcard<'_>> {
+        let wildcard = &self.data.wildcards[id?];
+        let ns = |sym| self.ns(sym);
+        Some(AttributeWildcard {
+            namespaces: match &wildcard.ns {
+                NsConstraint::Any => Namespaces::Any,
+                NsConstraint::Not(sym) => Namespaces::Not(ns(*sym)),
+                NsConstraint::Set(set) => {
+                    let mut set: Vec<_> = set.iter().map(|&sym| ns(sym)).collect();
+                    set.sort();
+                    Namespaces::Set(set)
+                }
+            },
+            process: match wildcard.process {
+                Process::Skip => ProcessContents::Skip,
+                Process::Lax => ProcessContents::Lax,
+                Process::Strict => ProcessContents::Strict,
+            },
+        })
     }
 
     fn qname(&self, namespace: Option<&str>, name: &str) -> QName {
@@ -246,6 +276,26 @@ impl Schema {
             .map(|&id| AttributeDeclaration { schema: self, id })
             .collect();
         all.sort_by_key(|attribute| (attribute.namespace(), attribute.name()));
+        all.into_iter()
+    }
+
+    /// A global attribute group definition.
+    pub fn attribute_group(
+        &self,
+        namespace: Option<&str>,
+        name: &str,
+    ) -> Option<AttributeGroup<'_>> {
+        let name = self.qname(namespace, name);
+        let &id = self.data.global_attribute_groups.get(&name)?;
+        Some(AttributeGroup { schema: self, id })
+    }
+
+    /// The global attribute group definitions, by namespace then name.
+    pub fn attribute_groups(&self) -> impl Iterator<Item = AttributeGroup<'_>> {
+        let mut all: Vec<_> = (self.data.global_attribute_groups.values())
+            .map(|&id| AttributeGroup { schema: self, id })
+            .collect();
+        all.sort_by_key(|group| (group.namespace(), group.name()));
         all.into_iter()
     }
 
@@ -364,25 +414,34 @@ impl<'a> TypeDefinition<'a> {
 
     /// A complex type's attribute wildcard.
     pub fn attribute_wildcard(self) -> Option<AttributeWildcard<'a>> {
-        let id: WildId = self.def().complex()?.wildcard?;
-        let wildcard = &self.schema.data.wildcards[id];
-        let ns = |sym| self.schema.ns(sym);
-        Some(AttributeWildcard {
-            namespaces: match &wildcard.ns {
-                NsConstraint::Any => Namespaces::Any,
-                NsConstraint::Not(sym) => Namespaces::Not(ns(*sym)),
-                NsConstraint::Set(set) => {
-                    let mut set: Vec<_> = set.iter().map(|&sym| ns(sym)).collect();
-                    set.sort();
-                    Namespaces::Set(set)
-                }
-            },
-            process: match wildcard.process {
-                Process::Skip => ProcessContents::Skip,
-                Process::Lax => ProcessContents::Lax,
-                Process::Strict => ProcessContents::Strict,
-            },
-        })
+        self.schema.wildcard(self.def().complex()?.wildcard)
+    }
+}
+
+impl<'a> AttributeGroup<'a> {
+    fn group(self) -> &'a AttrGroup {
+        &self.schema.data.attribute_groups[self.id]
+    }
+
+    /// The local name.
+    pub fn name(self) -> &'a str {
+        self.schema.data.names.str(self.group().name.local)
+    }
+
+    /// The target namespace; `None` if absent.
+    pub fn namespace(self) -> Option<&'a str> {
+        self.schema.ns(self.group().name.ns)
+    }
+
+    /// The attribute uses, those of referenced groups included.
+    pub fn attribute_uses(self) -> impl Iterator<Item = AttributeUse<'a>> {
+        let schema = self.schema;
+        (self.group().uses.iter()).map(move |used| AttributeUse { schema, used })
+    }
+
+    /// The attribute wildcard, intersected with those of referenced groups.
+    pub fn attribute_wildcard(self) -> Option<AttributeWildcard<'a>> {
+        self.schema.wildcard(self.group().wildcard)
     }
 }
 

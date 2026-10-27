@@ -78,7 +78,9 @@ hash tables; with `YAXML_XSD_COMPONENTS_HELPER` the ignored test compares all
 123 libxml2 `test/schemas` schemas that both build. Differences: a union
 derived by restriction lists its base's member types (libxml2 leaves
 `memberTypes` empty), and wildcard namespace sets are sorted, absent
-namespace first (libxml2 keeps document order). Not exposed: particles and model groups, attribute groups (flattened into uses),
+namespace first (libxml2 keeps document order). `attribute_group`/`attribute_groups` give each global attribute group's
+uses and wildcard with group references expanded (libxml2's `attrUses` and
+intersected `attributeWildcard`). Not exposed: particles and model groups,
 enumerations, identity constraints, annotations and `version` (libxml2
 never sets `_xmlSchema.version`). `Schema::target_namespace` is the main
 document's.

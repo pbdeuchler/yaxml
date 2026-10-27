@@ -41,6 +41,22 @@ static void wildcard(xmlSchemaWildcardPtr w) {
     printf("%s%s", n == w->nsSet ? "" : ",", n->value ? (char *)n->value : "");
   printf(" process=%s", w->processContents == 1 ? "skip" : w->processContents == 2 ? "lax" : "strict");
 }
+static void attributes(List *uses, xmlSchemaWildcardPtr w) {
+  for (int i = 0; uses && i < uses->nbItems; i++) {
+    Use *u = uses->items[i];
+    if (u->type != XML_SCHEMA_TYPE_ATTRIBUTE_USE) continue;
+    printf(" use="); name(u->attrDecl->targetNamespace, u->attrDecl->name);
+    printf("%s", u->occurs == XML_SCHEMAS_ATTR_USE_REQUIRED ? "!" : "?");
+    if (u->defValue) printf("%s%s", u->flags & XML_SCHEMAS_ATTR_FIXED ? "==" : "=", u->defValue);
+  }
+  wildcard(w);
+}
+static void group(void *p, void *d, const xmlChar *k) {
+  xmlSchemaAttributeGroupPtr g = p;
+  printf("attrgroup "); name(g->targetNamespace, g->name);
+  attributes(g->attrUses, g->attributeWildcard);
+  printf("\n");
+}
 /* facetSet kinds in enum order, less whitespace and enumerations;
    patterns counted (they are the type's own). */
 static void facets(xmlSchemaTypePtr t) {
@@ -102,16 +118,7 @@ static void type(void *p, void *d, const xmlChar *k) {
     static const char *content[] = {"unknown", "empty", "elements", "mixed", "simple", "mixed", "basic", "any"};
     printf(" complex abstract=%d content=%s", !!(f & XML_SCHEMAS_TYPE_ABSTRACT), content[t->contentType]);
     if (t->contentType == XML_SCHEMA_CONTENT_SIMPLE) { printf(" simple="); tname(t->contentTypeDef); }
-    List *uses = t->attrUses;
-    for (int i = 0; uses && i < uses->nbItems; i++) {
-      Use *u = uses->items[i];
-      if (u->type != XML_SCHEMA_EXTRA_ATTR_USE_PROHIB && u->type != XML_SCHEMA_TYPE_ATTRIBUTE_USE) continue;
-      if (u->type != XML_SCHEMA_TYPE_ATTRIBUTE_USE) continue;
-      printf(" use="); name(u->attrDecl->targetNamespace, u->attrDecl->name);
-      printf("%s", u->occurs == XML_SCHEMAS_ATTR_USE_REQUIRED ? "!" : "?");
-      if (u->defValue) printf("%s%s", u->flags & XML_SCHEMAS_ATTR_FIXED ? "==" : "=", u->defValue);
-    }
-    wildcard(t->attributeWildcard);
+    attributes(t->attrUses, t->attributeWildcard);
   }
   if (!k || *k) printf("\n");
 }
@@ -121,6 +128,7 @@ static void nota(void *p, void *d, const xmlChar *k) {
 }
 static void scan(xmlSchemaPtr s) {
   xmlHashScan(s->notaDecl, nota, NULL);
+  xmlHashScan(s->attrgrpDecl, group, NULL);
   xmlHashScan(s->elemDecl, elem, NULL);
   xmlHashScan(s->attrDecl, attr, NULL);
   xmlHashScan(s->typeDecl, type, NULL);

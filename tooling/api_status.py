@@ -307,8 +307,9 @@ FIELD_DEFAULT = {
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink".split():
-    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations or attribute groups")
+FIELD_DEFAULT["_xmlSchemaAnnot"] = ("N", "no view of annotations")
+FIELD_DEFAULT["_xmlSchemaAttributeGroup"] = ("A", "deprecated, unused or builder bookkeeping; xsd::AttributeGroup exposes the compiled properties")
+FIELD_DEFAULT["_xmlSchemaAttributeLink"] = ("A", "never used by libxml2 2.15.4")
 FIELD_DEFAULT["_xmlSchemaNotation"] = ("A", "never set by libxml2 (identifier) or builder bookkeeping")
 for _s in "SchemaFacet SchemaFacetLink".split():
     FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; schema_types::Facet is the compiled facet")
@@ -1026,7 +1027,16 @@ P|xmlSchemaNotation xmlSchemaNotationPtr|xsd::Schema::notations - pairs, no nota
 A|_xmlSchema.schemasImports|imported components are found by the same lookups
 I|_xmlSchema.targetNamespace|xsd::Schema::target_namespace
 A|_xmlSchema.version|never set by libxml2 2.15.4
-N|_xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef|no view of model groups, attribute groups or IDCs
+I|_xmlSchema.attrgrpDecl|xsd::Schema::attribute_group, xsd::Schema::attribute_groups
+I|xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr _xmlSchemaAttributeGroup|xsd::AttributeGroup
+I|_xmlSchemaAttributeGroup.name|xsd::AttributeGroup::name
+I|_xmlSchemaAttributeGroup.targetNamespace|xsd::AttributeGroup::namespace
+I|_xmlSchemaAttributeGroup.attrUses|xsd::AttributeGroup::attribute_uses - references expanded
+I|_xmlSchemaAttributeGroup.attributeWildcard|xsd::AttributeGroup::attribute_wildcard
+A|xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr _xmlSchemaAttributeLink|never used by libxml2 2.15.4
+A|xmlSchemaFreeType xmlSchemaFreeWildcard|Drop; components are borrowed views
+P|xmlSchemaVal xmlSchemaValPtr|schema_types::Value - an owned value, no raw pointer
+N|_xmlSchema.groupDecl _xmlSchema.idcDef|no view of model groups or IDCs
 I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
 I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
 I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
@@ -1102,7 +1112,7 @@ I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
+N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups or IDCs
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h

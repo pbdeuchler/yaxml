@@ -2629,17 +2629,30 @@ impl Fix {
             picked.extend(globals.map(|((_, name), &id)| (*name, id)));
             Ok(picked)
         };
-        let (global_elements, global_types, global_attributes) = (
+        let (global_elements, global_types, global_attributes, global_attribute_groups) = (
             pick(GlobalKind::Element)?,
             pick(GlobalKind::Type)?,
             pick(GlobalKind::Attribute)?,
+            pick(GlobalKind::AttrGroup)?,
         );
+        let attribute_groups = collected(self.d.attr_groups.iter().zip(self.group_attrs).map(
+            |(draft, expanded)| {
+                let (uses, wildcard) = expanded.unwrap_or_default();
+                AttrGroup {
+                    name: draft.name,
+                    uses,
+                    wildcard,
+                }
+            },
+        ))?;
         Ok(Schema {
             data: Arc::new(Compiled {
                 target: self.d.buckets.first().map_or(NO_NS, |bucket| bucket.tns),
                 global_elements,
                 global_types,
                 global_attributes,
+                attribute_groups,
+                global_attribute_groups,
                 notations: self.notations,
                 names: self.d.names,
                 types: self.types,

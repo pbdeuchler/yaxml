@@ -10,8 +10,8 @@ use std::fmt::Write;
 
 use yaxml::schema_types::Facet;
 use yaxml::xsd::{
-    Constraint, ContentType, Derivations, Limits, Namespaces, ProcessContents, Schema,
-    SimpleVariety, TypeDefinition, TypeKind,
+    AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations, Limits, Namespaces,
+    ProcessContents, Schema, SimpleVariety, TypeDefinition, TypeKind,
 };
 
 fn qualified(namespace: Option<&str>, name: Option<&str>) -> String {
@@ -67,6 +67,38 @@ const ORDER: [&str; 9] = [
     "minLength",
 ];
 
+fn attributes<'a>(
+    out: &mut String,
+    uses: impl Iterator<Item = AttributeUse<'a>>,
+    wildcard: Option<AttributeWildcard<'a>>,
+) {
+    for used in uses {
+        let declaration = used.declaration();
+        let name = qualified(declaration.namespace(), Some(declaration.name()));
+        let required = if used.is_required() { '!' } else { '?' };
+        write!(out, " use={name}{required}").unwrap();
+        if let Some(value) = used.value() {
+            let fixed = if value.fixed { "==" } else { "=" };
+            write!(out, "{fixed}{}", value.value).unwrap();
+        }
+    }
+    if let Some(wildcard) = wildcard {
+        let namespaces = match wildcard.namespaces {
+            Namespaces::Any => "any".into(),
+            Namespaces::Not(ns) => format!("not:{}", ns.unwrap_or_default()),
+            Namespaces::Set(set) => (set.iter().map(|ns| ns.unwrap_or_default()))
+                .collect::<Vec<_>>()
+                .join(","),
+        };
+        let process = match wildcard.process {
+            ProcessContents::Skip => "skip",
+            ProcessContents::Lax => "lax",
+            ProcessContents::Strict => "strict",
+        };
+        write!(out, " wildcard={namespaces} process={process}").unwrap();
+    }
+}
+
 fn definition(out: &mut String, ty: TypeDefinition<'_>) {
     let derivation = if ty.is_extension() {
         "extension"
@@ -118,31 +150,7 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
                 ty.is_abstract() as u8
             )
             .unwrap();
-            for used in ty.attribute_uses() {
-                let declaration = used.declaration();
-                let name = qualified(declaration.namespace(), Some(declaration.name()));
-                let required = if used.is_required() { '!' } else { '?' };
-                write!(out, " use={name}{required}").unwrap();
-                if let Some(value) = used.value() {
-                    let fixed = if value.fixed { "==" } else { "=" };
-                    write!(out, "{fixed}{}", value.value).unwrap();
-                }
-            }
-            if let Some(wildcard) = ty.attribute_wildcard() {
-                let namespaces = match wildcard.namespaces {
-                    Namespaces::Any => "any".into(),
-                    Namespaces::Not(ns) => format!("not:{}", ns.unwrap_or_default()),
-                    Namespaces::Set(set) => (set.iter().map(|ns| ns.unwrap_or_default()))
-                        .collect::<Vec<_>>()
-                        .join(","),
-                };
-                let process = match wildcard.process {
-                    ProcessContents::Skip => "skip",
-                    ProcessContents::Lax => "lax",
-                    ProcessContents::Strict => "strict",
-                };
-                write!(out, " wildcard={namespaces} process={process}").unwrap();
-            }
+            attributes(out, ty.attribute_uses(), ty.attribute_wildcard());
         }
     }
 }
@@ -195,6 +203,13 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         definition(&mut out, ty);
         lines.insert(out);
     }
+    for group in schema.attribute_groups() {
+        let mut out = String::new();
+        let name = qualified(group.namespace(), Some(group.name()));
+        write!(out, "attrgroup {name}").unwrap();
+        attributes(&mut out, group.attribute_uses(), group.attribute_wildcard());
+        lines.insert(out);
+    }
     for (namespace, name) in schema.notations() {
         lines.insert(format!("notation {}", qualified(namespace, Some(name))));
     }
@@ -202,6 +217,8 @@ fn components(schema: &Schema) -> BTreeSet<String> {
 }
 
 const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:t='urn:t' targetNamespace='urn:t' blockDefault='extension' finalDefault='restriction'>
+<xs:attributeGroup name='ag'><xs:attribute name='z' type='xs:int' default='1'/><xs:attributeGroup ref='t:ah'/><xs:anyAttribute namespace='##local urn:t'/></xs:attributeGroup>
+<xs:attributeGroup name='ah'><xs:attribute ref='t:g' use='required'/><xs:anyAttribute namespace='##any' processContents='lax'/></xs:attributeGroup>
 <xs:element name='h' type='xs:decimal' final='extension'/>
 <xs:element name='i' type='xs:int' substitutionGroup='t:h'/>
 <xs:element name='j' type='xs:int' substitutionGroup='t:i' abstract='true'/>
@@ -219,7 +236,9 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 15] = [
+const COMPONENTS: [&str; 17] = [
+    "attrgroup {urn:t}ag use=z? use={urn:t}g! wildcard=,urn:t process=strict",
+    "attrgroup {urn:t}ah use={urn:t}g! wildcard=any process=lax",
     "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
     "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e final=r subst=0",
     "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers final=r subst=0",
@@ -249,7 +268,7 @@ fn lookups_find_globals_and_built_ins_only() {
     let schema = Schema::parse(SCHEMA.as_bytes(), "a.xsd").unwrap();
     let xs = Some("http://www.w3.org/2001/XMLSchema");
     let t = Some("urn:t");
-    let cases: [(&str, Option<&str>, &str, bool); 9] = [
+    let cases: [(&str, Option<&str>, &str, bool); 11] = [
         ("element", t, "e", true),
         ("element", None, "e", false),
         ("element", t, "c", false),
@@ -259,6 +278,8 @@ fn lookups_find_globals_and_built_ins_only() {
         ("type", xs, "int", true),
         ("type", xs, "anyType", true),
         ("type", t, "nope", false),
+        ("attribute group", t, "ag", true),
+        ("attribute group", None, "ag", false),
     ];
     for (kind, namespace, name, found) in cases {
         let got = match kind {
@@ -268,6 +289,9 @@ fn lookups_find_globals_and_built_ins_only() {
             "attribute" => schema
                 .attribute(namespace, name)
                 .map(|a| (a.namespace(), a.name())),
+            "attribute group" => {
+                (schema.attribute_group(namespace, name)).map(|g| (g.namespace(), g.name()))
+            }
             _ => (schema.type_definition(namespace, name))
                 .map(|t| (t.namespace(), t.name().unwrap())),
         };
