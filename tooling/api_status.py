@@ -167,7 +167,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "PEDANTIC": ("P", "xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported"),
     "OLD10": ("P", "Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names"),
     "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
-    "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
+    "UNZIP": ("I", "accepted with no effect, as libxml2 built without zlib (features::Feature::Zlib is false)"),
     "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver); syntax errors = Warning::CatalogPi"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
@@ -302,7 +302,7 @@ FIELD_DEFAULT = {
     "_xmlDtd": ("A", "tree links; valid::Dtd is read through its accessors"),
     "_xmlEnumeration": ("N", "no public enumeration list"),
     "_xmlID": ("P", "Document::ids, OwnedDocument::ids - (element, attribute position) entries"),
-    "_xmlRef": ("N", "no IDREF table"),
+    "_xmlRef": ("R", "only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally"),
     "_xmlError": ("A", "no counterpart field"),
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
@@ -524,7 +524,7 @@ P|XML_MAX_DICTIONARY_LIMIT XML_MAX_LOOKUP_LIMIT|Limits
 P|XML_MAX_HUGE_LENGTH XML_MAX_TEXT_LENGTH XML_MAX_NAME_LENGTH XML_MAX_NAMELEN|Limits::max_token_bytes
 P|xmlParserMaxDepth|Limits::max_depth
 A|XML_SUBSTITUTE_* inputPop inputPush xmlCtxtErrMemory xmlCtxtPopInput xmlCtxtPushInput xmlCreateFileParserCtxt xmlCreateMemoryParserCtxt xmlCreateURLParserCtxt xmlNewInputFromFile xmlNewInputStream xmlNewStringInputStream xmlStringText xmlStringTextNoenc|internal parser plumbing
-N|xmlParseContent|parser-internal entry point not exposed
+P|xmlParseContent|Editor::parse_content - the content production as xmlCtxtParseContent runs it; no parser context to continue
 P|xmlSwitchEncoding|ParseOptions::encoding, Handler::lookup - before the parse, the document only
 P|xmlSplitQName|Name::new
 # ---- tree.h
@@ -557,7 +557,7 @@ I|XML_ELEMENT_CONTENT_OPT|valid::Occurrence::Optional
 I|XML_ELEMENT_CONTENT_MULT|valid::Occurrence::ZeroOrMore
 I|XML_ELEMENT_CONTENT_PLUS|valid::Occurrence::OneOrMore
 P|xmlID|Document::ids, OwnedDocument::ids - (element, attribute position) entries
-N|xmlRef|no public IDREF table
+R|xmlRef|only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally
 I|xmlAttributeType|valid::AttributeKind
 I|XML_ATTRIBUTE_CDATA|valid::AttributeKind::Cdata
 I|XML_ATTRIBUTE_ID|valid::AttributeKind::Id
@@ -625,7 +625,7 @@ A|xmlNewNodeEatName xmlNewNsPropEatName xmlNewDocNodeEatName|no dictionary or na
 P|xmlNewReference|Editor::parse_content - of `&name;`: declared entities only (libxml2 also makes predefined and undeclared ones)
 A|xmlNewCharRef|a character reference is its character (Editor::append_text)
 P|xmlNewDocFragment|Fragment - Editor::parse_content returns detached top-level nodes; there is no fragment node
-N|xmlNewDtd|not started (no detached DTD construction)
+P|xmlNewDtd|valid::Dtd::parse - a detached DTD from declaration markup (empty: no declarations); no name or identifiers, not attached as an external subset
 P|xmlCreateIntSubset|Editor::add_declarations, Editor::set_internal_subset - created by the first declarations, named after the document element
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
@@ -711,7 +711,7 @@ I|XML_INTERNAL_PREDEFINED_ENTITY|valid::EntityKind::Predefined
 P|xmlEntitiesTable|valid::Dtd::entities - an iterator, no table type
 A|xmlFreeEntity|Drop
 P|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity|Editor::add_declarations - declarations as markup, appended to the internal subset
-N|xmlNewEntity|no detached entity declarations
+P|xmlNewEntity|valid::Dtd::parse, valid::Dtd::entity - a detached declaration parsed from markup; attached ones: Editor::add_declarations
 I|_xmlEntity.name|valid::Entity::name
 I|_xmlEntity.etype|valid::Entity::kind
 P|_xmlEntity.content|valid::Entity::content - also the text of loaded external entities, which libxml2 leaves unset
@@ -895,7 +895,7 @@ I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at
 P|xmlDumpNotationTable|save::notation_table - declaration order (libxml2: hash order)
 A|xmlValidState xmlValidStatePtr|opaque push-validation state; valid::StreamValidator keeps its own
 P|xmlIDTable xmlIDTablePtr|Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
-N|xmlRefTable xmlRefTablePtr|no public IDREF table: validators check IDREFs internally
+R|xmlRefTable xmlRefTablePtr|only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally
 A|xmlValidityErrorFunc xmlValidityWarningFunc|no error callback: validators return valid::Diagnostic lists
 # ---- encoding.h
 P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only
@@ -938,7 +938,8 @@ P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
 P|htmlSAXHandler|html::Event - the callbacks HTML parsing makes, as events
 I|XML_HTML_STRUCURE_ERROR|diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
-N|htmlParserInput htmlParserNodeInfo|node info tables not public (docs/html.md)
+A|htmlParserInput|input stream (xmlParserInput)
+P|htmlParserNodeInfo|OwnedNode::range - an empty range at the offset whose line libxml2 records (docs/html.md); lines from diagnostic::LineIndex::html
 R|htmlElemDesc htmlEntityDesc _htmlElemDesc _htmlEntityDesc|types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
 I|htmlDocDumpMemory htmlDocDumpMemoryFormat|html::to_html, html::save
 P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - returns bytes

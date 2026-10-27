@@ -112,7 +112,8 @@ pub const BIG_LINES: u32 = 1 << 22;
 /// `XML_PARSE_NO_XXE`: never load the external subset or external entities,
 /// even with a resolver.
 pub const NO_XXE: u32 = 1 << 23;
-/// `XML_PARSE_UNZIP`: input decompression; not implemented, rejected.
+/// `XML_PARSE_UNZIP`: accepted with no effect, as in libxml2 built without
+/// zlib ([`Feature::Zlib`](crate::features::Feature::Zlib) is false).
 pub const UNZIP: u32 = 1 << 24;
 /// `XML_PARSE_NO_SYS_CATALOG`: accepted; there is never a system catalog.
 pub const NO_SYS_CATALOG: u32 = 1 << 25;
@@ -131,7 +132,6 @@ pub const LEGACY: u32 = NOENT | DTDATTR;
 /// Flags with no implementation on any surface, or whose implementation
 /// is compiled out (cargo features `xinclude`, `catalog`).
 const NEVER: u32 = OLDSAX
-    | UNZIP
     | (XINCLUDE * !cfg!(feature = "xinclude") as u32)
     | (CATALOG_PI * !cfg!(feature = "catalog") as u32);
 /// Flags only a tree can implement.

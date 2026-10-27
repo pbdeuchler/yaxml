@@ -35,7 +35,7 @@ fn check_accepts_supported_flags_and_rejects_the_rest() {
         (RECOVER, false, 0, true),
         (OLD10, true, 0, true),
         (OLDSAX, true, 0, false),
-        (UNZIP, true, 0, false),
+        (UNZIP, true, 0, true),
         (CATALOG_PI, true, 0, cfg!(feature = "catalog")),
         (CATALOG_PI, false, 0, cfg!(feature = "catalog")),
         (1 << 28, true, 0, false),

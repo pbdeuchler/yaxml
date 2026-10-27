@@ -377,6 +377,17 @@ fn loaded_dtds_expose_their_declarations() {
 }
 
 #[test]
+fn detached_declarations_come_from_markup() {
+    // xmlNewDtd(NULL, ..): an empty DTD; xmlNewEntity(NULL, ..): one entity.
+    let empty = Dtd::parse(b"").unwrap();
+    assert_eq!(empty.entities().count(), 0);
+    assert!(empty.name().is_none());
+    let one = Dtd::parse(b"<!ENTITY e 'x'>").unwrap();
+    assert_eq!(one.entity("e").map(|e| e.content), Some(Some("x")));
+    assert!(one.entity("f").is_none());
+}
+
+#[test]
 fn predefined_entities() {
     let cases: [(&str, Option<&str>); 7] = [
         ("lt", Some("<")),
