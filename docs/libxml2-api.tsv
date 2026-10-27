@@ -1375,28 +1375,28 @@ schemasInternals.h	XML_SCHEMA_FACET_MINLENGTH	enum_value	not_marked	P3	implement
 schemasInternals.h	XML_SCHEMA_FACET_PATTERN	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema_types::Facet::Pattern
 schemasInternals.h	XML_SCHEMA_FACET_TOTALDIGITS	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema_types::Facet::TotalDigits
 schemasInternals.h	XML_SCHEMA_FACET_WHITESPACE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema_types::Facet::WhiteSpace
-schemasInternals.h	XML_SCHEMA_TYPE_ALL	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_ANY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_ALL	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
+schemasInternals.h	XML_SCHEMA_TYPE_ANY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	XML_SCHEMA_TYPE_ANY_ATTRIBUTE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeWildcard
 schemasInternals.h	XML_SCHEMA_TYPE_ATTRIBUTE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration
-schemasInternals.h	XML_SCHEMA_TYPE_ATTRIBUTEGROUP	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_ATTRIBUTEGROUP	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup
 schemasInternals.h	XML_SCHEMA_TYPE_ATTRIBUTE_USE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeUse
 schemasInternals.h	XML_SCHEMA_TYPE_BASIC	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition::is_builtin
-schemasInternals.h	XML_SCHEMA_TYPE_CHOICE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_CHOICE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	XML_SCHEMA_TYPE_COMPLEX	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeKind::Complex
 schemasInternals.h	XML_SCHEMA_TYPE_COMPLEX_CONTENT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema document syntax, folded into the compiled definitions
 schemasInternals.h	XML_SCHEMA_TYPE_ELEMENT	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration
 schemasInternals.h	XML_SCHEMA_TYPE_EXTENSION	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition::is_extension
-schemasInternals.h	XML_SCHEMA_TYPE_FACET	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_GROUP	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_IDC_KEY	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_IDC_KEYREF	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_IDC_UNIQUE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_FACET	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema_types::Facet
+schemasInternals.h	XML_SCHEMA_TYPE_GROUP	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
+schemasInternals.h	XML_SCHEMA_TYPE_IDC_KEY	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::IdcKind::Key
+schemasInternals.h	XML_SCHEMA_TYPE_IDC_KEYREF	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::IdcKind::KeyRef
+schemasInternals.h	XML_SCHEMA_TYPE_IDC_UNIQUE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::IdcKind::Unique
 schemasInternals.h	XML_SCHEMA_TYPE_LIST	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::SimpleVariety::List
-schemasInternals.h	XML_SCHEMA_TYPE_NOTATION	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	XML_SCHEMA_TYPE_PARTICLE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_NOTATION	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::notations
+schemasInternals.h	XML_SCHEMA_TYPE_PARTICLE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	XML_SCHEMA_TYPE_RESTRICTION	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema document syntax, folded into the compiled definitions
-schemasInternals.h	XML_SCHEMA_TYPE_SEQUENCE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	XML_SCHEMA_TYPE_SEQUENCE	enum_value	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	XML_SCHEMA_TYPE_SIMPLE	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeKind::Simple
 schemasInternals.h	XML_SCHEMA_TYPE_SIMPLE_CONTENT	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema document syntax, folded into the compiled definitions
 schemasInternals.h	XML_SCHEMA_TYPE_UNION	enum_value	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::SimpleVariety::Union
@@ -1411,9 +1411,9 @@ schemasInternals.h	_xmlSchema.dict	field	not_marked	P3	not-applicable	https://gi
 schemasInternals.h	_xmlSchema.doc	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchema.elemDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::element, xsd::Schema::elements
 schemasInternals.h	_xmlSchema.flags	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchema.groupDecl	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of model groups or IDCs
+schemasInternals.h	_xmlSchema.groupDecl	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of model groups
 schemasInternals.h	_xmlSchema.id	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchema.idcDef	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of model groups or IDCs
+schemasInternals.h	_xmlSchema.idcDef	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::identity_constraint
 schemasInternals.h	_xmlSchema.includes	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchema.name	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchema.notaDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::notations - (namespace, name) pairs
@@ -1423,7 +1423,7 @@ schemasInternals.h	_xmlSchema.targetNamespace	field	not_marked	P3	implemented	ht
 schemasInternals.h	_xmlSchema.typeDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::type_definition, xsd::Schema::type_definitions
 schemasInternals.h	_xmlSchema.version	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	never set by libxml2 2.15.4
 schemasInternals.h	_xmlSchema.volatiles	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchemaAnnot	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	_xmlSchemaAnnot	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	_xmlSchemaAnnot.content	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
 schemasInternals.h	_xmlSchemaAnnot.next	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
 schemasInternals.h	_xmlSchemaAttribute	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration
@@ -1473,7 +1473,7 @@ schemasInternals.h	_xmlSchemaElement.contentType	field	not_marked	P3	not-applica
 schemasInternals.h	_xmlSchemaElement.defVal	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaElement.flags	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block, xsd::ElementDeclaration::final_, xsd::ElementDeclaration::substitutes
 schemasInternals.h	_xmlSchemaElement.id	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchemaElement.idcs	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of IDCs
+schemasInternals.h	_xmlSchemaElement.idcs	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration::identity_constraints
 schemasInternals.h	_xmlSchemaElement.maxOccurs	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaElement.minOccurs	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaElement.name	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration::name
@@ -1561,8 +1561,8 @@ schemasInternals.h	_xmlSchemaWildcard.type	field	not_marked	P3	not-applicable	ht
 schemasInternals.h	_xmlSchemaWildcardNs	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Namespaces::Set - sorted, absent namespace first
 schemasInternals.h	_xmlSchemaWildcardNs.next	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaWildcardNs.value	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Namespaces::Set
-schemasInternals.h	xmlSchemaAnnot	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
-schemasInternals.h	xmlSchemaAnnotPtr	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles, model groups or IDCs
+schemasInternals.h	xmlSchemaAnnot	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
+schemasInternals.h	xmlSchemaAnnotPtr	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations, particles or model groups
 schemasInternals.h	xmlSchemaAttribute	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration
 schemasInternals.h	xmlSchemaAttributeGroup	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup
 schemasInternals.h	xmlSchemaAttributeGroupPtr	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup

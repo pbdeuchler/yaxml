@@ -10,8 +10,8 @@ use std::fmt::Write;
 
 use yaxml::schema_types::Facet;
 use yaxml::xsd::{
-    AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations, Limits, Namespaces,
-    ProcessContents, Schema, SimpleVariety, TypeDefinition, TypeKind,
+    AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations, IdcKind, Limits,
+    Namespaces, ProcessContents, Schema, SimpleVariety, TypeDefinition, TypeKind,
 };
 
 fn qualified(namespace: Option<&str>, name: Option<&str>) -> String {
@@ -186,6 +186,21 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         }
         let head = element.substitutes().next().is_some();
         write!(out, " subst={}", head as u8).unwrap();
+        for idc in element.identity_constraints() {
+            let kind = match idc.kind() {
+                IdcKind::Key => "key",
+                IdcKind::Unique => "unique",
+                IdcKind::KeyRef => "keyref",
+            };
+            let name = qualified(idc.namespace(), Some(idc.name()));
+            write!(out, " {kind}={name}[{}", idc.selector()).unwrap();
+            idc.fields()
+                .for_each(|field| write!(out, "|{field}").unwrap());
+            out.push(']');
+            if let Some(key) = idc.refer() {
+                write!(out, "->{}", qualified(key.namespace(), Some(key.name()))).unwrap();
+            }
+        }
         anonymous(&mut out, ty);
         lines.insert(out);
     }
@@ -225,6 +240,10 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 <xs:notation name='n' public='p' system='s'/>
 <xs:notation name='a' public='q'/>
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
+<xs:element name='k'><xs:complexType><xs:sequence><xs:element name='i' maxOccurs='unbounded'/></xs:sequence></xs:complexType>
+<xs:key name='pk'><xs:selector xpath='t:i'/><xs:field xpath='@id'/><xs:field xpath='.'/></xs:key>
+<xs:keyref name='fk' refer='t:pk'><xs:selector xpath='.//t:i'/><xs:field xpath='@ref'/><xs:field xpath='@r2'/></xs:keyref>
+<xs:unique name='u'><xs:selector xpath='t:i | t:j'/><xs:field xpath='@n'/></xs:unique></xs:element>
 <xs:element name='f' type='xs:string' fixed='x' abstract='true' block='#all'/>
 <xs:attribute name='g' fixed='1'><xs:simpleType><xs:list itemType='xs:int'/></xs:simpleType></xs:attribute>
 <xs:simpleType name='r'><xs:restriction base='t:d'><xs:maxInclusive value='9'/><xs:pattern value='[0-9]+'/><xs:pattern value='x'/></xs:restriction></xs:simpleType>
@@ -236,7 +255,7 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 17] = [
+const COMPONENTS: [&str; 18] = [
     "attrgroup {urn:t}ag use=z? use={urn:t}g! wildcard=,urn:t process=strict",
     "attrgroup {urn:t}ah use={urn:t}g! wildcard=any process=lax",
     "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
@@ -245,6 +264,7 @@ const COMPONENTS: [&str; 17] = [
     "element {urn:t}h type={http://www.w3.org/2001/XMLSchema}decimal nillable=0 abstract=0 block=e final=e subst=1",
     "element {urn:t}i type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=0 block=e final=r head={urn:t}h subst=0",
     "element {urn:t}j type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=1 block=e final=r head={urn:t}i subst=0",
+    "element {urn:t}k type=#anon nillable=0 abstract=0 block=e final=r subst=0 key={urn:t}pk[t:i|@id|.] keyref={urn:t}fk[.//t:i|@ref|@r2]->{urn:t}pk unique={urn:t}u[t:i | t:j|@n] :: type #anon base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements",
     "notation {urn:t}a",
     "notation {urn:t}n",
     "schema tns=urn:t",
@@ -268,7 +288,7 @@ fn lookups_find_globals_and_built_ins_only() {
     let schema = Schema::parse(SCHEMA.as_bytes(), "a.xsd").unwrap();
     let xs = Some("http://www.w3.org/2001/XMLSchema");
     let t = Some("urn:t");
-    let cases: [(&str, Option<&str>, &str, bool); 11] = [
+    let cases: [(&str, Option<&str>, &str, bool); 14] = [
         ("element", t, "e", true),
         ("element", None, "e", false),
         ("element", t, "c", false),
@@ -280,6 +300,9 @@ fn lookups_find_globals_and_built_ins_only() {
         ("type", t, "nope", false),
         ("attribute group", t, "ag", true),
         ("attribute group", None, "ag", false),
+        ("identity constraint", t, "fk", true),
+        ("identity constraint", None, "fk", false),
+        ("identity constraint", t, "k", false),
     ];
     for (kind, namespace, name, found) in cases {
         let got = match kind {
@@ -289,6 +312,9 @@ fn lookups_find_globals_and_built_ins_only() {
             "attribute" => schema
                 .attribute(namespace, name)
                 .map(|a| (a.namespace(), a.name())),
+            "identity constraint" => {
+                (schema.identity_constraint(namespace, name)).map(|c| (c.namespace(), c.name()))
+            }
             "attribute group" => {
                 (schema.attribute_group(namespace, name)).map(|g| (g.namespace(), g.name()))
             }

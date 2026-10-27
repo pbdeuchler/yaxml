@@ -2616,8 +2616,9 @@ impl Fix {
             kind: draft.kind,
             name: draft.name,
             selector: draft.selector.clone().unwrap_or_else(|| {
-                crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR)
-                    .expect("pattern")
+                let pattern =
+                    crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR);
+                (".".into(), pattern.expect("pattern"))
             }),
             fields: draft.fields.clone(),
             refer: self.refers[i],
@@ -2635,6 +2636,7 @@ impl Fix {
             pick(GlobalKind::Attribute)?,
             pick(GlobalKind::AttrGroup)?,
         );
+        let global_idcs = pick(GlobalKind::Idc)?;
         let attribute_groups = collected(self.d.attr_groups.iter().zip(self.group_attrs).map(
             |(draft, expanded)| {
                 let (uses, wildcard) = expanded.unwrap_or_default();
@@ -2660,6 +2662,7 @@ impl Fix {
                 attributes,
                 wildcards: self.wildcards,
                 idcs,
+                global_idcs,
                 warnings: self.d.diagnostics,
                 max_counter_vectors: self.limits.max_counter_vectors,
                 max_idc_keys: self.limits.max_idc_keys,

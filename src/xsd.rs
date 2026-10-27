@@ -39,10 +39,11 @@ mod simple;
 mod validate;
 mod view;
 
+pub use components::IdcKind;
 pub use view::{
     AttributeDeclaration, AttributeGroup, AttributeUse, AttributeWildcard, Constraint, ContentType,
-    Derivations, ElementDeclaration, Namespaces, ProcessContents, SimpleVariety, TypeDefinition,
-    TypeKind,
+    Derivations, ElementDeclaration, IdentityConstraint, Namespaces, ProcessContents,
+    SimpleVariety, TypeDefinition, TypeKind,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -498,6 +499,7 @@ pub(crate) struct Compiled {
     pub(crate) attributes: Vec<AttributeDecl>,
     pub(crate) wildcards: Vec<Wildcard>,
     pub(crate) idcs: Vec<Idc>,
+    pub(crate) global_idcs: HashMap<QName, usize>,
     pub(crate) global_elements: HashMap<QName, ElemId>,
     pub(crate) global_types: HashMap<QName, TypeId>,
     pub(crate) global_attributes: HashMap<QName, AttrId>,

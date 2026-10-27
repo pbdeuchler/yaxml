@@ -146,7 +146,7 @@ impl Engine {
                     *slot = Some(depth);
                 }
             }
-            let Some(stream) = definition.selector.stream() else {
+            let Some(stream) = definition.selector.1.stream() else {
                 continue;
             };
             scope.matchers.push(Matcher {

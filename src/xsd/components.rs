@@ -275,10 +275,14 @@ pub(crate) struct Wildcard {
     pub(crate) process: Process,
 }
 
+/// An identity constraint's kind (`XML_SCHEMA_TYPE_IDC_*`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum IdcKind {
+pub enum IdcKind {
+    /// `xs:unique`.
     Unique,
+    /// `xs:key`.
     Key,
+    /// `xs:keyref`.
     KeyRef,
 }
 
@@ -286,7 +290,8 @@ pub(crate) enum IdcKind {
 pub(crate) struct Idc {
     pub(crate) kind: IdcKind,
     pub(crate) name: QName,
-    pub(crate) selector: Pattern,
+    /// The selector's XPath as written, and compiled.
+    pub(crate) selector: (Box<str>, Pattern),
     pub(crate) fields: Vec<(Box<str>, Pattern)>,
     /// The key or unique a keyref refers to.
     pub(crate) refer: Option<IdcId>,

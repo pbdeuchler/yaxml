@@ -1041,14 +1041,15 @@ I|_xmlSchemaAttributeGroup.attributeWildcard|xsd::AttributeGroup::attribute_wild
 A|xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr _xmlSchemaAttributeLink|never used by libxml2 2.15.4
 A|xmlSchemaFreeType xmlSchemaFreeWildcard|Drop; components are borrowed views
 P|xmlSchemaVal xmlSchemaValPtr|schema_types::Value - an owned value, no raw pointer
-N|_xmlSchema.groupDecl _xmlSchema.idcDef|no view of model groups or IDCs
+N|_xmlSchema.groupDecl|no view of model groups
+I|_xmlSchema.idcDef|xsd::Schema::identity_constraint
 I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
 I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
 I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
 I|_xmlSchemaElement.value|xsd::ElementDeclaration::value
 I|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block, xsd::ElementDeclaration::final_, xsd::ElementDeclaration::substitutes
 I|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs|xsd::ElementDeclaration::substitution_group
-N|_xmlSchemaElement.idcs|no view of IDCs
+I|_xmlSchemaElement.idcs|xsd::ElementDeclaration::identity_constraints
 I|_xmlSchemaAttribute.name|xsd::AttributeDeclaration::name
 I|_xmlSchemaAttribute.targetNamespace|xsd::AttributeDeclaration::namespace
 I|_xmlSchemaAttribute.subtypes|xsd::AttributeDeclaration::type_definition
@@ -1088,6 +1089,12 @@ I|XML_SCHEMA_TYPE_ELEMENT|xsd::ElementDeclaration
 I|XML_SCHEMA_TYPE_ATTRIBUTE|xsd::AttributeDeclaration
 I|XML_SCHEMA_TYPE_ATTRIBUTE_USE|xsd::AttributeUse
 I|XML_SCHEMA_TYPE_ANY_ATTRIBUTE|xsd::AttributeWildcard
+I|XML_SCHEMA_TYPE_ATTRIBUTEGROUP|xsd::AttributeGroup
+I|XML_SCHEMA_TYPE_NOTATION|xsd::Schema::notations
+I|XML_SCHEMA_TYPE_FACET|schema_types::Facet
+I|XML_SCHEMA_TYPE_IDC_UNIQUE|xsd::IdcKind::Unique
+I|XML_SCHEMA_TYPE_IDC_KEY|xsd::IdcKind::Key
+I|XML_SCHEMA_TYPE_IDC_KEYREF|xsd::IdcKind::KeyRef
 I|XML_SCHEMA_TYPE_LIST|xsd::SimpleVariety::List
 I|XML_SCHEMA_TYPE_UNION|xsd::SimpleVariety::Union
 I|XML_SCHEMA_TYPE_EXTENSION|xsd::TypeDefinition::is_extension
@@ -1117,7 +1124,7 @@ I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups or IDCs
+N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations, particles or model groups
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h

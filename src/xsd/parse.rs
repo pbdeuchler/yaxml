@@ -185,7 +185,7 @@ pub(crate) struct IdcDraft {
     pub(crate) kind: IdcKind,
     pub(crate) name: QName,
     pub(crate) loc: Loc,
-    pub(crate) selector: Option<Pattern>,
+    pub(crate) selector: Option<(Box<str>, Pattern)>,
     pub(crate) fields: Vec<(Box<str>, Pattern)>,
     pub(crate) refer: Option<QName>,
 }
@@ -2089,7 +2089,7 @@ impl Parser {
         let mut selector = None;
         let mut fields = Vec::new();
         if let Some(child) = children.take(cx, "selector") {
-            selector = self.xpath(cx, child, pattern::XS_SELECTOR).map(|(_, p)| p);
+            selector = self.xpath(cx, child, pattern::XS_SELECTOR);
             if children
                 .peek()
                 .is_none_or(|next| cx.local(next) != Some("field"))

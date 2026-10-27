@@ -5,7 +5,8 @@
  * main schema and every import), anonymous types inline after " :: ", in
  * the format of tests/xsd_components.rs. Lines repeat when a schema is its
  * own import: compare them as a set. Uses xmlschemas.c's private
- * xmlSchemaItemList, xmlSchemaAttributeUse and xmlSchemaImport layouts
+ * xmlSchemaItemList, xmlSchemaAttributeUse, xmlSchemaImport, xmlSchemaIDC,
+ * xmlSchemaIDCSelect and xmlSchemaQNameRef layouts
  * (2.15.4). */
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +24,12 @@ typedef struct {
   void *relations; int located, parsed, imported, preserveDoc; void *globals, *locals;
   xmlSchemaPtr schema;
 } Import;
+typedef struct Select { struct Select *next; void *idc; int index; const xmlChar *xpath; void *comp; } Select;
+typedef struct { xmlSchemaTypeType type; void *item; xmlSchemaTypeType itemType; const xmlChar *name, *tns; xmlNodePtr node; } Ref;
+typedef struct Idc {
+  xmlSchemaTypeType type; void *annot; struct Idc *next; xmlNodePtr node; const xmlChar *name, *tns;
+  Select *selector, *fields; int nbFields; Ref *ref;
+} Idc;
 
 static void name(const xmlChar *ns, const xmlChar *local) {
   if (!local) { printf("#anon"); return; }
@@ -86,6 +93,14 @@ static void elem(void *p, void *d, const xmlChar *k) {
   printf(" final=%s%s", f & XML_SCHEMAS_ELEM_FINAL_EXTENSION ? "e" : "", f & XML_SCHEMAS_ELEM_FINAL_RESTRICTION ? "r" : "");
   if (e->substGroup) { printf(" head="); name(e->substGroupNs, e->substGroup); }
   printf(" subst=%d", !!(f & XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD));
+  for (Idc *c = e->idcs; c; c = c->next) {
+    printf(" %s=", c->type == XML_SCHEMA_TYPE_IDC_KEY ? "key" : c->type == XML_SCHEMA_TYPE_IDC_UNIQUE ? "unique" : "keyref");
+    name(c->tns, c->name);
+    printf("[%s", c->selector->xpath);
+    for (Select *s = c->fields; s; s = s->next) printf("|%s", s->xpath);
+    printf("]");
+    if (c->ref && c->ref->item) { printf("->"); name(((Idc *)c->ref->item)->tns, ((Idc *)c->ref->item)->name); }
+  }
   anon(e->subtypes);
   printf("\n");
 }

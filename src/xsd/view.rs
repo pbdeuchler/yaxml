@@ -3,9 +3,9 @@
 
 use super::Schema;
 use super::components::{
-    AttrGroup, AttrId, AttrUse, AttributeDecl, Content, EXTENSION, ElemId, Kind, LIST, NO_NS,
-    NsConstraint, Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION, ValueConstraint,
-    Variety, WildId,
+    AttrGroup, AttrId, AttrUse, AttributeDecl, Content, EXTENSION, ElemId, IdcKind, Kind, LIST,
+    NO_NS, NsConstraint, Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION,
+    ValueConstraint, Variety, WildId,
 };
 use crate::regexp::Regex;
 use crate::schema_types::{Facet, WhiteSpace};
@@ -159,6 +159,13 @@ pub struct AttributeGroup<'a> {
     id: usize,
 }
 
+/// An identity-constraint definition (libxml2's private `xmlSchemaIDC`).
+#[derive(Clone, Copy)]
+pub struct IdentityConstraint<'a> {
+    schema: &'a Schema,
+    id: usize,
+}
+
 impl Schema {
     fn ns(&self, sym: u32) -> Option<&str> {
         (sym != NO_NS).then(|| self.data.names.str(sym))
@@ -222,6 +229,17 @@ impl Schema {
     pub fn element(&self, namespace: Option<&str>, name: &str) -> Option<ElementDeclaration<'_>> {
         let &id = (self.data.global_elements).get(&self.qname(namespace, name))?;
         Some(ElementDeclaration { schema: self, id })
+    }
+
+    /// An identity-constraint definition by name (`_xmlSchema.idcDef`);
+    /// `None` is the absent namespace.
+    pub fn identity_constraint(
+        &self,
+        namespace: Option<&str>,
+        name: &str,
+    ) -> Option<IdentityConstraint<'_>> {
+        let &id = (self.data.global_idcs).get(&self.qname(namespace, name))?;
+        Some(IdentityConstraint { schema: self, id })
     }
 
     /// The global element declarations, by namespace then name.
@@ -504,6 +522,49 @@ impl<'a> ElementDeclaration<'a> {
     /// allow; non-empty is libxml2's `XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD`.
     pub fn substitutes(self) -> impl Iterator<Item = ElementDeclaration<'a>> {
         (self.decl().members.iter()).map(move |&id| ElementDeclaration { id, ..self })
+    }
+
+    /// The identity constraints, in document order (`_xmlSchemaElement.idcs`).
+    pub fn identity_constraints(self) -> impl Iterator<Item = IdentityConstraint<'a>> {
+        let schema = self.schema;
+        (self.decl().idcs.iter()).map(move |&id| IdentityConstraint { schema, id })
+    }
+}
+
+impl<'a> IdentityConstraint<'a> {
+    fn idc(self) -> &'a super::components::Idc {
+        &self.schema.data.idcs[self.id]
+    }
+
+    /// `unique`, `key` or `keyref`.
+    pub fn kind(self) -> IdcKind {
+        self.idc().kind
+    }
+
+    /// The local name.
+    pub fn name(self) -> &'a str {
+        self.schema.data.names.str(self.idc().name.local)
+    }
+
+    /// The target namespace; `None` if absent.
+    pub fn namespace(self) -> Option<&'a str> {
+        self.schema.ns(self.idc().name.ns)
+    }
+
+    /// The selector's XPath, as written.
+    pub fn selector(self) -> &'a str {
+        &self.idc().selector.0
+    }
+
+    /// The fields' XPaths, as written.
+    pub fn fields(self) -> impl Iterator<Item = &'a str> {
+        self.idc().fields.iter().map(|(xpath, _)| &**xpath)
+    }
+
+    /// The key or unique constraint a keyref refers to.
+    pub fn refer(self) -> Option<IdentityConstraint<'a>> {
+        let id = self.idc().refer?;
+        Some(IdentityConstraint { id, ..self })
     }
 }
 
