@@ -133,7 +133,6 @@ pub struct TypeDefinition<'a> {
 #[derive(Clone, Copy)]
 pub struct ElementDeclaration<'a> {
     schema: &'a Schema,
-    name: QName,
     id: ElemId,
 }
 
@@ -164,6 +163,11 @@ impl Schema {
         }
     }
 
+    /// The main document's `targetNamespace` (`_xmlSchema.targetNamespace`).
+    pub fn target_namespace(&self) -> Option<&str> {
+        self.ns(self.data.target)
+    }
+
     /// A global element declaration (`xmlSchemaGetElem`); `None` is the
     /// absent namespace.
     ///
@@ -186,23 +190,14 @@ impl Schema {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn element(&self, namespace: Option<&str>, name: &str) -> Option<ElementDeclaration<'_>> {
-        let name = self.qname(namespace, name);
-        let &id = self.data.global_elements.get(&name)?;
-        Some(ElementDeclaration {
-            schema: self,
-            name,
-            id,
-        })
+        let &id = (self.data.global_elements).get(&self.qname(namespace, name))?;
+        Some(ElementDeclaration { schema: self, id })
     }
 
     /// The global element declarations, by namespace then name.
     pub fn elements(&self) -> impl Iterator<Item = ElementDeclaration<'_>> {
-        let mut all: Vec<_> = (self.data.global_elements.iter())
-            .map(|(&name, &id)| ElementDeclaration {
-                schema: self,
-                name,
-                id,
-            })
+        let mut all: Vec<_> = (self.data.global_elements.values())
+            .map(|&id| ElementDeclaration { schema: self, id })
             .collect();
         all.sort_by_key(|element| (element.namespace(), element.name()));
         all.into_iter()
@@ -398,12 +393,12 @@ impl<'a> ElementDeclaration<'a> {
 
     /// The local name.
     pub fn name(self) -> &'a str {
-        self.schema.data.names.str(self.name.local)
+        self.schema.data.names.str(self.decl().name.local)
     }
 
     /// The target namespace; `None` if absent.
     pub fn namespace(self) -> Option<&'a str> {
-        self.schema.ns(self.name.ns)
+        self.schema.ns(self.decl().name.ns)
     }
 
     /// The element's type.
@@ -432,6 +427,24 @@ impl<'a> ElementDeclaration<'a> {
     /// `block`.
     pub fn block(self) -> Derivations {
         self.decl().block.into()
+    }
+
+    /// `final` (extension and restriction only).
+    pub fn final_(self) -> Derivations {
+        self.decl().final_.into()
+    }
+
+    /// The substitution group head (`substitutionGroup`).
+    pub fn substitution_group(self) -> Option<ElementDeclaration<'a>> {
+        let id = self.decl().head?;
+        Some(ElementDeclaration { id, ..self })
+    }
+
+    /// The non-abstract declarations that may substitute for this one,
+    /// directly or through other heads, as its `block` and their types
+    /// allow; non-empty is libxml2's `XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD`.
+    pub fn substitutes(self) -> impl Iterator<Item = ElementDeclaration<'a>> {
+        (self.decl().members.iter()).map(move |&id| ElementDeclaration { id, ..self })
     }
 }
 

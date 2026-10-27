@@ -67,18 +67,21 @@ length, bound, digit and `whiteSpace` facets included, as typed
 patterns; enumerations have no view. `notations()` lists the global
 notation declarations as sorted (namespace, name) pairs: libxml2 keeps
 neither public nor system identifier (`identifier` is never set).
-`ElementDeclaration` gives the type, nillable, abstract, `block` and value
-constraint; `AttributeUse::value` is the use's own constraint, not the
+`ElementDeclaration` gives the type, nillable, abstract, `block`, `final`,
+value constraint, substitution group head and the declarations that may
+substitute for it (non-abstract ones its `block` and their types admit,
+transitively: non-empty is libxml2's `XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD`;
+libxml2 keeps the member list private, so only the flag is compared); `AttributeUse::value` is the use's own constraint, not the
 declaration's, as in libxml2. tests/xsd_components.rs prints them in the line
 format of harness/tooling/libxml2_xsd_components.c, which walks libxml2's
 hash tables; with `YAXML_XSD_COMPONENTS_HELPER` the ignored test compares all
 123 libxml2 `test/schemas` schemas that both build. Differences: a union
 derived by restriction lists its base's member types (libxml2 leaves
 `memberTypes` empty), and wildcard namespace sets are sorted, absent
-namespace first (libxml2 keeps document order). Not exposed: substitution
-groups, particles and model groups, attribute groups (flattened into uses),
-enumerations, identity constraints, annotations and the schema's own
-`targetNamespace`/`version`.
+namespace first (libxml2 keeps document order). Not exposed: particles and model groups, attribute groups (flattened into uses),
+enumerations, identity constraints, annotations and `version` (libxml2
+never sets `_xmlSchema.version`). `Schema::target_namespace` is the main
+document's.
 
 ## Pipeline
 

@@ -67,6 +67,9 @@ static void elem(void *p, void *d, const xmlChar *k) {
   if (e->value) printf(" %s=%s", f & XML_SCHEMAS_ELEM_FIXED ? "fixed" : "default", e->value);
   printf(" block=%s%s%s", f & XML_SCHEMAS_ELEM_BLOCK_EXTENSION ? "e" : "",
          f & XML_SCHEMAS_ELEM_BLOCK_RESTRICTION ? "r" : "", f & XML_SCHEMAS_ELEM_BLOCK_SUBSTITUTION ? "s" : "");
+  printf(" final=%s%s", f & XML_SCHEMAS_ELEM_FINAL_EXTENSION ? "e" : "", f & XML_SCHEMAS_ELEM_FINAL_RESTRICTION ? "r" : "");
+  if (e->substGroup) { printf(" head="); name(e->substGroupNs, e->substGroup); }
+  printf(" subst=%d", !!(f & XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD));
   anon(e->subtypes);
   printf("\n");
 }
@@ -130,6 +133,7 @@ int main(int argc, char **argv) {
     xmlSchemaSetParserStructuredErrors(c, NULL, NULL);
     xmlSchemaPtr s = xmlSchemaParse(c);
     printf("== %s\n", argv[i]);
+    if (s) printf("schema tns=%s\n", s->targetNamespace ? (char *)s->targetNamespace : "-");
     if (s) { scan(s); xmlHashScan(s->schemasImports, import, NULL); xmlSchemaFree(s); }
     xmlSchemaFreeParserCtxt(c);
   }

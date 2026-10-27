@@ -149,7 +149,10 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
 
 /// One line per global component, sorted (libxml2 scans hash tables).
 fn components(schema: &Schema) -> BTreeSet<String> {
-    let mut lines = BTreeSet::new();
+    let mut lines = BTreeSet::from([format!(
+        "schema tns={}",
+        schema.target_namespace().unwrap_or("-")
+    )]);
     for element in schema.elements() {
         let mut out = String::new();
         let ty = element.type_definition();
@@ -164,6 +167,17 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         .unwrap();
         value(&mut out, element.value());
         write!(out, " block={}", flags(element.block())).unwrap();
+        write!(out, " final={}", flags(element.final_())).unwrap();
+        if let Some(head) = element.substitution_group() {
+            write!(
+                out,
+                " head={}",
+                qualified(head.namespace(), Some(head.name()))
+            )
+            .unwrap();
+        }
+        let head = element.substitutes().next().is_some();
+        write!(out, " subst={}", head as u8).unwrap();
         anonymous(&mut out, ty);
         lines.insert(out);
     }
@@ -188,6 +202,9 @@ fn components(schema: &Schema) -> BTreeSet<String> {
 }
 
 const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:t='urn:t' targetNamespace='urn:t' blockDefault='extension' finalDefault='restriction'>
+<xs:element name='h' type='xs:decimal' final='extension'/>
+<xs:element name='i' type='xs:int' substitutionGroup='t:h'/>
+<xs:element name='j' type='xs:int' substitutionGroup='t:i' abstract='true'/>
 <xs:notation name='n' public='p' system='s'/>
 <xs:notation name='a' public='q'/>
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
@@ -202,12 +219,16 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 11] = [
+const COMPONENTS: [&str; 15] = [
     "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
-    "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e",
-    "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers",
+    "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e final=r subst=0",
+    "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers final=r subst=0",
+    "element {urn:t}h type={http://www.w3.org/2001/XMLSchema}decimal nillable=0 abstract=0 block=e final=e subst=1",
+    "element {urn:t}i type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=0 block=e final=r head={urn:t}h subst=0",
+    "element {urn:t}j type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=1 block=e final=r head={urn:t}i subst=0",
     "notation {urn:t}a",
     "notation {urn:t}n",
+    "schema tns=urn:t",
     "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! wildcard=not:urn:t process=skip",
     "type {urn:t}d base={http://www.w3.org/2001/XMLSchema}decimal derivation=restriction final= block= ws=collapse facets=minExclusive,totalDigits, patterns=1 simple variety=atomic",
     "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed use={urn:t}g? use=x! wildcard=not:urn:t process=skip",
@@ -262,11 +283,18 @@ fn lookups_find_globals_and_built_ins_only() {
     assert!(m.whitespace().is_none() && m.facets().is_empty() && m.patterns().is_empty());
     let r = schema.type_definition(t, "r").unwrap();
     assert_eq!(r.patterns()[1].as_str(), "x");
+    assert_eq!(schema.target_namespace(), t);
+    let [h, i, j] = ["h", "i", "j"].map(|name| schema.element(t, name).unwrap());
+    let members: Vec<_> = h.substitutes().map(|e| e.name()).collect();
+    assert_eq!(members, ["i"], "abstract j substitutes for no head");
+    assert_eq!(j.substitution_group().unwrap().name(), "i");
+    assert!(h.substitution_group().is_none() && i.substitutes().next().is_none());
     let empty = Schema::parse(
         b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'/>",
         "e.xsd",
     );
-    assert!(components(&empty.unwrap()).is_empty());
+    let lines = components(&empty.unwrap());
+    assert_eq!(lines, BTreeSet::from(["schema tns=-".to_owned()]));
 }
 
 /// Restrictions of a union, whose `memberTypes` libxml2 leaves empty.

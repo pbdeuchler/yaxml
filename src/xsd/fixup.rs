@@ -2585,21 +2585,21 @@ impl Fix {
     // ---- assembly ----------------------------------------------------------
 
     fn finish(self) -> Result<Schema, TryReserveError> {
-        let elements =
-            collected(
-                self.d
-                    .elements
-                    .iter()
-                    .enumerate()
-                    .map(|(e, draft)| ElementDecl {
-                        ty: self.elem_types[e],
-                        nillable: draft.nillable,
-                        abstract_: draft.abstract_,
-                        value: self.elem_values[e].clone(),
-                        block: draft.block,
-                        idcs: draft.idcs.clone(),
-                    }),
-            )?;
+        let members = self.members_of;
+        let elements = collected(self.d.elements.iter().zip(members).enumerate().map(
+            |(e, (draft, members))| ElementDecl {
+                name: draft.name,
+                ty: self.elem_types[e],
+                nillable: draft.nillable,
+                abstract_: draft.abstract_,
+                value: self.elem_values[e].clone(),
+                block: draft.block,
+                final_: draft.final_,
+                head: self.elem_heads[e],
+                members,
+                idcs: draft.idcs.clone(),
+            },
+        ))?;
         let attributes =
             collected(
                 self.d
@@ -2636,6 +2636,7 @@ impl Fix {
         );
         Ok(Schema {
             data: Arc::new(Compiled {
+                target: self.d.buckets.first().map_or(NO_NS, |bucket| bucket.tns),
                 global_elements,
                 global_types,
                 global_attributes,

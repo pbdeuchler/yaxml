@@ -1024,13 +1024,16 @@ I|_xmlSchema.typeDecl|xsd::Schema::type_definition, xsd::Schema::type_definition
 I|_xmlSchema.notaDecl _xmlSchemaNotation.name _xmlSchemaNotation.targetNamespace|xsd::Schema::notations - (namespace, name) pairs
 P|xmlSchemaNotation xmlSchemaNotationPtr|xsd::Schema::notations - pairs, no notation type
 A|_xmlSchema.schemasImports|imported components are found by the same lookups
-N|_xmlSchema.targetNamespace _xmlSchema.version _xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef|no view of the schema document, model groups, attribute groups or IDCs
+I|_xmlSchema.targetNamespace|xsd::Schema::target_namespace
+A|_xmlSchema.version|never set by libxml2 2.15.4
+N|_xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef|no view of model groups, attribute groups or IDCs
 I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
 I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
 I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
 I|_xmlSchemaElement.value|xsd::ElementDeclaration::value
-P|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block - no final or substitution-group head
-N|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs _xmlSchemaElement.idcs|no view of substitution groups or IDCs
+I|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block, xsd::ElementDeclaration::final_, xsd::ElementDeclaration::substitutes
+I|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs|xsd::ElementDeclaration::substitution_group
+N|_xmlSchemaElement.idcs|no view of IDCs
 I|_xmlSchemaAttribute.name|xsd::AttributeDeclaration::name
 I|_xmlSchemaAttribute.targetNamespace|xsd::AttributeDeclaration::namespace
 I|_xmlSchemaAttribute.subtypes|xsd::AttributeDeclaration::type_definition
@@ -1078,7 +1081,8 @@ I|XML_SCHEMAS_ELEM_NILLABLE|xsd::ElementDeclaration::is_nillable
 I|XML_SCHEMAS_ELEM_ABSTRACT|xsd::ElementDeclaration::is_abstract
 I|XML_SCHEMAS_ELEM_FIXED XML_SCHEMAS_ELEM_DEFAULT XML_SCHEMAS_ATTR_FIXED|xsd::Constraint::fixed
 I|XML_SCHEMAS_ELEM_BLOCK_EXTENSION XML_SCHEMAS_ELEM_BLOCK_RESTRICTION XML_SCHEMAS_ELEM_BLOCK_SUBSTITUTION|xsd::ElementDeclaration::block
-N|XML_SCHEMAS_ELEM_FINAL_EXTENSION XML_SCHEMAS_ELEM_FINAL_RESTRICTION XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD|no view of substitution groups
+I|XML_SCHEMAS_ELEM_FINAL_EXTENSION XML_SCHEMAS_ELEM_FINAL_RESTRICTION|xsd::ElementDeclaration::final_
+I|XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD|xsd::ElementDeclaration::substitutes - non-empty
 I|XML_SCHEMAS_ATTR_USE_REQUIRED XML_SCHEMAS_ATTR_USE_OPTIONAL|xsd::AttributeUse::is_required
 A|XML_SCHEMAS_ATTR_USE_PROHIBITED|prohibited uses are dropped from a type's uses (libxml2 too)
 I|XML_SCHEMAS_ANYATTR_SKIP XML_SCHEMAS_ANY_SKIP|xsd::ProcessContents::Skip

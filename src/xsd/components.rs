@@ -206,11 +206,17 @@ impl TypeDef {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ElementDecl {
+    pub(crate) name: QName,
     pub(crate) ty: TypeId,
     pub(crate) nillable: bool,
     pub(crate) abstract_: bool,
     pub(crate) value: Option<ValueConstraint>,
     pub(crate) block: Set,
+    pub(crate) final_: Set,
+    /// The resolved substitution group affiliation.
+    pub(crate) head: Option<ElemId>,
+    /// The declarations that may substitute for this one.
+    pub(crate) members: Vec<ElemId>,
     pub(crate) idcs: Vec<IdcId>,
 }
 

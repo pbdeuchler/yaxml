@@ -231,7 +231,7 @@ enum Relation {
 pub(crate) struct Bucket {
     pub(crate) doc: usize,
     location: String,
-    tns: Sym,
+    pub(crate) tns: Sym,
     orig_tns: Option<Sym>,
     imported: bool,
     relations: Vec<(Relation, Option<usize>)>,

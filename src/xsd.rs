@@ -58,7 +58,7 @@ use crate::{
 };
 
 use components::{
-    AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, TypeDef, TypeId, Wildcard,
+    AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, Sym, TypeDef, TypeId, Wildcard,
 };
 
 /// A schema or validity diagnostic code; the discriminant is libxml2's
@@ -489,6 +489,8 @@ pub struct Schema {
 #[derive(Debug)]
 pub(crate) struct Compiled {
     pub(crate) names: Names,
+    /// The main document's target namespace.
+    pub(crate) target: Sym,
     pub(crate) types: Vec<TypeDef>,
     pub(crate) elements: Vec<ElementDecl>,
     pub(crate) attributes: Vec<AttributeDecl>,
