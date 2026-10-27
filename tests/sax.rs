@@ -167,8 +167,8 @@ const DTD: &str = "<!DOCTYPE r [
 
 /// Without `NOENT` libxml2 also reports `characters va|` (and the elements)
 /// of an entity's first reference before `reference`, and declarations in
-/// source order with the DTD's PI and comment; `(default)` attributes it
-/// passes without `DTDATTR` are not passed.
+/// source order with the DTD's PI and comment. DTD defaults come after the
+/// specified attributes with or without `DTDATTR` (`nb_defaulted`).
 const DTD_EVENTS: &str = "startDocument -
 internalSubset r - -
 entityDecl a 1 - - va
@@ -179,7 +179,7 @@ elementDecl r 3
 attributeDecl r x 1 1 d
 attributeDecl r y 9 3 -
 externalSubset r - -
-startElementNs r - - xmlns:p=urn:p p:z{urn:p}=1
+startElementNs r - - xmlns:p=urn:p p:z{urn:p}=1 -x{-}=d
 characters t|
 reference a
 cdataBlock c
@@ -205,7 +205,7 @@ fn callbacks_follow_libxml2() {
             options::NOENT,
             "startDocument -\ninternalSubset r - -\nentityDecl a 1 - - v<b/>w\n\
              entityDecl e 2 - e.xml -\nattributeDecl r x 1 1 d\nexternalSubset r - -\n\
-             startElementNs r - -\ncharacters v|\nstartElementNs b - -\nendElementNs b - -\n\
+             startElementNs r - - -x{-}=d\ncharacters v|\nstartElementNs b - -\nendElementNs b - -\n\
              characters w|\ncharacters v|\nstartElementNs b - -\nendElementNs b - -\n\
              characters w|\nendElementNs r - -\nendDocument\n",
         ),
@@ -289,9 +289,74 @@ fn external_subset_declarations_come_before_the_root() {
     // libxml2 passes `k='v'` as defaulted.
     let expected = "startDocument -\ninternalSubset r - x.dtd\nentityDecl a 1 - - i\n\
                     externalSubset r - x.dtd\nentityDecl b 1 - - e\nelementDecl r 1\n\
-                    attributeDecl r k 1 1 v\nstartElementNs r - -\nendElementNs r - -\n\
+                    attributeDecl r k 1 1 v\nstartElementNs r - - -k{-}=v\nendElementNs r - -\n\
                     endDocument\n";
     assert_eq!(log.lines, expected);
+}
+
+#[test]
+fn attribute_values_follow_libxml2() {
+    // Without `NOENT` libxml2 keeps references and passes an `&` from a
+    // reference as `&#38;` (namespace declarations excepted); defaults come
+    // after the specified attributes, normalized.
+    let kept = "<!DOCTYPE r [<!ENTITY e 'E'><!ATTLIST r x CDATA 'a&e;b'>]><r y='&e;&amp;'/>";
+    let cases: [(&str, &str, u32, &str); 9] = [
+        (
+            "escaped",
+            "<r x='a&amp;b&#38;c&lt;d'/>",
+            0,
+            "r - - -x{-}=a&#38;b&#38;c<d",
+        ),
+        (
+            "substituted",
+            "<r x='a&amp;b&#38;c&lt;d'/>",
+            options::NOENT,
+            "r - - -x{-}=a&b&c<d",
+        ),
+        ("kept", kept, 0, "r - - -y{-}=&e;&#38; -x{-}=a&e;b"),
+        (
+            "kept noent",
+            kept,
+            options::NOENT,
+            "r - - -y{-}=E& -x{-}=aEb",
+        ),
+        (
+            "xmlns",
+            "<r xmlns:p='a&amp;b' p:x='1&amp;'/>",
+            0,
+            "r - - xmlns:p=a&b p:x{a&b}=1&#38;",
+        ),
+        (
+            "specified wins",
+            "<!DOCTYPE r [<!ATTLIST r x CDATA 'd'>]><r x='s'/>",
+            0,
+            "r - - -x{-}=s",
+        ),
+        (
+            "child nmtokens",
+            "<!DOCTYPE r [<!ATTLIST c t NMTOKENS '  a   b '>]><r><c/></r>",
+            0,
+            "c - - -t{-}=a b",
+        ),
+        (
+            "defaulted xmlns",
+            "<!DOCTYPE r [<!ATTLIST r xmlns:p CDATA 'urn:p' p:a CDATA '1'>]><r/>",
+            0,
+            "r - - xmlns:p=urn:p p:a{urn:p}=1",
+        ),
+        (
+            "char ref default",
+            "<!DOCTYPE r [<!ATTLIST r x CDATA 'a&#38;b'>]><r/>",
+            0,
+            "r - - -x{-}=a&#38;b",
+        ),
+    ];
+    for (name, input, flags, expected) in cases {
+        let mut log = Log::default();
+        sax::parse(input.as_bytes(), ParseOptions::new(flags), &mut log).unwrap();
+        let line = format!("startElementNs {expected}\n");
+        assert!(log.lines.contains(&line), "{name}: {}", log.lines);
+    }
 }
 
 #[test]

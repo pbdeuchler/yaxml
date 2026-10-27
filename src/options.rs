@@ -137,6 +137,11 @@ const NEVER: u32 = OLDSAX
 /// Flags only a tree can implement.
 const TREE_ONLY: u32 = DTDVALID | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
+/// Crate-private, set after `check`: DTD defaults are appended as under
+/// `DTDATTR`, without its loading and error effects (libxml2 passes them to
+/// every SAX2 handler).
+#[cfg(feature = "sax")]
+pub(crate) const SAX_DEFAULTS: u32 = 1 << 31;
 
 /// Parser flags, resource ceilings and the resource loader.
 ///
@@ -293,6 +298,9 @@ impl Flags {
     }
 
     pub(crate) fn default_attributes(self) -> bool {
+        #[cfg(feature = "sax")]
+        return self.has(DTDATTR | SAX_DEFAULTS);
+        #[cfg(not(feature = "sax"))]
         self.has(DTDATTR)
     }
 

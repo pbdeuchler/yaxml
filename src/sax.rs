@@ -9,6 +9,10 @@
 //! error that ends the parse goes to `fatal_error`, then `end_document`, and
 //! is returned. A callback returning [`ControlFlow::Break`] stops the parse
 //! (`xmlStopParser`): nothing more is called and `parse` returns `Ok`.
+//! `start_element` gets libxml2's attribute values: DTD defaults after the
+//! specified attributes with or without `DTDATTR`, and without `NOENT`
+//! references kept as written and an `&` from a reference as `&#38;`
+//! (namespace declarations substituted).
 //!
 //! Differences from libxml2 (docs/compatibility.md#sax2-callbacks):
 //!
@@ -20,8 +24,6 @@
 //!   reports the content of the first reference to each entity, as it parses
 //!   it into the entity's node list); with `NOENT` every reference's content
 //!   is reported in full (libxml2 replays later ones as their text only);
-//! - DTD defaults reach `start_element` only under `DTDATTR` (libxml2 passes
-//!   them always, counted in `nb_defaulted`);
 //! - libxml2's queries to the handler (`getEntity`, `resolveEntity`,
 //!   `isStandalone`, `hasInternalSubset`, ...) have no counterpart: the
 //!   parser keeps the declarations and a [`Resolver`](crate::Resolver) loads
@@ -56,10 +58,13 @@
 use std::cell::OnceCell;
 use std::ops::ControlFlow;
 
+use std::borrow::Cow;
+
+use crate::options::{Flags, NOBLANKS, NOENT, SAX_DEFAULTS};
 use crate::valid::{self, ContentKind, Dtd, EntityKind};
 use crate::{
-    Declaration, Doctype, Element, Error, ErrorKind, Event, LineIndex, Name, ParseOptions, Reader,
-    Transcoded,
+    Attribute, Attributes, Declaration, Doctype, Element, Error, ErrorKind, Event, LineIndex, Name,
+    ParseOptions, Reader, Transcoded,
 };
 
 const GO: ControlFlow<()> = ControlFlow::Continue(());
@@ -209,11 +214,15 @@ impl Lines for Lazy<'_> {
 /// text. A decoding or option error is returned
 /// before any callback.
 pub fn parse(input: &[u8], options: ParseOptions, handler: &mut impl Handler) -> Result<(), Error> {
-    let flags = options.flags & !crate::options::NOBLANKS;
-    let options = ParseOptions { flags, ..options };
+    let options = ParseOptions {
+        flags: options.flags & !NOBLANKS,
+        ..options
+    };
     let text = Transcoded::new(input, &options)?;
     let base = options.base.clone();
-    let mut reader = Reader::transcoded(&text, options)?;
+    let substitutes = options.flags & NOENT != 0;
+    let flags = Flags(options.check(false, 0)?.0 | SAX_DEFAULTS);
+    let mut reader = Reader::borrowing(text.as_bytes(), text.decoded.as_ref(), flags, options)?;
     let lines = Lazy {
         text: &text,
         index: OnceCell::new(),
@@ -226,6 +235,7 @@ pub fn parse(input: &[u8], options: ParseOptions, handler: &mut impl Handler) ->
             system_id: base.as_deref(),
         },
         progress: Progress::default(),
+        substitutes,
     };
     let outcome = sax.drive(&mut reader, handler);
     if outcome == Err(None) {
@@ -285,6 +295,40 @@ struct Sax<'a> {
     text: &'a [u8],
     locator: Locator<'a>,
     progress: Progress,
+    /// `NOENT`: values are passed substituted.
+    substitutes: bool,
+}
+
+/// libxml2's attribute values without `NOENT`: a kept reference form, else
+/// the value with `&` as `&#38;`; namespace declarations as read. None when
+/// nothing differs.
+fn unexpanded<'a>(element: &Element<'a>, kept: &[(usize, String)]) -> Option<Element<'a>> {
+    let declares = |attribute: &Attribute<'_>| {
+        attribute.name.namespace() == Some("http://www.w3.org/2000/xmlns/")
+    };
+    let escaped = |attribute: &Attribute<'_>| attribute.value.contains('&') && !declares(attribute);
+    if kept.is_empty() && !element.attributes.iter().any(escaped) {
+        return None;
+    }
+    let attributes = element
+        .attributes
+        .iter()
+        .enumerate()
+        .map(|(index, attribute)| {
+            let value = match kept.iter().find(|(at, _)| *at == index) {
+                Some((_, form)) => Cow::Owned(form.clone()),
+                None if escaped(attribute) => Cow::Owned(attribute.value.replace('&', "&#38;")),
+                None => attribute.value.clone(),
+            };
+            Attribute {
+                name: attribute.name.clone(),
+                value,
+            }
+        });
+    Some(Element {
+        name: element.name.clone(),
+        attributes: Attributes::Owned(attributes.collect()),
+    })
 }
 
 /// What has been reported: kept errors, and declarations by kind
@@ -354,7 +398,11 @@ impl Sax<'_> {
                         self.progress.rooted = true;
                         self.declarations(reader.dtd(), handler)?;
                     }
-                    go(handler.start_element(element))?;
+                    let unexpanded = match self.substitutes {
+                        true => None,
+                        false => unexpanded(element, reader.owned_budget().kept()),
+                    };
+                    go(handler.start_element(unexpanded.as_ref().unwrap_or(element)))?;
                     match event {
                         Event::Empty(_) => {
                             self.locate(handler, at);

@@ -611,8 +611,12 @@ subset's declarations, then the content; kept errors (warnings, namespace
 errors, repaired `RECOVER` errors) come before the event they precede, the
 error that ends the parse goes to `fatal_error`, then `end_document` (neither
 document callback for empty input, as libxml2's "Document is empty").
-`tests/sax.rs` pins transcripts recorded from libxml2 2.15.4's default SAX2
-handlers wrapped to log each call.
+`start_element` gets the attribute values libxml2's `startElementNs` does: DTD
+defaults (`#FIXED` included, normalized) after the specified attributes with or
+without `DTDATTR`, and without `NOENT` entity references kept as written and an
+`&` from `&amp;` or `&#38;` as `&#38;`; namespace declaration values are
+substituted. `tests/sax.rs` pins transcripts recorded from libxml2 2.15.4's
+default SAX2 handlers wrapped to log each call.
 
 Differences:
 
@@ -625,8 +629,6 @@ Differences:
   parses the entity into its node list. With `NOENT` every reference's content
   is reported in full; libxml2 replays later references as their text only,
   without their elements.
-- DTD defaults reach `start_element` only under `DTDATTR`. libxml2 passes them
-  always, counted in `nb_defaulted`.
 - libxml2's queries to the handler (`getEntity`, `getParameterEntity`,
   `resolveEntity`, `isStandalone`, `hasInternalSubset`, `hasExternalSubset`)
   have no counterpart: the parser keeps the declarations and a `Resolver`
