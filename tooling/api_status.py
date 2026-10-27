@@ -442,7 +442,7 @@ I|xmlHasFeature|features::has
 A|xmlInitParser xmlCleanupParser xmlInitGlobals xmlCleanupGlobals|no global state
 A|xml*Default xml*DefaultValue __xml*DefaultValue __xmlIndentTreeOutput __xmlSaveNoEmptyTags __xmlTreeIndentString xmlIndentTreeOutput xmlSaveNoEmptyTags xmlTreeIndentString xmlThrDef*|global default; per-call ParseOptions or save::Options flags
 A|xmlNewInputFrom* xmlNewIOInputStream xmlParserInputGrow xmlParserInputRead xmlParserInputDeallocate xmlSetupParserForBuffer xmlParserInputBufferCreate* xmlAllocParserInputBuffer|std::io::Read/BufRead or byte slices replace input streams
-N|xmlInputSetEncodingHandler|no caller-provided encoding handler per input
+P|xmlInputSetEncodingHandler xmlSwitchToEncoding xmlSwitchEncodingName|ParseOptions::encoding - before the parse, the document only (not external entities or HTML); an unknown name fails at Handler::open
 P|xmlCtxtSetCharEncConvImpl|ParseOptions::converters - input of the document only (not HTML, external entities or output)
 P|_xmlParserNodeInfo xmlParserNodeInfo xmlParserFindNodeInfo|Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
 I|_xmlParserNodeInfo.begin_pos _xmlParserNodeInfo.end_pos|Node::range, OwnedNode::range
@@ -514,7 +514,8 @@ P|XML_MAX_DICTIONARY_LIMIT XML_MAX_LOOKUP_LIMIT|Limits
 P|XML_MAX_HUGE_LENGTH XML_MAX_TEXT_LENGTH XML_MAX_NAME_LENGTH XML_MAX_NAMELEN|Limits::max_token_bytes
 P|xmlParserMaxDepth|Limits::max_depth
 A|XML_SUBSTITUTE_* inputPop inputPush xmlCtxtErrMemory xmlCtxtPopInput xmlCtxtPushInput xmlCreateFileParserCtxt xmlCreateMemoryParserCtxt xmlCreateURLParserCtxt xmlNewInputFromFile xmlNewInputStream xmlNewStringInputStream xmlStringText xmlStringTextNoenc|internal parser plumbing
-N|xmlParseContent xmlSwitchEncoding xmlSwitchEncodingName xmlSwitchToEncoding|parser-internal entry point not exposed
+N|xmlParseContent|parser-internal entry point not exposed
+P|xmlSwitchEncoding|ParseOptions::encoding, Handler::lookup - before the parse, the document only
 P|xmlSplitQName|Name::new
 # ---- tree.h
 A|LIBXML2_NEW_BUFFER XML_BUFFER_ALLOC_* xmlBuf xmlBuf* xmlBuffer xmlBuffer* xmlChildrenNode xmlRootNode xmlDefaultBufferSize XML_GET_CONTENT XML_GET_LINE XML_LOCAL_NAMESPACE|Vec<u8>/String or field-alias macro

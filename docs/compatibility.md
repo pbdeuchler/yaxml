@@ -330,6 +330,7 @@ README.md#cargo-features). `tests/options.rs` covers each row; the `dom`, `owned
 | `NOBASEFIX` | With `XINCLUDE`, no `xml:base` fixup. |
 | `HUGE` | Raises token and DTD ceilings to 1 GB, depth to 2048 and entity depth to 40 (default 20) (libxml2's huge values); larger caller limits stay. `max_events`, `max_total_attributes`, `max_owned_bytes` and `max_input_bytes` have no libxml2 counterpart and are unchanged ([security.md](security.md#defaults-against-libxml2-2154)). |
 | `IGNORE_ENC` | Ignores the declared encoding: UTF-8 (or the BOM-detected encoding) is kept, and the label is not recorded as the document encoding (BOM-detected: kept, or "UTF-8" on mismatch). |
+| (`encoding` argument) | `ParseOptions::encoding` forces a charset as `xmlCtxtReadMemory`'s `encoding` does: BOM, signature and declaration are overridden ([encoding.md](encoding.md#forced-encoding)). |
 | `NO_XXE` | Never loads the external subset or external entities, even with a resolver. |
 | `SKIP_IDS` | DOMs record no ID attributes (`element_by_id`, XPath `id()`). |
 

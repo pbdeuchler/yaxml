@@ -266,6 +266,22 @@ impl Handler {
         })
     }
 
+    /// The input decoding it selects.
+    pub(crate) fn source(&self) -> SourceEncoding {
+        match self.charset {
+            Charset::Utf8 => SourceEncoding::Utf8,
+            Charset::Utf16(order) => SourceEncoding::Utf16 {
+                little_endian: order.unwrap_or(true),
+                bom: false,
+            },
+            Charset::Byte(table) => SourceEncoding::Byte(table),
+            Charset::Ebcdic(table) => SourceEncoding::Ebcdic(table),
+            Charset::Ucs4(order) => SourceEncoding::Ucs4 {
+                little_endian: order == Some(true),
+            },
+        }
+    }
+
     /// The name it was opened under (`handler->name`).
     pub fn name(&self) -> &str {
         &self.name
@@ -300,15 +316,7 @@ impl Handler {
                 out.push_str(text);
                 return error.map_or(Ok(text.len()), Err);
             }
-            Charset::Utf16(order) => SourceEncoding::Utf16 {
-                little_endian: order.unwrap_or(true),
-                bom: false,
-            },
-            Charset::Byte(table) => SourceEncoding::Byte(table),
-            Charset::Ebcdic(table) => SourceEncoding::Ebcdic(table),
-            Charset::Ucs4(order) => SourceEncoding::Ucs4 {
-                little_endian: order == Some(true),
-            },
+            _ => self.source(),
         };
         let mut decoder = Decoder::new(usize::MAX);
         decoder.switch(encoding);

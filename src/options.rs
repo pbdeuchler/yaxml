@@ -30,6 +30,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use crate::encoding::Handler;
 use crate::{Converters, DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
 /// `XML_PARSE_RECOVER`: build what is parsable of a malformed document, as
@@ -157,9 +158,15 @@ pub struct ParseOptions {
     /// Input converters for declared charsets without a built-in table
     /// ([`Converters`], `xmlCtxtSetCharEncConvImpl`); unused under `IGNORE_ENC`.
     pub converters: Option<Arc<dyn Converters>>,
+    /// Decodes the document as this charset whatever its byte order mark,
+    /// signature or declaration says (the `encoding` argument of
+    /// `xmlCtxtReadMemory`, `xmlSwitchEncodingName`); a mark it decodes to
+    /// U+FEFF is skipped. External entities are still detected. Borrowed
+    /// surfaces take it through [`Transcoded`](crate::Transcoded).
+    pub encoding: Option<Handler>,
 }
 
-setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>>, converters: Option<Arc<dyn Converters>> });
+setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>>, converters: Option<Arc<dyn Converters>>, encoding: Option<Handler> });
 
 impl Default for ParseOptions {
     fn default() -> Self {
@@ -176,6 +183,7 @@ impl fmt::Debug for ParseOptions {
             .field("base", &self.base)
             .field("resolver", &self.resolver.as_ref().map(|_| ".."))
             .field("converters", &self.converters.as_ref().map(|_| ".."))
+            .field("encoding", &self.encoding.as_ref().map(Handler::name))
             .finish()
     }
 }
@@ -189,6 +197,7 @@ impl ParseOptions {
         base: None,
         resolver: None,
         converters: None,
+        encoding: None,
     };
 
     /// Default options with `flags` set.
@@ -227,9 +236,11 @@ impl ParseOptions {
         self.flags & flag != 0
     }
 
-    /// The converters input decoding uses: none under `IGNORE_ENC`.
+    /// The converters input decoding uses: none under `IGNORE_ENC` or a
+    /// forced encoding.
     pub(crate) fn input_converters(&self) -> Option<Arc<dyn Converters>> {
-        self.converters.clone().filter(|_| !self.has(IGNORE_ENC))
+        let unused = self.has(IGNORE_ENC) || self.encoding.is_some();
+        self.converters.clone().filter(|_| !unused)
     }
 
     /// The ceilings in effect, after [`HUGE`] raises them.

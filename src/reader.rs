@@ -447,8 +447,9 @@ impl<'a> Reader<'a> {
     /// # Errors
     ///
     /// As [`Reader::new`] (under `RECOVER` invalid UTF-8 and characters
-    /// outside `Char` are recovered from instead); `DTDVALID`, `NOBLANKS`
-    /// and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
+    /// outside `Char` are recovered from instead); `DTDVALID`, `NOBLANKS`,
+    /// `XINCLUDE` and a forced [`ParseOptions::encoding`] (read
+    /// [`Transcoded`] input instead) are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, crate::options::NOBLANKS)?;
         Self::borrowing(input, None, flags, options)
@@ -476,6 +477,10 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
+        if decoded.is_none() && options.encoding.is_some() {
+            // Only `Transcoded::new` decodes in a forced encoding.
+            return Err(Error::new(ErrorKind::UnsupportedOption, 0));
+        }
         let (limits, decode) = options.effective_limits();
         let (limits, decode) = match decoded {
             // `Transcoded::new` checked the source's length.
@@ -503,8 +508,11 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
-        let (ordinary, cut, character) =
+        let (mut ordinary, cut, character) =
             SliceReader::with_decode_limits(input, decoded, limits, decode, flags)?;
+        if options.encoding.is_some() {
+            ordinary.state.force_encoding();
+        }
         // The DTD stack does not repair characters: it reads the prefix
         // before the first one outside `Char`.
         let dtd_cut = character.or(cut);

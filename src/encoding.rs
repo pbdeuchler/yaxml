@@ -89,7 +89,8 @@ impl<'a> Transcoded<'a> {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
         }
         let converters = options.input_converters();
-        if !needs_decoding(input, converters.is_some()) {
+        let forced = options.encoding.as_ref().map(Handler::source);
+        if forced.is_none() && !needs_decoding(input, converters.is_some()) {
             return Ok(Self {
                 text: Cow::Borrowed(input),
                 decoded: None,
@@ -97,12 +98,13 @@ impl<'a> Transcoded<'a> {
         }
         let recovers = options.has(crate::options::RECOVER);
         let switch = declared(input)
-            .filter(|_| !options.has(crate::options::IGNORE_ENC))
+            .filter(|_| forced.is_none() && !options.has(crate::options::IGNORE_ENC))
             .filter(|_| !recovers || recovered_label(&ascii_head(input)).is_some());
         let mut text = Vec::new();
         let (encoding, end) = transcode(
             input,
             switch,
+            forced,
             converters,
             decode.max_decoded_bytes,
             &mut text,
@@ -482,6 +484,8 @@ pub(crate) struct Decoder {
     pending_cursor: usize,
     pending_len: usize,
     custom: Option<Box<Custom>>,
+    /// The encoding a caller imposed ([`ParseOptions::encoding`]).
+    forced: Option<SourceEncoding>,
 }
 
 impl Decoder {
@@ -500,6 +504,45 @@ impl Decoder {
             pending_cursor: 0,
             pending_len: 0,
             custom: None,
+            forced: None,
+        }
+    }
+
+    /// Decodes all input as `encoding`, whatever its BOM, signature or
+    /// declaration says (`xmlSwitchInputEncoding`); only before input.
+    pub(crate) fn force(&mut self, encoding: SourceEncoding) {
+        (self.forced, self.custom) = (Some(encoding), None);
+    }
+
+    /// The encoding of the input's first bytes: detected, or the forced one
+    /// past a byte order mark it decodes to U+FEFF, which libxml2 skips
+    /// (`xmlDetectEncoding`).
+    fn select(&self, final_input: bool) -> Option<Result<(SourceEncoding, usize), Error>> {
+        let prefix = &self.preamble[..self.preamble_len];
+        let Some(forced) = self.forced else {
+            return select(prefix, final_input);
+        };
+        let (bom, marked): (&[u8], _) = match forced {
+            SourceEncoding::Utf8 => (&[0xef, 0xbb, 0xbf], forced),
+            SourceEncoding::Utf16 { little_endian, .. } => (
+                if little_endian {
+                    &[0xff, 0xfe]
+                } else {
+                    &[0xfe, 0xff]
+                },
+                SourceEncoding::Utf16 {
+                    little_endian,
+                    bom: true,
+                },
+            ),
+            _ => return Some(Ok((forced, 0))),
+        };
+        if prefix.starts_with(bom) {
+            Some(Ok((marked, bom.len())))
+        } else if !final_input && bom.starts_with(prefix) {
+            None
+        } else {
+            Some(Ok((forced, 0)))
         }
     }
 
@@ -578,7 +621,7 @@ impl Decoder {
                 self.preamble_len += 1;
                 self.position += 1;
                 cursor += 1;
-                if let Some(selection) = select(&self.preamble[..self.preamble_len], false) {
+                if let Some(selection) = self.select(false) {
                     let selection = selection?;
                     let read = &self.preamble[..self.preamble_len];
                     if self.custom.is_some()
@@ -617,7 +660,13 @@ impl Decoder {
             if self.preamble_cursor < self.preamble_len {
                 match encoding {
                     // A declaration selects a byte charset only after the
-                    // ASCII preamble has been forwarded as UTF-8.
+                    // ASCII preamble has been forwarded as UTF-8 (a forced
+                    // one starts at the first byte).
+                    SourceEncoding::Byte(_) if self.preamble[self.preamble_cursor] >= 0x80 => {
+                        let offset = self.preamble_cursor;
+                        self.preamble_cursor += 1;
+                        self.unit_byte(encoding, self.preamble[offset], offset)?;
+                    }
                     SourceEncoding::Utf8 | SourceEncoding::Byte(_) => {
                         let preamble = self.preamble;
                         let progress = self.forward_utf8(
@@ -659,7 +708,7 @@ impl Decoder {
                         });
                     }
                 }
-                SourceEncoding::Byte(table) => {
+                SourceEncoding::Byte(_) => {
                     // ASCII runs are forwarded in bounded windows, so a token
                     // suspension never causes the remaining input to be rescanned;
                     // one high byte at a time goes through the table and carry.
@@ -683,10 +732,7 @@ impl Decoder {
                     let offset = self.position;
                     self.position += 1;
                     cursor += 1;
-                    let scalar = char::from_u32(table[usize::from(rest[0] - 0x80)].into())
-                        .filter(|scalar| *scalar != '\0')
-                        .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
-                    self.carry(scalar)?;
+                    self.unit_byte(encoding, rest[0], offset)?;
                 }
                 _ => {
                     let offset = self.position;
@@ -831,8 +877,7 @@ impl Decoder {
         mut emit: impl FnMut(Decoded<'_>) -> Result<DecodeProgress, Error>,
     ) -> Result<bool, Error> {
         if self.encoding.is_none() {
-            let selection = select(&self.preamble[..self.preamble_len], true)
-                .expect("final encoding selection");
+            let selection = self.select(true).expect("final encoding selection");
             self.custom = None;
             self.start(selection?, &mut emit)?;
         }
@@ -899,6 +944,14 @@ impl Decoder {
     }
 
     /// Decodes one byte of an encoding the decoder does not forward as UTF-8.
+    /// A byte charset's character, which 0 marks unmapped.
+    fn mapped(&mut self, unit: u16, offset: usize) -> Result<(), Error> {
+        let scalar = char::from_u32(unit.into())
+            .filter(|scalar| *scalar != '\0')
+            .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
+        self.carry(scalar)
+    }
+
     fn unit_byte(
         &mut self,
         encoding: SourceEncoding,
@@ -908,13 +961,12 @@ impl Decoder {
         let (little_endian, width) = match encoding {
             SourceEncoding::Utf16 { little_endian, .. } => (little_endian, 2),
             SourceEncoding::Ucs4 { little_endian } => (little_endian, 4),
-            SourceEncoding::Ebcdic(table) => {
-                let scalar = char::from_u32(table[usize::from(byte)].into())
-                    .filter(|scalar| *scalar != '\0')
-                    .ok_or(Error::new(ErrorKind::UnmappedByte, offset))?;
-                return self.carry(scalar);
+            // A byte charset's high half (ASCII is forwarded).
+            SourceEncoding::Byte(table) => {
+                return self.mapped(table[usize::from(byte - 0x80)], offset);
             }
-            SourceEncoding::Utf8 | SourceEncoding::Byte(_) | SourceEncoding::Custom => {
+            SourceEncoding::Ebcdic(table) => return self.mapped(table[usize::from(byte)], offset),
+            SourceEncoding::Utf8 | SourceEncoding::Custom => {
                 unreachable!("forwarded as UTF-8")
             }
         };
@@ -1196,12 +1248,16 @@ fn recovered_label(input: &[u8]) -> Option<&str> {
 pub(crate) fn transcode(
     input: &[u8],
     switch: Option<SourceEncoding>,
+    forced: Option<SourceEncoding>,
     converters: Option<Arc<dyn Converters>>,
     limit: usize,
     output: &mut Vec<u8>,
 ) -> (SourceEncoding, Result<(), Error>) {
     let mut decoder = Decoder::new(limit);
     decoder.set_converters(converters);
+    if let Some(forced) = forced {
+        decoder.force(forced);
+    }
     let mut encoding = SourceEncoding::Utf8;
     let mut sink = |decoded: Decoded<'_>| {
         let consumed = match decoded {

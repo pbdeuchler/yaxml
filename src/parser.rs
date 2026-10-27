@@ -274,6 +274,8 @@ pub(crate) struct ParserState<'source> {
     initial: usize,
     encoding: crate::encoding::SourceEncoding,
     switchable: bool,
+    /// The caller chose the encoding: a declaration names nothing.
+    forced: bool,
     declaration_seen: bool,
     doctype_seen: bool,
     token_limit: usize,
@@ -368,6 +370,7 @@ impl<'source> ParserState<'source> {
             initial: initial_offset,
             encoding: crate::encoding::SourceEncoding::Utf8,
             switchable: false,
+            forced: false,
             declaration_seen: false,
             doctype_seen: false,
             token_limit: limits.max_token_bytes,
@@ -815,6 +818,12 @@ impl<'source> ParserState<'source> {
         self.switchable = true;
     }
 
+    /// The caller forced the encoding (`XML_INPUT_HAS_ENCODING` without
+    /// auto-detection): a declaration's label is recorded unchecked.
+    pub(crate) fn force_encoding(&mut self) {
+        self.forced = true;
+    }
+
     pub(crate) fn encoding(&self) -> crate::encoding::SourceEncoding {
         self.encoding
     }
@@ -1186,6 +1195,7 @@ impl<'source> ParserState<'source> {
             use crate::encoding::SourceEncoding::{Utf8, Utf16};
             let offset = encoding_offset.unwrap_or(start);
             let auto: Option<(&[&str], &str)> = match self.encoding {
+                _ if self.forced => None,
                 Utf8 if start != 0 => Some((&["UTF-8", "UTF8"], "UTF-8")),
                 Utf16 {
                     little_endian: true,
@@ -1195,7 +1205,8 @@ impl<'source> ParserState<'source> {
                 _ => None,
             };
             self.encoding = match declaration.encoding {
-                Some(label) if auto.is_some() || self.flags.ignores_encoding() => {
+                None if self.forced => self.encoding,
+                Some(label) if auto.is_some() || self.forced || self.flags.ignores_encoding() => {
                     declaration.encoding = match auto {
                         Some((allowed, _))
                             if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) =>
@@ -1233,7 +1244,9 @@ impl<'source> ParserState<'source> {
             let warning = ErrorKind::Warning(crate::Warning::ReservedTarget);
             self.budget.recover(Error::new(warning, start + 2))?;
         }
-        if self.encoding.requires_declaration() && !self.declaration_seen && !self.replacement {
+        if self.encoding.requires_declaration()
+            && !(self.declaration_seen || self.replacement || self.forced)
+        {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);

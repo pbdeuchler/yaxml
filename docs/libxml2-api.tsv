@@ -925,7 +925,7 @@ parser.h	xmlInitGlobals	function	yes	P0-P3	not-applicable	https://github.com/GNO
 parser.h	xmlInitNodeInfoSeq	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the table's storage and upkeep; each node carries its own range
 parser.h	xmlInitParser	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no global state
 parser.h	xmlInitParserCtxt	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new - configuration value plus the parser type
-parser.h	xmlInputSetEncodingHandler	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no caller-provided encoding handler per input
+parser.h	xmlInputSetEncodingHandler	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::encoding - before the parse, the document only (not external entities or HTML); an unknown name fails at Handler::open
 parser.h	xmlKeepBlanksDefault	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlKeepBlanksDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlLineNumbersDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
@@ -1114,10 +1114,10 @@ parserInternals.h	xmlStringDecodeEntities	function	yes	P3	not-applicable	https:/
 parserInternals.h	xmlStringLenDecodeEntities	function	yes	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)
 parserInternals.h	xmlStringText	variable	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	internal parser plumbing
 parserInternals.h	xmlStringTextNoenc	variable	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	internal parser plumbing
-parserInternals.h	xmlSwitchEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	parser-internal entry point not exposed
-parserInternals.h	xmlSwitchEncodingName	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	parser-internal entry point not exposed
+parserInternals.h	xmlSwitchEncoding	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	ParseOptions::encoding, Handler::lookup - before the parse, the document only
+parserInternals.h	xmlSwitchEncodingName	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	ParseOptions::encoding - before the parse, the document only (not external entities or HTML); an unknown name fails at Handler::open
 parserInternals.h	xmlSwitchInputEncoding	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	deprecated in 2.15.4
-parserInternals.h	xmlSwitchToEncoding	function	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	parser-internal entry point not exposed
+parserInternals.h	xmlSwitchToEncoding	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parserInternals.h	ParseOptions::encoding - before the parse, the document only (not external entities or HTML); an unknown name fails at Handler::open
 pattern.h	XML_PATTERN_DEFAULT	enum_value	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	zero flags
 pattern.h	XML_PATTERN_XPATH	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::XPATH
 pattern.h	XML_PATTERN_XSFIELD	enum_value	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/pattern.h	pattern::XS_FIELD

@@ -281,7 +281,8 @@ impl Loader {
 pub(crate) fn decode(bytes: &[u8], versioned: bool) -> Result<String, ErrorKind> {
     let mut output = Vec::new();
     let switch = crate::encoding::declared(bytes);
-    let (_, decoded) = crate::encoding::transcode(bytes, switch, None, usize::MAX, &mut output);
+    let (_, decoded) =
+        crate::encoding::transcode(bytes, switch, None, None, usize::MAX, &mut output);
     decoded.map_err(|error| error.kind)?;
     let text = String::from_utf8(output).map_err(|_| ErrorKind::InvalidUtf8)?;
     if !text.chars().all(xml_char) {

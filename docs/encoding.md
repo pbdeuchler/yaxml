@@ -139,6 +139,30 @@ unsupported); external entities, HTML and output are never converted; there is
 no global handler registry (`xmlRegisterCharEncodingHandler`), the converters
 belong to one parse.
 
+## Forced encoding
+
+`ParseOptions::encoding` takes a `Handler`: the `encoding` argument of
+`xmlCtxtReadMemory` and friends, which libxml2 applies with
+`xmlSwitchEncodingName` (`xmlSwitchToEncoding` for a handler,
+`xmlSwitchEncoding` = `Handler::lookup`). The document is decoded in that
+charset from its first byte, whatever its BOM, UTF-16 signature or
+declaration says. A leading mark that decodes to U+FEFF (`EF BB BF` in UTF-8,
+the matching UTF-16 mark) is skipped. Any other mark is read as characters,
+so a UTF-8 BOM under ISO-8859-1 is text before the root, and a UTF-16 mark
+under UTF-8 is invalid. The declaration's label is kept unchecked, with no
+switch, mismatch warning or `UnsupportedEncoding`, and an unmarked UTF-16
+document needs no declaration. Converters are unused, and external entities
+are still detected. Streaming surfaces and the `OwnedDocument` byte
+constructors read it. Borrowed surfaces read it through `Transcoded::new`
+with the same options (`Reader::transcoded`, `Document::parse_transcoded`);
+`Reader::with_options` and `Document::parse_with` reject it with
+`UnsupportedOption`. `reset()` drops it, as it drops converters.
+
+Differences from libxml2 (`tests/forced_encoding.rs`, recorded from 2.15.4):
+an unknown name fails at `Handler::open`, where libxml2 warns
+`Unsupported encoding` and auto-detects; `doc->encoding` is the forced name
+in libxml2, while yaxml's declaration keeps the label as written.
+
 ## Encoding API
 
 `yaxml::encoding` has libxml2's encoding.h names (`tests/encoding_api.rs`,

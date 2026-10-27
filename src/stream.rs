@@ -105,11 +105,13 @@ impl Stream {
         }
     }
 
-    pub(crate) fn set_converters(
-        &mut self,
-        converters: Option<std::sync::Arc<dyn crate::Converters>>,
-    ) {
-        self.decoder.set_converters(converters);
+    /// The document's converters and forced encoding: only before input.
+    pub(crate) fn set_input(&mut self, options: &crate::ParseOptions) {
+        self.decoder.set_converters(options.input_converters());
+        if let Some(handler) = &options.encoding {
+            self.decoder.force(handler.source());
+            self.state.force_encoding();
+        }
     }
 
     pub(crate) fn position(&self) -> usize {

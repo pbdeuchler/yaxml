@@ -175,7 +175,8 @@ impl<'input> Document<'input> {
     }
 
     /// Parses with libxml2 parser options; see [`crate::options`].
-    /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here.
+    /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here, as is
+    /// a forced `encoding` (see [`Document::parse_transcoded`]).
     pub fn parse_with(input: &'input [u8], options: ParseOptions) -> Result<Self, Error> {
         Self::borrowing(input, None, options)
     }

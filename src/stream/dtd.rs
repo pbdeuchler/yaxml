@@ -128,13 +128,10 @@ impl StreamingSession {
     pub(crate) fn event_origin(&self) -> Option<SourceOrigin> {
         self.origin
     }
-    /// Input converters for the document: only before input.
-    pub(crate) fn set_converters(
-        &mut self,
-        converters: Option<std::sync::Arc<dyn crate::Converters>>,
-    ) {
+    /// Input converters and forced encoding for the document: only before input.
+    pub(crate) fn set_input(&mut self, options: &crate::ParseOptions) {
         if let Some(stream) = &mut self.ordinary {
-            stream.set_converters(converters);
+            stream.set_input(options);
         }
     }
     pub(crate) fn set_resolver(&mut self, base: &str, resolver: Box<dyn crate::Resolver>) {
