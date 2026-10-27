@@ -37,6 +37,12 @@ mod model;
 mod parse;
 mod simple;
 mod validate;
+mod view;
+
+pub use view::{
+    AttributeDeclaration, AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations,
+    ElementDeclaration, Namespaces, ProcessContents, SimpleVariety, TypeDefinition, TypeKind,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;

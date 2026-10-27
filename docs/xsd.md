@@ -49,6 +49,30 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   document order. Default and fixed values are checked and feed identity
   constraints but are never inserted, in both modes.
 
+## Components
+
+`Schema::element(ns, name)`, `attribute`, `type_definition` (also finds the
+built-in types) and the sorted lists `elements()`, `attributes()`,
+`type_definitions()` (global types only) are read-only views of the compiled
+components, `schemasInternals.h`'s `xmlSchemaElement`, `xmlSchemaAttribute`
+and `xmlSchemaType`. Imported components are found by the same lookups.
+`TypeDefinition` gives the name, base, derivation method, `final`/`block`
+sets, abstractness, and either the simple variety (atomic, list item, union
+members) or the complex content type with its effective attribute uses
+(inherited ones included, prohibited ones dropped) and attribute wildcard.
+`ElementDeclaration` gives the type, nillable, abstract, `block` and value
+constraint; `AttributeUse::value` is the use's own constraint, not the
+declaration's, as in libxml2. tests/xsd_components.rs prints them in the line
+format of harness/tooling/libxml2_xsd_components.c, which walks libxml2's
+hash tables; with `YAXML_XSD_COMPONENTS_HELPER` the ignored test compares all
+123 libxml2 `test/schemas` schemas that both build. Differences: a union
+derived by restriction lists its base's member types (libxml2 leaves
+`memberTypes` empty), and wildcard namespace sets are sorted, absent
+namespace first (libxml2 keeps document order). Not exposed: substitution
+groups, particles and model groups, attribute groups (flattened into uses),
+facets, identity constraints, notations, annotations and the schema's own
+`targetNamespace`/`version`.
+
 ## Pipeline
 
 `parse.rs` reads documents breadth first (schema-for-schemas checks, target

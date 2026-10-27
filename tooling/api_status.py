@@ -307,8 +307,10 @@ FIELD_DEFAULT = {
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-for _s in "Schema SchemaAnnot SchemaAttribute SchemaAttributeGroup SchemaAttributeLink SchemaElement SchemaFacet SchemaFacetLink SchemaNotation SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
-    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no public schema component model; xsd::Schema is opaque")
+for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink SchemaFacet SchemaFacetLink SchemaNotation".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations, attribute groups, facets or notations")
+for _s in "Schema SchemaAttribute SchemaElement SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; the xsd component views expose the compiled properties")
 
 TREE_FIELDS = {
     "_xmlNode.name": ("I", "Node::name, OwnedNode::name"),
@@ -1005,7 +1007,88 @@ P|xmlSchemaSetValidOptions xmlSchemaValidOption|xsd::Schema::validate_creating -
 A|xmlSchemaValidCtxtGetOptions|options are chosen per call
 A|xmlSchemaValidError XML_SCHEMAS_ERR_*|never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 # ---- schemasInternals.h
-N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttribute xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaAttributePtr xmlSchemaContentType xmlSchemaElement xmlSchemaElementPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaType xmlSchemaTypeLink xmlSchemaTypeLinkPtr xmlSchemaTypePtr xmlSchemaTypeType xmlSchemaVal xmlSchemaValPtr xmlSchemaWildcard xmlSchemaWildcardNs xmlSchemaWildcardNsPtr xmlSchemaWildcardPtr XML_SCHEMAS_* XML_SCHEMA_CONTENT_* XML_SCHEMA_TYPE_* XML_SCHEMA_EXTRA_*|no public schema component model; xsd::Schema is opaque
+I|xmlSchemaElement xmlSchemaElementPtr _xmlSchemaElement|xsd::ElementDeclaration
+I|xmlSchemaAttribute xmlSchemaAttributePtr _xmlSchemaAttribute|xsd::AttributeDeclaration
+P|xmlSchemaType xmlSchemaTypePtr _xmlSchemaType|xsd::TypeDefinition - simple and complex type definitions; particles and model groups have no view
+P|xmlSchemaWildcard xmlSchemaWildcardPtr _xmlSchemaWildcard|xsd::AttributeWildcard - attribute wildcards only
+I|xmlSchemaWildcardNs xmlSchemaWildcardNsPtr _xmlSchemaWildcardNs|xsd::Namespaces::Set - sorted, absent namespace first
+I|xmlSchemaTypeLink xmlSchemaTypeLinkPtr _xmlSchemaTypeLink|xsd::SimpleVariety::Union - a Vec of member types
+I|xmlSchemaContentType|xsd::ContentType
+P|xmlSchemaTypeType|xsd::TypeKind - simple or complex; other component kinds have no view
+I|_xmlSchema.elemDecl|xsd::Schema::element, xsd::Schema::elements
+I|_xmlSchema.attrDecl|xsd::Schema::attribute, xsd::Schema::attributes
+I|_xmlSchema.typeDecl|xsd::Schema::type_definition, xsd::Schema::type_definitions
+A|_xmlSchema.schemasImports|imported components are found by the same lookups
+N|_xmlSchema.targetNamespace _xmlSchema.version _xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef _xmlSchema.notaDecl|no view of the schema document, model groups, attribute groups, IDCs or notations
+I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
+I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
+I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
+I|_xmlSchemaElement.value|xsd::ElementDeclaration::value
+P|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block - no final or substitution-group head
+N|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs _xmlSchemaElement.idcs|no view of substitution groups or IDCs
+I|_xmlSchemaAttribute.name|xsd::AttributeDeclaration::name
+I|_xmlSchemaAttribute.targetNamespace|xsd::AttributeDeclaration::namespace
+I|_xmlSchemaAttribute.subtypes|xsd::AttributeDeclaration::type_definition
+I|_xmlSchemaAttribute.defValue|xsd::AttributeDeclaration::value
+I|_xmlSchemaAttribute.flags|xsd::Constraint::fixed
+I|_xmlSchemaType.name|xsd::TypeDefinition::name
+I|_xmlSchemaType.targetNamespace|xsd::TypeDefinition::namespace
+I|_xmlSchemaType.baseType|xsd::TypeDefinition::base
+I|_xmlSchemaType.subtypes|xsd::SimpleVariety::List - the item type
+I|_xmlSchemaType.memberTypes|xsd::SimpleVariety::Union
+I|_xmlSchemaType.contentType|xsd::TypeDefinition::kind
+I|_xmlSchemaType.contentTypeDef|xsd::ContentType::Simple
+I|_xmlSchemaType.attrUses|xsd::TypeDefinition::attribute_uses
+I|_xmlSchemaType.attributeWildcard|xsd::TypeDefinition::attribute_wildcard
+P|_xmlSchemaType.builtInType|xsd::TypeDefinition::is_builtin - a bool
+P|_xmlSchemaType.flags|xsd::TypeDefinition::final_, xsd::TypeDefinition::block, xsd::TypeDefinition::is_abstract, xsd::TypeDefinition::is_extension, xsd::TypeDefinition::kind - no whitespace
+N|_xmlSchemaType.facets _xmlSchemaType.facetSet|no view of facets
+I|_xmlSchemaTypeLink.type|xsd::SimpleVariety::Union
+I|_xmlSchemaWildcard.any _xmlSchemaWildcard.nsSet _xmlSchemaWildcard.negNsSet|xsd::AttributeWildcard::namespaces
+I|_xmlSchemaWildcard.processContents|xsd::AttributeWildcard::process
+I|_xmlSchemaWildcardNs.value|xsd::Namespaces::Set
+I|XML_SCHEMA_CONTENT_EMPTY|xsd::ContentType::Empty
+I|XML_SCHEMA_CONTENT_ELEMENTS|xsd::ContentType::Elements
+I|XML_SCHEMA_CONTENT_MIXED|xsd::ContentType::Mixed
+I|XML_SCHEMA_CONTENT_SIMPLE|xsd::ContentType::Simple
+A|XML_SCHEMA_CONTENT_UNKNOWN XML_SCHEMA_CONTENT_MIXED_OR_ELEMENTS XML_SCHEMA_CONTENT_BASIC XML_SCHEMA_CONTENT_ANY|built-in or transitional content types; xs:anyType reads as Mixed
+I|XML_SCHEMA_TYPE_SIMPLE|xsd::TypeKind::Simple
+I|XML_SCHEMA_TYPE_COMPLEX|xsd::TypeKind::Complex
+I|XML_SCHEMA_TYPE_BASIC|xsd::TypeDefinition::is_builtin
+I|XML_SCHEMA_TYPE_ELEMENT|xsd::ElementDeclaration
+I|XML_SCHEMA_TYPE_ATTRIBUTE|xsd::AttributeDeclaration
+I|XML_SCHEMA_TYPE_ATTRIBUTE_USE|xsd::AttributeUse
+I|XML_SCHEMA_TYPE_ANY_ATTRIBUTE|xsd::AttributeWildcard
+I|XML_SCHEMA_TYPE_LIST|xsd::SimpleVariety::List
+I|XML_SCHEMA_TYPE_UNION|xsd::SimpleVariety::Union
+I|XML_SCHEMA_TYPE_EXTENSION|xsd::TypeDefinition::is_extension
+A|XML_SCHEMA_TYPE_RESTRICTION XML_SCHEMA_TYPE_SIMPLE_CONTENT XML_SCHEMA_TYPE_COMPLEX_CONTENT XML_SCHEMA_TYPE_UR XML_SCHEMA_EXTRA_*|schema document syntax, folded into the compiled definitions
+I|XML_SCHEMAS_ELEM_NILLABLE|xsd::ElementDeclaration::is_nillable
+I|XML_SCHEMAS_ELEM_ABSTRACT|xsd::ElementDeclaration::is_abstract
+I|XML_SCHEMAS_ELEM_FIXED XML_SCHEMAS_ELEM_DEFAULT XML_SCHEMAS_ATTR_FIXED|xsd::Constraint::fixed
+I|XML_SCHEMAS_ELEM_BLOCK_EXTENSION XML_SCHEMAS_ELEM_BLOCK_RESTRICTION XML_SCHEMAS_ELEM_BLOCK_SUBSTITUTION|xsd::ElementDeclaration::block
+N|XML_SCHEMAS_ELEM_FINAL_EXTENSION XML_SCHEMAS_ELEM_FINAL_RESTRICTION XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD|no view of substitution groups
+I|XML_SCHEMAS_ATTR_USE_REQUIRED XML_SCHEMAS_ATTR_USE_OPTIONAL|xsd::AttributeUse::is_required
+A|XML_SCHEMAS_ATTR_USE_PROHIBITED|prohibited uses are dropped from a type's uses (libxml2 too)
+I|XML_SCHEMAS_ANYATTR_SKIP XML_SCHEMAS_ANY_SKIP|xsd::ProcessContents::Skip
+I|XML_SCHEMAS_ANYATTR_LAX XML_SCHEMAS_ANY_LAX|xsd::ProcessContents::Lax
+I|XML_SCHEMAS_ANYATTR_STRICT XML_SCHEMAS_ANY_STRICT|xsd::ProcessContents::Strict
+I|XML_SCHEMAS_TYPE_ABSTRACT|xsd::TypeDefinition::is_abstract
+I|XML_SCHEMAS_TYPE_BLOCK_EXTENSION XML_SCHEMAS_TYPE_BLOCK_RESTRICTION|xsd::TypeDefinition::block
+I|XML_SCHEMAS_TYPE_FINAL_EXTENSION XML_SCHEMAS_TYPE_FINAL_RESTRICTION XML_SCHEMAS_TYPE_FINAL_LIST XML_SCHEMAS_TYPE_FINAL_UNION|xsd::TypeDefinition::final_
+I|XML_SCHEMAS_TYPE_DERIVATION_METHOD_EXTENSION XML_SCHEMAS_TYPE_DERIVATION_METHOD_RESTRICTION|xsd::TypeDefinition::is_extension
+I|XML_SCHEMAS_TYPE_VARIETY_ATOMIC|xsd::SimpleVariety::Atomic
+I|XML_SCHEMAS_TYPE_VARIETY_LIST|xsd::SimpleVariety::List
+I|XML_SCHEMAS_TYPE_VARIETY_UNION|xsd::SimpleVariety::Union
+I|XML_SCHEMAS_TYPE_MIXED|xsd::ContentType::Mixed
+N|XML_SCHEMAS_TYPE_WHITESPACE_PRESERVE XML_SCHEMAS_TYPE_WHITESPACE_REPLACE XML_SCHEMAS_TYPE_WHITESPACE_COLLAPSE|no per-type whitespace view
+I|XML_SCHEMAS_FACET_PRESERVE|schema_types::WhiteSpace::Preserve
+I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
+I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
+A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
+A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
+N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
+A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h
 I|xmlSchemaValidatePredefinedType|schema_types::Type::parse

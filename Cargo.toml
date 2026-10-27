@@ -212,6 +212,10 @@ name = "xsd_stream"
 required-features = ["schemas"]
 
 [[test]]
+name = "xsd_components"
+required-features = ["schemas"]
+
+[[test]]
 name = "yaxmllint"
 required-features = ["full"]
 
