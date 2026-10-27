@@ -41,6 +41,22 @@ static void wildcard(xmlSchemaWildcardPtr w) {
     printf("%s%s", n == w->nsSet ? "" : ",", n->value ? (char *)n->value : "");
   printf(" process=%s", w->processContents == 1 ? "skip" : w->processContents == 2 ? "lax" : "strict");
 }
+/* facetSet kinds in enum order, less whitespace and enumerations;
+   patterns counted (they are the type's own). */
+static void facets(xmlSchemaTypePtr t) {
+  static const char *names[] = {"minInclusive", "minExclusive", "maxInclusive", "maxExclusive",
+    "totalDigits", "fractionDigits", "pattern", "enumeration", "whiteSpace", "length", "maxLength", "minLength"};
+  int patterns = 0;
+  printf(" facets=");
+  for (int kind = XML_SCHEMA_FACET_MININCLUSIVE; kind <= XML_SCHEMA_FACET_MINLENGTH; kind++)
+    for (xmlSchemaFacetLinkPtr l = t->facetSet; l; l = l->next)
+      if ((int) l->facet->type == kind) {
+        if (kind == XML_SCHEMA_FACET_PATTERN) patterns++;
+        else if (kind != XML_SCHEMA_FACET_ENUMERATION && kind != XML_SCHEMA_FACET_WHITESPACE)
+          printf("%s,", names[kind - XML_SCHEMA_FACET_MININCLUSIVE]);
+      }
+  printf(" patterns=%d", patterns);
+}
 static void type(void *p, void *d, const xmlChar *k);
 static void anon(xmlSchemaTypePtr t) { if (t && !t->name) { printf(" :: "); type(t, NULL, (const xmlChar *)""); } }
 static void elem(void *p, void *d, const xmlChar *k) {
@@ -71,6 +87,8 @@ static void type(void *p, void *d, const xmlChar *k) {
          f & XML_SCHEMAS_TYPE_FINAL_LIST ? "l" : "", f & XML_SCHEMAS_TYPE_FINAL_UNION ? "u" : "");
   printf(" block=%s%s", f & XML_SCHEMAS_TYPE_BLOCK_EXTENSION ? "e" : "", f & XML_SCHEMAS_TYPE_BLOCK_RESTRICTION ? "r" : "");
   if (t->type == XML_SCHEMA_TYPE_SIMPLE) {
+    printf(" ws=%s", f & XML_SCHEMAS_TYPE_WHITESPACE_PRESERVE ? "preserve" : f & XML_SCHEMAS_TYPE_WHITESPACE_REPLACE ? "replace" : f & XML_SCHEMAS_TYPE_WHITESPACE_COLLAPSE ? "collapse" : "-");
+    facets(t);
     printf(" simple variety=%s", f & XML_SCHEMAS_TYPE_VARIETY_LIST ? "list" : f & XML_SCHEMAS_TYPE_VARIETY_UNION ? "union" : "atomic");
     if (f & XML_SCHEMAS_TYPE_VARIETY_LIST) { printf(" item="); tname(t->subtypes); }
     if (f & XML_SCHEMAS_TYPE_VARIETY_UNION) {

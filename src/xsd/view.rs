@@ -7,6 +7,8 @@ use super::components::{
     Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION, ValueConstraint, Variety,
     WildId,
 };
+use crate::regexp::Regex;
+use crate::schema_types::{Facet, WhiteSpace};
 
 /// Derivation methods, as a type's `final` and `block` or an element's
 /// `block` (libxml2's `XML_SCHEMAS_*_FINAL_*` and `_BLOCK_*` flags).
@@ -283,6 +285,27 @@ impl<'a> TypeDefinition<'a> {
     /// The base type definition (`baseType`); `xs:anyType` is its own.
     pub fn base(self) -> TypeDefinition<'a> {
         self.of(self.def().base)
+    }
+
+    /// A simple type's whitespace handling (`XML_SCHEMAS_TYPE_WHITESPACE_*`);
+    /// `None` for a union or complex type.
+    pub fn whitespace(self) -> Option<WhiteSpace> {
+        let simple = self.def().simple()?;
+        (!matches!(simple.variety, Variety::Union(_))).then_some(simple.whitespace)
+    }
+
+    /// A simple type's effective length, bound, digit and `whiteSpace`
+    /// facets, inherited ones included (libxml2's `facetSet`, which also
+    /// holds this step's patterns and enumerations); values are typed, not
+    /// lexical.
+    pub fn facets(self) -> &'a [Facet] {
+        self.def().simple().map_or(&[], |simple| &simple.facets)
+    }
+
+    /// The patterns of this derivation step, any one of which must match
+    /// (each ancestor's step must match too).
+    pub fn patterns(self) -> &'a [Regex] {
+        self.def().simple().map_or(&[], |simple| &simple.patterns)
     }
 
     /// Derived by extension rather than restriction.

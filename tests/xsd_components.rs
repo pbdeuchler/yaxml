@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
+use yaxml::schema_types::Facet;
 use yaxml::xsd::{
     Constraint, ContentType, Derivations, Limits, Namespaces, ProcessContents, Schema,
     SimpleVariety, TypeDefinition, TypeKind,
@@ -53,6 +54,19 @@ fn anonymous(out: &mut String, ty: TypeDefinition<'_>) {
     }
 }
 
+/// libxml2's facet kind order (`XML_SCHEMA_FACET_*`).
+const ORDER: [&str; 9] = [
+    "minInclusive",
+    "minExclusive",
+    "maxInclusive",
+    "maxExclusive",
+    "totalDigits",
+    "fractionDigits",
+    "length",
+    "maxLength",
+    "minLength",
+];
+
 fn definition(out: &mut String, ty: TypeDefinition<'_>) {
     let derivation = if ty.is_extension() {
         "extension"
@@ -68,6 +82,20 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
         flags(ty.block()),
     )
     .unwrap();
+    if let TypeKind::Simple(_) = ty.kind() {
+        let whitespace = ty.whitespace();
+        let whitespace = whitespace.map_or("-".into(), |ws| format!("{ws:?}").to_lowercase());
+        let mut facets: Vec<&Facet> = (ty.facets().iter())
+            .filter(|facet| !matches!(facet, Facet::WhiteSpace(_)))
+            .collect();
+        facets.sort_by_key(|facet| ORDER.iter().position(|&name| name == facet.name()));
+        let facets: String = facets
+            .iter()
+            .map(|facet| format!("{},", facet.name()))
+            .collect();
+        let patterns = ty.patterns().len();
+        write!(out, " ws={whitespace} facets={facets} patterns={patterns}").unwrap();
+    }
     match ty.kind() {
         TypeKind::Simple(SimpleVariety::Atomic) => out.push_str(" simple variety=atomic"),
         TypeKind::Simple(SimpleVariety::List(item)) => {
@@ -160,6 +188,8 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
 <xs:element name='f' type='xs:string' fixed='x' abstract='true' block='#all'/>
 <xs:attribute name='g' fixed='1'><xs:simpleType><xs:list itemType='xs:int'/></xs:simpleType></xs:attribute>
+<xs:simpleType name='r'><xs:restriction base='t:d'><xs:maxInclusive value='9'/><xs:pattern value='[0-9]+'/><xs:pattern value='x'/></xs:restriction></xs:simpleType>
+<xs:simpleType name='d' final=''><xs:restriction base='xs:decimal'><xs:totalDigits value='3'/><xs:minExclusive value='0'/><xs:pattern value='.'/><xs:whiteSpace value='collapse' fixed='true'/></xs:restriction></xs:simpleType>
 <xs:simpleType name='u' final='list union'><xs:union memberTypes='xs:int xs:boolean'/></xs:simpleType>
 <xs:complexType name='b' abstract='true' block='restriction'><xs:attribute name='x' use='required'/><xs:anyAttribute namespace='##other' processContents='skip'/></xs:complexType>
 <xs:complexType name='s'><xs:simpleContent><xs:extension base='xs:decimal'><xs:attribute name='y' default='d'/></xs:extension></xs:simpleContent></xs:complexType>
@@ -167,14 +197,16 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 7] = [
-    "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
+const COMPONENTS: [&str; 9] = [
+    "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
     "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e",
     "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers",
     "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}d base={http://www.w3.org/2001/XMLSchema}decimal derivation=restriction final= block= ws=collapse facets=minExclusive,totalDigits, patterns=1 simple variety=atomic",
     "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed use={urn:t}g? use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}r base={urn:t}d derivation=restriction final=r block= ws=collapse facets=minExclusive,maxInclusive,totalDigits, patterns=2 simple variety=atomic",
     "type {urn:t}s base={http://www.w3.org/2001/XMLSchema}decimal derivation=extension final=r block=e complex abstract=0 content=simple simple={http://www.w3.org/2001/XMLSchema}decimal use=y?",
-    "type {urn:t}u base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final=lu block= simple variety=union members={http://www.w3.org/2001/XMLSchema}int,{http://www.w3.org/2001/XMLSchema}boolean",
+    "type {urn:t}u base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final=lu block= ws=- facets= patterns=0 simple variety=union members={http://www.w3.org/2001/XMLSchema}int,{http://www.w3.org/2001/XMLSchema}boolean",
 ];
 
 #[test]
@@ -219,6 +251,10 @@ fn lookups_find_globals_and_built_ins_only() {
     assert_eq!(any.base().name(), Some("anyType"));
     assert!(int.attribute_uses().next().is_none() && int.attribute_wildcard().is_none());
     assert!(schema.type_definitions().all(|ty| !ty.is_builtin()));
+    let m = schema.type_definition(t, "m").unwrap();
+    assert!(m.whitespace().is_none() && m.facets().is_empty() && m.patterns().is_empty());
+    let r = schema.type_definition(t, "r").unwrap();
+    assert_eq!(r.patterns()[1].as_str(), "x");
     let empty = Schema::parse(
         b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'/>",
         "e.xsd",

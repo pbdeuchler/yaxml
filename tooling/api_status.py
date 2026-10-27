@@ -307,8 +307,10 @@ FIELD_DEFAULT = {
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink SchemaFacet SchemaFacetLink SchemaNotation".split():
-    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations, attribute groups, facets or notations")
+for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink SchemaNotation".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations, attribute groups or notations")
+for _s in "SchemaFacet SchemaFacetLink".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; schema_types::Facet is the compiled facet")
 for _s in "Schema SchemaAttribute SchemaElement SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
     FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; the xsd component views expose the compiled properties")
 
@@ -1041,8 +1043,14 @@ I|_xmlSchemaType.contentTypeDef|xsd::ContentType::Simple
 I|_xmlSchemaType.attrUses|xsd::TypeDefinition::attribute_uses
 I|_xmlSchemaType.attributeWildcard|xsd::TypeDefinition::attribute_wildcard
 P|_xmlSchemaType.builtInType|xsd::TypeDefinition::is_builtin - a bool
-P|_xmlSchemaType.flags|xsd::TypeDefinition::final_, xsd::TypeDefinition::block, xsd::TypeDefinition::is_abstract, xsd::TypeDefinition::is_extension, xsd::TypeDefinition::kind - no whitespace
-N|_xmlSchemaType.facets _xmlSchemaType.facetSet|no view of facets
+P|_xmlSchemaType.flags|xsd::TypeDefinition::final_, xsd::TypeDefinition::block, xsd::TypeDefinition::is_abstract, xsd::TypeDefinition::is_extension, xsd::TypeDefinition::kind, xsd::TypeDefinition::whitespace
+P|_xmlSchemaType.facetSet|xsd::TypeDefinition::facets, xsd::TypeDefinition::patterns - typed values; no enumerations
+A|_xmlSchemaType.facets|the facets as written; facetSet is the effective set
+P|xmlSchemaFacet xmlSchemaFacetPtr _xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr _xmlSchemaFacetLink|schema_types::Facet - a typed value, no lexical form or fixed flag
+P|_xmlSchemaFacet.type _xmlSchemaFacet.val|schema_types::Facet
+I|_xmlSchemaFacet.whitespace|schema_types::Facet::WhiteSpace
+I|_xmlSchemaFacet.regexp|xsd::TypeDefinition::patterns
+I|_xmlSchemaFacetLink.facet|xsd::TypeDefinition::facets
 I|_xmlSchemaTypeLink.type|xsd::SimpleVariety::Union
 I|_xmlSchemaWildcard.any _xmlSchemaWildcard.nsSet _xmlSchemaWildcard.negNsSet|xsd::AttributeWildcard::namespaces
 I|_xmlSchemaWildcard.processContents|xsd::AttributeWildcard::process
@@ -1081,13 +1089,13 @@ I|XML_SCHEMAS_TYPE_VARIETY_ATOMIC|xsd::SimpleVariety::Atomic
 I|XML_SCHEMAS_TYPE_VARIETY_LIST|xsd::SimpleVariety::List
 I|XML_SCHEMAS_TYPE_VARIETY_UNION|xsd::SimpleVariety::Union
 I|XML_SCHEMAS_TYPE_MIXED|xsd::ContentType::Mixed
-N|XML_SCHEMAS_TYPE_WHITESPACE_PRESERVE XML_SCHEMAS_TYPE_WHITESPACE_REPLACE XML_SCHEMAS_TYPE_WHITESPACE_COLLAPSE|no per-type whitespace view
+I|XML_SCHEMAS_TYPE_WHITESPACE_PRESERVE XML_SCHEMAS_TYPE_WHITESPACE_REPLACE XML_SCHEMAS_TYPE_WHITESPACE_COLLAPSE|xsd::TypeDefinition::whitespace
 I|XML_SCHEMAS_FACET_PRESERVE|schema_types::WhiteSpace::Preserve
 I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
+N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h

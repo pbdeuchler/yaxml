@@ -8,14 +8,14 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| implemented | 22 | 108 | 704 | 118 | 0 | 102 | 14 | 262 | 1330 |
-| partial | 1 | 26 | 255 | 28 | 0 | 93 | 52 | 119 | 574 |
-| not-started | 0 | 1 | 12 | 0 | 0 | 2 | 1 | 90 | 106 |
-| not-applicable | 24 | 36 | 826 | 48 | 75 | 200 | 86 | 437 | 1732 |
+| implemented | 22 | 108 | 704 | 118 | 0 | 102 | 14 | 268 | 1336 |
+| partial | 1 | 26 | 255 | 28 | 0 | 93 | 52 | 128 | 583 |
+| not-started | 0 | 1 | 12 | 0 | 0 | 2 | 1 | 67 | 83 |
+| not-applicable | 24 | 36 | 826 | 48 | 75 | 200 | 86 | 445 | 1740 |
 | removed-upstream | 0 | 5 | 47 | 8 | 12 | 43 | 34 | 169 | 318 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
-No `P0` row is `not-started` (`chvalid.h` is `yaxml::chars`); most `not-started` rows are the `schemasInternals.h` components without a view (facets, particles, model and attribute groups, IDCs, notations, annotations). Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.
+No `P0` row is `not-started` (`chvalid.h` is `yaxml::chars`); most `not-started` rows are the `schemasInternals.h` components without a view (particles, model and attribute groups, IDCs, notations, annotations). Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.
 
 ## Meaning of replacement
 

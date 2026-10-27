@@ -60,6 +60,11 @@ and `xmlSchemaType`. Imported components are found by the same lookups.
 sets, abstractness, and either the simple variety (atomic, list item, union
 members) or the complex content type with its effective attribute uses
 (inherited ones included, prohibited ones dropped) and attribute wildcard.
+A simple type also gives its whitespace handling (`None` for a union, as
+libxml2 sets no flag), its effective facets (`facetSet`: inherited
+length, bound, digit and `whiteSpace` facets included, as typed
+`schema_types::Facet` values, not lexical) and this derivation step's
+patterns; enumerations have no view.
 `ElementDeclaration` gives the type, nillable, abstract, `block` and value
 constraint; `AttributeUse::value` is the use's own constraint, not the
 declaration's, as in libxml2. tests/xsd_components.rs prints them in the line
@@ -70,7 +75,7 @@ derived by restriction lists its base's member types (libxml2 leaves
 `memberTypes` empty), and wildcard namespace sets are sorted, absent
 namespace first (libxml2 keeps document order). Not exposed: substitution
 groups, particles and model groups, attribute groups (flattened into uses),
-facets, identity constraints, notations, annotations and the schema's own
+enumerations, identity constraints, notations, annotations and the schema's own
 `targetNamespace`/`version`.
 
 ## Pipeline
