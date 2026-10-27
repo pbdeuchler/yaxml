@@ -80,7 +80,7 @@ fn built_and_html_documents_match_libxml2() {
         items: &[],
     };
     let created = OwnedDocument::create(root, EditLimits::DEFAULT).unwrap();
-    assert_eq!(created.properties(), 32);
+    assert_eq!((created.properties(), created.parse_flags()), (32, 0));
     // xmlCopyDoc builds the copy with xmlNewDoc.
     let parsed = OwnedDocument::parse("<r/>").unwrap();
     assert_eq!(parsed.try_clone().unwrap().properties(), 32);
@@ -91,5 +91,42 @@ fn built_and_html_documents_match_libxml2() {
             .document;
         assert_eq!(html.properties(), 128, "{input}");
         assert_eq!(html.try_clone().unwrap().properties(), 32, "{input}");
+    }
+    // htmlNewDocNoDtD marks its document HTML and user-built.
+    #[cfg(feature = "html")]
+    {
+        let html = yaxml::html::create(None, None).unwrap();
+        assert_eq!(html.properties(), 160);
+        assert_eq!(html.try_clone().unwrap().properties(), 32);
+    }
+}
+
+/// libxml2's `doc->parseFlags`: the options as given, 0 when built or copied.
+#[test]
+fn parse_flags_match_libxml2() {
+    use yaxml::options::{NOBLANKS, NOENT, OLD10, OLDSAX};
+    let cases: &[(u32, Option<(u32, u32)>)] = &[
+        (0, Some((0, 11))),
+        (DTDVALID, Some((DTDVALID, 3))),
+        (NOENT | NOBLANKS | OLD10, Some((131_330, 15))),
+        (OLDSAX, None),
+    ];
+    for &(flags, expected) in cases {
+        let borrowed = Document::parse_with(b"<r/>", ParseOptions::new(flags));
+        let owned = OwnedDocument::parse_with(b"<r/>", ParseOptions::new(flags));
+        let borrowed = borrowed.map(|d| (d.parse_flags(), d.properties()));
+        let owned = owned.map(|d| (d.parse_flags(), d.properties()));
+        assert_eq!(borrowed.ok(), expected, "{flags}");
+        assert_eq!(owned.ok(), expected, "{flags}: owned");
+    }
+    let parsed = OwnedDocument::parse_with(b"<r/>", ParseOptions::new(NOENT)).unwrap();
+    assert_eq!(parsed.try_clone().unwrap().parse_flags(), 0);
+    #[cfg(feature = "html")]
+    {
+        use yaxml::html;
+        let flags = html::NOIMPLIED | html::NOBLANKS | html::NOERROR;
+        let parsed = html::parse(b"<p>x", html::Options::new(flags)).unwrap();
+        assert_eq!(parsed.document.parse_flags(), 8480);
+        assert_eq!(html::create(None, None).unwrap().parse_flags(), 0);
     }
 }

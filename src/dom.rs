@@ -154,8 +154,8 @@ pub struct Document<'input> {
     errors: Vec<Error>,
     /// `ParseOptions::base`: libxml2's `doc->URL`.
     url: Option<String>,
-    /// `properties::OLD10` when parsed with `OLD10`, else 0.
-    marks: u32,
+    /// The flags it was parsed with: libxml2's `doc->parseFlags`.
+    flags: u32,
 }
 
 impl<'input> Document<'input> {
@@ -203,10 +203,9 @@ impl<'input> Document<'input> {
             .min(options.limits.max_events);
         let reader = Reader::borrowing(input, decoded, flags, options)?;
         let document = Self::from_reader(reader, input.len(), nodes, flags)?;
-        let marks = crate::properties::OLD10 * u32::from(flags.old10());
         Ok(Self {
             url,
-            marks,
+            flags: flags.0,
             ..document
         })
     }
@@ -238,7 +237,7 @@ impl<'input> Document<'input> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
-            marks: 0,
+            flags: 0,
         };
         let mut parents = Vec::new();
         let end = loop {
@@ -413,7 +412,14 @@ impl<'input> Document<'input> {
 
     /// libxml2's `doc->properties` bits ([`crate::properties`]).
     pub fn properties(&self) -> u32 {
-        crate::properties::parsed(&self.errors, &self.validity, self.dtd()) | self.marks
+        let old10 = crate::properties::OLD10 * u32::from(Flags(self.flags).old10());
+        crate::properties::parsed(&self.errors, &self.validity, self.dtd()) | old10
+    }
+
+    /// The flags the document was parsed with (`ParseOptions::flags`),
+    /// libxml2's `doc->parseFlags`.
+    pub fn parse_flags(&self) -> u32 {
+        self.flags
     }
 
     /// The declarations of the internal and loaded external subsets.

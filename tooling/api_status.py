@@ -348,10 +348,10 @@ TREE_FIELDS = {
     "_xmlDoc.intSubset": ("P", "Document::doctype, OwnedDocument::doctype"),
     "_xmlDoc.ids": ("P", "Document::element_by_id, OwnedDocument::element_by_id"),
     "_xmlDoc.type": ("P", "OwnedDocument::is_html"),
-    "_xmlDoc.extSubset": ("N", "external subset not exposed"),
+    "_xmlDoc.extSubset": ("P", "Document::dtd, OwnedDocument::dtd - one declaration set for both subsets; entities record which subset declared them"),
     "_xmlDoc.name": ("A", "libxml2 never sets it (only xmlCopyDoc copies it)"),
     "_xmlDoc.properties": ("I", "Document::properties, OwnedDocument::properties"),
-    "_xmlDoc.parseFlags": ("N", "flags are not stored"),
+    "_xmlDoc.parseFlags": ("I", "Document::parse_flags, OwnedDocument::parse_flags"),
     "_xmlDoc.charset": ("A", "always XML_CHAR_ENCODING_UTF8: documents hold UTF-8"),
     "_xmlDoc.compression": ("A", "no compression"),
     "_xmlDoc.dict": ("A", "no dictionary"),
@@ -433,7 +433,8 @@ A|xmlCtxtGetDict xmlCtxtSetDict xmlCtxtGetPrivate xmlCtxtSetPrivate xmlCtxtGetUs
 P|xmlCtxtGetDeclaredEncoding xmlCtxtGetStandalone xmlCtxtGetVersion|Declaration
 P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
-N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetStatus xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
+P|xmlCtxtGetStatus|properties - see xmlParserStatus
+N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
 A|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|no parser context; the handler is passed to sax::parse
 P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate
@@ -450,7 +451,7 @@ A|_xmlParserNodeInfo.node|the node is the lookup key
 A|_xmlParserNodeInfoSeq _xmlParserNodeInfoSeq.buffer _xmlParserNodeInfoSeq.length _xmlParserNodeInfoSeq.maximum xmlParserNodeInfoSeq xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserAddNodeInfo xmlParserFindNodeInfoIndex|the table's storage and upkeep; each node carries its own range
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
 A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
-N|xmlParserStatus XML_STATUS_*|no xmlParserStatus
+P|xmlParserStatus XML_STATUS_*|properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
 N|XML_RESOURCE_MAIN_DOCUMENT|ResourceKind has no main-document kind
 A|XML_RESOURCE_UNKNOWN|no unknown resource kind
 P|xmlParserOption|options
@@ -878,8 +879,10 @@ I|xmlIsID|OwnedDocument::is_id
 P|xmlAddID xmlAddIDSafe xmlRemoveID|Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
 I|xmlValidGetPotentialChildren|valid::Element::potential_children
 I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at most 256 as libxml2
-N|xmlDumpNotationTable xmlValidState xmlValidStatePtr|xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
-N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
+N|xmlDumpNotationTable|writes in hash order (save writes notations in the DOCTYPE)
+A|xmlValidState xmlValidStatePtr|opaque push-validation state; valid::StreamValidator keeps its own
+N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr|no public declaration tables
+A|xmlValidityErrorFunc xmlValidityWarningFunc|no error callback: validators return valid::Diagnostic lists
 # ---- encoding.h
 P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only
 P|xmlCharEncConvFunc xmlCharEncodingInputFunc|Converter::decode - to UTF-8 only

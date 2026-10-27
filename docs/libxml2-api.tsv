@@ -582,10 +582,10 @@ parser.h	XML_RESOURCE_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://g
 parser.h	XML_RESOURCE_XINCLUDE_TEXT	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind::XIncludeText
 parser.h	XML_SAX2_MAGIC	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_SKIP_IDS	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
-parser.h	XML_STATUS_CATASTROPHIC_ERROR	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no xmlParserStatus
-parser.h	XML_STATUS_DTD_VALIDATION_FAILED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no xmlParserStatus
-parser.h	XML_STATUS_NOT_NS_WELL_FORMED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no xmlParserStatus
-parser.h	XML_STATUS_NOT_WELL_FORMED	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no xmlParserStatus
+parser.h	XML_STATUS_CATASTROPHIC_ERROR	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
+parser.h	XML_STATUS_DTD_VALIDATION_FAILED	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
+parser.h	XML_STATUS_NOT_NS_WELL_FORMED	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
+parser.h	XML_STATUS_NOT_WELL_FORMED	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
 parser.h	XML_TREE_INTERNALS	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	XML_WITH_AUTOMATA	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	features::Feature::Automata
 parser.h	XML_WITH_C14N	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	features::Feature::C14n
@@ -881,7 +881,7 @@ parser.h	xmlCtxtGetOptions	function	not_marked	P0-P3	partial	https://github.com/
 parser.h	xmlCtxtGetPrivate	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
 parser.h	xmlCtxtGetSaxHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no parser context; the handler is passed to sax::parse
 parser.h	xmlCtxtGetStandalone	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
-parser.h	xmlCtxtGetStatus	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
+parser.h	xmlCtxtGetStatus	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - see xmlParserStatus
 parser.h	xmlCtxtGetUserData	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
 parser.h	xmlCtxtGetValidCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
 parser.h	xmlCtxtGetVersion	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
@@ -968,7 +968,7 @@ parser.h	xmlParserNodeInfoSeq	typedef	not_marked	P0-P3	not-applicable	https://gi
 parser.h	xmlParserNodeInfoSeqPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	input stream or raw pointer alias
 parser.h	xmlParserNsData	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	internal parser state or flag
 parser.h	xmlParserOption	enum	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options
-parser.h	xmlParserStatus	enum	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no xmlParserStatus
+parser.h	xmlParserStatus	enum	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
 parser.h	xmlParserVersion	variable	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	features::LIBXML2_COMPAT_VERSION
 parser.h	xmlPedanticParserDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
 parser.h	xmlPedanticParserDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	global default; per-call ParseOptions or save::Options flags
@@ -1756,7 +1756,7 @@ tree.h	_xmlDoc.compression	field	not_marked	P0-P3	not-applicable	https://github.
 tree.h	_xmlDoc.dict	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no dictionary
 tree.h	_xmlDoc.doc	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	internal self-pointer
 tree.h	_xmlDoc.encoding	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Declaration
-tree.h	_xmlDoc.extSubset	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	external subset not exposed
+tree.h	_xmlDoc.extSubset	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::dtd, OwnedDocument::dtd - one declaration set for both subsets; entities record which subset declared them
 tree.h	_xmlDoc.ids	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::element_by_id, OwnedDocument::element_by_id
 tree.h	_xmlDoc.intSubset	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::doctype, OwnedDocument::doctype
 tree.h	_xmlDoc.last	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::root, OwnedDocument::root
@@ -1764,7 +1764,7 @@ tree.h	_xmlDoc.name	field	not_marked	P0-P3	not-applicable	https://github.com/GNO
 tree.h	_xmlDoc.next	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
 tree.h	_xmlDoc.oldNs	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	internal
 tree.h	_xmlDoc.parent	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
-tree.h	_xmlDoc.parseFlags	field	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	flags are not stored
+tree.h	_xmlDoc.parseFlags	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::parse_flags, OwnedDocument::parse_flags
 tree.h	_xmlDoc.prev	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	documents are not linked
 tree.h	_xmlDoc.properties	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::properties, OwnedDocument::properties
 tree.h	_xmlDoc.psvi	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no schema PSVI
@@ -2158,7 +2158,7 @@ valid.h	xmlDumpAttributeTable	function	yes	P2	removed-upstream	https://github.co
 valid.h	xmlDumpElementDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpElementTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpNotationDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlDumpNotationTable	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
+valid.h	xmlDumpNotationTable	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	writes in hash order (save writes notations in the DOCTYPE)
 valid.h	xmlElementTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::elements - an iterator, no table type
 valid.h	xmlElementTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlFreeAttributeTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2200,8 +2200,8 @@ valid.h	xmlValidCtxtPtr	typedef	not_marked	P2	not-applicable	https://github.com/
 valid.h	xmlValidGetPotentialChildren	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Element::potential_children
 valid.h	xmlValidGetValidElements	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::valid_elements - names, not a caller array; at most 256 as libxml2
 valid.h	xmlValidNormalizeAttributeValue	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidState	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
-valid.h	xmlValidStatePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	xmlDumpNotationTable writes in hash order (save writes notations in the DOCTYPE); xmlValidState is the push validator internal state
+valid.h	xmlValidState	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	opaque push-validation state; valid::StreamValidator keeps its own
+valid.h	xmlValidStatePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	opaque push-validation state; valid::StreamValidator keeps its own
 valid.h	xmlValidateAttributeDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateAttributeValue	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlValidateDocument	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::validate, Document::validate, OwnedDocument::validate
@@ -2223,8 +2223,8 @@ valid.h	xmlValidatePopElement	function	yes	P2	partial	https://github.com/GNOME/l
 valid.h	xmlValidatePushCData	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
 valid.h	xmlValidatePushElement	function	yes	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::StreamValidator::event - deprecated in 2.15.4; parser events instead of nodes
 valid.h	xmlValidateRoot	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlValidityErrorFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlValidityWarningFunc	callback	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlValidityErrorFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no error callback: validators return valid::Diagnostic lists
+valid.h	xmlValidityWarningFunc	callback	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no error callback: validators return valid::Diagnostic lists
 xinclude.h	XINCLUDE_FALLBACK	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
 xinclude.h	XINCLUDE_HREF	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
 xinclude.h	XINCLUDE_NODE	macro	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)

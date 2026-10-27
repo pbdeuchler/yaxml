@@ -360,7 +360,7 @@ pub fn create(uri: Option<&str>, public_id: Option<&str>) -> Result<OwnedDocumen
         initial: Decoder::Utf8,
         switch: None,
     };
-    HtmlBuilder::new(0, Limits::default())?.finish(doctype, None, decoding)
+    HtmlBuilder::new(None, Limits::default())?.finish(doctype, None, decoding)
 }
 
 /// Parses `input` as content of an HTML node, like `xmlCtxtParseContent`.
@@ -426,7 +426,7 @@ where
 /// The tree builder `options` configure.
 fn document(options: Options) -> Result<Document, Error> {
     let (value_limit, _, max_depth) = ceilings(&options);
-    let builder = HtmlBuilder::new(0, options.limits)?;
+    let builder = HtmlBuilder::new(Some(options.flags), options.limits)?;
     Ok(Document::new(builder, max_depth, value_limit))
 }
 

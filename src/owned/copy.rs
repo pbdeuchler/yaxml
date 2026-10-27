@@ -687,6 +687,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             errors: self.errors.clone(),
             url: self.url.clone(),
             marks: crate::properties::USERBUILT,
+            flags: 0,
         })
     }
 }

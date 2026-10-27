@@ -380,12 +380,16 @@ document is `WELLFORMED` unless `RECOVER` recovered from an error, then
 `DTDVALID` unless `DTDVALID` validation failed, an undeclared entity was
 referenced, or an element or notation was declared twice (libxml2 clears
 `ctxt->valid` for those without validation too); parsed HTML is `HTML`;
-`OwnedDocument::create` and every `try_clone` are `USERBUILT`. Edits leave
+`OwnedDocument::create` and every `try_clone` are `USERBUILT`, `html::create`
+`HTML | USERBUILT` (`htmlNewDocNoDtD`). Edits leave
 them unchanged. A parse with `XML_PARSE_OLD10` is also `OLD10`, even when
 recovered. `XINCLUDE` and `INTERNAL` are never set. To keep
 them exact past the 100-error cap, `errors()` still keeps the first error
 clearing a bit, as libxml2 keeps the first fatal error. `tests/properties.rs`
 pins these against values recorded from libxml2.
+
+`parse_flags()` on both DOMs is `doc->parseFlags`: the `ParseOptions` (or
+`html::Options`) flags as given, 0 for created and copied documents.
 
 ### Namespace errors
 

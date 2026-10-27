@@ -13,7 +13,7 @@ fn empty_document() -> Document<'static> {
         validity: Vec::new(),
         errors: Vec::new(),
         url: None,
-        marks: 0,
+        flags: 0,
     }
 }
 

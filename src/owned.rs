@@ -532,8 +532,11 @@ pub struct OwnedDocument<A: Allocator = Global> {
     /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
     url: Option<String>,
     /// Property bits fixed at creation: `properties::USERBUILT` (created or
-    /// copied, `xmlNewDoc`) or `properties::OLD10` (parsed with `OLD10`).
+    /// copied, `xmlNewDoc`; with `HTML` from `html::create`) or
+    /// `properties::OLD10` (parsed with `OLD10`).
     marks: u32,
+    /// The flags it was parsed with: libxml2's `doc->parseFlags`.
+    flags: u32,
 }
 
 impl OwnedDocument {
@@ -784,6 +787,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             OwnedDocument {
                 url,
                 marks: crate::properties::OLD10 * u32::from(flags.old10()),
+                flags: flags.0,
                 ..document
             },
             flags,
@@ -935,7 +939,7 @@ impl<A: Allocator> OwnedDocument<A> {
         match (self.marks & USERBUILT, &self.html) {
             (0, Some(_)) => HTML,
             (0, None) => parsed(&self.errors, &self.validity, self.dtd()) | self.marks,
-            _ => USERBUILT,
+            _ => self.marks,
         }
     }
 
@@ -1050,6 +1054,13 @@ impl<A: Allocator> OwnedDocument<A> {
     /// libxml2's `doc->URL`), against which [`OwnedNode::base_uri`] resolves.
     pub fn url(&self) -> Option<&str> {
         self.url.as_deref()
+    }
+
+    /// The flags the document was parsed with, libxml2's `doc->parseFlags`:
+    /// `ParseOptions::flags`, or `html::Options::flags` for HTML; 0 for a
+    /// created or copied document.
+    pub fn parse_flags(&self) -> u32 {
+        self.flags
     }
 
     /// True for documents built by the HTML parser.
@@ -2128,6 +2139,7 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             errors: Vec::new(),
             url: None,
             marks: 0,
+            flags: 0,
         })
     }
 }
@@ -2372,13 +2384,16 @@ pub(crate) struct HtmlBuilder {
     root_element: NodeId,
     valueless: Vec<usize>,
     budget: Budget,
+    flags: Option<u32>,
 }
 
 #[cfg(feature = "html")]
 impl HtmlBuilder {
-    pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
-        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, 0, Global)?;
+    /// `flags`: the parse's `html::Options::flags`, `None` for `html::create`.
+    pub(crate) fn new(flags: Option<u32>, limits: Limits) -> Result<Self, Error> {
+        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(0, 0, Global)?;
         Ok(Self {
+            flags,
             nodes,
             attributes: allocator::Vec::new_in(Global),
             pool: Pool::default(),
@@ -2579,7 +2594,11 @@ impl HtmlBuilder {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
-            marks: 0,
+            marks: (self.flags).map_or(
+                crate::properties::HTML | crate::properties::USERBUILT,
+                |_| 0,
+            ),
+            flags: self.flags.unwrap_or(0),
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document
