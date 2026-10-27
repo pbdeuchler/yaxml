@@ -113,10 +113,15 @@ pub(crate) struct ElemDraft {
     pub(crate) idcs: Vec<IdcId>,
 }
 
+/// A model group's compositor (`XML_SCHEMA_TYPE_SEQUENCE`, `_CHOICE`,
+/// `_ALL`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Compositor {
+pub enum Compositor {
+    /// `xs:sequence`.
     Sequence,
+    /// `xs:choice`.
     Choice,
+    /// `xs:all`.
     All,
 }
 

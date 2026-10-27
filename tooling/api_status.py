@@ -1019,7 +1019,7 @@ A|xmlSchemaValidError XML_SCHEMAS_ERR_*|never raised by libxml2 2.15.4: validity
 I|xmlSchemaElement xmlSchemaElementPtr _xmlSchemaElement|xsd::ElementDeclaration
 I|xmlSchemaAttribute xmlSchemaAttributePtr _xmlSchemaAttribute|xsd::AttributeDeclaration
 P|xmlSchemaType xmlSchemaTypePtr _xmlSchemaType|xsd::TypeDefinition - simple and complex type definitions; particles and model groups have no view
-P|xmlSchemaWildcard xmlSchemaWildcardPtr _xmlSchemaWildcard|xsd::AttributeWildcard - attribute wildcards only
+I|xmlSchemaWildcard xmlSchemaWildcardPtr _xmlSchemaWildcard|xsd::Wildcard
 I|xmlSchemaWildcardNs xmlSchemaWildcardNsPtr _xmlSchemaWildcardNs|xsd::Namespaces::Set - sorted, absent namespace first
 I|xmlSchemaTypeLink xmlSchemaTypeLinkPtr _xmlSchemaTypeLink|xsd::SimpleVariety::Union - a Vec of member types
 I|xmlSchemaContentType|xsd::ContentType
@@ -1041,7 +1041,7 @@ I|_xmlSchemaAttributeGroup.attributeWildcard|xsd::AttributeGroup::attribute_wild
 A|xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr _xmlSchemaAttributeLink|never used by libxml2 2.15.4
 A|xmlSchemaFreeType xmlSchemaFreeWildcard|Drop; components are borrowed views
 P|xmlSchemaVal xmlSchemaValPtr|schema_types::Value - an owned value, no raw pointer
-N|_xmlSchema.groupDecl|no view of model groups
+I|_xmlSchema.groupDecl|xsd::Schema::model_group, xsd::Schema::model_groups
 I|_xmlSchema.idcDef|xsd::Schema::identity_constraint
 I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
 I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
@@ -1058,7 +1058,7 @@ I|_xmlSchemaAttribute.flags|xsd::Constraint::fixed
 I|_xmlSchemaType.name|xsd::TypeDefinition::name
 I|_xmlSchemaType.targetNamespace|xsd::TypeDefinition::namespace
 I|_xmlSchemaType.baseType|xsd::TypeDefinition::base
-I|_xmlSchemaType.subtypes|xsd::SimpleVariety::List - the item type
+I|_xmlSchemaType.subtypes|xsd::SimpleVariety::List, xsd::TypeDefinition::particle - a list's item type, a complex type's content particle
 I|_xmlSchemaType.memberTypes|xsd::SimpleVariety::Union
 I|_xmlSchemaType.contentType|xsd::TypeDefinition::kind
 I|_xmlSchemaType.contentTypeDef|xsd::ContentType::Simple
@@ -1074,8 +1074,8 @@ I|_xmlSchemaFacet.whitespace|schema_types::Facet::WhiteSpace
 I|_xmlSchemaFacet.regexp|xsd::TypeDefinition::patterns
 I|_xmlSchemaFacetLink.facet|xsd::TypeDefinition::facets
 I|_xmlSchemaTypeLink.type|xsd::SimpleVariety::Union
-I|_xmlSchemaWildcard.any _xmlSchemaWildcard.nsSet _xmlSchemaWildcard.negNsSet|xsd::AttributeWildcard::namespaces
-I|_xmlSchemaWildcard.processContents|xsd::AttributeWildcard::process
+I|_xmlSchemaWildcard.any _xmlSchemaWildcard.nsSet _xmlSchemaWildcard.negNsSet|xsd::Wildcard::namespaces
+I|_xmlSchemaWildcard.processContents|xsd::Wildcard::process
 I|_xmlSchemaWildcardNs.value|xsd::Namespaces::Set
 I|XML_SCHEMA_CONTENT_EMPTY|xsd::ContentType::Empty
 I|XML_SCHEMA_CONTENT_ELEMENTS|xsd::ContentType::Elements
@@ -1088,10 +1088,16 @@ I|XML_SCHEMA_TYPE_BASIC|xsd::TypeDefinition::is_builtin
 I|XML_SCHEMA_TYPE_ELEMENT|xsd::ElementDeclaration
 I|XML_SCHEMA_TYPE_ATTRIBUTE|xsd::AttributeDeclaration
 I|XML_SCHEMA_TYPE_ATTRIBUTE_USE|xsd::AttributeUse
-I|XML_SCHEMA_TYPE_ANY_ATTRIBUTE|xsd::AttributeWildcard
+I|XML_SCHEMA_TYPE_ANY_ATTRIBUTE|xsd::Wildcard
 I|XML_SCHEMA_TYPE_ATTRIBUTEGROUP|xsd::AttributeGroup
 I|XML_SCHEMA_TYPE_NOTATION|xsd::Schema::notations
 I|XML_SCHEMA_TYPE_FACET|schema_types::Facet
+I|XML_SCHEMA_TYPE_SEQUENCE|xsd::Compositor::Sequence
+I|XML_SCHEMA_TYPE_CHOICE|xsd::Compositor::Choice
+I|XML_SCHEMA_TYPE_ALL|xsd::Compositor::All
+I|XML_SCHEMA_TYPE_GROUP|xsd::ModelGroupDefinition
+I|XML_SCHEMA_TYPE_PARTICLE|xsd::Particle
+I|XML_SCHEMA_TYPE_ANY|xsd::Term::Wildcard
 I|XML_SCHEMA_TYPE_IDC_UNIQUE|xsd::IdcKind::Unique
 I|XML_SCHEMA_TYPE_IDC_KEY|xsd::IdcKind::Key
 I|XML_SCHEMA_TYPE_IDC_KEYREF|xsd::IdcKind::KeyRef
@@ -1124,7 +1130,7 @@ I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations, particles or model groups
+N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h

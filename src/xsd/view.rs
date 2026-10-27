@@ -7,6 +7,7 @@ use super::components::{
     NO_NS, NsConstraint, Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION,
     ValueConstraint, Variety, WildId,
 };
+use super::parse::{self, Compositor};
 use crate::regexp::Regex;
 use crate::schema_types::{Facet, WhiteSpace};
 
@@ -112,11 +113,11 @@ pub enum Namespaces<'a> {
     Set(Vec<Option<&'a str>>),
 }
 
-/// A complex type's or attribute group's attribute wildcard
+/// An attribute wildcard, or a wildcard particle's term
 /// (`xmlSchemaWildcard`).
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub struct AttributeWildcard<'a> {
+pub struct Wildcard<'a> {
     /// The namespace constraint.
     pub namespaces: Namespaces<'a>,
     /// `processContents`.
@@ -159,6 +160,40 @@ pub struct AttributeGroup<'a> {
     id: usize,
 }
 
+/// A content model particle (libxml2's private `xmlSchemaParticle`).
+#[derive(Clone, Copy)]
+pub struct Particle<'a> {
+    schema: &'a Schema,
+    particle: &'a parse::Particle,
+}
+
+/// A particle's term.
+#[derive(Clone, Debug)]
+pub enum Term<'a> {
+    /// A local or referenced element declaration.
+    Element(ElementDeclaration<'a>),
+    /// An element wildcard (`xs:any`).
+    Wildcard(Wildcard<'a>),
+    /// A model group; a group reference's is the referenced definition's.
+    Group(ModelGroup<'a>),
+}
+
+/// A model group (libxml2's private `xmlSchemaModelGroup`).
+#[derive(Clone, Copy)]
+pub struct ModelGroup<'a> {
+    schema: &'a Schema,
+    compositor: Compositor,
+    particles: &'a [parse::Particle],
+}
+
+/// A global model group definition (`xs:group`, libxml2's private
+/// `xmlSchemaModelGroupDef`).
+#[derive(Clone, Copy)]
+pub struct ModelGroupDefinition<'a> {
+    schema: &'a Schema,
+    id: usize,
+}
+
 /// An identity-constraint definition (libxml2's private `xmlSchemaIDC`).
 #[derive(Clone, Copy)]
 pub struct IdentityConstraint<'a> {
@@ -171,10 +206,10 @@ impl Schema {
         (sym != NO_NS).then(|| self.data.names.str(sym))
     }
 
-    fn wildcard(&self, id: Option<WildId>) -> Option<AttributeWildcard<'_>> {
+    fn wildcard(&self, id: Option<WildId>) -> Option<Wildcard<'_>> {
         let wildcard = &self.data.wildcards[id?];
         let ns = |sym| self.ns(sym);
-        Some(AttributeWildcard {
+        Some(Wildcard {
             namespaces: match &wildcard.ns {
                 NsConstraint::Any => Namespaces::Any,
                 NsConstraint::Not(sym) => Namespaces::Not(ns(*sym)),
@@ -240,6 +275,39 @@ impl Schema {
     ) -> Option<IdentityConstraint<'_>> {
         let &id = (self.data.global_idcs).get(&self.qname(namespace, name))?;
         Some(IdentityConstraint { schema: self, id })
+    }
+
+    /// A global model group definition (`_xmlSchema.groupDecl`); `None` is
+    /// the absent namespace.
+    ///
+    /// ```
+    /// use yaxml::xsd::{Compositor, Schema, Term};
+    ///
+    /// let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    ///   <xs:group name="g"><xs:choice><xs:element name="a"/><xs:any/></xs:choice></xs:group>
+    /// </xs:schema>"#, "g.xsd")?;
+    /// let group = schema.model_group(None, "g").unwrap().model_group().unwrap();
+    /// assert_eq!(group.compositor(), Compositor::Choice);
+    /// let terms: Vec<_> = group.particles().map(|p| p.term()).collect();
+    /// assert!(matches!(&terms[..], [Some(Term::Element(a)), Some(Term::Wildcard(_))] if a.name() == "a"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn model_group(
+        &self,
+        namespace: Option<&str>,
+        name: &str,
+    ) -> Option<ModelGroupDefinition<'_>> {
+        let &id = (self.data.global_groups).get(&self.qname(namespace, name))?;
+        Some(ModelGroupDefinition { schema: self, id })
+    }
+
+    /// The global model group definitions, by namespace then name.
+    pub fn model_groups(&self) -> impl Iterator<Item = ModelGroupDefinition<'_>> {
+        let mut all: Vec<_> = (self.data.global_groups.values())
+            .map(|&id| ModelGroupDefinition { schema: self, id })
+            .collect();
+        all.sort_by_key(|g| (g.namespace(), g.name()));
+        all.into_iter()
     }
 
     /// The global element declarations, by namespace then name.
@@ -421,6 +489,18 @@ impl<'a> TypeDefinition<'a> {
         }
     }
 
+    /// A complex type's content particle (`subtypes`) for element-only or
+    /// mixed content: an extension's is a sequence of its base's and its
+    /// own, as libxml2 builds it. `xs:anyType`'s is a sequence of a lax
+    /// `xs:any`.
+    pub fn particle(self) -> Option<Particle<'a>> {
+        let particle = self.schema.data.particles.get(&self.id)?;
+        Some(Particle {
+            schema: self.schema,
+            particle,
+        })
+    }
+
     /// A complex type's attribute uses, inherited ones included; none for a
     /// simple type.
     pub fn attribute_uses(self) -> impl Iterator<Item = AttributeUse<'a>> {
@@ -431,7 +511,7 @@ impl<'a> TypeDefinition<'a> {
     }
 
     /// A complex type's attribute wildcard.
-    pub fn attribute_wildcard(self) -> Option<AttributeWildcard<'a>> {
+    pub fn attribute_wildcard(self) -> Option<Wildcard<'a>> {
         self.schema.wildcard(self.def().complex()?.wildcard)
     }
 }
@@ -458,7 +538,7 @@ impl<'a> AttributeGroup<'a> {
     }
 
     /// The attribute wildcard, intersected with those of referenced groups.
-    pub fn attribute_wildcard(self) -> Option<AttributeWildcard<'a>> {
+    pub fn attribute_wildcard(self) -> Option<Wildcard<'a>> {
         self.schema.wildcard(self.group().wildcard)
     }
 }
@@ -528,6 +608,80 @@ impl<'a> ElementDeclaration<'a> {
     pub fn identity_constraints(self) -> impl Iterator<Item = IdentityConstraint<'a>> {
         let schema = self.schema;
         (self.decl().idcs.iter()).map(move |&id| IdentityConstraint { schema, id })
+    }
+}
+
+impl<'a> Particle<'a> {
+    /// `minOccurs`.
+    pub fn min_occurs(self) -> u32 {
+        self.particle.min
+    }
+
+    /// `maxOccurs`; `None` is `unbounded`.
+    pub fn max_occurs(self) -> Option<u32> {
+        self.particle.max
+    }
+
+    /// The term; `None` for a reference that resolved to nothing (or to an
+    /// empty group definition), which matches nothing, as in libxml2.
+    pub fn term(self) -> Option<Term<'a>> {
+        let schema = self.schema;
+        let group = |compositor, particles| {
+            Term::Group(ModelGroup {
+                schema,
+                compositor,
+                particles,
+            })
+        };
+        Some(match &self.particle.term {
+            parse::Term::Element(id) => Term::Element(ElementDeclaration { schema, id: *id }),
+            parse::Term::Wildcard(id) => Term::Wildcard(schema.wildcard(Some(*id))?),
+            parse::Term::Group(compositor, particles) => group(*compositor, particles),
+            parse::Term::GroupDef(id) => {
+                let (compositor, particles, _) = schema.data.groups[*id].model.as_ref()?;
+                group(*compositor, particles)
+            }
+            _ => return None,
+        })
+    }
+}
+
+impl<'a> ModelGroup<'a> {
+    /// `sequence`, `choice` or `all`.
+    pub fn compositor(self) -> Compositor {
+        self.compositor
+    }
+
+    /// The particles, in order.
+    pub fn particles(self) -> impl Iterator<Item = Particle<'a>> {
+        let schema = self.schema;
+        (self.particles.iter()).map(move |particle| Particle { schema, particle })
+    }
+}
+
+impl<'a> ModelGroupDefinition<'a> {
+    fn group(self) -> &'a parse::GroupDraft {
+        &self.schema.data.groups[self.id]
+    }
+
+    /// The local name.
+    pub fn name(self) -> &'a str {
+        self.schema.data.names.str(self.group().name.local)
+    }
+
+    /// The target namespace; `None` if absent.
+    pub fn namespace(self) -> Option<&'a str> {
+        self.schema.ns(self.group().name.ns)
+    }
+
+    /// The model group; `None` for a definition with only an annotation.
+    pub fn model_group(self) -> Option<ModelGroup<'a>> {
+        let (compositor, particles, _) = self.group().model.as_ref()?;
+        Some(ModelGroup {
+            schema: self.schema,
+            compositor: *compositor,
+            particles,
+        })
     }
 }
 
@@ -631,7 +785,33 @@ macro_rules! debug_by_name {
     )*};
 }
 
-debug_by_name!(TypeDefinition, ElementDeclaration, AttributeDeclaration);
+debug_by_name!(
+    TypeDefinition,
+    ElementDeclaration,
+    AttributeDeclaration,
+    AttributeGroup,
+    ModelGroupDefinition,
+    IdentityConstraint
+);
+
+impl std::fmt::Debug for Particle<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Particle")
+            .field("min", &self.min_occurs())
+            .field("max", &self.max_occurs())
+            .field("term", &self.term())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for ModelGroup<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModelGroup")
+            .field("compositor", &self.compositor)
+            .field("particles", &self.particles().collect::<Vec<_>>())
+            .finish()
+    }
+}
 
 impl std::fmt::Debug for AttributeUse<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

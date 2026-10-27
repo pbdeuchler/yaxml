@@ -6,7 +6,8 @@
  * the format of tests/xsd_components.rs. Lines repeat when a schema is its
  * own import: compare them as a set. Uses xmlschemas.c's private
  * xmlSchemaItemList, xmlSchemaAttributeUse, xmlSchemaImport, xmlSchemaIDC,
- * xmlSchemaIDCSelect and xmlSchemaQNameRef layouts
+ * xmlSchemaIDCSelect, xmlSchemaQNameRef, xmlSchemaParticle, xmlSchemaModelGroup
+ * and xmlSchemaModelGroupDef layouts
  * (2.15.4). */
 #include <stdio.h>
 #include <string.h>
@@ -30,6 +31,10 @@ typedef struct Idc {
   xmlSchemaTypeType type; void *annot; struct Idc *next; xmlNodePtr node; const xmlChar *name, *tns;
   Select *selector, *fields; int nbFields; Ref *ref;
 } Idc;
+#define UNBOUNDED (1 << 30)
+typedef struct Tree { xmlSchemaTypeType type; void *annot; struct Tree *next, *children; } Tree;
+typedef struct { Tree tree; int min, max; xmlNodePtr node; } Particle;
+typedef struct { Tree tree; const xmlChar *name, *tns; xmlNodePtr node; int flags; } GroupDef;
 
 static void name(const xmlChar *ns, const xmlChar *local) {
   if (!local) { printf("#anon"); return; }
@@ -47,6 +52,28 @@ static void wildcard(xmlSchemaWildcardPtr w) {
   else for (xmlSchemaWildcardNsPtr n = w->nsSet; n; n = n->next)
     printf("%s%s", n == w->nsSet ? "" : ",", n->value ? (char *)n->value : "");
   printf(" process=%s", w->processContents == 1 ? "skip" : w->processContents == 2 ? "lax" : "strict");
+}
+static void model(Tree *g);
+static void particle(Tree *p) {
+  Particle *q = (Particle *)p; Tree *t = p->children;
+  printf("%d..", q->min);
+  if (q->max == UNBOUNDED) printf("*"); else printf("%d", q->max);
+  printf(":");
+  if (!t) printf("-");
+  else if (t->type == XML_SCHEMA_TYPE_ELEMENT) name(((xmlSchemaElementPtr)t)->targetNamespace, ((xmlSchemaElementPtr)t)->name);
+  else if (t->type == XML_SCHEMA_TYPE_ANY) { printf("any("); wildcard((xmlSchemaWildcardPtr)t); printf(")"); }
+  else if (t->type == XML_SCHEMA_TYPE_GROUP) { name(((GroupDef *)t)->tns, ((GroupDef *)t)->name); printf("="); model(t->children); }
+  else model(t);
+}
+static void model(Tree *g) {
+  if (!g) { printf("-"); return; }
+  printf("%s(", g->type == XML_SCHEMA_TYPE_SEQUENCE ? "seq" : g->type == XML_SCHEMA_TYPE_CHOICE ? "choice" : g->type == XML_SCHEMA_TYPE_ALL ? "all" : "?");
+  for (Tree *p = g->children; p; p = p->next) { if (p != g->children) printf(","); particle(p); }
+  printf(")");
+}
+static void mgroup(void *p, void *d, const xmlChar *k) {
+  GroupDef *g = p;
+  printf("group "); name(g->tns, g->name); printf(" model="); model(g->tree.children); printf("\n");
 }
 static void attributes(List *uses, xmlSchemaWildcardPtr w) {
   for (int i = 0; uses && i < uses->nbItems; i++) {
@@ -133,6 +160,9 @@ static void type(void *p, void *d, const xmlChar *k) {
     static const char *content[] = {"unknown", "empty", "elements", "mixed", "simple", "mixed", "basic", "any"};
     printf(" complex abstract=%d content=%s", !!(f & XML_SCHEMAS_TYPE_ABSTRACT), content[t->contentType]);
     if (t->contentType == XML_SCHEMA_CONTENT_SIMPLE) { printf(" simple="); tname(t->contentTypeDef); }
+    if (t->subtypes && (t->contentType == XML_SCHEMA_CONTENT_ELEMENTS || t->contentType == XML_SCHEMA_CONTENT_MIXED)) {
+      printf(" particle="); particle((Tree *)t->subtypes);
+    }
     attributes(t->attrUses, t->attributeWildcard);
   }
   if (!k || *k) printf("\n");
@@ -144,6 +174,7 @@ static void nota(void *p, void *d, const xmlChar *k) {
 static void scan(xmlSchemaPtr s) {
   xmlHashScan(s->notaDecl, nota, NULL);
   xmlHashScan(s->attrgrpDecl, group, NULL);
+  xmlHashScan(s->groupDecl, mgroup, NULL);
   xmlHashScan(s->elemDecl, elem, NULL);
   xmlHashScan(s->attrDecl, attr, NULL);
   xmlHashScan(s->typeDecl, type, NULL);

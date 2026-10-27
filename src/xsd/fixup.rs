@@ -285,7 +285,8 @@ struct Fix {
     notations: HashSet<QName>,
     /// Each derivation step's own facets and whether they are fixed.
     own_facets: HashMap<TypeId, Vec<(&'static str, bool)>>,
-    /// Effective content particles of complex types with element content.
+    /// Effective content particles of complex types with element content
+    /// (libxml2's `subtypes`).
     particles: HashMap<TypeId, Particle>,
     elem_values: Vec<Option<ValueConstraint>>,
     members_of: Vec<Vec<ElemId>>,
@@ -2580,6 +2581,8 @@ impl Fix {
                 Err(TooComplex::Refused) => self.d.refuse(),
             }
         }
+        // Kept for the component views.
+        self.particles = particles;
     }
 
     // ---- assembly ----------------------------------------------------------
@@ -2636,7 +2639,7 @@ impl Fix {
             pick(GlobalKind::Attribute)?,
             pick(GlobalKind::AttrGroup)?,
         );
-        let global_idcs = pick(GlobalKind::Idc)?;
+        let (global_idcs, global_groups) = (pick(GlobalKind::Idc)?, pick(GlobalKind::Group)?);
         let attribute_groups = collected(self.d.attr_groups.iter().zip(self.group_attrs).map(
             |(draft, expanded)| {
                 let (uses, wildcard) = expanded.unwrap_or_default();
@@ -2663,6 +2666,9 @@ impl Fix {
                 wildcards: self.wildcards,
                 idcs,
                 global_idcs,
+                particles: self.particles,
+                groups: self.d.groups,
+                global_groups,
                 warnings: self.d.diagnostics,
                 max_counter_vectors: self.limits.max_counter_vectors,
                 max_idc_keys: self.limits.max_idc_keys,

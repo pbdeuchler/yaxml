@@ -40,10 +40,11 @@ mod validate;
 mod view;
 
 pub use components::IdcKind;
+pub use parse::Compositor;
 pub use view::{
-    AttributeDeclaration, AttributeGroup, AttributeUse, AttributeWildcard, Constraint, ContentType,
-    Derivations, ElementDeclaration, IdentityConstraint, Namespaces, ProcessContents,
-    SimpleVariety, TypeDefinition, TypeKind,
+    AttributeDeclaration, AttributeGroup, AttributeUse, Constraint, ContentType, Derivations,
+    ElementDeclaration, IdentityConstraint, ModelGroup, ModelGroupDefinition, Namespaces, Particle,
+    ProcessContents, SimpleVariety, Term, TypeDefinition, TypeKind, Wildcard,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -61,7 +62,6 @@ use crate::{
 
 use components::{
     AttrGroup, AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, Sym, TypeDef, TypeId,
-    Wildcard,
 };
 
 /// A schema or validity diagnostic code; the discriminant is libxml2's
@@ -497,9 +497,14 @@ pub(crate) struct Compiled {
     pub(crate) types: Vec<TypeDef>,
     pub(crate) elements: Vec<ElementDecl>,
     pub(crate) attributes: Vec<AttributeDecl>,
-    pub(crate) wildcards: Vec<Wildcard>,
+    pub(crate) wildcards: Vec<components::Wildcard>,
     pub(crate) idcs: Vec<Idc>,
     pub(crate) global_idcs: HashMap<QName, usize>,
+    /// Effective content particles by type.
+    pub(crate) particles: HashMap<TypeId, parse::Particle>,
+    /// Model group definitions, references resolved.
+    pub(crate) groups: Vec<parse::GroupDraft>,
+    pub(crate) global_groups: HashMap<QName, usize>,
     pub(crate) global_elements: HashMap<QName, ElemId>,
     pub(crate) global_types: HashMap<QName, TypeId>,
     pub(crate) global_attributes: HashMap<QName, AttrId>,

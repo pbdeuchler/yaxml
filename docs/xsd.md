@@ -84,7 +84,13 @@ intersected `attributeWildcard`). `ElementDeclaration::identity_constraints`
 lists an element's key, keyref and unique constraints in document order
 (`idcs`: kind, name, selector and field XPaths as written, a keyref's
 `refer`), and `Schema::identity_constraint` finds one by name (`idcDef`).
-Not exposed: particles and model groups, enumerations, annotations and `version` (libxml2
+`TypeDefinition::particle` is a complex type's content particle as libxml2
+builds it (`subtypes`: a group reference's term is the referenced model
+group, an extension's particle a sequence of its base's and its own,
+`maxOccurs="0"` particles and empty groups kept), with `Particle`, `Term`
+(element, `Wildcard`, `ModelGroup`) and `Compositor`; `model_group`/
+`model_groups` give the global `xs:group` definitions (`groupDecl`).
+Not exposed: enumerations, annotations and `version` (libxml2
 never sets `_xmlSchema.version`). `Schema::target_namespace` is the main
 document's.
 

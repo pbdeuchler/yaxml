@@ -10,8 +10,9 @@ use std::fmt::Write;
 
 use yaxml::schema_types::Facet;
 use yaxml::xsd::{
-    AttributeUse, AttributeWildcard, Constraint, ContentType, Derivations, IdcKind, Limits,
-    Namespaces, ProcessContents, Schema, SimpleVariety, TypeDefinition, TypeKind,
+    AttributeUse, Compositor, Constraint, ContentType, Derivations, IdcKind, Limits, ModelGroup,
+    Namespaces, Particle, ProcessContents, Schema, SimpleVariety, Term, TypeDefinition, TypeKind,
+    Wildcard,
 };
 
 fn qualified(namespace: Option<&str>, name: Option<&str>) -> String {
@@ -70,7 +71,7 @@ const ORDER: [&str; 9] = [
 fn attributes<'a>(
     out: &mut String,
     uses: impl Iterator<Item = AttributeUse<'a>>,
-    wildcard: Option<AttributeWildcard<'a>>,
+    wildcard: Option<Wildcard<'a>>,
 ) {
     for used in uses {
         let declaration = used.declaration();
@@ -83,20 +84,24 @@ fn attributes<'a>(
         }
     }
     if let Some(wildcard) = wildcard {
-        let namespaces = match wildcard.namespaces {
-            Namespaces::Any => "any".into(),
-            Namespaces::Not(ns) => format!("not:{}", ns.unwrap_or_default()),
-            Namespaces::Set(set) => (set.iter().map(|ns| ns.unwrap_or_default()))
-                .collect::<Vec<_>>()
-                .join(","),
-        };
-        let process = match wildcard.process {
-            ProcessContents::Skip => "skip",
-            ProcessContents::Lax => "lax",
-            ProcessContents::Strict => "strict",
-        };
-        write!(out, " wildcard={namespaces} process={process}").unwrap();
+        write_wildcard(out, wildcard);
     }
+}
+
+fn write_wildcard(out: &mut String, wildcard: Wildcard<'_>) {
+    let namespaces = match wildcard.namespaces {
+        Namespaces::Any => "any".into(),
+        Namespaces::Not(ns) => format!("not:{}", ns.unwrap_or_default()),
+        Namespaces::Set(set) => (set.iter().map(|ns| ns.unwrap_or_default()))
+            .collect::<Vec<_>>()
+            .join(","),
+    };
+    let process = match wildcard.process {
+        ProcessContents::Skip => "skip",
+        ProcessContents::Lax => "lax",
+        ProcessContents::Strict => "strict",
+    };
+    write!(out, " wildcard={namespaces} process={process}").unwrap();
 }
 
 fn definition(out: &mut String, ty: TypeDefinition<'_>) {
@@ -138,6 +143,7 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
             write!(out, " simple variety=union members={}", members.join(",")).unwrap();
         }
         TypeKind::Complex(content) => {
+            let model = matches!(content, ContentType::Elements | ContentType::Mixed);
             let content = match content {
                 ContentType::Empty => "empty".into(),
                 ContentType::Elements => "elements".into(),
@@ -150,9 +156,50 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
                 ty.is_abstract() as u8
             )
             .unwrap();
+            if let Some(content) = ty.particle().filter(|_| model) {
+                out.push_str(" particle=");
+                particle(out, content);
+            }
             attributes(out, ty.attribute_uses(), ty.attribute_wildcard());
         }
     }
+}
+
+/// `min..max:term`, groups as `seq(..)`, `choice(..)`, `all(..)`.
+fn particle(out: &mut String, particle: Particle<'_>) {
+    let max = particle
+        .max_occurs()
+        .map_or("*".into(), |max| max.to_string());
+    write!(out, "{}..{max}:", particle.min_occurs()).unwrap();
+    match particle.term() {
+        None => out.push('-'),
+        Some(Term::Element(e)) => out.push_str(&qualified(e.namespace(), Some(e.name()))),
+        Some(Term::Wildcard(wildcard)) => {
+            out.push_str("any(");
+            write_wildcard(out, wildcard);
+            out.push(')');
+        }
+        Some(Term::Group(group)) => model(out, Some(group)),
+    }
+}
+
+fn model(out: &mut String, group: Option<ModelGroup<'_>>) {
+    let Some(group) = group else {
+        return out.push('-');
+    };
+    let compositor = match group.compositor() {
+        Compositor::Sequence => "seq",
+        Compositor::Choice => "choice",
+        Compositor::All => "all",
+    };
+    write!(out, "{compositor}(").unwrap();
+    for (i, child) in group.particles().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        particle(out, child);
+    }
+    out.push(')');
 }
 
 /// One line per global component, sorted (libxml2 scans hash tables).
@@ -225,6 +272,12 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         attributes(&mut out, group.attribute_uses(), group.attribute_wildcard());
         lines.insert(out);
     }
+    for group in schema.model_groups() {
+        let name = qualified(group.namespace(), Some(group.name()));
+        let mut out = format!("group {name} model=");
+        model(&mut out, group.model_group());
+        lines.insert(out);
+    }
     for (namespace, name) in schema.notations() {
         lines.insert(format!("notation {}", qualified(namespace, Some(name))));
     }
@@ -240,6 +293,12 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 <xs:notation name='n' public='p' system='s'/>
 <xs:notation name='a' public='q'/>
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
+<xs:group name='g1'><xs:choice><xs:element name='a'/><xs:any namespace='##other' minOccurs='0'/></xs:choice></xs:group>
+<xs:group name='g2'><xs:sequence><xs:group ref='t:g1' maxOccurs='3'/><xs:element ref='t:e'/></xs:sequence></xs:group>
+<xs:complexType name='c1'><xs:group ref='t:g2'/></xs:complexType>
+<xs:complexType name='c2'><xs:complexContent><xs:extension base='t:c1'><xs:sequence minOccurs='0'><xs:element name='z' maxOccurs='unbounded'/></xs:sequence></xs:extension></xs:complexContent></xs:complexType>
+<xs:complexType name='o1' mixed='true'><xs:sequence><xs:element name='q' minOccurs='0' maxOccurs='0'/><xs:sequence/><xs:choice minOccurs='0'/></xs:sequence></xs:complexType>
+<xs:complexType name='a1'><xs:all><xs:element name='x'/><xs:element name='y' minOccurs='0'/></xs:all></xs:complexType>
 <xs:element name='k'><xs:complexType><xs:sequence><xs:element name='i' maxOccurs='unbounded'/></xs:sequence></xs:complexType>
 <xs:key name='pk'><xs:selector xpath='t:i'/><xs:field xpath='@id'/><xs:field xpath='.'/></xs:key>
 <xs:keyref name='fk' refer='t:pk'><xs:selector xpath='.//t:i'/><xs:field xpath='@ref'/><xs:field xpath='@r2'/></xs:keyref>
@@ -255,7 +314,7 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 18] = [
+const COMPONENTS: [&str; 24] = [
     "attrgroup {urn:t}ag use=z? use={urn:t}g! wildcard=,urn:t process=strict",
     "attrgroup {urn:t}ah use={urn:t}g! wildcard=any process=lax",
     "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
@@ -264,13 +323,19 @@ const COMPONENTS: [&str; 18] = [
     "element {urn:t}h type={http://www.w3.org/2001/XMLSchema}decimal nillable=0 abstract=0 block=e final=e subst=1",
     "element {urn:t}i type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=0 block=e final=r head={urn:t}h subst=0",
     "element {urn:t}j type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=1 block=e final=r head={urn:t}i subst=0",
-    "element {urn:t}k type=#anon nillable=0 abstract=0 block=e final=r subst=0 key={urn:t}pk[t:i|@id|.] keyref={urn:t}fk[.//t:i|@ref|@r2]->{urn:t}pk unique={urn:t}u[t:i | t:j|@n] :: type #anon base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements",
+    "element {urn:t}k type=#anon nillable=0 abstract=0 block=e final=r subst=0 key={urn:t}pk[t:i|@id|.] keyref={urn:t}fk[.//t:i|@ref|@r2]->{urn:t}pk unique={urn:t}u[t:i | t:j|@n] :: type #anon base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..*:i)",
+    "group {urn:t}g1 model=choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict))",
+    "group {urn:t}g2 model=seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e)",
     "notation {urn:t}a",
     "notation {urn:t}n",
     "schema tns=urn:t",
+    "type {urn:t}a1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:all(1..1:x,0..1:y)",
     "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}c1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e)",
+    "type {urn:t}c2 base={urn:t}c1 derivation=extension final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..1:seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e),0..1:seq(1..*:z))",
     "type {urn:t}d base={http://www.w3.org/2001/XMLSchema}decimal derivation=restriction final= block= ws=collapse facets=minExclusive,totalDigits, patterns=1 simple variety=atomic",
-    "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed use={urn:t}g? use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed particle=1..1:seq(1..1:c) use={urn:t}g? use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}o1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=mixed particle=1..1:seq(0..0:q,1..1:seq(),0..1:choice())",
     "type {urn:t}r base={urn:t}d derivation=restriction final=r block= ws=collapse facets=minExclusive,maxInclusive,totalDigits, patterns=2 simple variety=atomic",
     "type {urn:t}s base={http://www.w3.org/2001/XMLSchema}decimal derivation=extension final=r block=e complex abstract=0 content=simple simple={http://www.w3.org/2001/XMLSchema}decimal use=y?",
     "type {urn:t}u base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final=lu block= ws=- facets= patterns=0 simple variety=union members={http://www.w3.org/2001/XMLSchema}int,{http://www.w3.org/2001/XMLSchema}boolean",
@@ -288,7 +353,7 @@ fn lookups_find_globals_and_built_ins_only() {
     let schema = Schema::parse(SCHEMA.as_bytes(), "a.xsd").unwrap();
     let xs = Some("http://www.w3.org/2001/XMLSchema");
     let t = Some("urn:t");
-    let cases: [(&str, Option<&str>, &str, bool); 14] = [
+    let cases: [(&str, Option<&str>, &str, bool); 17] = [
         ("element", t, "e", true),
         ("element", None, "e", false),
         ("element", t, "c", false),
@@ -303,6 +368,9 @@ fn lookups_find_globals_and_built_ins_only() {
         ("identity constraint", t, "fk", true),
         ("identity constraint", None, "fk", false),
         ("identity constraint", t, "k", false),
+        ("model group", t, "g1", true),
+        ("model group", None, "g1", false),
+        ("model group", t, "c1", false),
     ];
     for (kind, namespace, name, found) in cases {
         let got = match kind {
@@ -312,6 +380,9 @@ fn lookups_find_globals_and_built_ins_only() {
             "attribute" => schema
                 .attribute(namespace, name)
                 .map(|a| (a.namespace(), a.name())),
+            "model group" => {
+                (schema.model_group(namespace, name)).map(|g| (g.namespace(), g.name()))
+            }
             "identity constraint" => {
                 (schema.identity_constraint(namespace, name)).map(|c| (c.namespace(), c.name()))
             }
