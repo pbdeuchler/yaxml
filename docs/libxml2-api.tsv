@@ -873,21 +873,21 @@ parser.h	xmlCtxtGetCatalogs	function	not_marked	P0-P3	partial	https://github.com
 parser.h	xmlCtxtGetDeclaredEncoding	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
 parser.h	xmlCtxtGetDict	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
 parser.h	xmlCtxtGetDocTypeDecl	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Doctype
-parser.h	xmlCtxtGetDocument	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
+parser.h	xmlCtxtGetDocument	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no tree while parsing: the DOM parses return the document
 parser.h	xmlCtxtGetInputPosition	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	PushParser::position
-parser.h	xmlCtxtGetInputWindow	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtGetNode	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
+parser.h	xmlCtxtGetInputWindow	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::Locator::window - the document input only, not entity inputs
+parser.h	xmlCtxtGetNode	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no tree while parsing: the DOM parses return the document
 parser.h	xmlCtxtGetOptions	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ParseOptions::new, ParseOptions::has
 parser.h	xmlCtxtGetPrivate	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
 parser.h	xmlCtxtGetSaxHandler	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no parser context; the handler is passed to sax::parse
 parser.h	xmlCtxtGetStandalone	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
 parser.h	xmlCtxtGetStatus	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	properties - see xmlParserStatus
 parser.h	xmlCtxtGetUserData	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no dictionary or user pointer
-parser.h	xmlCtxtGetValidCtxt	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
+parser.h	xmlCtxtGetValidCtxt	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::StreamValidator, valid::validate
 parser.h	xmlCtxtGetVersion	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Declaration
-parser.h	xmlCtxtIsHtml	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtIsInSubset	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
-parser.h	xmlCtxtIsStopped	function	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no inspectable parser context
+parser.h	xmlCtxtIsHtml	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	HTML parses have their own entry points (html)
+parser.h	xmlCtxtIsInSubset	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	declaration callbacks follow internal_subset (internal) or external_subset (external)
+parser.h	xmlCtxtIsStopped	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	a callback's ControlFlow::Break stops sax::parse
 parser.h	xmlCtxtParseContent	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	Editor::parse_content, html::parse_fragment, Editor::parse_external_entity - hasTextDecl is parse_external_entity; UTF-8 input
 parser.h	xmlCtxtParseDocument	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	OwnedDocument::parse_with - caller supplies bytes or a Read; no ctxt reuse for DOMs
 parser.h	xmlCtxtParseDtd	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	valid::Dtd::parse

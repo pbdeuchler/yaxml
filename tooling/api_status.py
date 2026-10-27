@@ -440,7 +440,12 @@ P|xmlCtxtGetDeclaredEncoding xmlCtxtGetStandalone xmlCtxtGetVersion|Declaration
 P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
 P|xmlCtxtGetStatus|properties - see xmlParserStatus
-N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
+P|xmlCtxtGetInputWindow|sax::Locator::window - the document input only, not entity inputs
+A|xmlCtxtGetDocument xmlCtxtGetNode|no tree while parsing: the DOM parses return the document
+A|xmlCtxtGetValidCtxt|valid::StreamValidator, valid::validate
+A|xmlCtxtIsHtml|HTML parses have their own entry points (html)
+A|xmlCtxtIsInSubset|declaration callbacks follow internal_subset (internal) or external_subset (external)
+A|xmlCtxtIsStopped|a callback's ControlFlow::Break stops sax::parse
 A|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|no parser context; the handler is passed to sax::parse
 P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate

@@ -502,3 +502,55 @@ fn the_locator_names_the_base() {
         assert_eq!(handler.0, vec![base.map(str::to_owned); 3], "{base:?}");
     }
 }
+
+#[test]
+fn the_locator_window_is_libxml2s() {
+    // Recorded from xmlCtxtGetInputWindow(ctxt, 0, ..) in each callback.
+    struct Windows {
+        size: usize,
+        window: String,
+        lines: String,
+    }
+    impl sax::Handler for Windows {
+        fn locate(&mut self, locator: &sax::Locator<'_>) {
+            let (content, column) = locator.window(self.size);
+            self.window = format!("{content}|{column}");
+        }
+        fn start_element(&mut self, element: &Element<'_>) -> ControlFlow<()> {
+            let _ = writeln!(self.lines, "{}|{}", element.name.local(), self.window);
+            ControlFlow::Continue(())
+        }
+        fn characters(&mut self, _: &str) -> ControlFlow<()> {
+            let _ = writeln!(self.lines, "#text|{}", self.window);
+            ControlFlow::Continue(())
+        }
+    }
+    let nested = "<r>\n  <a b=\"1\">tx</a>\n<é>z</é></r>";
+    let cases = [
+        (
+            nested,
+            80,
+            "r|<r>|2\n#text|  <a b=\"1\">tx</a>|2\na|  <a b=\"1\">tx</a>|10\n\
+             #text|  <a b=\"1\">tx</a>|13\n#text|<é>z</é></r>|0\né|<é>z</é></r>|3\n\
+             #text|<é>z</é></r>|5\n",
+        ),
+        // A small window ends before the position (or a character it splits).
+        (
+            nested,
+            4,
+            "r|<r>|2\n#text|  <a|2\na|=\"1\"|3\n#text|\">tx|3\n#text|<é>|0\né|<é>|3\n\
+             #text|é>z|3\n",
+        ),
+        // Line ends before the position are skipped back over.
+        ("<r>\n\n</r>", 80, "r|<r>|2\n#text|</r>|0\n"),
+    ];
+    for (input, size, expected) in cases {
+        let mut windows = Windows {
+            size,
+            window: String::new(),
+            lines: String::new(),
+        };
+        sax::parse(input.as_bytes(), ParseOptions::default(), &mut windows).unwrap();
+        assert_eq!(windows.lines, expected, "{input} {size}");
+    }
+}

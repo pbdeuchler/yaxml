@@ -179,6 +179,14 @@ impl Locator<'_> {
         self.lines.index().column(self.offset)
     }
 
+    /// Up to `size` bytes of the line around the position, and the
+    /// position's byte column in them (`xmlCtxtGetInputWindow` on the
+    /// document input, as libxml2's error reports show it).
+    #[must_use]
+    pub fn window(&self, size: usize) -> (Cow<'_, str>, usize) {
+        self.lines.index().window(self.offset, size)
+    }
+
     /// The document's [`ParseOptions::base`] (`xmlSAX2GetSystemId`: the
     /// input's name); libxml2's public ID is always null.
     #[must_use]

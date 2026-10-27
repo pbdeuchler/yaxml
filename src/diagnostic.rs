@@ -921,10 +921,9 @@ impl LineIndex<'_> {
         memchr::memmem::rfind(run, b"\r\n").map_or(start, |cr| start + cr + 1)
     }
 
-    /// libxml2's context lines for a text offset (`xmlParserInputGetWindow`):
-    /// up to 80 bytes of its line and a caret under it.
-    fn window(&self, cur: usize) -> (Cow<'_, str>, String) {
-        const SIZE: usize = 80;
+    /// libxml2's window around a text offset (`xmlParserInputGetWindow`):
+    /// up to `size` bytes of its line and the offset's byte column in them.
+    pub(crate) fn window(&self, cur: usize, size: usize) -> (Cow<'_, str>, usize) {
         let t = self.text();
         let eol = |p: usize| matches!(t.get(p), Some(b'\n' | b'\r'));
         let mut p = cur.min(t.len());
@@ -932,7 +931,7 @@ impl LineIndex<'_> {
             p -= 1;
         }
         let mut n = 0;
-        while n < SIZE && p > 0 && !eol(p) {
+        while n < size && p > 0 && !eol(p) {
             p -= 1;
             n += 1;
         }
@@ -949,23 +948,17 @@ impl LineIndex<'_> {
             .ch()
             .filter(|&(c, _)| !matches!(c, '\0' | '\n' | '\r'))
         {
-            if n + len > SIZE {
+            if n + len > size {
                 break;
             }
             n += len;
         }
         let col = if col >= n {
-            if n < SIZE { n } else { SIZE - 1 }
+            if n < size { n } else { size.saturating_sub(1) }
         } else {
             col
         };
-        let content = &t[start..start + n];
-        let caret = content[..col]
-            .iter()
-            .map(|&b| if b == b'\t' { '\t' } else { ' ' })
-            .chain(['^'])
-            .collect();
-        (String::from_utf8_lossy(content), caret)
+        (String::from_utf8_lossy(&t[start..start + n]), col)
     }
 }
 
@@ -1074,8 +1067,12 @@ impl LineIndex<'_> {
             );
             out.push('\n');
         }
-        let (content, caret) = self.window(at);
-        out + &format!("{content}\n{caret}\n")
+        let (content, col) = self.window(at, 80);
+        let caret: String = content.as_bytes()[..col]
+            .iter()
+            .map(|&b| if b == b'\t' { '\t' } else { ' ' })
+            .collect();
+        out + &format!("{content}\n{caret}^\n")
     }
 }
 

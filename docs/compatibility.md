@@ -9,9 +9,9 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 | Status | P0 | P0-P2 | P0-P3 | P1 | P1-P2 | P2 | P2-P3 | P3 | Total |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | implemented | 22 | 108 | 704 | 118 | 0 | 102 | 14 | 286 | 1354 |
-| partial | 1 | 26 | 255 | 28 | 0 | 93 | 52 | 132 | 587 |
-| not-started | 0 | 1 | 12 | 0 | 0 | 2 | 1 | 23 | 39 |
-| not-applicable | 24 | 36 | 826 | 48 | 75 | 200 | 86 | 467 | 1762 |
+| partial | 1 | 26 | 256 | 28 | 0 | 93 | 52 | 132 | 588 |
+| not-started | 0 | 1 | 5 | 0 | 0 | 2 | 1 | 23 | 32 |
+| not-applicable | 24 | 36 | 832 | 48 | 75 | 200 | 86 | 467 | 1768 |
 | removed-upstream | 0 | 5 | 47 | 8 | 12 | 43 | 34 | 169 | 318 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
@@ -639,7 +639,8 @@ Differences:
   `sax::parse` accepts the flag the same way. There is no SAX1
   `startElement`/`endElement`.
 - `Handler::locate` (`setDocumentLocator` with the locator's queries:
-  `Locator::line`, `column`, `system_id`, `offset`) is called when the place
+  `Locator::line`, `column`, `system_id`, `offset`, and `window` =
+  `xmlCtxtGetInputWindow` on the document input) is called when the place
   changes. The place is libxml2's parsing point: after the event's markup, at
   a start tag's `>` or `/>`, past the blanks after the XML declaration for
   `start_document`, and after a fatal error the end of the input (libxml2
