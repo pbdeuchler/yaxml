@@ -329,7 +329,7 @@ fn a_callback_stops_the_parse() {
 fn input_and_option_errors_come_before_any_callback() {
     let cases: [(&[u8], u32, ErrorKind); 2] = [
         (b"\xff\xfe<\0r", 0, ErrorKind::InvalidUtf16),
-        (b"<r/>", options::NOBLANKS, ErrorKind::UnsupportedOption),
+        (b"<r/>", options::OLDSAX, ErrorKind::UnsupportedOption),
     ];
     for (input, flags, kind) in cases {
         let mut log = Log::default();
@@ -344,6 +344,23 @@ fn input_and_option_errors_come_before_any_callback() {
     let mut log = Log::default();
     sax::parse(&utf16, ParseOptions::default(), &mut log).unwrap();
     assert!(log.lines.contains("characters é|"), "{}", log.lines);
+}
+
+/// libxml2's `areBlanks` needs `ctxt->node`, which only a tree builder sets:
+/// under SAX, `NOBLANKS` reports blanks as `characters`, declared or not.
+#[test]
+fn noblanks_changes_no_callback() {
+    for input in [
+        "<r>\n <a/>\n</r>",
+        "<!DOCTYPE r [<!ELEMENT r (a)*><!ELEMENT a EMPTY>]><r>\n <a/>\n</r>",
+    ] {
+        let (mut plain, mut noblanks) = (Log::default(), Log::default());
+        sax::parse(input.as_bytes(), ParseOptions::default(), &mut plain).unwrap();
+        let options = ParseOptions::new(options::NOBLANKS);
+        sax::parse(input.as_bytes(), options, &mut noblanks).unwrap();
+        assert!(plain.lines.contains("characters \n |"), "{}", plain.lines);
+        assert_eq!(noblanks.lines, plain.lines, "{input}");
+    }
 }
 
 #[test]

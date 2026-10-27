@@ -25,8 +25,9 @@
 //! - libxml2's queries to the handler (`getEntity`, `resolveEntity`,
 //!   `isStandalone`, `hasInternalSubset`, ...) have no counterpart: the
 //!   parser keeps the declarations and a [`Resolver`](crate::Resolver) loads
-//!   resources; there is no `ignorableWhitespace` (`NOBLANKS` is
-//!   rejected, as by the `Reader`);
+//!   resources; there is no `ignorableWhitespace`: `NOBLANKS` changes
+//!   nothing, as in libxml2, whose `areBlanks` needs the tree node a SAX
+//!   parse never builds;
 //! - the [`Locator`] of a declaration callback is the end of the DOCTYPE,
 //!   or the root's start tag for the external subset's, and inside entity
 //!   content the end of the reference (libxml2 reports the declaration's
@@ -208,6 +209,8 @@ impl Lines for Lazy<'_> {
 /// text. A decoding or option error is returned
 /// before any callback.
 pub fn parse(input: &[u8], options: ParseOptions, handler: &mut impl Handler) -> Result<(), Error> {
+    let flags = options.flags & !crate::options::NOBLANKS;
+    let options = ParseOptions { flags, ..options };
     let text = Transcoded::new(input, &options)?;
     let base = options.base.clone();
     let mut reader = Reader::transcoded(&text, options)?;

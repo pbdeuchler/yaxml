@@ -627,11 +627,12 @@ Differences:
 - libxml2's queries to the handler (`getEntity`, `getParameterEntity`,
   `resolveEntity`, `isStandalone`, `hasInternalSubset`, `hasExternalSubset`)
   have no counterpart: the parser keeps the declarations and a `Resolver`
-  loads resources. There is no `ignorableWhitespace` (the slice reader
-  rejects `NOBLANKS`; libxml2 2.15.4 itself drops the blanks without calling
-  it under `NOBLANKS`, and otherwise calls it only for a handler whose
-  `ignorableWhitespace` is not its `characters`, judging blanks by the tree
-  libxml2's SAX2 builder holds), and no SAX1 `startElement`/`endElement`.
+  loads resources. There is no `ignorableWhitespace`: libxml2's `areBlanks`
+  needs the tree node only its SAX2 builder sets, so for a SAX handler
+  `NOBLANKS` changes nothing and blanks arrive as `characters`, declared
+  element content included (checked with a custom handler on 2.15.4);
+  `sax::parse` accepts the flag the same way. There is no SAX1
+  `startElement`/`endElement`.
 - `Handler::locate` (`setDocumentLocator` with the locator's queries:
   `Locator::line`, `column`, `system_id`, `offset`) is called when the place
   changes. The place is libxml2's parsing point: after the event's markup, at

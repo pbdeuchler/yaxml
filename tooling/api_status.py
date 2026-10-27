@@ -483,7 +483,7 @@ A|_xmlSAXHandler.startElement _xmlSAXHandler.endElement startElementSAXFunc endE
 A|_xmlSAXHandler.getEntity _xmlSAXHandler.getParameterEntity _xmlSAXHandler.resolveEntity _xmlSAXHandler.isStandalone _xmlSAXHandler.hasInternalSubset _xmlSAXHandler.hasExternalSubset getEntitySAXFunc getParameterEntitySAXFunc resolveEntitySAXFunc isStandaloneSAXFunc hasInternalSubsetSAXFunc hasExternalSubsetSAXFunc|queries to the handler; the parser keeps the declarations and a Resolver loads resources
 A|_xmlSAXHandler.initialized _xmlSAXHandler._private|C handler-table bookkeeping; a Handler is a Rust value
 P|_xmlSAXHandler.setDocumentLocator setDocumentLocatorSAXFunc|sax::Handler::locate - called when the place changes, with the place
-N|_xmlSAXHandler.ignorableWhitespace ignorableWhitespaceSAXFunc|sax::parse reads with the slice Reader, which rejects NOBLANKS
+A|_xmlSAXHandler.ignorableWhitespace ignorableWhitespaceSAXFunc|never called for a SAX handler: areBlanks needs the tree node only the SAX2 builder sets, so sax::parse reports blanks as characters under NOBLANKS too
 P|xmlSAXHandler _xmlSAXHandler|sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
 A|xmlSAXHandlerPtr|raw pointer alias
 A|xmlDefaultSAXHandler|sax::Handler - its default methods do nothing; OwnedDocument builds trees
