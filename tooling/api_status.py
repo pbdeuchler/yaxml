@@ -301,7 +301,7 @@ FIELD_DEFAULT = {
     "_xmlNotation": ("A", "valid::Notation is a borrowed view"),
     "_xmlDtd": ("A", "tree links; valid::Dtd is read through its accessors"),
     "_xmlEnumeration": ("N", "no public enumeration list"),
-    "_xmlID": ("N", "IDs via Document::element_by_id"),
+    "_xmlID": ("P", "Document::ids, OwnedDocument::ids - (element, attribute position) entries"),
     "_xmlRef": ("N", "no IDREF table"),
     "_xmlError": ("A", "no counterpart field"),
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
@@ -416,7 +416,7 @@ P|xmlParseExtParsedEnt xmlParseEntity|Editor::parse_external_entity - on a new d
 I|xmlSAXUserParseMemory|sax::parse
 P|xmlSAXUserParseFile|sax::parse - on the bytes read by the caller
 P|xmlSAXParseMemory xmlSAXParseMemoryWithData xmlSAXParseDoc xmlSAXParseFile xmlSAXParseFileWithData|sax::parse - callbacks only, no tree is built
-N|xmlSAXParseDTD xmlSAXParseEntity|standalone DTD or external parsed entity input with callbacks not started
+R|xmlSAXParseDTD xmlSAXParseEntity|deprecated in 2.15.4
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish
 P|xmlCtxtReset xmlCtxtResetPush xmlClearParserCtxt|PushParser::reset_with, BufferedReader::reset_with, TextReader::reset_with - not for DOM builders or Reader
@@ -452,7 +452,7 @@ A|_xmlParserNodeInfoSeq _xmlParserNodeInfoSeq.buffer _xmlParserNodeInfoSeq.lengt
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
 A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
 P|xmlParserStatus XML_STATUS_*|properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
-N|XML_RESOURCE_MAIN_DOCUMENT|ResourceKind has no main-document kind
+A|XML_RESOURCE_MAIN_DOCUMENT|the main document is the caller's input: no surface loads it through a Resolver
 A|XML_RESOURCE_UNKNOWN|no unknown resource kind
 P|xmlParserOption|options
 I|xmlResourceType|ResourceKind
@@ -545,7 +545,8 @@ I|XML_ELEMENT_CONTENT_ONCE|valid::Occurrence::Once
 I|XML_ELEMENT_CONTENT_OPT|valid::Occurrence::Optional
 I|XML_ELEMENT_CONTENT_MULT|valid::Occurrence::ZeroOrMore
 I|XML_ELEMENT_CONTENT_PLUS|valid::Occurrence::OneOrMore
-N|xmlID xmlRef|no public ID/IDREF tables
+P|xmlID|Document::ids, OwnedDocument::ids - (element, attribute position) entries
+N|xmlRef|no public IDREF table
 I|xmlAttributeType|valid::AttributeKind
 I|XML_ATTRIBUTE_CDATA|valid::AttributeKind::Cdata
 I|XML_ATTRIBUTE_ID|valid::AttributeKind::Id
@@ -575,6 +576,7 @@ P|_xmlElement.content|valid::Element::model - printed as xmlDumpElementDecl writ
 I|_xmlElement.attributes|valid::Element::attributes
 A|_xmlElement.prefix _xmlAttribute.prefix|names are qualified as declared
 R|_xmlAttribute.tree _xmlElement.contModel|deprecated in 2.15.4
+R|_xmlID.attr _xmlID.doc _xmlID.lineno _xmlID.name _xmlID.next _xmlID.value|deprecated in 2.15.4
 I|_xmlAttribute.elem|valid::Attribute::element
 I|_xmlAttribute.name|valid::Attribute::name
 I|_xmlAttribute.atype|valid::Attribute::kind
@@ -881,7 +883,8 @@ I|xmlValidGetPotentialChildren|valid::Element::potential_children
 I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at most 256 as libxml2
 N|xmlDumpNotationTable|writes in hash order (save writes notations in the DOCTYPE)
 A|xmlValidState xmlValidStatePtr|opaque push-validation state; valid::StreamValidator keeps its own
-N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr|no public declaration tables
+P|xmlIDTable xmlIDTablePtr|Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
+N|xmlRefTable xmlRefTablePtr|no public IDREF table: validators check IDREFs internally
 A|xmlValidityErrorFunc xmlValidityWarningFunc|no error callback: validators return valid::Diagnostic lists
 # ---- encoding.h
 P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only

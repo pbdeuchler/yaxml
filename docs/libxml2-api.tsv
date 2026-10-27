@@ -575,7 +575,7 @@ parser.h	XML_PARSE_UNZIP	enum_value	not_marked	P0-P3	not-started	https://github.
 parser.h	XML_PARSE_XINCLUDE	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::XINCLUDE - OwnedDocument only
 parser.h	XML_RESOURCE_DTD	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind::DtdSubset
 parser.h	XML_RESOURCE_GENERAL_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind::GeneralEntity
-parser.h	XML_RESOURCE_MAIN_DOCUMENT	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind has no main-document kind
+parser.h	XML_RESOURCE_MAIN_DOCUMENT	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	the main document is the caller's input: no surface loads it through a Resolver
 parser.h	XML_RESOURCE_PARAMETER_ENTITY	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind::ParameterEntity
 parser.h	XML_RESOURCE_UNKNOWN	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	no unknown resource kind
 parser.h	XML_RESOURCE_XINCLUDE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind::XInclude
@@ -984,9 +984,9 @@ parser.h	xmlResourceLoader	callback	not_marked	P0-P3	partial	https://github.com/
 parser.h	xmlResourceType	enum	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	ResourceKind
 parser.h	xmlSAXHandlerV1	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
 parser.h	xmlSAXHandlerV1Ptr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
-parser.h	xmlSAXParseDTD	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	standalone DTD or external parsed entity input with callbacks not started
+parser.h	xmlSAXParseDTD	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	deprecated in 2.15.4
 parser.h	xmlSAXParseDoc	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
-parser.h	xmlSAXParseEntity	function	yes	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	standalone DTD or external parsed entity input with callbacks not started
+parser.h	xmlSAXParseEntity	function	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	deprecated in 2.15.4
 parser.h	xmlSAXParseFile	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
 parser.h	xmlSAXParseFileWithData	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
 parser.h	xmlSAXParseMemory	function	yes	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	sax::parse - callbacks only, no tree is built
@@ -1815,7 +1815,7 @@ tree.h	_xmlElementContent.type	field	yes	P0-P3	removed-upstream	https://github.c
 tree.h	_xmlEnumeration	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	valid::Attribute::values
 tree.h	_xmlEnumeration.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlEnumeration.next	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
-tree.h	_xmlID	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
+tree.h	_xmlID	struct	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::ids, OwnedDocument::ids - (element, attribute position) entries
 tree.h	_xmlID.attr	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlID.doc	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlID.lineno	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1850,7 +1850,7 @@ tree.h	_xmlNs.href	field	not_marked	P0-P3	implemented	https://github.com/GNOME/l
 tree.h	_xmlNs.next	field	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::namespaces - iteration replaces links
 tree.h	_xmlNs.prefix	field	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	NamespaceBinding::prefix
 tree.h	_xmlNs.type	field	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	namespace nodes carry no type tag
-tree.h	_xmlRef	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
+tree.h	_xmlRef	struct	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public IDREF table
 tree.h	_xmlRef.attr	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlRef.lineno	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
 tree.h	_xmlRef.name	field	yes	P0-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	deprecated in 2.15.4
@@ -1976,7 +1976,7 @@ tree.h	xmlGetNsProp	function	not_marked	P0-P3	implemented	https://github.com/GNO
 tree.h	xmlGetProp	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute, OwnedNode::attribute
 tree.h	xmlHasNsProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute_ns, OwnedNode::attribute_ns - returns the value, not the attribute node
 tree.h	xmlHasProp	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::attribute_ns, OwnedNode::attribute_ns - returns the value, not the attribute node
-tree.h	xmlID	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
+tree.h	xmlID	typedef	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Document::ids, OwnedDocument::ids - (element, attribute position) entries
 tree.h	xmlIDPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlIsBlankNode	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	OwnedNode::text - with chars::is_blank over a Text or CDATA value
 tree.h	xmlIsXHTML	function	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Doctype::is_xhtml
@@ -2045,7 +2045,7 @@ tree.h	xmlParserInputBufferPtr	typedef	not_marked	P0-P3	not-applicable	https://g
 tree.h	xmlParserInputPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	input stream or raw pointer alias
 tree.h	xmlPreviousElementSibling	function	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	Node::children, OwnedNode::children - filter to elements
 tree.h	xmlReconciliateNs	function	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	automatic namespace reconciliation on every owned edit
-tree.h	xmlRef	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public ID/IDREF tables
+tree.h	xmlRef	typedef	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	no public IDREF table
 tree.h	xmlRefPtr	typedef	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	raw pointer alias; references and OwnedNodeId
 tree.h	xmlRegisterNodeDefault	function	yes	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
 tree.h	xmlRegisterNodeDefaultValue	macro	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/tree.h	global default; per-call ParseOptions or save::Options flags
@@ -2177,8 +2177,8 @@ valid.h	xmlGetDtdQAttrDesc	function	not_marked	P2	partial	https://github.com/GNO
 valid.h	xmlGetDtdQElementDesc	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::element - takes the qualified name
 valid.h	xmlGetID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Document::element_by_id, OwnedDocument::element_by_id
 valid.h	xmlGetRefs	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlIDTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlIDTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlIDTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
+valid.h	xmlIDTablePtr	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
 valid.h	xmlIsID	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	OwnedDocument::is_id
 valid.h	xmlIsMixedElement	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlIsRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
@@ -2187,8 +2187,8 @@ valid.h	xmlNewElementContent	function	yes	P2	removed-upstream	https://github.com
 valid.h	xmlNewValidCtxt	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Drop
 valid.h	xmlNotationTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::notations - an iterator, no table type
 valid.h	xmlNotationTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
-valid.h	xmlRefTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
-valid.h	xmlRefTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public declaration tables
+valid.h	xmlRefTable	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public IDREF table: validators check IDREFs internally
+valid.h	xmlRefTablePtr	typedef	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	no public IDREF table: validators check IDREFs internally
 valid.h	xmlRemoveID	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
 valid.h	xmlRemoveRef	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlSnprintfElementContent	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4

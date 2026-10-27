@@ -78,7 +78,9 @@ must be 1.0.
 `Document::element_by_id`/`OwnedDocument::element_by_id` (`xmlGetID`) and
 XPath `id()` use `xml:id` and attributes declared `ID`, first element in
 document order per value. Unlike libxml2, attributes on elements produced by
-entity replacement also count.
+entity replacement also count. `ids()` on both DOMs lists the table itself (`xmlIDTable`):
+`(element, attribute position)` for every ID attribute, sorted by element,
+a repeated value listed again where libxml2 keeps only the first.
 
 The default follows `xmlReadMemory(..., 0)`: references are kept and only
 defaulted namespace declarations apply; `NOENT | DTDATTR` gives the

@@ -256,3 +256,43 @@ fn element_ids_are_found_during_construction() {
     );
     assert!(decoded.element_by_id("x").is_none());
 }
+
+/// `ids()` is the ID table: every ID attribute, repeated values included.
+#[test]
+fn id_tables_list_every_id_attribute() {
+    type Ids = Vec<(String, String)>;
+    let cases: &[(&str, &[(&str, &str)])] = &[
+        (
+            "<r xml:id='a'><s id='x'/><t b='1' xml:id='b'/><u xml:id='a'/></r>",
+            &[("r", "a"), ("t", "b"), ("u", "a")],
+        ),
+        (
+            "<!DOCTYPE r [<!ATTLIST s id ID #IMPLIED>]><r xml:id='a'><s id='x'/><t xml:id='b'/></r>",
+            &[("r", "a"), ("s", "x"), ("t", "b")],
+        ),
+        ("<r id='x' a='1'/>", &[]),
+    ];
+    for &(input, expected) in cases {
+        let expected: Ids = (expected.iter())
+            .map(|&(element, value)| (element.to_owned(), value.to_owned()))
+            .collect();
+        let borrowed = yaxml::Document::parse(input).unwrap();
+        let listed: Ids = (borrowed.ids().iter())
+            .map(|&(id, position)| {
+                let node = borrowed.node(id).unwrap();
+                let value = node.attributes()[position].value.to_string();
+                (node.name().unwrap().qualified().to_owned(), value)
+            })
+            .collect();
+        assert_eq!(listed, expected, "{input}");
+        let owned = yaxml::OwnedDocument::parse(input).unwrap();
+        let listed: Ids = (owned.ids().iter())
+            .map(|&(id, position)| {
+                let node = owned.node(id).unwrap();
+                let value = node.attributes().nth(position).unwrap().value.to_string();
+                (node.name().unwrap().qualified().to_owned(), value)
+            })
+            .collect();
+        assert_eq!(listed, expected, "{input}: owned");
+    }
+}

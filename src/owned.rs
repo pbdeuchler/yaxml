@@ -949,7 +949,12 @@ impl<A: Allocator> OwnedDocument<A> {
         crate::valid::validate_document(self, self.dtd())
     }
 
-    pub(crate) fn ids(&self) -> &[(OwnedNodeId, usize)] {
+    /// libxml2's ID table (`doc->ids`, `xmlIDTable`): `(element, attribute
+    /// position)` of every `xml:id` and DTD-declared `ID` attribute, sorted
+    /// by element and kept by edits. libxml2 keeps only the first element per value; here a
+    /// repeated value is listed again, and [`Self::element_by_id`] picks the
+    /// first in document order.
+    pub fn ids(&self) -> &[(OwnedNodeId, usize)] {
         &self.ids
     }
 

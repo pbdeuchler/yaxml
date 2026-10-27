@@ -439,7 +439,12 @@ impl<'input> Document<'input> {
         crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
     }
 
-    pub(crate) fn ids(&self) -> &[(NodeId, usize)] {
+    /// libxml2's ID table (`doc->ids`, `xmlIDTable`): `(element, attribute
+    /// position)` of every `xml:id` and DTD-declared `ID` attribute, sorted
+    /// by element. libxml2 keeps only the first element per value; here a
+    /// repeated value is listed again, and [`Self::element_by_id`] picks the
+    /// first in document order.
+    pub fn ids(&self) -> &[(NodeId, usize)] {
         &self.ids
     }
 
