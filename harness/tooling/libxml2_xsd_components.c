@@ -8,7 +8,8 @@
  * xmlSchemaItemList, xmlSchemaAttributeUse, xmlSchemaImport, xmlSchemaIDC,
  * xmlSchemaIDCSelect, xmlSchemaQNameRef, xmlSchemaParticle, xmlSchemaModelGroup
  * and xmlSchemaModelGroupDef layouts
- * (2.15.4). */
+ * (2.15.4). Annotations print as " note=" and one [text] per annot, the
+ * annotation's content with whitespace runs collapsed. */
 #include <stdio.h>
 #include <string.h>
 #include <libxml/xmlschemas.h>
@@ -36,6 +37,21 @@ typedef struct Tree { xmlSchemaTypeType type; void *annot; struct Tree *next, *c
 typedef struct { Tree tree; int min, max; xmlNodePtr node; } Particle;
 typedef struct { Tree tree; const xmlChar *name, *tns; xmlNodePtr node; int flags; } GroupDef;
 
+static void note(xmlSchemaAnnotPtr a) {
+  if (a) printf(" note=");
+  for (; a; a = a->next) {
+    xmlChar *text = xmlNodeGetContent(a->content);
+    int gap = 0, any = 0;
+    printf("[");
+    for (xmlChar *c = text; c && *c; c++) {
+      if (*c == ' ' || *c == '\t' || *c == '\n' || *c == '\r') { gap = 1; continue; }
+      if (gap && any) printf(" ");
+      gap = 0; any = 1; putchar(*c);
+    }
+    printf("]");
+    xmlFree(text);
+  }
+}
 static void name(const xmlChar *ns, const xmlChar *local) {
   if (!local) { printf("#anon"); return; }
   if (ns) printf("{%s}", ns);
@@ -52,12 +68,14 @@ static void wildcard(xmlSchemaWildcardPtr w) {
   else for (xmlSchemaWildcardNsPtr n = w->nsSet; n; n = n->next)
     printf("%s%s", n == w->nsSet ? "" : ",", n->value ? (char *)n->value : "");
   printf(" process=%s", w->processContents == 1 ? "skip" : w->processContents == 2 ? "lax" : "strict");
+  note(w->annot);
 }
 static void model(Tree *g);
 static void particle(Tree *p) {
   Particle *q = (Particle *)p; Tree *t = p->children;
   printf("%d..", q->min);
   if (q->max == UNBOUNDED) printf("*"); else printf("%d", q->max);
+  note(p->annot);
   printf(":");
   if (!t) printf("-");
   else if (t->type == XML_SCHEMA_TYPE_ELEMENT) name(((xmlSchemaElementPtr)t)->targetNamespace, ((xmlSchemaElementPtr)t)->name);
@@ -67,13 +85,15 @@ static void particle(Tree *p) {
 }
 static void model(Tree *g) {
   if (!g) { printf("-"); return; }
-  printf("%s(", g->type == XML_SCHEMA_TYPE_SEQUENCE ? "seq" : g->type == XML_SCHEMA_TYPE_CHOICE ? "choice" : g->type == XML_SCHEMA_TYPE_ALL ? "all" : "?");
+  printf("%s", g->type == XML_SCHEMA_TYPE_SEQUENCE ? "seq" : g->type == XML_SCHEMA_TYPE_CHOICE ? "choice" : g->type == XML_SCHEMA_TYPE_ALL ? "all" : "?");
+  note(g->annot);
+  printf("(");
   for (Tree *p = g->children; p; p = p->next) { if (p != g->children) printf(","); particle(p); }
   printf(")");
 }
 static void mgroup(void *p, void *d, const xmlChar *k) {
   GroupDef *g = p;
-  printf("group "); name(g->tns, g->name); printf(" model="); model(g->tree.children); printf("\n");
+  printf("group "); name(g->tns, g->name); note(g->tree.annot); printf(" model="); model(g->tree.children); printf("\n");
 }
 static void attributes(List *uses, xmlSchemaWildcardPtr w) {
   for (int i = 0; uses && i < uses->nbItems; i++) {
@@ -82,12 +102,13 @@ static void attributes(List *uses, xmlSchemaWildcardPtr w) {
     printf(" use="); name(u->attrDecl->targetNamespace, u->attrDecl->name);
     printf("%s", u->occurs == XML_SCHEMAS_ATTR_USE_REQUIRED ? "!" : "?");
     if (u->defValue) printf("%s%s", u->flags & XML_SCHEMAS_ATTR_FIXED ? "==" : "=", u->defValue);
+    note(u->annot);
   }
   wildcard(w);
 }
 static void group(void *p, void *d, const xmlChar *k) {
   xmlSchemaAttributeGroupPtr g = p;
-  printf("attrgroup "); name(g->targetNamespace, g->name);
+  printf("attrgroup "); name(g->targetNamespace, g->name); note(g->annot);
   attributes(g->attrUses, g->attributeWildcard);
   printf("\n");
 }
@@ -111,7 +132,7 @@ static void type(void *p, void *d, const xmlChar *k);
 static void anon(xmlSchemaTypePtr t) { if (t && !t->name) { printf(" :: "); type(t, NULL, (const xmlChar *)""); } }
 static void elem(void *p, void *d, const xmlChar *k) {
   xmlSchemaElementPtr e = p; int f = e->flags;
-  printf("element "); name(e->targetNamespace, e->name);
+  printf("element "); name(e->targetNamespace, e->name); note(e->annot);
   printf(" type="); tname(e->subtypes);
   printf(" nillable=%d abstract=%d", !!(f & XML_SCHEMAS_ELEM_NILLABLE), !!(f & XML_SCHEMAS_ELEM_ABSTRACT));
   if (e->value) printf(" %s=%s", f & XML_SCHEMAS_ELEM_FIXED ? "fixed" : "default", e->value);
@@ -126,6 +147,7 @@ static void elem(void *p, void *d, const xmlChar *k) {
     printf("[%s", c->selector->xpath);
     for (Select *s = c->fields; s; s = s->next) printf("|%s", s->xpath);
     printf("]");
+    note(c->annot);
     if (c->ref && c->ref->item) { printf("->"); name(((Idc *)c->ref->item)->tns, ((Idc *)c->ref->item)->name); }
   }
   anon(e->subtypes);
@@ -133,7 +155,7 @@ static void elem(void *p, void *d, const xmlChar *k) {
 }
 static void attr(void *p, void *d, const xmlChar *k) {
   xmlSchemaAttributePtr a = p;
-  printf("attribute "); name(a->targetNamespace, a->name);
+  printf("attribute "); name(a->targetNamespace, a->name); note(a->annot);
   printf(" type="); tname(a->subtypes);
   if (a->defValue) printf(" %s=%s", a->flags & XML_SCHEMAS_ATTR_FIXED ? "fixed" : "default", a->defValue);
   anon(a->subtypes);
@@ -141,7 +163,7 @@ static void attr(void *p, void *d, const xmlChar *k) {
 }
 static void type(void *p, void *d, const xmlChar *k) {
   xmlSchemaTypePtr t = p; int f = t->flags;
-  printf("type "); name(t->targetNamespace, t->name);
+  printf("type "); name(t->targetNamespace, t->name); note(t->annot);
   printf(" base="); tname(t->baseType);
   printf(" derivation=%s", f & XML_SCHEMAS_TYPE_DERIVATION_METHOD_EXTENSION ? "extension" : "restriction");
   printf(" final=%s%s%s%s", f & XML_SCHEMAS_TYPE_FINAL_EXTENSION ? "e" : "", f & XML_SCHEMAS_TYPE_FINAL_RESTRICTION ? "r" : "",
@@ -187,7 +209,7 @@ int main(int argc, char **argv) {
     xmlSchemaSetParserStructuredErrors(c, NULL, NULL);
     xmlSchemaPtr s = xmlSchemaParse(c);
     printf("== %s\n", argv[i]);
-    if (s) printf("schema tns=%s\n", s->targetNamespace ? (char *)s->targetNamespace : "-");
+    if (s) { printf("schema tns=%s", s->targetNamespace ? (char *)s->targetNamespace : "-"); note(s->annot); printf("\n"); }
     if (s) { scan(s); xmlHashScan(s->schemasImports, import, NULL); xmlSchemaFree(s); }
     xmlSchemaFreeParserCtxt(c);
   }

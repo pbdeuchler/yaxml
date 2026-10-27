@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
+use yaxml::OwnedNode;
 use yaxml::schema_types::Facet;
 use yaxml::xsd::{
     AttributeUse, Compositor, Constraint, ContentType, Derivations, IdcKind, Limits, ModelGroup,
@@ -20,6 +21,16 @@ fn qualified(namespace: Option<&str>, name: Option<&str>) -> String {
         (_, None) => "#anon".into(),
         (None, Some(name)) => name.into(),
         (Some(ns), Some(name)) => format!("{{{ns}}}{name}"),
+    }
+}
+
+/// ` note=[text]..`: each annotation's content, whitespace runs collapsed.
+fn note<'a>(out: &mut String, notes: impl Iterator<Item = OwnedNode<'a>>) {
+    for (i, annotation) in notes.enumerate() {
+        let text = annotation.content().unwrap_or_default();
+        let words: Vec<&str> = text.split_ascii_whitespace().collect();
+        let gap = if i == 0 { " note=" } else { "" };
+        write!(out, "{gap}[{}]", words.join(" ")).unwrap();
     }
 }
 
@@ -82,6 +93,7 @@ fn attributes<'a>(
             let fixed = if value.fixed { "==" } else { "=" };
             write!(out, "{fixed}{}", value.value).unwrap();
         }
+        note(out, used.annotations());
     }
     if let Some(wildcard) = wildcard {
         write_wildcard(out, wildcard);
@@ -89,7 +101,7 @@ fn attributes<'a>(
 }
 
 fn write_wildcard(out: &mut String, wildcard: Wildcard<'_>) {
-    let namespaces = match wildcard.namespaces {
+    let namespaces = match &wildcard.namespaces {
         Namespaces::Any => "any".into(),
         Namespaces::Not(ns) => format!("not:{}", ns.unwrap_or_default()),
         Namespaces::Set(set) => (set.iter().map(|ns| ns.unwrap_or_default()))
@@ -102,6 +114,7 @@ fn write_wildcard(out: &mut String, wildcard: Wildcard<'_>) {
         ProcessContents::Strict => "strict",
     };
     write!(out, " wildcard={namespaces} process={process}").unwrap();
+    note(out, wildcard.annotations());
 }
 
 fn definition(out: &mut String, ty: TypeDefinition<'_>) {
@@ -110,10 +123,11 @@ fn definition(out: &mut String, ty: TypeDefinition<'_>) {
     } else {
         "restriction"
     };
+    write!(out, "type {}", type_name(ty)).unwrap();
+    note(out, ty.annotations());
     write!(
         out,
-        "type {} base={} derivation={derivation} final={} block={}",
-        type_name(ty),
+        " base={} derivation={derivation} final={} block={}",
         type_name(ty.base()),
         flags(ty.final_()),
         flags(ty.block()),
@@ -170,7 +184,9 @@ fn particle(out: &mut String, particle: Particle<'_>) {
     let max = particle
         .max_occurs()
         .map_or("*".into(), |max| max.to_string());
-    write!(out, "{}..{max}:", particle.min_occurs()).unwrap();
+    write!(out, "{}..{max}", particle.min_occurs()).unwrap();
+    note(out, particle.annotations());
+    out.push(':');
     match particle.term() {
         None => out.push('-'),
         Some(Term::Element(e)) => out.push_str(&qualified(e.namespace(), Some(e.name()))),
@@ -192,7 +208,9 @@ fn model(out: &mut String, group: Option<ModelGroup<'_>>) {
         Compositor::Choice => "choice",
         Compositor::All => "all",
     };
-    write!(out, "{compositor}(").unwrap();
+    out.push_str(compositor);
+    note(out, group.annotations());
+    out.push('(');
     for (i, child) in group.particles().enumerate() {
         if i > 0 {
             out.push(',');
@@ -204,17 +222,18 @@ fn model(out: &mut String, group: Option<ModelGroup<'_>>) {
 
 /// One line per global component, sorted (libxml2 scans hash tables).
 fn components(schema: &Schema) -> BTreeSet<String> {
-    let mut lines = BTreeSet::from([format!(
-        "schema tns={}",
-        schema.target_namespace().unwrap_or("-")
-    )]);
+    let mut out = format!("schema tns={}", schema.target_namespace().unwrap_or("-"));
+    note(&mut out, schema.annotation().into_iter());
+    let mut lines = BTreeSet::from([out]);
     for element in schema.elements() {
         let mut out = String::new();
         let ty = element.type_definition();
+        let name = qualified(element.namespace(), Some(element.name()));
+        write!(out, "element {name}").unwrap();
+        note(&mut out, element.annotations());
         write!(
             out,
-            "element {} type={} nillable={} abstract={}",
-            qualified(element.namespace(), Some(element.name())),
+            " type={} nillable={} abstract={}",
             type_name(ty),
             element.is_nillable() as u8,
             element.is_abstract() as u8,
@@ -244,6 +263,7 @@ fn components(schema: &Schema) -> BTreeSet<String> {
             idc.fields()
                 .for_each(|field| write!(out, "|{field}").unwrap());
             out.push(']');
+            note(&mut out, idc.annotations());
             if let Some(key) = idc.refer() {
                 write!(out, "->{}", qualified(key.namespace(), Some(key.name()))).unwrap();
             }
@@ -255,7 +275,9 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         let mut out = String::new();
         let ty = attribute.type_definition();
         let name = qualified(attribute.namespace(), Some(attribute.name()));
-        write!(out, "attribute {name} type={}", type_name(ty)).unwrap();
+        write!(out, "attribute {name}").unwrap();
+        note(&mut out, attribute.annotations());
+        write!(out, " type={}", type_name(ty)).unwrap();
         value(&mut out, attribute.value());
         anonymous(&mut out, ty);
         lines.insert(out);
@@ -269,12 +291,15 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         let mut out = String::new();
         let name = qualified(group.namespace(), Some(group.name()));
         write!(out, "attrgroup {name}").unwrap();
+        note(&mut out, group.annotations());
         attributes(&mut out, group.attribute_uses(), group.attribute_wildcard());
         lines.insert(out);
     }
     for group in schema.model_groups() {
         let name = qualified(group.namespace(), Some(group.name()));
-        let mut out = format!("group {name} model=");
+        let mut out = format!("group {name}");
+        note(&mut out, group.annotations());
+        out.push_str(" model=");
         model(&mut out, group.model_group());
         lines.insert(out);
     }
@@ -285,58 +310,61 @@ fn components(schema: &Schema) -> BTreeSet<String> {
 }
 
 const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:t='urn:t' targetNamespace='urn:t' blockDefault='extension' finalDefault='restriction'>
-<xs:attributeGroup name='ag'><xs:attribute name='z' type='xs:int' default='1'/><xs:attributeGroup ref='t:ah'/><xs:anyAttribute namespace='##local urn:t'/></xs:attributeGroup>
+<xs:annotation><xs:documentation>Top
+  level</xs:documentation></xs:annotation>
+<xs:attributeGroup name='ag'><xs:annotation><xs:documentation>ag</xs:documentation></xs:annotation><xs:attribute name='z' type='xs:int' default='1'><xs:annotation><xs:documentation>z use</xs:documentation></xs:annotation></xs:attribute><xs:attributeGroup ref='t:ah'><xs:annotation><xs:documentation>ah ref</xs:documentation></xs:annotation></xs:attributeGroup><xs:anyAttribute namespace='##local urn:t'><xs:annotation><xs:documentation>ag any</xs:documentation></xs:annotation></xs:anyAttribute></xs:attributeGroup>
 <xs:attributeGroup name='ah'><xs:attribute ref='t:g' use='required'/><xs:anyAttribute namespace='##any' processContents='lax'/></xs:attributeGroup>
-<xs:element name='h' type='xs:decimal' final='extension'/>
+<xs:element name='h' type='xs:decimal' final='extension'><xs:annotation><xs:documentation>h</xs:documentation></xs:annotation></xs:element>
+<xs:annotation><xs:documentation>second top</xs:documentation></xs:annotation>
 <xs:element name='i' type='xs:int' substitutionGroup='t:h'/>
 <xs:element name='j' type='xs:int' substitutionGroup='t:i' abstract='true'/>
 <xs:notation name='n' public='p' system='s'/>
 <xs:notation name='a' public='q'/>
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
-<xs:group name='g1'><xs:choice><xs:element name='a'/><xs:any namespace='##other' minOccurs='0'/></xs:choice></xs:group>
-<xs:group name='g2'><xs:sequence><xs:group ref='t:g1' maxOccurs='3'/><xs:element ref='t:e'/></xs:sequence></xs:group>
+<xs:group name='g1'><xs:annotation><xs:documentation>g1</xs:documentation></xs:annotation><xs:choice><xs:annotation><xs:documentation>choice</xs:documentation></xs:annotation><xs:element name='a'><xs:annotation><xs:documentation>local a</xs:documentation></xs:annotation></xs:element><xs:any namespace='##other' minOccurs='0'><xs:annotation><xs:documentation>any</xs:documentation></xs:annotation></xs:any></xs:choice></xs:group>
+<xs:group name='g2'><xs:sequence><xs:group ref='t:g1' maxOccurs='3'><xs:annotation><xs:documentation>g1 ref</xs:documentation></xs:annotation></xs:group><xs:element ref='t:e'><xs:annotation><xs:documentation>e ref</xs:documentation></xs:annotation></xs:element></xs:sequence></xs:group>
 <xs:complexType name='c1'><xs:group ref='t:g2'/></xs:complexType>
-<xs:complexType name='c2'><xs:complexContent><xs:extension base='t:c1'><xs:sequence minOccurs='0'><xs:element name='z' maxOccurs='unbounded'/></xs:sequence></xs:extension></xs:complexContent></xs:complexType>
+<xs:complexType name='c2'><xs:annotation><xs:documentation>c2</xs:documentation></xs:annotation><xs:complexContent><xs:annotation><xs:documentation>cc</xs:documentation></xs:annotation><xs:extension base='t:c1'><xs:annotation><xs:documentation>ext</xs:documentation></xs:annotation><xs:sequence minOccurs='0'><xs:element name='z' maxOccurs='unbounded'/></xs:sequence></xs:extension></xs:complexContent></xs:complexType>
 <xs:complexType name='o1' mixed='true'><xs:sequence><xs:element name='q' minOccurs='0' maxOccurs='0'/><xs:sequence/><xs:choice minOccurs='0'/></xs:sequence></xs:complexType>
 <xs:complexType name='a1'><xs:all><xs:element name='x'/><xs:element name='y' minOccurs='0'/></xs:all></xs:complexType>
 <xs:element name='k'><xs:complexType><xs:sequence><xs:element name='i' maxOccurs='unbounded'/></xs:sequence></xs:complexType>
-<xs:key name='pk'><xs:selector xpath='t:i'/><xs:field xpath='@id'/><xs:field xpath='.'/></xs:key>
+<xs:key name='pk'><xs:annotation><xs:documentation>pk</xs:documentation></xs:annotation><xs:selector xpath='t:i'><xs:annotation><xs:documentation>sel</xs:documentation></xs:annotation></xs:selector><xs:field xpath='@id'><xs:annotation><xs:documentation>field</xs:documentation></xs:annotation></xs:field><xs:field xpath='.'/></xs:key>
 <xs:keyref name='fk' refer='t:pk'><xs:selector xpath='.//t:i'/><xs:field xpath='@ref'/><xs:field xpath='@r2'/></xs:keyref>
 <xs:unique name='u'><xs:selector xpath='t:i | t:j'/><xs:field xpath='@n'/></xs:unique></xs:element>
 <xs:element name='f' type='xs:string' fixed='x' abstract='true' block='#all'/>
-<xs:attribute name='g' fixed='1'><xs:simpleType><xs:list itemType='xs:int'/></xs:simpleType></xs:attribute>
-<xs:simpleType name='r'><xs:restriction base='t:d'><xs:maxInclusive value='9'/><xs:pattern value='[0-9]+'/><xs:pattern value='x'/></xs:restriction></xs:simpleType>
+<xs:attribute name='g' fixed='1'><xs:annotation><xs:documentation>g</xs:documentation></xs:annotation><xs:simpleType><xs:annotation><xs:documentation>anon</xs:documentation></xs:annotation><xs:list itemType='xs:int'><xs:annotation><xs:documentation>list</xs:documentation></xs:annotation></xs:list></xs:simpleType></xs:attribute>
+<xs:simpleType name='r'><xs:restriction base='t:d'><xs:annotation><xs:documentation>r restriction</xs:documentation></xs:annotation><xs:maxInclusive value='9'/><xs:pattern value='[0-9]+'/><xs:pattern value='x'/></xs:restriction></xs:simpleType>
 <xs:simpleType name='d' final=''><xs:restriction base='xs:decimal'><xs:totalDigits value='3'/><xs:minExclusive value='0'/><xs:pattern value='.'/><xs:whiteSpace value='collapse' fixed='true'/></xs:restriction></xs:simpleType>
 <xs:simpleType name='u' final='list union'><xs:union memberTypes='xs:int xs:boolean'/></xs:simpleType>
-<xs:complexType name='b' abstract='true' block='restriction'><xs:attribute name='x' use='required'/><xs:anyAttribute namespace='##other' processContents='skip'/></xs:complexType>
+<xs:complexType name='b' abstract='true' block='restriction'><xs:attribute name='x' use='required'><xs:annotation><xs:documentation>x use</xs:documentation></xs:annotation></xs:attribute><xs:anyAttribute namespace='##other' processContents='skip'/></xs:complexType>
 <xs:complexType name='s'><xs:simpleContent><xs:extension base='xs:decimal'><xs:attribute name='y' default='d'/></xs:extension></xs:simpleContent></xs:complexType>
 <xs:complexType name='m' mixed='true'><xs:complexContent><xs:extension base='t:b'><xs:sequence><xs:element name='c'/></xs:sequence><xs:attribute ref='t:g'/></xs:extension></xs:complexContent></xs:complexType>
 </xs:schema>";
 
 /// Recorded with the helper.
 const COMPONENTS: [&str; 24] = [
-    "attrgroup {urn:t}ag use=z? use={urn:t}g! wildcard=,urn:t process=strict",
+    "attrgroup {urn:t}ag note=[ag] use=z? note=[z use] use={urn:t}g! wildcard=,urn:t process=strict note=[ag any]",
     "attrgroup {urn:t}ah use={urn:t}g! wildcard=any process=lax",
-    "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
+    "attribute {urn:t}g note=[g] type=#anon fixed=1 :: type #anon note=[anon][list] base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
     "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e final=r subst=0",
     "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers final=r subst=0",
-    "element {urn:t}h type={http://www.w3.org/2001/XMLSchema}decimal nillable=0 abstract=0 block=e final=e subst=1",
+    "element {urn:t}h note=[h] type={http://www.w3.org/2001/XMLSchema}decimal nillable=0 abstract=0 block=e final=e subst=1",
     "element {urn:t}i type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=0 block=e final=r head={urn:t}h subst=0",
     "element {urn:t}j type={http://www.w3.org/2001/XMLSchema}int nillable=0 abstract=1 block=e final=r head={urn:t}i subst=0",
-    "element {urn:t}k type=#anon nillable=0 abstract=0 block=e final=r subst=0 key={urn:t}pk[t:i|@id|.] keyref={urn:t}fk[.//t:i|@ref|@r2]->{urn:t}pk unique={urn:t}u[t:i | t:j|@n] :: type #anon base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..*:i)",
-    "group {urn:t}g1 model=choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict))",
-    "group {urn:t}g2 model=seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e)",
+    "element {urn:t}k type=#anon nillable=0 abstract=0 block=e final=r subst=0 key={urn:t}pk[t:i|@id|.] note=[pk][sel][field] keyref={urn:t}fk[.//t:i|@ref|@r2]->{urn:t}pk unique={urn:t}u[t:i | t:j|@n] :: type #anon base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..*:i)",
+    "group {urn:t}g1 note=[g1] model=choice note=[choice](1..1:a,0..1 note=[any]:any( wildcard=not:urn:t process=strict))",
+    "group {urn:t}g2 model=seq(1..3 note=[g1 ref]:choice note=[choice](1..1:a,0..1 note=[any]:any( wildcard=not:urn:t process=strict)),1..1 note=[e ref]:{urn:t}e)",
     "notation {urn:t}a",
     "notation {urn:t}n",
-    "schema tns=urn:t",
+    "schema tns=urn:t note=[Top level]",
     "type {urn:t}a1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:all(1..1:x,0..1:y)",
-    "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! wildcard=not:urn:t process=skip",
-    "type {urn:t}c1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e)",
-    "type {urn:t}c2 base={urn:t}c1 derivation=extension final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..1:seq(1..3:choice(1..1:a,0..1:any( wildcard=not:urn:t process=strict)),1..1:{urn:t}e),0..1:seq(1..*:z))",
+    "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! note=[x use] wildcard=not:urn:t process=skip",
+    "type {urn:t}c1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..3 note=[g1 ref]:choice note=[choice](1..1:a,0..1 note=[any]:any( wildcard=not:urn:t process=strict)),1..1 note=[e ref]:{urn:t}e)",
+    "type {urn:t}c2 note=[c2][cc][ext] base={urn:t}c1 derivation=extension final=r block=e complex abstract=0 content=elements particle=1..1:seq(1..1:seq(1..3 note=[g1 ref]:choice note=[choice](1..1:a,0..1 note=[any]:any( wildcard=not:urn:t process=strict)),1..1 note=[e ref]:{urn:t}e),0..1:seq(1..*:z))",
     "type {urn:t}d base={http://www.w3.org/2001/XMLSchema}decimal derivation=restriction final= block= ws=collapse facets=minExclusive,totalDigits, patterns=1 simple variety=atomic",
-    "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed particle=1..1:seq(1..1:c) use={urn:t}g? use=x! wildcard=not:urn:t process=skip",
+    "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed particle=1..1:seq(1..1:c) use={urn:t}g? use=x! note=[x use] wildcard=not:urn:t process=skip",
     "type {urn:t}o1 base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=e complex abstract=0 content=mixed particle=1..1:seq(0..0:q,1..1:seq(),0..1:choice())",
-    "type {urn:t}r base={urn:t}d derivation=restriction final=r block= ws=collapse facets=minExclusive,maxInclusive,totalDigits, patterns=2 simple variety=atomic",
+    "type {urn:t}r note=[r restriction] base={urn:t}d derivation=restriction final=r block= ws=collapse facets=minExclusive,maxInclusive,totalDigits, patterns=2 simple variety=atomic",
     "type {urn:t}s base={http://www.w3.org/2001/XMLSchema}decimal derivation=extension final=r block=e complex abstract=0 content=simple simple={http://www.w3.org/2001/XMLSchema}decimal use=y?",
     "type {urn:t}u base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final=lu block= ws=- facets= patterns=0 simple variety=union members={http://www.w3.org/2001/XMLSchema}int,{http://www.w3.org/2001/XMLSchema}boolean",
 ];
@@ -346,6 +374,77 @@ fn global_components_follow_libxml2() {
     let schema = Schema::parse(SCHEMA.as_bytes(), "a.xsd").unwrap();
     let got: Vec<String> = components(&schema).into_iter().collect();
     assert_eq!(got, COMPONENTS);
+}
+
+/// (annotations, nodes in the first one after libxml2's cleanup).
+fn summary<'a>(notes: impl Iterator<Item = OwnedNode<'a>>) -> (usize, usize) {
+    let notes: Vec<_> = notes.collect();
+    (
+        notes.len(),
+        notes.first().map_or(0, |n| n.descendants().count()),
+    )
+}
+
+#[test]
+fn annotations_belong_to_libxml2_owners() {
+    let source = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' targetNamespace='urn:t'>
+<xs:annotation><xs:documentation xml:space='preserve'> <b> </b><!--c--><?p?></xs:documentation></xs:annotation>
+<xs:complexType name='c'><xs:sequence><xs:element name='a'><xs:annotation><xs:documentation>a</xs:documentation></xs:annotation></xs:element></xs:sequence>
+<xs:attribute name='x'><xs:annotation><xs:documentation>x</xs:documentation></xs:annotation></xs:attribute></xs:complexType>
+<xs:element name='e'><xs:annotation><xs:documentation> <b>e</b> <!--c--></xs:documentation></xs:annotation></xs:element>
+</xs:schema>";
+    let schema = Schema::parse(source.as_bytes(), "a.xsd").unwrap();
+    let t = Some("urn:t");
+    let c = schema.type_definition(t, "c").unwrap();
+    let content = c.particle().unwrap();
+    let Some(Term::Group(sequence)) = content.term() else {
+        panic!("sequence")
+    };
+    let local = sequence.particles().next().unwrap();
+    let Some(Term::Element(a)) = local.term() else {
+        panic!("element")
+    };
+    let x = c.attribute_uses().next().unwrap();
+    let int = schema.type_definition(Some("http://www.w3.org/2001/XMLSchema"), "int");
+    let cases: [(&str, (usize, usize)); 10] = [
+        // Blank text dropped even under xml:space='preserve' (libxml2 asks
+        // xmlNodeGetSpacePreserve of the text node: -1); comment, PI too.
+        ("schema", summary(schema.annotation().into_iter())),
+        // Blank text and the comment dropped.
+        (
+            "global element",
+            summary(schema.element(t, "e").unwrap().annotations()),
+        ),
+        ("type without one", summary(c.annotations())),
+        ("content particle", summary(content.annotations())),
+        ("sequence", summary(sequence.annotations())),
+        ("local element particle", summary(local.annotations())),
+        ("local element declaration", summary(a.annotations())),
+        ("attribute use", summary(x.annotations())),
+        (
+            "local attribute declaration",
+            summary(x.declaration().annotations()),
+        ),
+        ("built-in type", summary(int.unwrap().annotations())),
+    ];
+    let expected = [
+        ("schema", (1, 3)),
+        ("global element", (1, 4)),
+        ("type without one", (0, 0)),
+        ("content particle", (0, 0)),
+        ("sequence", (0, 0)),
+        ("local element particle", (0, 0)),
+        ("local element declaration", (1, 3)),
+        ("attribute use", (1, 3)),
+        ("local attribute declaration", (0, 0)),
+        ("built-in type", (0, 0)),
+    ];
+    assert_eq!(cases, expected);
+    let bare = Schema::parse(
+        b"<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'/>",
+        "b.xsd",
+    );
+    assert!(bare.unwrap().annotation().is_none());
 }
 
 #[test]

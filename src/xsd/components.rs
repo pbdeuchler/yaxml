@@ -8,6 +8,7 @@ use crate::regexp::Regex;
 use crate::schema_types::{Facet, Type, Value, WhiteSpace};
 
 use super::model::Model;
+use super::parse::Loc;
 
 /// An interned string; [`NO_NS`] is the empty string, the absent namespace.
 pub(crate) type Sym = u32;
@@ -186,6 +187,8 @@ pub(crate) struct TypeDef {
     pub(crate) block: Set,
     pub(crate) abstract_: bool,
     pub(crate) kind: Kind,
+    /// Where it was declared; `None` for built-in and derived content types.
+    pub(crate) loc: Option<Loc>,
 }
 
 impl TypeDef {
@@ -218,6 +221,7 @@ pub(crate) struct ElementDecl {
     /// The declarations that may substitute for this one.
     pub(crate) members: Vec<ElemId>,
     pub(crate) idcs: Vec<IdcId>,
+    pub(crate) loc: Loc,
 }
 
 #[derive(Clone, Debug)]
@@ -225,6 +229,7 @@ pub(crate) struct AttributeDecl {
     pub(crate) name: QName,
     pub(crate) ty: TypeId,
     pub(crate) value: Option<ValueConstraint>,
+    pub(crate) loc: Loc,
 }
 
 /// A global attribute group, its references expanded (libxml2 `attrUses`).
@@ -233,6 +238,7 @@ pub(crate) struct AttrGroup {
     pub(crate) name: QName,
     pub(crate) uses: Vec<AttrUse>,
     pub(crate) wildcard: Option<WildId>,
+    pub(crate) loc: Loc,
 }
 
 #[derive(Clone, Debug)]
@@ -241,6 +247,7 @@ pub(crate) struct AttrUse {
     pub(crate) required: bool,
     /// The use's own value constraint, else the declaration's.
     pub(crate) value: Option<ValueConstraint>,
+    pub(crate) loc: Loc,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -273,6 +280,8 @@ pub(crate) enum Process {
 pub(crate) struct Wildcard {
     pub(crate) ns: NsConstraint,
     pub(crate) process: Process,
+    /// Where it was written; `None` for built and complete wildcards.
+    pub(crate) loc: Option<Loc>,
 }
 
 /// An identity constraint's kind (`XML_SCHEMA_TYPE_IDC_*`).
@@ -295,4 +304,5 @@ pub(crate) struct Idc {
     pub(crate) fields: Vec<(Box<str>, Pattern)>,
     /// The key or unique a keyref refers to.
     pub(crate) refer: Option<IdcId>,
+    pub(crate) loc: Loc,
 }

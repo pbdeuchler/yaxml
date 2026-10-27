@@ -1403,7 +1403,7 @@ schemasInternals.h	XML_SCHEMA_TYPE_UNION	enum_value	not_marked	P3	implemented	ht
 schemasInternals.h	XML_SCHEMA_TYPE_UR	enum_value	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema document syntax, folded into the compiled definitions
 schemasInternals.h	_xmlSchema	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema
 schemasInternals.h	_xmlSchema._private	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchema.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
+schemasInternals.h	_xmlSchema.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::annotation
 schemasInternals.h	_xmlSchema.attrDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::attribute, xsd::Schema::attributes
 schemasInternals.h	_xmlSchema.attrgrpDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::attribute_group, xsd::Schema::attribute_groups
 schemasInternals.h	_xmlSchema.counter	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
@@ -1423,11 +1423,11 @@ schemasInternals.h	_xmlSchema.targetNamespace	field	not_marked	P3	implemented	ht
 schemasInternals.h	_xmlSchema.typeDecl	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::type_definition, xsd::Schema::type_definitions
 schemasInternals.h	_xmlSchema.version	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	never set by libxml2 2.15.4
 schemasInternals.h	_xmlSchema.volatiles	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
-schemasInternals.h	_xmlSchemaAnnot	struct	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
-schemasInternals.h	_xmlSchemaAnnot.content	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
-schemasInternals.h	_xmlSchemaAnnot.next	field	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
+schemasInternals.h	_xmlSchemaAnnot	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Annotations
+schemasInternals.h	_xmlSchemaAnnot.content	field	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Annotations - copies under one synthetic document, blank text, comments and PIs dropped (xmlSchemaCleanupDoc)
+schemasInternals.h	_xmlSchemaAnnot.next	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Annotations - iterates the chain
 schemasInternals.h	_xmlSchemaAttribute	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration
-schemasInternals.h	_xmlSchemaAttribute.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
+schemasInternals.h	_xmlSchemaAttribute.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration::annotations
 schemasInternals.h	_xmlSchemaAttribute.base	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaAttribute.defVal	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaAttribute.defValue	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration::value
@@ -1447,7 +1447,7 @@ schemasInternals.h	_xmlSchemaAttribute.type	field	not_marked	P3	not-applicable	h
 schemasInternals.h	_xmlSchemaAttribute.typeName	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaAttribute.typeNs	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaAttributeGroup	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup
-schemasInternals.h	_xmlSchemaAttributeGroup.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	deprecated, unused or builder bookkeeping; xsd::AttributeGroup exposes the compiled properties
+schemasInternals.h	_xmlSchemaAttributeGroup.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup::annotations
 schemasInternals.h	_xmlSchemaAttributeGroup.attrUses	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup::attribute_uses - references expanded
 schemasInternals.h	_xmlSchemaAttributeGroup.attributeWildcard	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup::attribute_wildcard
 schemasInternals.h	_xmlSchemaAttributeGroup.attributes	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	deprecated, unused or builder bookkeeping; xsd::AttributeGroup exposes the compiled properties
@@ -1466,7 +1466,7 @@ schemasInternals.h	_xmlSchemaAttributeLink	struct	not_marked	P3	not-applicable	h
 schemasInternals.h	_xmlSchemaAttributeLink.attr	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	never used by libxml2 2.15.4
 schemasInternals.h	_xmlSchemaAttributeLink.next	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	never used by libxml2 2.15.4
 schemasInternals.h	_xmlSchemaElement	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration
-schemasInternals.h	_xmlSchemaElement.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
+schemasInternals.h	_xmlSchemaElement.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::ElementDeclaration::annotations
 schemasInternals.h	_xmlSchemaElement.attributes	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaElement.contModel	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaElement.contentType	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
@@ -1513,7 +1513,7 @@ schemasInternals.h	_xmlSchemaNotation.name	field	not_marked	P3	implemented	https
 schemasInternals.h	_xmlSchemaNotation.targetNamespace	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Schema::notations - (namespace, name) pairs
 schemasInternals.h	_xmlSchemaNotation.type	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	never set by libxml2 (identifier) or builder bookkeeping
 schemasInternals.h	_xmlSchemaType	struct	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition - simple and complex type definitions; particles and model groups have no view
-schemasInternals.h	_xmlSchemaType.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
+schemasInternals.h	_xmlSchemaType.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition::annotations
 schemasInternals.h	_xmlSchemaType.attrUses	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition::attribute_uses
 schemasInternals.h	_xmlSchemaType.attributeUses	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaType.attributeWildcard	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::TypeDefinition::attribute_wildcard
@@ -1547,7 +1547,7 @@ schemasInternals.h	_xmlSchemaTypeLink	struct	not_marked	P3	implemented	https://g
 schemasInternals.h	_xmlSchemaTypeLink.next	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaTypeLink.type	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::SimpleVariety::Union
 schemasInternals.h	_xmlSchemaWildcard	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Wildcard
-schemasInternals.h	_xmlSchemaWildcard.annot	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
+schemasInternals.h	_xmlSchemaWildcard.annot	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Wildcard::annotations
 schemasInternals.h	_xmlSchemaWildcard.any	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Wildcard::namespaces
 schemasInternals.h	_xmlSchemaWildcard.flags	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaWildcard.id	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
@@ -1561,8 +1561,8 @@ schemasInternals.h	_xmlSchemaWildcard.type	field	not_marked	P3	not-applicable	ht
 schemasInternals.h	_xmlSchemaWildcardNs	struct	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Namespaces::Set - sorted, absent namespace first
 schemasInternals.h	_xmlSchemaWildcardNs.next	field	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	schema builder bookkeeping; the xsd component views expose the compiled properties
 schemasInternals.h	_xmlSchemaWildcardNs.value	field	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Namespaces::Set
-schemasInternals.h	xmlSchemaAnnot	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
-schemasInternals.h	xmlSchemaAnnotPtr	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	no view of annotations
+schemasInternals.h	xmlSchemaAnnot	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Annotations
+schemasInternals.h	xmlSchemaAnnotPtr	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::Annotations
 schemasInternals.h	xmlSchemaAttribute	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeDeclaration
 schemasInternals.h	xmlSchemaAttributeGroup	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup
 schemasInternals.h	xmlSchemaAttributeGroupPtr	typedef	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/schemasInternals.h	xsd::AttributeGroup

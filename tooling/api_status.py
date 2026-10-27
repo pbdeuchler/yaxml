@@ -307,7 +307,6 @@ FIELD_DEFAULT = {
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-FIELD_DEFAULT["_xmlSchemaAnnot"] = ("N", "no view of annotations")
 FIELD_DEFAULT["_xmlSchemaAttributeGroup"] = ("A", "deprecated, unused or builder bookkeeping; xsd::AttributeGroup exposes the compiled properties")
 FIELD_DEFAULT["_xmlSchemaAttributeLink"] = ("A", "never used by libxml2 2.15.4")
 FIELD_DEFAULT["_xmlSchemaNotation"] = ("A", "never set by libxml2 (identifier) or builder bookkeeping")
@@ -1050,6 +1049,15 @@ I|_xmlSchemaElement.value|xsd::ElementDeclaration::value
 I|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block, xsd::ElementDeclaration::final_, xsd::ElementDeclaration::substitutes
 I|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs|xsd::ElementDeclaration::substitution_group
 I|_xmlSchemaElement.idcs|xsd::ElementDeclaration::identity_constraints
+I|xmlSchemaAnnot xmlSchemaAnnotPtr _xmlSchemaAnnot|xsd::Annotations
+I|_xmlSchemaAnnot.next|xsd::Annotations - iterates the chain
+P|_xmlSchemaAnnot.content|xsd::Annotations - copies under one synthetic document, blank text, comments and PIs dropped (xmlSchemaCleanupDoc)
+I|_xmlSchema.annot|xsd::Schema::annotation
+I|_xmlSchemaElement.annot|xsd::ElementDeclaration::annotations
+I|_xmlSchemaAttribute.annot|xsd::AttributeDeclaration::annotations
+I|_xmlSchemaAttributeGroup.annot|xsd::AttributeGroup::annotations
+I|_xmlSchemaType.annot|xsd::TypeDefinition::annotations
+I|_xmlSchemaWildcard.annot|xsd::Wildcard::annotations
 I|_xmlSchemaAttribute.name|xsd::AttributeDeclaration::name
 I|_xmlSchemaAttribute.targetNamespace|xsd::AttributeDeclaration::namespace
 I|_xmlSchemaAttribute.subtypes|xsd::AttributeDeclaration::type_definition
@@ -1130,7 +1138,6 @@ I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaAnnot xmlSchemaAnnotPtr XML_SCHEMA_TYPE_*|no view of annotations
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h

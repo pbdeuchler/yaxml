@@ -42,9 +42,9 @@ mod view;
 pub use components::IdcKind;
 pub use parse::Compositor;
 pub use view::{
-    AttributeDeclaration, AttributeGroup, AttributeUse, Constraint, ContentType, Derivations,
-    ElementDeclaration, IdentityConstraint, ModelGroup, ModelGroupDefinition, Namespaces, Particle,
-    ProcessContents, SimpleVariety, Term, TypeDefinition, TypeKind, Wildcard,
+    Annotations, AttributeDeclaration, AttributeGroup, AttributeUse, Constraint, ContentType,
+    Derivations, ElementDeclaration, IdentityConstraint, ModelGroup, ModelGroupDefinition,
+    Namespaces, Particle, ProcessContents, SimpleVariety, Term, TypeDefinition, TypeKind, Wildcard,
 };
 
 use std::collections::{HashMap, HashSet};
@@ -514,6 +514,17 @@ pub(crate) struct Compiled {
     pub(crate) warnings: Vec<SchemaDiagnostic>,
     pub(crate) max_counter_vectors: usize,
     pub(crate) max_idc_keys: usize,
+    /// `None` without annotations.
+    pub(crate) notes: Option<Notes>,
+}
+
+/// The annotations, copied out of the schema documents.
+#[derive(Debug)]
+pub(crate) struct Notes {
+    pub(crate) doc: crate::OwnedDocument,
+    pub(crate) owners: HashMap<(parse::Loc, parse::Annotated), Vec<OwnedNodeId>>,
+    /// `_xmlSchema.annot`.
+    pub(crate) schema: Option<OwnedNodeId>,
 }
 
 impl Schema {

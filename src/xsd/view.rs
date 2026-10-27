@@ -7,9 +7,10 @@ use super::components::{
     NO_NS, NsConstraint, Process, QName, RESTRICTION, SUBSTITUTION, Set, TypeId, UNION,
     ValueConstraint, Variety, WildId,
 };
-use super::parse::{self, Compositor};
+use super::parse::{self, Annotated, Compositor, Loc};
 use crate::regexp::Regex;
 use crate::schema_types::{Facet, WhiteSpace};
+use crate::{OwnedDocument, OwnedNode, OwnedNodeId};
 
 /// Derivation methods, as a type's `final` and `block` or an element's
 /// `block` (libxml2's `XML_SCHEMAS_*_FINAL_*` and `_BLOCK_*` flags).
@@ -122,6 +123,45 @@ pub struct Wildcard<'a> {
     pub namespaces: Namespaces<'a>,
     /// `processContents`.
     pub process: ProcessContents,
+    annotations: Annotations<'a>,
+}
+
+impl<'a> Wildcard<'a> {
+    /// An `xs:anyAttribute`'s annotations (`annot`); a wildcard particle's
+    /// are the particle's, a complete wildcard has none.
+    pub fn annotations(&self) -> Annotations<'a> {
+        self.annotations.clone()
+    }
+}
+
+/// A component's annotations (libxml2's `annot` chain), in document order:
+/// copies of its `xs:annotation` elements, whose parent is a synthetic
+/// `annotations` root (libxml2's point into the schema documents).
+#[derive(Clone)]
+pub struct Annotations<'a> {
+    doc: Option<&'a OwnedDocument>,
+    ids: std::slice::Iter<'a, OwnedNodeId>,
+}
+
+impl<'a> Iterator for Annotations<'a> {
+    type Item = OwnedNode<'a>;
+
+    fn next(&mut self) -> Option<OwnedNode<'a>> {
+        let id = self.ids.next()?;
+        self.doc?.node(*id)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.ids.size_hint()
+    }
+}
+
+impl ExactSizeIterator for Annotations<'_> {}
+
+impl std::fmt::Debug for Annotations<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.ids.as_slice()).finish()
+    }
 }
 
 /// A type definition (`xmlSchemaType`), built in or declared.
@@ -184,6 +224,7 @@ pub struct ModelGroup<'a> {
     schema: &'a Schema,
     compositor: Compositor,
     particles: &'a [parse::Particle],
+    loc: Loc,
 }
 
 /// A global model group definition (`xs:group`, libxml2's private
@@ -206,6 +247,34 @@ impl Schema {
         (sym != NO_NS).then(|| self.data.names.str(sym))
     }
 
+    fn annotations(&self, loc: Option<Loc>, kind: Annotated) -> Annotations<'_> {
+        let notes = self.data.notes.as_ref();
+        let ids = (loc.zip(notes)).and_then(|(loc, notes)| notes.owners.get(&(loc, kind)));
+        Annotations {
+            doc: notes.map(|notes| &notes.doc),
+            ids: ids.map_or(&[][..], Vec::as_slice).iter(),
+        }
+    }
+
+    /// The first top-level `xs:annotation` (`_xmlSchema.annot`), in the
+    /// documents' parse order, as a copy ([`Annotations`]).
+    ///
+    /// ```
+    /// use yaxml::xsd::Schema;
+    /// let schema = Schema::parse(br#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    ///   <xs:annotation><xs:documentation>Orders</xs:documentation></xs:annotation>
+    ///   <xs:element name="order"><xs:annotation><xs:appinfo/></xs:annotation></xs:element>
+    /// </xs:schema>"#, "o.xsd")?;
+    /// assert_eq!(schema.annotation().unwrap().content().as_deref(), Some("Orders"));
+    /// let order = schema.element(None, "order").unwrap();
+    /// assert_eq!(order.annotations().count(), 1);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn annotation(&self) -> Option<OwnedNode<'_>> {
+        let notes = self.data.notes.as_ref()?;
+        notes.doc.node(notes.schema?)
+    }
+
     fn wildcard(&self, id: Option<WildId>) -> Option<Wildcard<'_>> {
         let wildcard = &self.data.wildcards[id?];
         let ns = |sym| self.ns(sym);
@@ -224,6 +293,7 @@ impl Schema {
                 Process::Lax => ProcessContents::Lax,
                 Process::Strict => ProcessContents::Strict,
             },
+            annotations: self.annotations(wildcard.loc, Annotated::Wildcard),
         })
     }
 
@@ -514,6 +584,12 @@ impl<'a> TypeDefinition<'a> {
     pub fn attribute_wildcard(self) -> Option<Wildcard<'a>> {
         self.schema.wildcard(self.def().complex()?.wildcard)
     }
+
+    /// Its annotations (`annot`), with those of its content, derivation,
+    /// list and union children; none for a built-in or content type.
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema.annotations(self.def().loc, Annotated::Type)
+    }
 }
 
 impl<'a> AttributeGroup<'a> {
@@ -540,6 +616,12 @@ impl<'a> AttributeGroup<'a> {
     /// The attribute wildcard, intersected with those of referenced groups.
     pub fn attribute_wildcard(self) -> Option<Wildcard<'a>> {
         self.schema.wildcard(self.group().wildcard)
+    }
+
+    /// Its annotations (`annot`).
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.group().loc), Annotated::AttrGroup)
     }
 }
 
@@ -604,6 +686,12 @@ impl<'a> ElementDeclaration<'a> {
         (self.decl().members.iter()).map(move |&id| ElementDeclaration { id, ..self })
     }
 
+    /// Its annotations (`annot`).
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.decl().loc), Annotated::Element)
+    }
+
     /// The identity constraints, in document order (`_xmlSchemaElement.idcs`).
     pub fn identity_constraints(self) -> impl Iterator<Item = IdentityConstraint<'a>> {
         let schema = self.schema;
@@ -626,23 +714,34 @@ impl<'a> Particle<'a> {
     /// empty group definition), which matches nothing, as in libxml2.
     pub fn term(self) -> Option<Term<'a>> {
         let schema = self.schema;
-        let group = |compositor, particles| {
+        let group = |compositor, particles, loc| {
             Term::Group(ModelGroup {
                 schema,
                 compositor,
                 particles,
+                loc,
             })
         };
         Some(match &self.particle.term {
             parse::Term::Element(id) => Term::Element(ElementDeclaration { schema, id: *id }),
             parse::Term::Wildcard(id) => Term::Wildcard(schema.wildcard(Some(*id))?),
-            parse::Term::Group(compositor, particles) => group(*compositor, particles),
+            parse::Term::Group(compositor, particles) => {
+                group(*compositor, particles, self.particle.loc)
+            }
             parse::Term::GroupDef(id) => {
-                let (compositor, particles, _) = schema.data.groups[*id].model.as_ref()?;
-                group(*compositor, particles)
+                let (compositor, particles, loc) = schema.data.groups[*id].model.as_ref()?;
+                group(*compositor, particles, *loc)
             }
             _ => return None,
         })
+    }
+
+    /// Its annotations (`annot`): an element or group reference's, an
+    /// `xs:any`'s; a local element's are its declaration's, a model
+    /// group's the group's.
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.particle.loc), Annotated::Particle)
     }
 }
 
@@ -656,6 +755,12 @@ impl<'a> ModelGroup<'a> {
     pub fn particles(self) -> impl Iterator<Item = Particle<'a>> {
         let schema = self.schema;
         (self.particles.iter()).map(move |particle| Particle { schema, particle })
+    }
+
+    /// Its annotations (`annot`).
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.loc), Annotated::ModelGroup)
     }
 }
 
@@ -676,12 +781,19 @@ impl<'a> ModelGroupDefinition<'a> {
 
     /// The model group; `None` for a definition with only an annotation.
     pub fn model_group(self) -> Option<ModelGroup<'a>> {
-        let (compositor, particles, _) = self.group().model.as_ref()?;
+        let (compositor, particles, loc) = self.group().model.as_ref()?;
         Some(ModelGroup {
             schema: self.schema,
             compositor: *compositor,
             particles,
+            loc: *loc,
         })
+    }
+
+    /// Its annotations (`annot`).
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.group().loc), Annotated::Group)
     }
 }
 
@@ -720,6 +832,12 @@ impl<'a> IdentityConstraint<'a> {
         let id = self.idc().refer?;
         Some(IdentityConstraint { id, ..self })
     }
+
+    /// Its annotations (`annot`), with its selector's and fields'.
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.idc().loc), Annotated::Idc)
+    }
 }
 
 impl<'a> AttributeDeclaration<'a> {
@@ -749,6 +867,13 @@ impl<'a> AttributeDeclaration<'a> {
     pub fn value(self) -> Option<Constraint<'a>> {
         constraint(&self.decl().value)
     }
+
+    /// A global declaration's annotations (`annot`); a local one's are its
+    /// use's.
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema
+            .annotations(Some(self.decl().loc), Annotated::Attribute)
+    }
 }
 
 impl<'a> AttributeUse<'a> {
@@ -769,6 +894,11 @@ impl<'a> AttributeUse<'a> {
     /// [`AttributeDeclaration::value`].
     pub fn value(self) -> Option<Constraint<'a>> {
         constraint(&self.used.value)
+    }
+
+    /// Its annotations (`annot`).
+    pub fn annotations(self) -> Annotations<'a> {
+        self.schema.annotations(Some(self.used.loc), Annotated::Use)
     }
 }
 

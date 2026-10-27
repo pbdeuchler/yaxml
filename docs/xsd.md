@@ -90,7 +90,20 @@ group, an extension's particle a sequence of its base's and its own,
 `maxOccurs="0"` particles and empty groups kept), with `Particle`, `Term`
 (element, `Wildcard`, `ModelGroup`) and `Compositor`; `model_group`/
 `model_groups` give the global `xs:group` definitions (`groupDecl`).
-Not exposed: enumerations, annotations and `version` (libxml2
+`annotations()` on each component (`Annotations`, libxml2's `annot`
+chain) yields its `xs:annotation` elements, copied under one synthetic
+`<annotations/>` document; the copies lose the schema's ancestors and,
+as libxml2's `xmlSchemaCleanupDoc` does before parsing, blank text
+(even under `xml:space="preserve"`), comments and PIs. Owners follow
+libxml2: annotations of `restriction`/`extension`/`simpleContent`/
+`complexContent`/`list`/`union` chain into the enclosing type, of
+`selector`/`field` into the IDC; a local attribute's goes to its use, a
+global one's to the declaration; an element or group reference's to the
+particle, a declaration's to the declaration; a compositor's to the model
+group; `any` to the particle, `anyAttribute` to the wildcard (an owner's
+complete wildcard keeps its own annotation; a built one has none).
+`Schema::annotation` is the first top-level one (`_xmlSchema.annot`).
+Not exposed: enumerations, facet annotations and `version` (libxml2
 never sets `_xmlSchema.version`). `Schema::target_namespace` is the main
 document's.
 

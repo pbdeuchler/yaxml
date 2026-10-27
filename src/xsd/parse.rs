@@ -21,7 +21,7 @@ pub(crate) const XSI: &str = "http://www.w3.org/2001/XMLSchema-instance";
 use crate::XML_NAMESPACE as XML_NS;
 
 /// Where a component was declared.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct Loc {
     pub(crate) doc: usize,
     pub(crate) node: OwnedNodeId,
@@ -195,6 +195,22 @@ pub(crate) struct IdcDraft {
     pub(crate) refer: Option<QName>,
 }
 
+/// The component an `xs:annotation` belongs to, by libxml2's `annot`
+/// owner: at one node a particle, a declaration or a use.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum Annotated {
+    Type,
+    Element,
+    Attribute,
+    Use,
+    AttrGroup,
+    Group,
+    ModelGroup,
+    Wildcard,
+    Particle,
+    Idc,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum GlobalKind {
     Type,
@@ -258,6 +274,10 @@ pub(crate) struct Drafts {
     pub(crate) idcs: Vec<IdcDraft>,
     pub(crate) redefines: Vec<Redefine>,
     pub(crate) diagnostics: Vec<SchemaDiagnostic>,
+    /// Annotations in parse order: owner, kind, the `xs:annotation`.
+    pub(crate) annotations: Vec<(Loc, Annotated, Loc)>,
+    /// The first top-level annotation (`schema->annot`).
+    pub(crate) schema_annotation: Option<Loc>,
 }
 
 impl Drafts {
@@ -503,6 +523,8 @@ impl Parser {
                 idcs: Vec::new(),
                 redefines: Vec::new(),
                 diagnostics: Vec::new(),
+                annotations: Vec::new(),
+                schema_annotation: None,
             },
             resolver,
             bytes_left: limits.max_bytes,
@@ -1315,6 +1337,54 @@ impl Parser {
                 _ => {}
             }
         }
+        self.note(cx, node);
+    }
+
+    /// Records `node` for the component libxml2 attaches it to: the parent,
+    /// the enclosing type for content/derivation children, the constraint
+    /// for selectors and fields.
+    fn note(&mut self, cx: &Cx, node: Id) {
+        let tree = &*cx.tree;
+        let Some(parent) = tree.parent(node) else {
+            return;
+        };
+        let up = |from: Id, stop: &[&str]| {
+            std::iter::successors(tree.parent(from), |&n| tree.parent(n))
+                .find(|&n| cx.local(n).is_some_and(|l| stop.contains(&l)))
+        };
+        let refers = cx.attr(parent, "ref").is_some();
+        let (owner, kind) = match cx.local(parent) {
+            Some("schema") => {
+                let annotation = Some(cx.loc(node));
+                self.drafts.schema_annotation = self.drafts.schema_annotation.or(annotation);
+                return;
+            }
+            Some("simpleType" | "complexType") => (Some(parent), Annotated::Type),
+            Some(
+                "restriction" | "extension" | "simpleContent" | "complexContent" | "list" | "union",
+            ) => (up(node, &["simpleType", "complexType"]), Annotated::Type),
+            Some("element" | "group" | "any") if refers || cx.is(Some(parent), "any") => {
+                (Some(parent), Annotated::Particle)
+            }
+            Some("element") => (Some(parent), Annotated::Element),
+            Some("group") => (Some(parent), Annotated::Group),
+            Some("attribute") if cx.is(tree.parent(parent), "schema") => {
+                (Some(parent), Annotated::Attribute)
+            }
+            Some("attribute") => (Some(parent), Annotated::Use),
+            Some("attributeGroup") if !refers => (Some(parent), Annotated::AttrGroup),
+            Some("sequence" | "choice" | "all") => (Some(parent), Annotated::ModelGroup),
+            Some("anyAttribute") => (Some(parent), Annotated::Wildcard),
+            Some("unique" | "key" | "keyref") => (Some(parent), Annotated::Idc),
+            Some("selector" | "field") => (tree.parent(parent), Annotated::Idc),
+            _ => (None, Annotated::Type),
+        };
+        if let Some(owner) = owner {
+            let entry = (cx.loc(owner), kind, cx.loc(node));
+            if self.drafts.annotations.try_push(entry).is_err() {
+                self.drafts.refuse();
+            }
+        }
     }
 
     fn skip_annotation(&mut self, cx: &Cx, children: &mut Children) {
@@ -1388,7 +1458,8 @@ impl Parser {
                 NsConstraint::Set(set)
             }
         };
-        let wildcard = (Wildcard { ns, process }, cx.loc(node));
+        let loc = Some(cx.loc(node));
+        let wildcard = (Wildcard { ns, process, loc }, cx.loc(node));
         // A refusal fails the build, so the index is never read.
         self.add(|d| &mut d.wildcards, wildcard).unwrap_or_default()
     }
