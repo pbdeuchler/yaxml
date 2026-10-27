@@ -882,7 +882,7 @@ I|xmlIsID|OwnedDocument::is_id
 P|xmlAddID xmlAddIDSafe xmlRemoveID|Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
 I|xmlValidGetPotentialChildren|valid::Element::potential_children
 I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at most 256 as libxml2
-N|xmlDumpNotationTable|writes in hash order (save writes notations in the DOCTYPE)
+P|xmlDumpNotationTable|save::notation_table - declaration order (libxml2: hash order)
 A|xmlValidState xmlValidStatePtr|opaque push-validation state; valid::StreamValidator keeps its own
 P|xmlIDTable xmlIDTablePtr|Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
 N|xmlRefTable xmlRefTablePtr|no public IDREF table: validators check IDREFs internally

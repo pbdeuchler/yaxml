@@ -2158,7 +2158,7 @@ valid.h	xmlDumpAttributeTable	function	yes	P2	removed-upstream	https://github.co
 valid.h	xmlDumpElementDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpElementTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
 valid.h	xmlDumpNotationDecl	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4
-valid.h	xmlDumpNotationTable	function	not_marked	P2	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	writes in hash order (save writes notations in the DOCTYPE)
+valid.h	xmlDumpNotationTable	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	save::notation_table - declaration order (libxml2: hash order)
 valid.h	xmlElementTable	typedef	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	valid::Dtd::elements - an iterator, no table type
 valid.h	xmlElementTablePtr	typedef	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	raw pointer alias
 valid.h	xmlFreeAttributeTable	function	yes	P2	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/valid.h	deprecated in 2.15.4

@@ -10,8 +10,7 @@ use std::collections::HashSet;
 use super::Out;
 use crate::dtd::{
     AttributeDefinitionView, AttributeKind, Connector, DefaultDeclarationView, DtdLimits,
-    DtdUnitView, ElementContentView, EntityDefinitionView, ExternalIdView, ModelTokenView,
-    Occurrence,
+    DtdUnitView, ElementContentView, EntityDefinitionView, ModelTokenView, Occurrence,
 };
 use crate::dtd_catalog::{DtdCatalog, StoredDefault};
 use crate::dtd_controller::{DtdController, DtdEvent};
@@ -252,7 +251,11 @@ fn declaration(
                         identifier,
                         notation,
                     } => {
-                        external(out, identifier);
+                        external(
+                            out,
+                            identifier.public.map(unquote),
+                            identifier.system.map(unquote),
+                        );
                         if let Some(notation) = notation {
                             out.raw(" NDATA ");
                             out.raw(notation);
@@ -264,11 +267,10 @@ fn declaration(
         }
         DtdUnitView::Notation(notation) => {
             if first("notation", notation.name()) {
-                notations.raw("<!NOTATION ");
-                notations.raw(notation.name());
-                notations.raw(" ");
-                external(notations, notation.identifier());
-                notations.raw(" >\n");
+                let identifier = notation.identifier();
+                let (public, system) = (identifier.public, identifier.system);
+                let (public, system) = (public.map(unquote), system.map(unquote));
+                self::notation(notations, notation.name(), public, system);
             }
         }
         DtdUnitView::Comment(text) => {
@@ -292,20 +294,30 @@ fn declaration(
     true
 }
 
-/// `PUBLIC "p" "s"` or `SYSTEM "s"`; only notations may lack the system literal.
-fn external(out: &mut Out<'_>, identifier: ExternalIdView<'_>) {
-    match identifier.public {
+/// `<!NOTATION name PUBLIC "p" "s" >`, as `xmlBufDumpNotationDecl` writes it.
+pub(super) fn notation(out: &mut Out<'_>, name: &str, public: Option<&str>, system: Option<&str>) {
+    out.raw("<!NOTATION ");
+    out.raw(name);
+    out.raw(" ");
+    external(out, public, system);
+    out.raw(" >\n");
+}
+
+/// `PUBLIC "p" "s"` or `SYSTEM "s"` of unquoted literals; only notations may
+/// lack the system literal.
+fn external(out: &mut Out<'_>, public: Option<&str>, system: Option<&str>) {
+    match public {
         Some(public) => {
             out.raw("PUBLIC ");
-            out.quoted(unquote(public), false);
-            if let Some(system) = identifier.system {
+            out.quoted(public, false);
+            if let Some(system) = system {
                 out.raw(" ");
-                out.quoted(unquote(system), false);
+                out.quoted(system, false);
             }
         }
         None => {
             out.raw("SYSTEM ");
-            out.quoted(identifier.system.map_or("", unquote), false);
+            out.quoted(system.unwrap_or_default(), false);
         }
     }
 }

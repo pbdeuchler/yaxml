@@ -483,6 +483,29 @@ pub enum Escape {
     Html,
 }
 
+/// Every notation of `dtd` as a `<!NOTATION ... >` line, in declaration
+/// order (`xmlDumpNotationTable`, which writes hash order).
+///
+/// # Errors
+///
+/// `Allocation` when the output cannot grow.
+pub fn notation_table(dtd: &crate::valid::Dtd) -> Result<String, Error> {
+    let mut bytes = Memory::default();
+    let mut out = Out::new(Output::Utf8, false, Some(&mut bytes));
+    for notation in dtd.notations() {
+        dtd::notation(
+            &mut out,
+            notation.name,
+            notation.public_id,
+            notation.system_id,
+        );
+    }
+    match out.finish() {
+        Ok(()) => Ok(String::from_utf8(bytes.0).expect("UTF-8 output")),
+        Err(_) => Err(Error::new(ErrorKind::Allocation, bytes.0.len())),
+    }
+}
+
 /// Escapes text for content (`xmlEncodeEntitiesReentrant`): `&`, `<` and
 /// `>` become references; for XML also `\r` becomes `&#13;` and other C0
 /// controls, NUL included, `&#xFFFD;`.

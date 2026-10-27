@@ -916,3 +916,35 @@ fn originals_are_libxml2_orig() {
         }
     }
 }
+
+#[test]
+fn notation_tables_print_as_libxml2_dumps_them() {
+    // xmlDumpNotationTable output from libxml2 2.15.4 (its hash order
+    // happens to match declaration order here).
+    let cases = [
+        (
+            "<!NOTATION a SYSTEM 'x.gif'>",
+            "<!NOTATION a SYSTEM \"x.gif\" >\n",
+        ),
+        ("<!NOTATION a PUBLIC 'p'>", "<!NOTATION a PUBLIC \"p\" >\n"),
+        (
+            "<!NOTATION a PUBLIC 'p' \"s'q\">",
+            "<!NOTATION a PUBLIC \"p\" \"s'q\" >\n",
+        ),
+        (
+            "<!NOTATION a SYSTEM '\"&amp;'>",
+            "<!NOTATION a SYSTEM '\"&amp;' >\n",
+        ),
+        (
+            "<!NOTATION b SYSTEM 'b'><!NOTATION a SYSTEM 'a'><!NOTATION b SYSTEM 'c'>",
+            "<!NOTATION b SYSTEM \"b\" >\n<!NOTATION a SYSTEM \"a\" >\n",
+        ),
+        ("", ""),
+    ];
+    for (subset, expected) in cases {
+        let input = format!("<!DOCTYPE r [{subset}]><r/>");
+        let document = OwnedDocument::parse(&input).unwrap();
+        let table = save::notation_table(document.dtd().unwrap());
+        assert_eq!(table.as_deref(), Ok(expected), "{subset}");
+    }
+}

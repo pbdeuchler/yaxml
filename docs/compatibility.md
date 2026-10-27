@@ -184,7 +184,9 @@ the validator's lexical check (`xmlValidateNameValue`, `NamesValue`,
 (`xmlEncodeEntitiesReentrant`, with `save::Escape` standing for the document
 argument: `Xml` with an encoding, `Ascii` without one or without a document,
 `Html`) and `save::encode_special_chars` (`xmlEncodeSpecialChars`) reuse the
-serializer's escaping tables. `yaxml::chars` holds the `chvalid.h`
+serializer's escaping tables. `save::notation_table` is `xmlDumpNotationTable`
+(still used by lxml), in declaration order where libxml2 writes hash order.
+`yaxml::chars` holds the `chvalid.h`
 predicates: `is_char`, `is_blank`, `is_pubid_char` (the parser's own Fifth
 Edition classes) and `is_base_char`, `is_ideographic`, `is_combining`,
 `is_digit`, `is_extender` (XML 1.0 Fourth Edition Appendix B, generated with
