@@ -10,12 +10,12 @@ Each row also carries a `status` and a `rust` column (roadmap item 20), generate
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | implemented | 22 | 108 | 705 | 118 | 0 | 102 | 14 | 314 | 1383 |
 | partial | 1 | 27 | 257 | 28 | 0 | 93 | 52 | 132 | 590 |
-| not-started | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 | 2 |
-| not-applicable | 24 | 36 | 832 | 48 | 75 | 200 | 86 | 462 | 1763 |
+| not-started | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| not-applicable | 24 | 36 | 833 | 48 | 75 | 200 | 87 | 462 | 1765 |
 | removed-upstream | 0 | 5 | 49 | 8 | 12 | 45 | 34 | 169 | 322 |
 | **Total** | 47 | 176 | 1844 | 202 | 87 | 440 | 187 | 1077 | 4060 |
 
-No `P0` row is `not-started` (`chvalid.h` is `yaxml::chars`); the two `not-started` rows are `OLDSAX` (a legacy predefined-entity lookup order: resolving it would put a DTD lookup in front of every predefined reference) and `xmlRegexpIsDeterminist` (a verdict on libxml2's own automaton construction). Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.
+No row is `not-started`. The last two, `OLDSAX` ([option compatibility](#option-compatibility)) and `xmlRegexpIsDeterminist` ([schema-types.md](schema-types.md#intentional-differences)), are declined and counted as not applicable. Status is per identifier, not per behaviour: a function marked `implemented` may still differ in documented ways listed in the feature rows below.
 
 ## Meaning of replacement
 
@@ -319,7 +319,7 @@ README.md#cargo-features). `tests/options.rs` covers each row; the `dom`, `owned
 | `NOERROR`, `NOWARNING` | Accepted: they only silence printed reports in libxml2; yaxml prints nothing and returns diagnostics. Warnings are kept in `errors()` regardless ([Warnings](#warnings)). |
 | `PEDANTIC` | Adds libxml2's pedantic warnings to `errors()`: `LangValue`, `EntityRedefined` and `RelativeNamespaceUri` for a prefix ([Warnings](#warnings)). |
 | `NOBLANKS` | DOMs: drops ignorable whitespace text with libxml2's `areBlanks` rules (DTD element content, `xml:space`, text kept earlier in an element without `xml:space`, sibling heuristic, which never drops text before an entity reference). `TextReader` drops them as libxml2's reader does, deciding when the text is queued (`TextReader::with_options`; [textreader.md](textreader.md)), and `PushParser` and `BufferedReader` drop the text events by the same rules ([streaming.md](streaming.md#recovery-and-blanks)); rejected by `Reader`. |
-| `SAX1`, `OLDSAX` | `SAX1` accepted (no SAX1 handlers; `sax::Handler` is the SAX2 shape); `OLDSAX` rejected (it changes predefined-entity lookup). |
+| `SAX1`, `OLDSAX` | `SAX1` accepted (no SAX1 handlers; `sax::Handler` is the SAX2 shape). `OLDSAX` is declined and rejected. libxml2 deprecates it as an "unspecified legacy mode"; its only parse effect is that a document's redeclaration of `lt`/`gt`/`amp`/`apos`/`quot` is found before the predefined entity. Only declarations equivalent to the predefined ones are kept, so without NOENT the reference becomes an entity-reference node instead of text. Supporting it would add a DTD lookup in front of every predefined reference in the tokenizer, attribute values and recorded expansions. |
 | `XINCLUDE` | `OwnedDocument::parse_with`: processes XInclude through the same resolver (`xinclude::process`); failures are `ErrorKind::XInclude`. Rejected by the borrowed DOM, streams and `TextReader`. |
 | `NONET`, `NO_SYS_CATALOG` | Accepted: nothing touches the network and there is no system catalog. |
 | `NODICT`, `COMPACT`, `BIG_LINES` | Accepted: storage layout only; positions are byte offsets. |

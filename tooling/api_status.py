@@ -166,7 +166,7 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "NOBLANKS": ("P", "every surface but the slice Reader"),
     "PEDANTIC": ("P", "xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported"),
     "OLD10": ("P", "Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names"),
-    "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
+    "OLDSAX": ("A", "declined: deprecated legacy predefined-entity lookup order; rejected with UnsupportedOption (docs/compatibility.md#option-compatibility)"),
     "UNZIP": ("I", "accepted with no effect, as libxml2 built without zlib (features::Feature::Zlib is false)"),
     "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver); syntax errors = Warning::CatalogPi"),
 }
@@ -1189,7 +1189,7 @@ I|xmlRegexpExec|regexp::Regex::is_match
 I|xmlRegexp|regexp::Regex
 A|xmlRegFreeRegexp xmlRegexpPtr|Drop
 R|xmlRegExecCallbacks xmlRegExecCtxt xmlRegExecCtxtPtr|types of the push execution functions, deprecated in 2.15.4
-N|xmlRegexpIsDeterminist|a verdict on libxml2's epsilon-NFA construction; regexp::Regex compiles a Thompson NFA
+A|xmlRegexpIsDeterminist|declined: a verdict on libxml2's own automaton construction, not on the language; matching never depends on it (docs/schema-types.md#intentional-differences)
 R|xmlAutomata* xmlFreeAutomata xmlNewAutomata|deprecated; LIBXML_AUTOMATA off in 2.15
 # ---- xinclude.h
 I|xmlXIncludeProcess xmlXIncludeProcessFlags xmlXIncludeProcessFlagsData|xinclude::process

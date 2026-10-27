@@ -131,6 +131,13 @@ exceeds the budget.
 - Values are UTF-8 Rust strings; a list is one `Value` of a list type, so
   there is no value chaining (`xmlSchemaValueAppend`/`GetNext`), and the
   progressive `xmlRegExec*`/`xmlAutomata*` interfaces are not implemented.
+- `xmlRegexpIsDeterminist` is declined. Its answer depends on libxml2's
+  automaton, not on the language: the order transitions are built in,
+  simple-epsilon folding (`a|a` counts as deterministic because both branches
+  collapse onto one state), atom comparisons that are conservative per
+  character category, and the `\P` bug above. Matching never depends on the
+  verdict. XSD content models, the one place libxml2 acts on determinism,
+  replicate the check in `src/xsd/automaton.rs` ([xsd.md](xsd.md)).
 
 ## Fuzzing
 

@@ -561,7 +561,7 @@ parser.h	XML_PARSE_NO_SYS_CATALOG	enum_value	not_marked	P0-P3	implemented	https:
 parser.h	XML_PARSE_NO_XXE	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NO_XXE
 parser.h	XML_PARSE_NSCLEAN	enum_value	not_marked	P0-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::NSCLEAN
 parser.h	XML_PARSE_OLD10	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLD10 - Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names
-parser.h	XML_PARSE_OLDSAX	enum_value	not_marked	P0-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLDSAX - constant defined, rejected with UnsupportedOption
+parser.h	XML_PARSE_OLDSAX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::OLDSAX - declined: deprecated legacy predefined-entity lookup order; rejected with UnsupportedOption (docs/compatibility.md#option-compatibility)
 parser.h	XML_PARSE_PEDANTIC	enum_value	not_marked	P0-P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	options::PEDANTIC - xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported
 parser.h	XML_PARSE_PUSH_DOM	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
 parser.h	XML_PARSE_PUSH_SAX	enum_value	not_marked	P0-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/parser.h	xmlParserMode value; internal
@@ -3420,7 +3420,7 @@ xmlregexp.h	xmlRegNewExecCtxt	function	yes	P2-P3	removed-upstream	https://github
 xmlregexp.h	xmlRegexp	typedef	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex
 xmlregexp.h	xmlRegexpCompile	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex::new
 xmlregexp.h	xmlRegexpExec	function	not_marked	P2-P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	regexp::Regex::is_match
-xmlregexp.h	xmlRegexpIsDeterminist	function	not_marked	P2-P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	a verdict on libxml2's epsilon-NFA construction; regexp::Regex compiles a Thompson NFA
+xmlregexp.h	xmlRegexpIsDeterminist	function	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	declined: a verdict on libxml2's own automaton construction, not on the language; matching never depends on it (docs/schema-types.md#intentional-differences)
 xmlregexp.h	xmlRegexpPrint	function	yes	P2-P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	deprecated in 2.15.4
 xmlregexp.h	xmlRegexpPtr	typedef	not_marked	P2-P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlregexp.h	Drop
 xmlsave.h	XML_SAVE_AS_HTML	enum_value	not_marked	P1	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xmlsave.h	save::AS_HTML
