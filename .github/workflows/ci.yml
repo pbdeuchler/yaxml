@@ -117,6 +117,8 @@ jobs:
       - name: Replay and mutate corpus with source coverage
         shell: bash
         env:
+          # rust-toolchain.toml pins stable 1.97.0; `-Z` needs the nightly.
+          RUSTUP_TOOLCHAIN: nightly-2026-10-18
           RUSTFLAGS: -C instrument-coverage -Z coverage-options=branch
           CARGO_TARGET_DIR: target/fuzz-coverage-build
           LLVM_PROFILE_FILE: target/fuzz-coverage/%p-%m.profraw

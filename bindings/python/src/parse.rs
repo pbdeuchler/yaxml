@@ -13,8 +13,8 @@ use pyo3::sync::MutexExt;
 use pyo3::types::{PyByteArray, PyBytes, PyString};
 use yaxml::diagnostic::Level;
 use yaxml::{
-    EditLimits, ErrorKind, LineIndex, NodeType, OwnedDocument, OwnedNodeId, ParseOptions, ReadError, Request,
-    Resolver, ResourceKind, TextReader, options,
+    EditLimits, ErrorKind, LineIndex, NodeType, OwnedDocument, OwnedNodeId, ParseOptions,
+    ReadError, Request, Resolver, ResourceKind, TextReader, options,
 };
 
 use crate::doc::{Doc, Name, NewElement, Tree, XMLNS};

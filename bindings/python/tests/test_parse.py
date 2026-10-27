@@ -199,7 +199,10 @@ def test_dtd_load_through_callable_resolver():
 
 
 def test_nothing_loaded_without_resolver():
-    root = et.fromstring(EXTERNAL, dtd_load=True, noent=True)
+    # libxml2 (and lxml) report the unloaded entity as an error under NOENT.
+    with pytest.raises(et.XMLSyntaxError, match="Entity 'ext' not defined"):
+        et.fromstring(EXTERNAL, dtd_load=True, noent=True)
+    root = et.fromstring(EXTERNAL, dtd_load=True, noent=True, recover=True)
     assert not root.text
 
 

@@ -1978,7 +1978,10 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
         }
         Warning::ReservedTarget => r.here(code, "xmlParsePITarget: invalid name prefix 'xml'"),
         Warning::UndeclaredEntity { .. } => {
-            let mut r = Cur { i: c.i + 1, ..*c };
+            let mut r = Cur {
+                i: c.i + usize::from(!c.eof()),
+                ..*c
+            };
             let outer = r.name(true).unwrap_or_default();
             r.i += usize::from(r.b() == b';');
             let undeclared = |name: &&str| matches!(declared(c, name, false), Ok(Declared::No));
