@@ -348,7 +348,7 @@ fn partial_dumps_follow_debugxml() {
         (
             "entities",
             debug::dump_entities(&document),
-            "DOCUMENT\nEntities in internal subset\ne : INTERNAL GENERAL, \n content \"v\"\n\
+            "DOCUMENT\nEntities in internal subset\ne : INTERNAL GENERAL, \n orig \"v\"\n content \"v\"\n\
              x : EXTERNAL PARSED, SYSTEM \"x.xml\"\nNo entities in external subset\n",
         ),
         (

@@ -390,6 +390,7 @@ fn predefined_entities() {
     for (name, content) in cases {
         let entity = valid::predefined_entity(name);
         assert_eq!(entity.and_then(|e| e.content), content, "{name}");
+        assert_eq!(entity.and_then(|e| e.original), content, "{name}");
         assert!(entity.is_none_or(|e| e.kind == EntityKind::Predefined && e.name == name));
     }
 }
@@ -854,4 +855,64 @@ fn external_attribute_lists_and_notations_survive_a_replaced_subset() {
     // The external <!ELEMENT d> lost to the internal one when read.
     assert_eq!((d.kind, names), (ContentKind::Undefined, vec!["z", "x"]));
     assert!(dtd.notation("n").is_some());
+}
+
+/// `Entity::original` is libxml2's `orig` (`xmlGetDocEntity(..)->orig` and
+/// `xmlGetParameterEntity`, libxml2 2.15.4): the literal of the first
+/// declaration, references unexpanded; none for external entities.
+#[test]
+fn originals_are_libxml2_orig() {
+    const INTERNAL: &str = r#"<!DOCTYPE r [<!ENTITY % p "x&#37;"><!ENTITY e "a&#60;&f;z">
+<!ENTITY f "plain"><!ENTITY f "second&#60;"><!ENTITY lt "&#38;#60;">
+<!ENTITY % d "<!ENTITY g 'in&#38;#38;pe'>">%d;<!ENTITY u SYSTEM "u.xml"><!ENTITY ee "">]><r/>"#;
+    const EXTERNAL: &str =
+        "<!ENTITY % q 'Q&#60;'><!ENTITY ex 'ext&#38;&#60;%q;'><!ENTITY ok 'same'>";
+    type Expected<'a> = &'a [(&'a str, Option<&'a str>, Option<&'a str>)];
+    let cases: [(&str, u32, Expected); 2] = [
+        (
+            INTERNAL,
+            0,
+            &[
+                ("e", Some("a&#60;&f;z"), Some("a<&f;z")),
+                ("f", Some("plain"), Some("plain")),
+                ("%p", Some("x&#37;"), Some("x%")),
+                ("lt", Some("&#38;#60;"), Some("&#60;")),
+                ("g", Some("in&#38;pe"), Some("in&pe")),
+                ("u", None, None),
+                ("ee", Some(""), Some("")),
+                ("amp", Some("&"), Some("&")),
+                (
+                    "%d",
+                    Some("<!ENTITY g 'in&#38;#38;pe'>"),
+                    Some("<!ENTITY g 'in&#38;pe'>"),
+                ),
+                ("missing", None, None),
+            ],
+        ),
+        (
+            r#"<!DOCTYPE r SYSTEM "ext.dtd"><r/>"#,
+            options::DTDLOAD,
+            &[
+                ("%q", Some("Q&#60;"), Some("Q<")),
+                ("ex", Some("ext&#38;&#60;%q;"), Some("ext&<Q<")),
+                ("ok", Some("same"), Some("same")),
+            ],
+        ),
+    ];
+    for (input, flags, expected) in cases {
+        let resolver = move |request: Request<'_>| {
+            Ok((request.uri == "dir/ext.dtd").then(|| EXTERNAL.as_bytes().to_vec()))
+        };
+        let options = ParseOptions::new(flags).with_resolver("dir/doc.xml", Box::new(resolver));
+        let document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+        let dtd = document.dtd().unwrap();
+        for &(name, original, content) in expected {
+            let entity = match name.strip_prefix('%') {
+                Some(name) => dtd.parameter_entity(name),
+                None => dtd.entity(name),
+            };
+            let found = entity.map_or((None, None), |e| (e.original, e.content));
+            assert_eq!(found, (original, content), "{name}");
+        }
+    }
 }

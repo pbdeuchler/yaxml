@@ -705,7 +705,7 @@ I|_xmlEntity.ExternalID|valid::Entity::public_id
 I|_xmlEntity.SystemID|valid::Entity::system_id
 P|_xmlEntity.URI|valid::Entity::uri - resolved only when a resolver supplies the base
 A|_xmlEntity.length|str::len of valid::Entity::content
-N|_xmlEntity.orig|the literal as written is not kept
+I|_xmlEntity.orig|valid::Entity::original
 # ---- xmlerror.h
 A|xmlLastError __xmlStructuredError*|no global error state
 A|xmlGetLastError xmlResetLastError xmlResetError xmlCopyError xmlCtxtResetLastError xmlSetGenericErrorFunc xmlSetStructuredErrorFunc initGenericErrorDefaultFunc xmlGenericError* xmlStructuredError* xmlParserError xmlParserWarning xmlParserValidityError xmlParserValidityWarning xmlParserPrintFileInfo xmlParserPrintFileContext __xmlGenericError*|no global error state or printing; diagnostics are returned values
@@ -1137,7 +1137,7 @@ I|xmlDebugDumpAttr|debug::dump_attribute - attribute by position
 I|xmlDebugDumpAttrList|debug::dump_attributes
 P|xmlDebugDumpDocument|debug::dump_document - no NOENT entity-declaration children, CRLF and `<?pi ?>` divergences (feature `debug`)
 P|xmlDebugDumpDTD|debug::dump_dtd - the internal subset re-read, as save reads it
-P|xmlDebugDumpEntities|debug::dump_entities - declaration order, no `orig`
+P|xmlDebugDumpEntities|debug::dump_entities - declaration order
 P|xmlDebugCheckDocument|debug::check_document - detached roots and non-Name names; the tree keeps libxml2's other checked invariants
 A|xmlMem* xmlGcMem* xmlMalloc* xmlRealloc* xmlFree xmlFreeFunc xmlCleanupMemory xmlInitMemory xmlMemoryStrdup xmlMemoryDump xmlStrdupFunc __xmlFree __xmlMalloc __xmlMallocAtomic __xmlMemStrdup __xmlRealloc|global allocator and Drop; no allocation callbacks
 A|xmlCheckThreadLocalStorage xmlCleanupThreads xmlFreeMutex xmlFreeRMutex xmlInitThreads xmlLockLibrary xmlMutex xmlMutexLock xmlMutexPtr xmlMutexUnlock xmlNewMutex xmlNewRMutex xmlRMutex xmlRMutexLock xmlRMutexPtr xmlRMutexUnlock xmlUnlockLibrary|no global state; types are Send

@@ -169,7 +169,8 @@ storage: `entity` (`xmlGetDocEntity`, falling back to
 `notation` (`xmlGetDtdNotationDesc`) and the iterators `entities`,
 `elements` (with `Element::attributes`) and `notations` in declaration
 order. `valid::Entity` carries libxml2's entity type (`EntityKind`, the
-`xmlEntityType` numbers), name, `content`, public and system identifiers,
+`xmlEntityType` numbers), name, `content`, `original` (the literal as
+written, libxml2's `orig`), public and system identifiers,
 `uri`, the `NDATA` notation and whether the external subset declared it
 (`xmlGetDtdEntity` is `entities()` filtered on `external_subset`).
 `valid::Element` has `ContentKind` (`xmlElementTypeVal`) and the content
@@ -657,11 +658,11 @@ Differences:
   content or in an attribute value. Under `NOENT` there is none, so a
   declaration has no children, and an ATTLIST default always shows its
   references (libxml2 substitutes them under `NOENT`).
-- Entity values hold normalized line ends; libxml2 keeps the CR of a CRLF.
+- Entity values and originals hold normalized line ends; libxml2 keeps the
+  CR of a CRLF.
 - A PI without data never shows `content=`; libxml2 prints an empty one for
   `<?pi ?>`.
-- `dump_entities` lists entities in declaration order (libxml2: hash order)
-  and never prints `orig`.
+- `dump_entities` lists entities in declaration order (libxml2: hash order).
 - `check_document` reports detached roots (5013) and names outside the Name
   production (5034). libxml2's link, dictionary, parent and namespace-scope
   checks test invariants the owned tree keeps by construction.

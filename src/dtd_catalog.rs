@@ -120,6 +120,9 @@ pub(crate) struct EntityDecl {
     /// Where an internal entity's replacement text appears verbatim in the
     /// complete input, as its declaration's literal.
     pub(crate) input: Option<usize>,
+    /// An internal entity's literal as written (libxml2's `orig`), when it
+    /// differs from the replacement text.
+    pub(crate) literal: Option<Box<str>>,
 }
 
 #[derive(Clone, Copy)]
@@ -521,7 +524,7 @@ impl DtdCatalog {
             }
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
-                let mut input = None;
+                let (mut input, mut written) = (None, None);
                 // WFC Entity Declared: a standalone document cannot use general
                 // entities from external markup, so they are stored (libxml2
                 // still finds them for ENTITY attributes) but never bound.
@@ -561,8 +564,11 @@ impl DtdCatalog {
                             return Ok(redefined);
                         }
                         let bytes = result.len();
-                        input = context.input.filter(|_| result == content);
-                        input = input.map(|unit| unit + offset);
+                        match result == content {
+                            true => input = context.input.map(|unit| unit + offset),
+                            false => written = Some(copy_string(content)?.into_boxed_str()),
+                        }
+                        let bytes = bytes + written.as_ref().map_or(0, |text| text.len());
                         (EntityBody::Internal(result.into_owned()), bytes)
                     }
                     EntityDefinitionView::External {
@@ -590,7 +596,8 @@ impl DtdCatalog {
                 };
                 self.store_bytes(checked_sum(&[entity.name().len(), bytes])?)?;
                 self.add_binding()?;
-                self.insert_entity(entity.name(), (parameter, bound, input), body)?;
+                let stored = (parameter, bound, input, written);
+                self.insert_entity(entity.name(), stored, body)?;
             }
             DtdUnitView::AttributeList(list) => {
                 let mut warning = None;
@@ -725,7 +732,7 @@ impl DtdCatalog {
     fn insert_entity(
         &mut self,
         name: &str,
-        (parameter, bound, input): (bool, bool, Option<usize>),
+        (parameter, bound, input, literal): (bool, bool, Option<usize>, Option<Box<str>>),
         body: EntityBody,
     ) -> Result<(), DtdError> {
         let dtd = &mut self.dtd;
@@ -737,6 +744,7 @@ impl DtdCatalog {
             parameter,
             external_subset: self.reading_external_subset,
             input,
+            literal,
         });
         // `apply` returned for duplicates: the name is new to its table.
         let table = match (bound, parameter) {

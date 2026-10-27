@@ -667,6 +667,9 @@ pub struct Entity<'a> {
     /// resolver has loaded it; an unparsed entity's notation, as libxml2
     /// stores it; otherwise `None`.
     pub content: Option<&'a str>,
+    /// An internal or predefined entity's literal as written, references
+    /// unexpanded (libxml2's `orig`); `None` for external entities.
+    pub original: Option<&'a str>,
     /// The public identifier.
     pub public_id: Option<&'a str>,
     /// The system identifier as written.
@@ -968,6 +971,7 @@ pub fn predefined_entity(name: &str) -> Option<Entity<'static>> {
         name,
         kind: EntityKind::Predefined,
         content: Some(content),
+        original: Some(content),
         public_id: None,
         system_id: None,
         uri: None,
@@ -997,6 +1001,10 @@ impl Dtd {
                 .body
                 .text()
                 .or(external.and_then(|e| e.notation.as_deref())),
+            original: decl.literal.as_deref().or(match &decl.body {
+                EntityBody::Internal(text) => Some(text),
+                EntityBody::External(_) => None,
+            }),
             public_id: external.and_then(|external| external.public.as_deref()),
             system_id: external.and_then(|external| external.system.as_deref()),
             uri: external

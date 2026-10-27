@@ -135,6 +135,9 @@ pub fn dump_entities<A: Allocator>(document: &OwnedDocument<A>) -> String {
             if let Some(system) = entity.system_id {
                 _ = write!(out, "SYSTEM \"{system}\"");
             }
+            if let Some(original) = entity.original {
+                _ = write!(out, "\n orig \"{original}\"");
+            }
             if let Some(content) = content(entity) {
                 _ = write!(out, "\n content \"{content}\"");
             }
