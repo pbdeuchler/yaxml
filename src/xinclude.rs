@@ -180,21 +180,41 @@ pub fn process(
     resolver: Box<dyn Resolver>,
     options: &Options,
 ) -> Result<OwnedDocument, Error> {
+    process_node(document, document.root().id(), base, resolver, options)
+        .expect("the document node is in its tree")
+}
+
+/// [`process`] limited to the subtree of `node` (`xmlXIncludeProcessNode`,
+/// `xmlXIncludeProcessTree`): inclusions elsewhere are copied as they are,
+/// and only the subtree is checked for misplaced `xi:fallback`s. `None` for
+/// a node that is not in `document`'s tree (stale or detached).
+pub fn process_node(
+    document: &OwnedDocument,
+    node: OwnedNodeId,
+    base: &str,
+    resolver: Box<dyn Resolver>,
+    options: &Options,
+) -> Option<Result<OwnedDocument, Error>> {
+    let top = document.node(node)?;
+    let root = std::iter::successors(Some(top), |node| node.parent()).last()?;
+    if root.kind() != OwnedNodeKind::Document {
+        return None;
+    }
     let budget = Budget {
         resolver,
         loads: options.limits.max_external_loads,
         bytes: options.limits.max_external_bytes,
         exceeded: None,
     };
-    Processor {
+    let mut processor = Processor {
         options,
         loader: Loader(Arc::new(Mutex::new(budget))),
         documents: Vec::new(),
         texts: HashMap::new(),
         legacy: false,
         visited: 0,
-    }
-    .document(document, base, 0)
+    };
+    Some(processor.document(document, top, base, 0))
 }
 
 /// The caller's resolver with the call's cumulative budgets, shared with the
@@ -333,6 +353,7 @@ impl Processor<'_> {
     fn document(
         &mut self,
         document: &OwnedDocument,
+        top: OwnedNode<'_>,
         url: &str,
         depth: usize,
     ) -> Result<OwnedDocument, Error> {
@@ -342,7 +363,7 @@ impl Processor<'_> {
             memo: HashMap::new(),
             subsets: Vec::new(),
         };
-        self.walk(&mut local, document.root(), depth, true)?;
+        self.walk(&mut local, top, depth, true)?;
         self.emit(&local)
     }
 
@@ -625,7 +646,7 @@ impl Processor<'_> {
         };
         let ids = (document.doctype())
             .map(|doctype| [doctype.public_id, doctype.system_id].map(|id| id.map(str::to_owned)));
-        let processed = self.document(&document, url, depth)?;
+        let processed = self.document(&document, document.root(), url, depth)?;
         if let Some(ids) = ids {
             let dtd = document.dtd().cloned().map(Box::new);
             local.subsets.push(Subset {

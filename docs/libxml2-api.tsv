@@ -2243,10 +2243,10 @@ xinclude.h	xmlXIncludeNewContext	function	not_marked	P2	partial	https://github.c
 xinclude.h	xmlXIncludeProcess	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process
 xinclude.h	xmlXIncludeProcessFlags	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process
 xinclude.h	xmlXIncludeProcessFlagsData	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process
-xinclude.h	xmlXIncludeProcessNode	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process - whole documents only
-xinclude.h	xmlXIncludeProcessTree	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process - whole documents only
-xinclude.h	xmlXIncludeProcessTreeFlags	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process - whole documents only
-xinclude.h	xmlXIncludeProcessTreeFlagsData	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process - whole documents only
+xinclude.h	xmlXIncludeProcessNode	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process_node - returns the processed copy
+xinclude.h	xmlXIncludeProcessTree	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process_node - returns the processed copy
+xinclude.h	xmlXIncludeProcessTreeFlags	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process_node - returns the processed copy
+xinclude.h	xmlXIncludeProcessTreeFlagsData	function	not_marked	P2	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::process_node - returns the processed copy
 xinclude.h	xmlXIncludeSetErrorHandler	function	not_marked	P2	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	Drop; errors returned by xinclude::process
 xinclude.h	xmlXIncludeSetFlags	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::Options
 xinclude.h	xmlXIncludeSetResourceLoader	function	not_marked	P2	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/xinclude.h	xinclude::Options

@@ -1142,7 +1142,7 @@ N|xmlRegexpIsDeterminist|a verdict on libxml2's epsilon-NFA construction; regexp
 R|xmlAutomata* xmlFreeAutomata xmlNewAutomata|deprecated; LIBXML_AUTOMATA off in 2.15
 # ---- xinclude.h
 I|xmlXIncludeProcess xmlXIncludeProcessFlags xmlXIncludeProcessFlagsData|xinclude::process
-P|xmlXIncludeProcessNode xmlXIncludeProcessTree xmlXIncludeProcessTreeFlags xmlXIncludeProcessTreeFlagsData|xinclude::process - whole documents only
+I|xmlXIncludeProcessNode xmlXIncludeProcessTree xmlXIncludeProcessTreeFlags xmlXIncludeProcessTreeFlagsData|xinclude::process_node - returns the processed copy
 P|xmlXIncludeNewContext xmlXIncludeSetFlags xmlXIncludeSetResourceLoader|xinclude::Options
 A|xmlXIncludeFreeContext xmlXIncludeCtxt xmlXIncludeCtxtPtr xmlXIncludeSetErrorHandler xmlXIncludeGetLastError|Drop; errors returned by xinclude::process
 I|XINCLUDE_NS|xinclude::NS
