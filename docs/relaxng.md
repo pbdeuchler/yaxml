@@ -183,7 +183,11 @@ and stdout on all 798 schema and instance pairs of `tests/yaxmllint.rs`.
   are checked as libxml2 does, not with the ID-type consistency rules of
   the DTD compatibility specification.
 - Messages follow libxml2's wording; inside `choice` and `interleave` the
-  message chosen can differ.
+  message chosen can differ. Codes only libxml2's backtracking raises
+  (`EXTRACONTENT`, `EXTRADATA`, `INTEREXTRA`, `INTERSEQ`, `NOTELEM`) never
+  occur: the error the derivative reaches is reported instead (for an extra
+  `c` in an interleave, `Did not expect element c there` where libxml2 says
+  `Element r has extra content: c`).
 
 ## Declined: `xmlRelaxNGDump`, `xmlRelaxNGDumpTree`
 

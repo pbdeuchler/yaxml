@@ -469,6 +469,18 @@ impl PushParser {
     pub fn finish(self) -> Result<Parsed, Error> {
         self.0.finish()?.document()
     }
+
+    /// Drops the document in progress (or the terminal error) and starts a
+    /// new one with the same options, like `htmlCtxtReset`. Nothing is
+    /// recycled.
+    ///
+    /// # Errors
+    ///
+    /// Allocation failure, which leaves the parser unchanged.
+    pub fn reset(&mut self) -> Result<(), Error> {
+        *self = Self::new(self.0.engine.options)?;
+        Ok(())
+    }
 }
 
 /// Incremental event parsing, like `htmlParseChunk` with custom SAX

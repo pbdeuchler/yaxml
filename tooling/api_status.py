@@ -918,7 +918,7 @@ I|htmlCreatePushParserCtxt|html::PushParser::new
 I|htmlParseChunk|html::PushParser::feed, html::PushParser::finish
 P|htmlCreateFileParserCtxt htmlCreateMemoryParserCtxt htmlNewParserCtxt htmlCtxtSetOptions htmlCtxtUseOptions|html::Options::new
 P|htmlNewSAXParserCtxt|html::parse_events, html::EventParser::new - a closure receives each callback as an html::Event
-N|htmlCtxtReset|ctxt reuse not started (docs/html.md)
+P|htmlCtxtReset|html::PushParser::reset - no allocations recycled; EventParser: build a new one
 A|htmlFreeParserCtxt|Drop
 P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
@@ -1034,6 +1034,7 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
+A|XML_RELAXNG_ERR_EXTRACONTENT XML_RELAXNG_ERR_EXTRADATA XML_RELAXNG_ERR_INTEREXTRA XML_RELAXNG_ERR_INTERSEQ XML_RELAXNG_ERR_NOTELEM|raised by libxml2's backtracking engine only; yaxml's derivative engine reports the libxml2 error its states reach (ELEMWRONG/TEXTWRONG/LISTEXTRA/NOELEM), a documented divergence (docs/relaxng.md)
 A|XML_RELAXNG_ERR_ELEMNOTEMPTY XML_RELAXNG_ERR_LACKDATA|never raised by libxml2 2.15.4: relaxng.c only names them in its message table
 A|XML_RELAXNG_ERR_NOGRAMMAR XML_RELAXNG_ERR_NOSTATE XML_RELAXNG_ERR_NODEFINE XML_RELAXNG_ERR_INTERNODATA|raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
 A|xmlRelaxNGValidateFullElement|relaxng::Stream never asks for a subtree (docs/relaxng.md)

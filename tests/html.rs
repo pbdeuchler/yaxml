@@ -630,6 +630,35 @@ fn push_errors_are_terminal() {
 }
 
 #[test]
+fn push_reset_starts_over_with_the_same_options() {
+    let options = Options::DEFAULT
+        .flags(html::NOIMPLIED)
+        .limits(Limits::default().max_input_bytes(8));
+    // (fed before the reset, whether that feed fails, fed after it).
+    let cases: &[(&[u8], bool, &[u8])] = &[
+        (b"<b>x", false, b"<p>y"),
+        (b"", false, b"<p>y"),
+        (b"<p>too long", true, b"<p>y"),
+    ];
+    for &(before, fails, after) in cases {
+        let mut parser = PushParser::new(options).unwrap();
+        assert_eq!(parser.feed(before).is_err(), fails);
+        parser.reset().unwrap();
+        parser.feed(after).unwrap();
+        let reset = html::save(&parser.finish().unwrap().document, false).unwrap();
+        let fresh = html::parse(after, options).unwrap().document;
+        assert_eq!(reset, html::save(&fresh, false).unwrap());
+        // The limit survives the reset and counts the new document from 0.
+        let mut parser = PushParser::new(options).unwrap();
+        let _ = parser.feed(before);
+        parser.reset().unwrap();
+        parser.feed(b"<p>12345").unwrap();
+        let error = parser.feed(b"6").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::LimitExceeded(Limit::InputBytes));
+    }
+}
+
+#[test]
 fn documents_are_marked_html() {
     let parsed = parse(b"", html::NODEFDTD);
     assert!(parsed.document.is_html());

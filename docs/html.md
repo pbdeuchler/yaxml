@@ -307,5 +307,7 @@ head is empty, so per-subtree output differs
 - Warnings for unusable prescan labels are not reported.
 - A DOCTYPE in a fragment is dropped; libxml2 replaces the context document's
   DOCTYPE only in its prolog state, which content parsing never is.
-- `htmlCtxtReset` and node-info recording (`HTML_PARSE_*` record_info) are
+- `htmlCtxtReset` is `PushParser::reset`, which builds a fresh parser with the
+  same options (nothing recycled); `EventParser` has none (its handler moves
+  into the parser): build a new one. Node-info recording (`record_info`) is
   not implemented.
