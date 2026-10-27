@@ -474,7 +474,6 @@ fn annotations(d: &Drafts) -> Result<Option<Notes>, ()> {
             .try_push(node)
             .map_err(drop)?;
     }
-    drop(editor);
     Ok(Some(Notes {
         doc,
         owners,

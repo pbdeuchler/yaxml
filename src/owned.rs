@@ -1692,7 +1692,7 @@ impl<A: Allocator> Editor<'_, A> {
         let mut children = self.document.root().children();
         let doctype = children.find(|node| node.kind() == OwnedNodeKind::DocumentType);
         doctype
-            .map(|node| node.id().slot.0)
+            .map(|node| node.id().slot)
             .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))
     }
 
@@ -1747,7 +1747,7 @@ impl<A: Allocator> Editor<'_, A> {
         let kept = if replace { "" } else { subset };
         let joined = crate::fallible::concat(&[kept, markup])
             .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
-        let doctype = doctype.map(|node| node.id().slot.0);
+        let doctype = doctype.map(|node| node.id().slot);
         let name = (doctype.is_none()).then(|| name.to_owned());
         let created = self.document.edit_created_nodes + usize::from(doctype.is_none());
         if created > self.limits.max_created_nodes {
@@ -1773,7 +1773,7 @@ impl<A: Allocator> Editor<'_, A> {
                     self.limits.max_owned_bytes,
                 );
                 let name = self.document.pool.store_edit(&name, spent, limit)?;
-                let id = NodeId(self.document.nodes.len());
+                let id = NodeId::new(self.document.nodes.len());
                 (self.document.nodes.try_reserve(1))
                     .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
                 let content = Content::DocumentType(StoredDoctype {
@@ -1784,7 +1784,7 @@ impl<A: Allocator> Editor<'_, A> {
                 });
                 self.document.nodes.push(OwnedRecord::detached(id, content));
                 let root = self.document.root_element;
-                self.document.attach(id.0, 0, Link::new(root));
+                self.document.attach(id.index(), 0, Link::new(root));
                 self.document.edit_created_nodes = created;
             }
         }
