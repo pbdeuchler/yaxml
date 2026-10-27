@@ -181,10 +181,15 @@ fn components(schema: &Schema) -> BTreeSet<String> {
         definition(&mut out, ty);
         lines.insert(out);
     }
+    for (namespace, name) in schema.notations() {
+        lines.insert(format!("notation {}", qualified(namespace, Some(name))));
+    }
     lines
 }
 
 const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:t='urn:t' targetNamespace='urn:t' blockDefault='extension' finalDefault='restriction'>
+<xs:notation name='n' public='p' system='s'/>
+<xs:notation name='a' public='q'/>
 <xs:element name='e' type='xs:int' default='3' nillable='true'/>
 <xs:element name='f' type='xs:string' fixed='x' abstract='true' block='#all'/>
 <xs:attribute name='g' fixed='1'><xs:simpleType><xs:list itemType='xs:int'/></xs:simpleType></xs:attribute>
@@ -197,10 +202,12 @@ const SCHEMA: &str = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' xml
 </xs:schema>";
 
 /// Recorded with the helper.
-const COMPONENTS: [&str; 9] = [
+const COMPONENTS: [&str; 11] = [
     "attribute {urn:t}g type=#anon fixed=1 :: type #anon base={http://www.w3.org/2001/XMLSchema}anySimpleType derivation=restriction final= block= ws=collapse facets= patterns=0 simple variety=list item={http://www.w3.org/2001/XMLSchema}int",
     "element {urn:t}e type={http://www.w3.org/2001/XMLSchema}int nillable=1 abstract=0 default=3 block=e",
     "element {urn:t}f type={http://www.w3.org/2001/XMLSchema}string nillable=0 abstract=1 fixed=x block=ers",
+    "notation {urn:t}a",
+    "notation {urn:t}n",
     "type {urn:t}b base={http://www.w3.org/2001/XMLSchema}anyType derivation=restriction final=r block=r complex abstract=1 content=empty use=x! wildcard=not:urn:t process=skip",
     "type {urn:t}d base={http://www.w3.org/2001/XMLSchema}decimal derivation=restriction final= block= ws=collapse facets=minExclusive,totalDigits, patterns=1 simple variety=atomic",
     "type {urn:t}m base={urn:t}b derivation=extension final=r block=e complex abstract=0 content=mixed use={urn:t}g? use=x! wildcard=not:urn:t process=skip",

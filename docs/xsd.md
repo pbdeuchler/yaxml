@@ -64,7 +64,9 @@ A simple type also gives its whitespace handling (`None` for a union, as
 libxml2 sets no flag), its effective facets (`facetSet`: inherited
 length, bound, digit and `whiteSpace` facets included, as typed
 `schema_types::Facet` values, not lexical) and this derivation step's
-patterns; enumerations have no view.
+patterns; enumerations have no view. `notations()` lists the global
+notation declarations as sorted (namespace, name) pairs: libxml2 keeps
+neither public nor system identifier (`identifier` is never set).
 `ElementDeclaration` gives the type, nillable, abstract, `block` and value
 constraint; `AttributeUse::value` is the use's own constraint, not the
 declaration's, as in libxml2. tests/xsd_components.rs prints them in the line
@@ -75,7 +77,7 @@ derived by restriction lists its base's member types (libxml2 leaves
 `memberTypes` empty), and wildcard namespace sets are sorted, absent
 namespace first (libxml2 keeps document order). Not exposed: substitution
 groups, particles and model groups, attribute groups (flattened into uses),
-enumerations, identity constraints, notations, annotations and the schema's own
+enumerations, identity constraints, annotations and the schema's own
 `targetNamespace`/`version`.
 
 ## Pipeline
@@ -163,6 +165,9 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   126 MB for 2,000 of them and 170 s and 468 MB for 4,000, both accepted;
   yaxml compiles up to 1,741 (0.35 s, 132 MB resident) and rejects longer
   ones within about 115 MB.
+- A schema with nothing to fix up (only notation declarations) never fills
+  libxml2's global tables, so it has no `notaDecl` and repeated notation
+  names pass; yaxml registers and checks them as in every other schema.
 - `xml:base` in schema documents is ignored when resolving locations;
   attribute-use value constraints are not checked against the declaration's,
   as in libxml2.

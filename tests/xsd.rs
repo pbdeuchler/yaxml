@@ -1321,6 +1321,18 @@ const CASES: &[Case] = &[
         "V 1824",
     ),
     (
+        "second notation of a document",
+        "<xs:notation name='png' public='image/png'/><xs:notation name='gif' public='image/gif'/><xs:element name='r'><xs:simpleType><xs:restriction base='xs:NOTATION'><xs:enumeration value='gif'/></xs:restriction></xs:simpleType></xs:element>",
+        "<r>gif</r>",
+        "V",
+    ),
+    (
+        "duplicate notation",
+        "<xs:notation name='gif' public='image/gif'/><xs:notation name='gif' public='image/gif'/><xs:element name='r'/>",
+        "<r/>",
+        "S 1761",
+    ),
+    (
         "notation without name",
         "<xs:notation public='image/gif'/>",
         "<r/>",

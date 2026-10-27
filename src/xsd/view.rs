@@ -253,6 +253,17 @@ impl Schema {
         all.sort_by_key(|attribute| (attribute.namespace(), attribute.name()));
         all.into_iter()
     }
+
+    /// The global notation declarations as (target namespace, name), sorted
+    /// (`_xmlSchema.notaDecl`; like libxml2, public and system identifiers
+    /// are not kept).
+    pub fn notations(&self) -> impl Iterator<Item = (Option<&str>, &str)> {
+        let mut all: Vec<_> = (self.data.notations.iter())
+            .map(|name| (self.ns(name.ns), self.data.names.str(name.local)))
+            .collect();
+        all.sort_unstable();
+        all.into_iter()
+    }
 }
 
 impl<'a> TypeDefinition<'a> {

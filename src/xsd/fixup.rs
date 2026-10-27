@@ -515,7 +515,7 @@ impl Fix {
                 return self.d.refuse();
             }
             if excluded.contains(&(global.kind, global.id))
-                || !added.insert((global.kind, global.id, global.loc.doc))
+                || !added.insert((global.kind, global.id, global.loc.doc, global.loc.node))
             {
                 continue;
             }

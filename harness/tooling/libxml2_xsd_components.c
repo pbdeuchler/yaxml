@@ -112,7 +112,12 @@ static void type(void *p, void *d, const xmlChar *k) {
   }
   if (!k || *k) printf("\n");
 }
+static void nota(void *p, void *d, const xmlChar *k) {
+  xmlSchemaNotationPtr n = p;
+  printf("notation "); name(n->targetNamespace, n->name); printf("\n");
+}
 static void scan(xmlSchemaPtr s) {
+  xmlHashScan(s->notaDecl, nota, NULL);
   xmlHashScan(s->elemDecl, elem, NULL);
   xmlHashScan(s->attrDecl, attr, NULL);
   xmlHashScan(s->typeDecl, type, NULL);

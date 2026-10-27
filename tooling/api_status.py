@@ -307,8 +307,9 @@ FIELD_DEFAULT = {
     "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
     "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink SchemaNotation".split():
-    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations, attribute groups or notations")
+for _s in "SchemaAnnot SchemaAttributeGroup SchemaAttributeLink".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no view of annotations or attribute groups")
+FIELD_DEFAULT["_xmlSchemaNotation"] = ("A", "never set by libxml2 (identifier) or builder bookkeeping")
 for _s in "SchemaFacet SchemaFacetLink".split():
     FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; schema_types::Facet is the compiled facet")
 for _s in "Schema SchemaAttribute SchemaElement SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
@@ -1020,8 +1021,10 @@ P|xmlSchemaTypeType|xsd::TypeKind - simple or complex; other component kinds hav
 I|_xmlSchema.elemDecl|xsd::Schema::element, xsd::Schema::elements
 I|_xmlSchema.attrDecl|xsd::Schema::attribute, xsd::Schema::attributes
 I|_xmlSchema.typeDecl|xsd::Schema::type_definition, xsd::Schema::type_definitions
+I|_xmlSchema.notaDecl _xmlSchemaNotation.name _xmlSchemaNotation.targetNamespace|xsd::Schema::notations - (namespace, name) pairs
+P|xmlSchemaNotation xmlSchemaNotationPtr|xsd::Schema::notations - pairs, no notation type
 A|_xmlSchema.schemasImports|imported components are found by the same lookups
-N|_xmlSchema.targetNamespace _xmlSchema.version _xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef _xmlSchema.notaDecl|no view of the schema document, model groups, attribute groups, IDCs or notations
+N|_xmlSchema.targetNamespace _xmlSchema.version _xmlSchema.groupDecl _xmlSchema.attrgrpDecl _xmlSchema.idcDef|no view of the schema document, model groups, attribute groups or IDCs
 I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
 I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
 I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
@@ -1095,7 +1098,7 @@ I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
 I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
 A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
 A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
-N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
+N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaVal xmlSchemaValPtr XML_SCHEMA_TYPE_*|no view of annotations, particles, model groups, attribute groups, facets, IDCs or notations
 A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h
