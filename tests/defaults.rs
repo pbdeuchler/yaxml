@@ -92,7 +92,7 @@ fn cases() -> Vec<(&'static str, String, String, String)> {
         case!(
             "html::Options",
             html::Options,
-            format!("Options {{ flags: 0, limits: {} }}", xml())
+            format!("Options {{ flags: 0, limits: {}, encoding: None }}", xml())
         ),
         case!(
             "save::Options",

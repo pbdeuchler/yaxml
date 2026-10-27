@@ -4,6 +4,7 @@
 #[path = "support/html_corpus.rs"]
 mod corpus;
 
+use yaxml::encoding::Handler;
 use yaxml::html::{self, Diagnostic, DiagnosticKind, Options, Parsed, PushParser};
 use yaxml::{EditLimits, ErrorKind, Limit, Limits, OwnedNodeKind};
 
@@ -442,6 +443,73 @@ fn encodings() {
 }
 
 #[test]
+fn forced_encodings_match_html_ctxt_read_memory() {
+    // libxml2 2.15.4 htmlCtxtReadMemory with an `encoding`: its own charset
+    // (Latin-1 is not windows-1252), no <meta> switch, a mark skipped only
+    // when it decodes to U+FEFF.
+    let utf16le = b"\xff\xfe<\0p\0>\0\xe9\0";
+    let cases: &[(&[u8], &str, &str)] = &[
+        (b"<p>\xe9", "ISO-8859-1", "\u{e9}"),
+        (b"<p>\x80", "ISO-8859-1", "\u{80}"),
+        (b"<p>\x80", "windows-1252", "\u{20ac}"),
+        (
+            b"<meta charset=utf-8><p>\xc3\xa9",
+            "ISO-8859-1",
+            "\u{c3}\u{a9}",
+        ),
+        (b"<meta charset=iso-8859-1><p>\xc3\xa9", "UTF-8", "\u{e9}"),
+        (
+            b"\xef\xbb\xbf<p>\xe9",
+            "ISO-8859-1",
+            "\u{ef}\u{bb}\u{bf}\u{e9}",
+        ),
+        (b"\xef\xbb\xbf<p>\xc3\xa9", "UTF-8", "\u{e9}"),
+        (utf16le, "UTF-8", "\u{fffd}\u{fffd}<p>\u{fffd}"),
+        (utf16le, "UTF-16LE", "\u{e9}"),
+        (utf16le, "UTF-16", "\u{e9}"),
+        (b"<\0p\0>\0\xe9\0", "UTF-16", "\u{e9}"),
+        (
+            b"\xfe\xff\0<\0p\0>\0\xe9",
+            "UTF-16LE",
+            "\u{fffe}\u{3c00}\u{7000}\u{3e00}\u{e900}",
+        ),
+        // libxml2 stops at the converter error (a documented difference).
+        (b"<p>a\xe9z</p><p>after", "US-ASCII", "a\u{fffd}zafter"),
+    ];
+    for (input, name, text) in cases {
+        let options = Options::DEFAULT.encoding(Some(Handler::open(name).unwrap()));
+        let parsed = html::parse(input, options.clone()).unwrap();
+        assert_eq!(
+            parsed.document.html_encoding(),
+            Some(*name),
+            "{input:?} {name}"
+        );
+        let found: String = parsed.document.root_element().text_chunks().collect();
+        assert_eq!(found, *text, "{input:?} {name}");
+        let mut parser = html::PushParser::new(options).unwrap();
+        for byte in input.chunks(1) {
+            parser.feed(byte).unwrap();
+        }
+        let pushed = parser.finish().unwrap();
+        let found: String = pushed.document.root_element().text_chunks().collect();
+        assert_eq!(found, *text, "{input:?} {name}: push");
+    }
+}
+
+#[test]
+#[cfg(feature = "encodings")]
+fn forced_encodings_without_an_html_converter_are_refused() {
+    // libxml2 decodes these only through iconv.
+    for name in ["IBM037", "UCS-4"] {
+        let options = Options::DEFAULT.encoding(Some(Handler::open(name).unwrap()));
+        let refused = html::parse(b"<p>", options.clone()).err().map(|e| e.kind);
+        assert_eq!(refused, Some(ErrorKind::UnsupportedEncoding), "{name}");
+        let refused = html::PushParser::new(options).err().map(|e| e.kind);
+        assert_eq!(refused, Some(ErrorKind::UnsupportedEncoding), "{name}");
+    }
+}
+
+#[test]
 fn serializer_formats_like_htmldocdumpmemory() {
     let cases: &[(&[u8], &str)] = &[
         (b"<p>x", "<html><body><p>x</p></body></html>"),
@@ -550,7 +618,7 @@ fn depth_and_length_ceilings_stop_parsing() {
         b"<!--123456789-->",
         b"<p a='123456789'>",
     ] {
-        let parsed = html::parse(input, options).unwrap();
+        let parsed = html::parse(input, options.clone()).unwrap();
         assert!(parsed.stopped, "{input:?}");
     }
     assert!(!html::parse(b"<p>12345678</p>", options).unwrap().stopped);
@@ -578,7 +646,7 @@ fn hard_limits_fail() {
     ];
     for (limits, input, limit) in cases {
         let options = Options::DEFAULT.flags(0).limits(*limits);
-        let error = html::parse(input, options).unwrap_err();
+        let error = html::parse(input, options.clone()).unwrap_err();
         assert_eq!(error.kind, ErrorKind::LimitExceeded(*limit), "{input:?}");
         let mut parser = PushParser::new(options).unwrap();
         let fed = input.chunks(2).try_for_each(|chunk| parser.feed(chunk));
@@ -641,15 +709,15 @@ fn push_reset_starts_over_with_the_same_options() {
         (b"<p>too long", true, b"<p>y"),
     ];
     for &(before, fails, after) in cases {
-        let mut parser = PushParser::new(options).unwrap();
+        let mut parser = PushParser::new(options.clone()).unwrap();
         assert_eq!(parser.feed(before).is_err(), fails);
         parser.reset().unwrap();
         parser.feed(after).unwrap();
         let reset = html::save(&parser.finish().unwrap().document, false).unwrap();
-        let fresh = html::parse(after, options).unwrap().document;
+        let fresh = html::parse(after, options.clone()).unwrap().document;
         assert_eq!(reset, html::save(&fresh, false).unwrap());
         // The limit survives the reset and counts the new document from 0.
-        let mut parser = PushParser::new(options).unwrap();
+        let mut parser = PushParser::new(options.clone()).unwrap();
         let _ = parser.feed(before);
         parser.reset().unwrap();
         parser.feed(b"<p>12345").unwrap();
@@ -903,7 +971,9 @@ fn meta_encodings_match_html_set_meta_encoding() {
 fn set_meta_encoding_reports_edit_limits() {
     use yaxml::{EditErrorKind, EditLimit, EditLimits};
     let options = html::Options::default();
-    let mut document = html::parse(b"<title>t</title>", options).unwrap().document;
+    let mut document = html::parse(b"<title>t</title>", options.clone())
+        .unwrap()
+        .document;
     let limits = EditLimits::DEFAULT.max_created_nodes(0);
     let mut editor = document.edit(limits).unwrap();
     let refused = html::set_meta_encoding(&mut editor, "UTF-8").unwrap_err();

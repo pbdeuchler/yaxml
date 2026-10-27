@@ -163,6 +163,18 @@ in text or a value runs libxml2's prescan (`HTTP-EQUIV` ... `CONTENT` ...
 Tag names before that point are read as UTF-8. Invalid UTF-8 bytes become
 U+FFFD one byte at a time, as `htmlValidateUtf8` does.
 
+`Options::encoding` is `htmlCtxtReadMemory`'s `encoding` argument (every
+surface but `parse_fragment`, which takes the context's encoding): the
+handler's own charset decodes the input, so US-ASCII and ISO-8859-1 are not
+read as windows-1252, and neither a BOM nor a `<meta>` switches it; a mark
+is skipped only when it decodes to U+FEFF (a UTF-8 BOM under Latin-1 is
+three characters of text, a reversed UTF-16 mark is U+FFFE).
+`html_encoding()` is the handler's name. EBCDIC and UCS-4 handlers fail
+with `UnsupportedEncoding` (libxml2 converts them only through iconv); an
+unknown label fails at `Handler::open`, where libxml2 warns and sniffs
+(`tests/html.rs` `forced_encodings_match_html_ctxt_read_memory`, pinned
+against libxml2 2.15.4).
+
 Multi-byte converters are not implemented, deliberately: the pinned oracle is
 built without iconv, ICU and ISO8859X, and libxml2's `defaultHandlers` then
 have no converter for UCS-4, UCS-2, IBM037, ISO-2022-JP, Shift_JIS or EUC-JP,

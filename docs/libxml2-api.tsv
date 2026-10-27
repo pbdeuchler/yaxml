@@ -43,12 +43,12 @@ HTMLparser.h	htmlAutoCloseTag	function	yes	P3	removed-upstream	https://github.co
 HTMLparser.h	htmlCreateFileParserCtxt	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlCreateMemoryParserCtxt	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlCreatePushParserCtxt	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser::new
-HTMLparser.h	htmlCtxtParseDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReadDoc	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlCtxtReadMemory	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtParseDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtReadDoc	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlCtxtReadMemory	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
 HTMLparser.h	htmlCtxtReset	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser::reset - no allocations recycled; EventParser: build a new one
 HTMLparser.h	htmlCtxtSetOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
 HTMLparser.h	htmlCtxtUseOptions	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options::new
@@ -77,10 +77,10 @@ HTMLparser.h	htmlNodeStatus	function	yes	P3	removed-upstream	https://github.com/
 HTMLparser.h	htmlParseCharRef	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlParseChunk	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser::feed, html::PushParser::finish
 HTMLparser.h	htmlParseDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
-HTMLparser.h	htmlParseDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
+HTMLparser.h	htmlParseDocument	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
 HTMLparser.h	htmlParseElement	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
 HTMLparser.h	htmlParseEntityRef	function	yes	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	deprecated in 2.15.4
-HTMLparser.h	htmlParseFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
+HTMLparser.h	htmlParseFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
 HTMLparser.h	htmlParserCtxt	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::PushParser
 HTMLparser.h	htmlParserCtxtPtr	typedef	not_marked	P3	not-applicable	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	raw pointer alias
 HTMLparser.h	htmlParserInput	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info tables not public (docs/html.md)
@@ -88,9 +88,9 @@ HTMLparser.h	htmlParserInputPtr	typedef	not_marked	P3	not-applicable	https://git
 HTMLparser.h	htmlParserNodeInfo	typedef	not_marked	P3	not-started	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	node info tables not public (docs/html.md)
 HTMLparser.h	htmlParserOption	enum	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Options
 HTMLparser.h	htmlReadDoc	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
-HTMLparser.h	htmlReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
-HTMLparser.h	htmlReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse - bytes in, no ctxt reuse
+HTMLparser.h	htmlReadFd	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlReadFile	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
+HTMLparser.h	htmlReadIO	function	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse, html::Options::encoding - bytes in, no ctxt reuse
 HTMLparser.h	htmlReadMemory	function	not_marked	P3	implemented	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::parse
 HTMLparser.h	htmlRequiredAttrs	macro	not_marked	P3	removed-upstream	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 HTMLparser.h	htmlSAXHandler	typedef	not_marked	P3	partial	https://github.com/GNOME/libxml2/blob/v2.15.4/include/libxml/HTMLparser.h	html::Event - the callbacks HTML parsing makes, as events

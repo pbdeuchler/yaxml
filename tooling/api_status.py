@@ -917,7 +917,7 @@ P|xmlIsolat1ToUTF8 isolat1ToUTF8|encoding::Handler::decode - of the ISO-8859-1 h
 P|xmlUTF8ToIsolat1 UTF8Toisolat1|encoding::Handler::encode - of the ISO-8859-1 handler; character references instead of XML_ENC_ERR_INPUT
 # ---- HTMLparser.h / HTMLtree.h
 I|htmlReadDoc htmlReadMemory htmlParseDoc|html::parse
-P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse - bytes in, no ctxt reuse
+P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse, html::Options::encoding - bytes in, no ctxt reuse
 I|htmlCreatePushParserCtxt|html::PushParser::new
 I|htmlParseChunk|html::PushParser::feed, html::PushParser::finish
 P|htmlCreateFileParserCtxt htmlCreateMemoryParserCtxt htmlNewParserCtxt htmlCtxtSetOptions htmlCtxtUseOptions|html::Options::new

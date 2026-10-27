@@ -4,6 +4,7 @@
 
 use std::ops::ControlFlow;
 
+use yaxml::encoding::Handler;
 use yaxml::html::{self, Event, EventParser, Options, Parsed, PushParser};
 use yaxml::{
     EditLimits, Error, ErrorKind, Limit, Limits, LineIndex, OwnedDocument, OwnedNodeKind, Writer,
@@ -27,6 +28,17 @@ const FLAGS: [u32; 8] = [
         | html::BIG_LINES,
 ];
 
+const FORCED: [&str; 8] = [
+    "UTF-8",
+    "ISO-8859-1",
+    "windows-1252",
+    "US-ASCII",
+    "ISO-8859-2",
+    "UTF-16",
+    "UTF-16LE",
+    "UTF-16BE",
+];
+
 fn options(seed: u64) -> Options {
     let flags = FLAGS
         .iter()
@@ -47,7 +59,14 @@ fn options(seed: u64) -> Options {
             limits.max_input_bytes = (seed >> 29 & 255) as usize;
         }
     }
-    Options::default().flags(flags).limits(limits)
+    // A forced encoding (htmlCtxtReadMemory's `encoding`) half the time.
+    let encoding = FORCED
+        .get((seed >> 56 & 15) as usize)
+        .map(|name| Handler::open(name).expect("built in"));
+    Options::default()
+        .flags(flags)
+        .limits(limits)
+        .encoding(encoding)
 }
 
 fn allowed(error: Error) {
@@ -64,7 +83,7 @@ fn allowed(error: Error) {
 }
 
 /// Structural invariants of a parsed tree; a fragment's text may be top-level.
-fn check(document: &OwnedDocument, options: Options, fragment: bool) {
+fn check(document: &OwnedDocument, options: &Options, fragment: bool) {
     assert!(document.is_html());
     let root = document.root();
     let nodes: Vec<_> = root.descendants().collect();
@@ -255,14 +274,14 @@ fn signature(document: &OwnedDocument) -> Vec<(usize, String)> {
 
 /// Events: push equals pull, a handler can stop, and without limits the
 /// SAX2 builder's tree is the one `parse` builds, with the same diagnostics.
-fn events(input: &[u8], options: Options, seed: u64, whole: Option<&Parsed>) {
+fn events(input: &[u8], options: &Options, seed: u64, whole: Option<&Parsed>) {
     let mut pulled = Vec::new();
-    let summary = html::parse_events(input, options, |event| {
+    let summary = html::parse_events(input, options.clone(), |event| {
         record(&mut pulled, event);
         ControlFlow::Continue(())
     });
     let mut pushed = Vec::new();
-    let mut parser = EventParser::new(options, |event| {
+    let mut parser = EventParser::new(options.clone(), |event| {
         record(&mut pushed, event);
         ControlFlow::Continue(())
     })
@@ -308,7 +327,7 @@ fn events(input: &[u8], options: Options, seed: u64, whole: Option<&Parsed>) {
     // A handler that breaks gets nothing more.
     let stop = (seed >> 53) as usize % (pulled.len() + 1);
     let mut seen = 0;
-    let stopped = html::parse_events(input, options, |_| {
+    let stopped = html::parse_events(input, options.clone(), |_| {
         seen += 1;
         if seen > stop {
             ControlFlow::Break(())
@@ -324,9 +343,9 @@ fn events(input: &[u8], options: Options, seed: u64, whole: Option<&Parsed>) {
 
 /// Fragments: tree invariants without a DOCTYPE, and the whole input once
 /// more as content of a document in the encoding the first parse chose.
-fn fragment(input: &[u8], options: Options, whole: Option<&Parsed>) {
+fn fragment(input: &[u8], options: &Options, whole: Option<&Parsed>) {
     let encoding = whole.and_then(|whole| whole.document.html_encoding());
-    match html::parse_fragment(input, encoding, options) {
+    match html::parse_fragment(input, encoding, options.clone()) {
         Ok(parsed) => {
             check(&parsed.document, options, true);
             lines(&parsed.document, input);
@@ -407,8 +426,10 @@ fn saved_as_xml(document: &OwnedDocument, seed: u64) {
 
 /// Nodes the parser never builds (PIs, text in raw-text elements, quotes in
 /// values) serialize, and the output reparses.
-fn edited(input: &[u8], options: Options) {
-    let mut document = html::parse(input, options).expect("reparse").document;
+fn edited(input: &[u8], options: &Options) {
+    let mut document = html::parse(input, options.clone())
+        .expect("reparse")
+        .document;
     let elements: Vec<_> = (document.nodes())
         .filter(|node| node.kind() == OwnedNodeKind::Element)
         .take(8)
@@ -453,16 +474,20 @@ pub(super) fn exercise_events(input: &[u8]) {
     let options = options(seed);
     events(
         input,
-        options,
+        &options,
         seed,
-        html::parse(input, options).ok().as_ref(),
+        html::parse(input, options.clone()).ok().as_ref(),
     );
 }
 
 /// Target `html_fragment`: in-context parsing.
 pub(super) fn exercise_fragment(input: &[u8]) {
     let options = options(seed(input));
-    fragment(input, options, html::parse(input, options).ok().as_ref());
+    fragment(
+        input,
+        &options,
+        html::parse(input, options.clone()).ok().as_ref(),
+    );
 }
 
 pub(super) fn exercise(input: &[u8]) {
@@ -473,7 +498,9 @@ pub(super) fn exercise(input: &[u8]) {
         let unknown = Options::new(options.flags | 1 << 3);
         let unsupported = Err(ErrorKind::UnsupportedOption);
         assert_eq!(
-            html::parse(input, unknown).map(drop).map_err(|e| e.kind),
+            html::parse(input, unknown.clone())
+                .map(drop)
+                .map_err(|e| e.kind),
             unsupported
         );
         assert_eq!(
@@ -481,8 +508,8 @@ pub(super) fn exercise(input: &[u8]) {
             unsupported
         );
     }
-    let whole = html::parse(input, options);
-    let mut parser = PushParser::new(options).unwrap();
+    let whole = html::parse(input, options.clone());
+    let mut parser = PushParser::new(options.clone()).unwrap();
     let mut rest = input;
     let mut schedule = seed;
     let pushed = loop {
@@ -503,7 +530,7 @@ pub(super) fn exercise(input: &[u8]) {
     };
     match (&whole, &pushed) {
         (Ok(whole), Ok(pushed)) => {
-            check(&whole.document, options, false);
+            check(&whole.document, &options, false);
             let index = LineIndex::html(input, &whole.document);
             diagnosed(&whole.diagnostics, &index, input);
             assert_eq!(
@@ -522,7 +549,7 @@ pub(super) fn exercise(input: &[u8]) {
                 allowed(error);
             }
             if seed >> 46 & 3 == 0 {
-                edited(input, options);
+                edited(input, &options);
             }
         }
         (Err(whole), Err(pushed)) => {

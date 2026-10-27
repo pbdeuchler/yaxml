@@ -5,7 +5,9 @@
 
 use super::tables;
 use super::tokenizer::{Attribute, blank};
-use crate::encoding::{Charset, ISO_8859_1, Output, US_ASCII, WINDOWS_1252, charset};
+use crate::encoding::{
+    Charset, Handler, ISO_8859_1, Output, SourceEncoding, US_ASCII, WINDOWS_1252, charset,
+};
 use crate::{Error, ErrorKind};
 
 /// Converts input to the UTF-8 text the tokenizer reads. `Utf8` passes bytes
@@ -57,6 +59,38 @@ pub(super) fn sniff(prefix: &[u8]) -> Sniffed {
             ..detected(Decoder::Utf8, 0)
         },
     }
+}
+
+/// A forced encoding (`xmlSwitchEncodingName`, no XML_ENC_HTML): the
+/// handler's charset, skipping a mark that decodes to U+FEFF. None: no
+/// converter here.
+pub(super) fn forced(handler: &Handler, prefix: &[u8]) -> Option<Sniffed> {
+    let (decoder, mark): (_, &[u8]) = match handler.source() {
+        SourceEncoding::Utf8 => (Decoder::Utf8, b"\xEF\xBB\xBF"),
+        SourceEncoding::Utf16 { little_endian, .. } => (
+            Decoder::Utf16 {
+                big_endian: !little_endian,
+                pending: Vec::new(),
+            },
+            if little_endian {
+                b"\xFF\xFE"
+            } else {
+                b"\xFE\xFF"
+            },
+        ),
+        SourceEncoding::Byte(table) => (Decoder::Byte(table), b""),
+        _ => return None,
+    };
+    Some(Sniffed {
+        decoder,
+        bom: if prefix.starts_with(mark) {
+            mark.len()
+        } else {
+            0
+        },
+        has_encoding: true,
+        name: None,
+    })
 }
 
 impl Decoder {
