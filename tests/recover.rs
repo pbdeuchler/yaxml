@@ -187,6 +187,26 @@ fn recovery_builds_libxml2s_tree_and_lists_the_errors() {
 }
 
 #[test]
+fn a_malformed_start_tag_keeps_its_attlist_defaults() {
+    use yaxml::options::DTDATTR;
+    // libxml2 names an element by its longest Name and defaults it from
+    // that name's ATTLIST, however the tag goes on.
+    #[rustfmt::skip]
+    let cases = [
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r/>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r'x'>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST b<r'x'>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE q [<!ATTLIST r a CDATA 'x'>]><q'x'>", "<q/>"),
+        ("<!DOCTYPE \u{e9} [<!ATTLIST \u{e9} a CDATA 'x'>]><\u{e9}/>", "<\u{e9} a=\"x\"/>"),
+        ("<!DOCTYPE \u{e9} [<!ATTLIST \u{e9} a CDATA 'x'>]><\u{e9}'x'>", "<\u{e9} a=\"x\"/>"),
+    ];
+    for (input, root) in cases {
+        let (saved, _) = recover(input.as_bytes(), DTDATTR).unwrap();
+        assert_eq!(saved.lines().last(), Some(root), "{input}");
+    }
+}
+
+#[test]
 fn recovery_reads_invalid_utf8_as_libxml2() {
     // (input, owned DOM saved after the declaration): libxml2 reads each
     // byte that starts no UTF-8 sequence as U+FFFD, also inside a name.

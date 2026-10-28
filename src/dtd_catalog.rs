@@ -444,10 +444,20 @@ impl DtdCatalog {
             return true;
         }
         let name = raw.get(1..).unwrap_or_default();
-        let end = name
-            .bytes()
-            .position(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n' | b'/' | b'>'))
+        let end = (name.bytes())
+            .position(|byte| {
+                !(byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-'))
+            })
             .unwrap_or(name.len());
+        // The parser names an element by its longest Name (`<r'x'>` is `r`),
+        // so a name that does not end at a delimiter, or is not ASCII, takes
+        // the declarations path.
+        if !matches!(
+            name.as_bytes().get(end),
+            None | Some(b' ' | b'\t' | b'\r' | b'\n' | b'/' | b'>')
+        ) {
+            return false;
+        }
         self.element_decl(&name[..end])
             .is_none_or(|element| self.dtd.elements[element].attributes.is_empty())
     }
