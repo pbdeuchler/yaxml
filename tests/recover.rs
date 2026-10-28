@@ -386,6 +386,45 @@ fn recovered_errors_survive_xinclude_and_validation() {
     }
 }
 
+#[test]
+fn errors_after_a_repaired_character_point_into_the_input() {
+    // Recovery drops characters outside `Char` from text and replaces them
+    // with U+FFFD in values; later errors still name input offsets.
+    #[rustfmt::skip]
+    let cases: &[(&str, &[(ErrorKind, usize)])] = &[
+        ("<r>a\x01b&#x;</r>", &[(InvalidCharacter, 4), (InvalidReference, 6)]),
+        ("<r>\x01\x01&</r>", &[(InvalidCharacter, 3), (InvalidCharacter, 4), (InvalidReference, 5)]),
+        ("<r a='\x01&#x;'/>", &[(InvalidCharacter, 6), (InvalidReference, 7), (TextOutsideRoot, 11)]),
+        ("<r a='\x01\x01&#x;\x01'/>", &[(InvalidCharacter, 6), (InvalidCharacter, 7), (InvalidCharacter, 12), (InvalidReference, 8), (TextOutsideRoot, 12)]),
+        ("<r>a&#x;</r>", &[(InvalidReference, 4)]),
+    ];
+    let errors = |stream: Result<Stream, ErrorKind>| -> Vec<(ErrorKind, usize)> {
+        let (_, errors) = stream.unwrap();
+        errors
+            .iter()
+            .map(|error| (error.kind, error.offset))
+            .collect()
+    };
+    for &(input, expected) in cases {
+        assert_eq!(errors(sliced(input.as_bytes(), 0)), expected, "{input:?}");
+        assert_eq!(
+            errors(pushed(&[input.as_bytes()], 0)),
+            expected,
+            "{input:?}"
+        );
+        // UTF-16BE: a BOM, then two bytes per ASCII character.
+        let utf16: Vec<u8> = [0xfe, 0xff]
+            .into_iter()
+            .chain(input.encode_utf16().flat_map(u16::to_be_bytes))
+            .collect();
+        let doubled: Vec<_> = expected
+            .iter()
+            .map(|&(kind, at)| (kind, 2 + 2 * at))
+            .collect();
+        assert_eq!(errors(pushed(&[&utf16], 0)), doubled, "{input:?}");
+    }
+}
+
 /// A recovering stream's events with their input ranges, then its errors.
 type Stream = (Vec<String>, Vec<yaxml::Error>);
 

@@ -1136,13 +1136,14 @@ impl<'source> ParserState<'source> {
         self.budget.charge_owned(raw.len(), offset)?;
         let mut recover = |error| self.budget.recover(error);
         let repaired = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
-        // Offsets into the repaired text are kept within the original.
-        let end = offset + raw.len();
-        let within = |error: Error| Error::new(error.kind, error.offset.min(end));
-        let recover = |error| recover(within(error));
+        let mut unrepair = crate::escape::Unrepair::new(raw, offset, attribute);
+        let mut original = |error: Error| Error::new(error.kind, unrepair.original(error.offset));
         let mut value = String::new();
         let options = (attribute, references, true);
-        normalize_text(&repaired, offset, options, &mut value, recover).map_err(within)?;
+        normalize_text(&repaired, offset, options, &mut value, |error| {
+            recover(original(error))
+        })
+        .map_err(original)?;
         Ok(Some(value))
     }
 

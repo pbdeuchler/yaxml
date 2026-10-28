@@ -179,6 +179,50 @@ pub(crate) fn repair_characters(
     Ok(out)
 }
 
+/// Offsets into `repair_characters(raw, offset, attribute, ..)` mapped back
+/// to the input; `original` takes offsets in increasing order, so mapping
+/// every error of a token reads it once.
+pub(crate) struct Unrepair<'a> {
+    rest: &'a str,
+    /// Where `rest` starts in the input and in the repaired text.
+    raw: usize,
+    repaired: usize,
+    next: Option<usize>,
+    attribute: bool,
+}
+
+impl<'a> Unrepair<'a> {
+    pub(crate) fn new(raw: &'a str, offset: usize, attribute: bool) -> Self {
+        let next = invalid_char(raw);
+        let (rest, repaired) = (raw, offset);
+        Self {
+            rest,
+            raw: offset,
+            repaired,
+            next,
+            attribute,
+        }
+    }
+
+    /// The input offset of repaired offset `at`: past every character
+    /// dropped before it, at the character a U+FFFD covering it replaced.
+    pub(crate) fn original(&mut self, at: usize) -> usize {
+        let width = if self.attribute {
+            '\u{fffd}'.len_utf8()
+        } else {
+            0
+        };
+        while let Some(i) = self.next.filter(|&i| at >= self.repaired + i + width) {
+            let length = self.rest[i..].chars().next().map_or(1, char::len_utf8);
+            self.rest = &self.rest[i + length..];
+            (self.raw, self.repaired) = (self.raw + i + length, self.repaired + i + width);
+            self.next = invalid_char(self.rest);
+        }
+        let limit = self.next.unwrap_or(self.rest.len());
+        self.raw + at.saturating_sub(self.repaired).min(limit)
+    }
+}
+
 /// XML end-of-line (`physical_eol`: physical input, not replacement text,
 /// whose line ends were normalized when it was declared) and CDATA attribute
 /// normalization, appended to `out`. References are expanded after literal
