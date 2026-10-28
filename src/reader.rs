@@ -481,6 +481,17 @@ impl<'a> Reader<'a> {
             // Only `Transcoded::new` decodes in a forced encoding.
             return Err(Error::new(ErrorKind::UnsupportedOption, 0));
         }
+        // A document that needs decoding goes through `Transcoded`; content
+        // parsed in context is never sniffed (libxml2 `hasTextDecl = 0`), and
+        // the owned builder sends every document `needs_decoding` to a stream.
+        if decoded.is_none()
+            && (input.starts_with(&[0xff, 0xfe])
+                || input.starts_with(&[0xfe, 0xff])
+                || input.starts_with(&[0, 0, 0xfe, 0xff])
+                || input.starts_with(&[0, b'<', 0, b'?']))
+        {
+            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
+        }
         let (limits, decode) = options.effective_limits();
         let (limits, decode) = match decoded {
             // `Transcoded::new` checked the source's length.
@@ -875,14 +886,6 @@ impl<'a> SliceReader<'a> {
     ) -> Result<(Self, Option<Error>, Option<Error>), Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
-        }
-        if decoded.is_none()
-            && (input.starts_with(&[0xff, 0xfe])
-                || input.starts_with(&[0xfe, 0xff])
-                || input.starts_with(&[0, 0, 0xfe, 0xff])
-                || input.starts_with(&[0, b'<', 0, b'?']))
-        {
-            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
         }
         let (encoding, cut) = decoded.copied().unwrap_or((SourceEncoding::Utf8, None));
         // Decoded text is UTF-8; its decoding error (`cut`) ends it.

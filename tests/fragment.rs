@@ -295,6 +295,8 @@ fn recovery_keeps_what_was_parsed() {
         ("t</r>ignored", "<r>t</r>", 1),
         ("<a><b>", "<r><a><b/></a></r>", 1),
         ("&undefined;<c/>", "<r>&undefined;<c/></r>", 1),
+        // Content is never sniffed for an encoding (libxml2 `hasTextDecl = 0`).
+        ("\0<\0?a?>", "<r>?a?&gt;</r>", 3),
     ];
     for &(content, expected, errors) in cases {
         let (saved, _, recovered) = parse_and_append("<r/>", 1, 1, content, RECOVER).unwrap();
