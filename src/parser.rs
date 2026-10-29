@@ -7,11 +7,11 @@ use memchr::memchr;
 
 use crate::dtd_tag::{Defaulted, TagDeclarations};
 use crate::escape::{needs_normalization, normalize_text};
-use crate::name::{name_char, name_start, qname, validate_name};
+use crate::name::{is_ncname, name_char, name_start, qname, validate_edition};
 use crate::tokenizer::TokenKind;
 use crate::{Attribute, Declaration, Element, Error, ErrorKind, Event, Limit, Limits, Name};
 
-const XML: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML;
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
 /// Namespace scopes up to this many bindings are searched linearly.
 const INDEXED_SCOPE: usize = 16;
@@ -44,6 +44,8 @@ pub(crate) struct Budget {
     /// Attributes a DOM builder may still retain (`max_total_attributes`).
     attributes_left: usize,
     recovers: bool,
+    /// `OLD10`: Fourth Edition names.
+    old10: bool,
     recovered: Vec<Error>,
     /// The last published start tag's kept-reference attribute forms
     /// (`dtd_tag::kept_form`) by attribute position, for the DOM builders.
@@ -60,6 +62,7 @@ impl Budget {
             owned_bytes: 0,
             attributes_left: limits.max_total_attributes,
             recovers: false,
+            old10: false,
             recovered: Vec::new(),
             kept: Vec::new(),
             content: None,
@@ -92,7 +95,9 @@ impl Budget {
         {
             return Err(error);
         }
-        if self.recovered.len() < MAX_RECOVERED {
+        // Past the cap, like libxml2, the first error clearing a document
+        // property is still kept, so `properties` stays exact.
+        if self.recovered.len() < MAX_RECOVERED || self.first_to_clear(error.kind) {
             self.recovered
                 .try_reserve(1)
                 .map_err(|_| Error::new(ErrorKind::Allocation, error.offset))?;
@@ -101,8 +106,21 @@ impl Budget {
         Ok(())
     }
 
+    #[cold]
+    fn first_to_clear(&self, kind: ErrorKind) -> bool {
+        let cleared = self.recovered.iter().fold(0, |bits, error| {
+            bits | crate::properties::clears(error.kind)
+        });
+        crate::properties::clears(kind) & !cleared != 0
+    }
+
     pub(crate) fn recovers(&self) -> bool {
         self.recovers
+    }
+
+    /// Whether names follow the Fourth Edition (`OLD10`).
+    pub(crate) fn old10(&self) -> bool {
+        self.old10
     }
 
     /// The errors recovered from so far.
@@ -256,6 +274,8 @@ pub(crate) struct ParserState<'source> {
     initial: usize,
     encoding: crate::encoding::SourceEncoding,
     switchable: bool,
+    /// The caller chose the encoding: a declaration names nothing.
+    forced: bool,
     declaration_seen: bool,
     doctype_seen: bool,
     token_limit: usize,
@@ -319,6 +339,16 @@ struct LentValues {
 }
 
 impl<'source> ParserState<'source> {
+    /// `value`, or the lent text its placeholder stands for.
+    fn unlent<'v>(&'v self, value: &'v str) -> &'v str {
+        match &self.lent {
+            Some(lent) if value == LENT_VALUE => {
+                (lent[0].ranges.last()).map_or(value, |range| &lent[0].values[range.clone()])
+            }
+            _ => value,
+        }
+    }
+
     pub(crate) fn owned_budget(&mut self) -> &mut Budget {
         &mut self.budget
     }
@@ -340,6 +370,7 @@ impl<'source> ParserState<'source> {
             initial: initial_offset,
             encoding: crate::encoding::SourceEncoding::Utf8,
             switchable: false,
+            forced: false,
             declaration_seen: false,
             doctype_seen: false,
             token_limit: limits.max_token_bytes,
@@ -401,16 +432,22 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Records the catalog of an `oasis-xml-catalog` instruction when the
-    /// flags ask for it (`xmlParseCatalogPI`; a syntax error is ignored).
+    /// Records the catalog of an `oasis-xml-catalog` instruction at `start`
+    /// when the flags ask for it (`xmlParseCatalogPI`; a syntax error is a
+    /// warning).
     #[cfg(feature = "catalog")]
-    fn note_catalog(&mut self, target: &str, data: &str) {
-        if self.flags.catalog_pi()
-            && target == "oasis-xml-catalog"
-            && let Some(url) = crate::catalog::pi_catalog(data)
-        {
-            (self.catalogs.get_or_insert_default()).push(url.to_owned());
+    fn note_catalog(&mut self, target: &str, data: &str, start: usize) -> Result<(), Error> {
+        if self.flags.catalog_pi() && target == "oasis-xml-catalog" {
+            match crate::catalog::pi_catalog(data) {
+                Ok(Some(url)) => (self.catalogs.get_or_insert_default()).push(url.to_owned()),
+                Ok(None) => {}
+                Err(()) => {
+                    let warning = ErrorKind::Warning(crate::Warning::CatalogPi);
+                    self.budget.recover(Error::new(warning, start))?;
+                }
+            }
         }
+        Ok(())
     }
 
     /// The recorded catalog URLs, in document order.
@@ -482,7 +519,7 @@ impl<'source> ParserState<'source> {
     ) -> Result<Result<Event<'event>, &'event str>, Error> {
         let found = memchr::memchr_iter(b'&', raw.as_bytes()).find_map(|at| {
             let rest = &raw[at + 1..];
-            let name = &rest[..name_length(rest)];
+            let name = &rest[..name_length(rest, self.budget.old10)];
             let complete = !name.is_empty() && rest[name.len()..].starts_with(';');
             (complete && crate::escape::predefined(name).is_none()).then_some((at, name))
         });
@@ -556,6 +593,7 @@ impl<'source> ParserState<'source> {
     pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
         self.flags = flags;
         self.budget.recovers = flags.recovers();
+        self.budget.old10 = flags.old10();
         self
     }
 
@@ -778,6 +816,12 @@ impl<'source> ParserState<'source> {
     /// A BOM-less decoding stream can follow a declared byte charset.
     pub(crate) fn allow_switch(&mut self) {
         self.switchable = true;
+    }
+
+    /// The caller forced the encoding (`XML_INPUT_HAS_ENCODING` without
+    /// auto-detection): a declaration's label is recorded unchecked.
+    pub(crate) fn force_encoding(&mut self) {
+        self.forced = true;
     }
 
     pub(crate) fn encoding(&self) -> crate::encoding::SourceEncoding {
@@ -1092,13 +1136,14 @@ impl<'source> ParserState<'source> {
         self.budget.charge_owned(raw.len(), offset)?;
         let mut recover = |error| self.budget.recover(error);
         let repaired = crate::escape::repair_characters(raw, offset, attribute, &mut recover)?;
-        // Offsets into the repaired text are kept within the original.
-        let end = offset + raw.len();
-        let within = |error: Error| Error::new(error.kind, error.offset.min(end));
-        let recover = |error| recover(within(error));
+        let mut unrepair = crate::escape::Unrepair::new(raw, offset, attribute);
+        let mut original = |error: Error| Error::new(error.kind, unrepair.original(error.offset));
         let mut value = String::new();
         let options = (attribute, references, true);
-        normalize_text(&repaired, offset, options, &mut value, recover).map_err(within)?;
+        normalize_text(&repaired, offset, options, &mut value, |error| {
+            recover(original(error))
+        })
+        .map_err(original)?;
         Ok(Some(value))
     }
 
@@ -1109,17 +1154,18 @@ impl<'source> ParserState<'source> {
     ) -> Result<Option<Event<'event>>, Error> {
         let body = delimited_body(raw, "<?", "?>", start)?;
         let mut name_end = body.bytes().position(space).unwrap_or(body.len());
-        match validate_name(&body[..name_end], start + 2, false) {
+        let old10 = self.budget.old10;
+        match validate_edition(&body[..name_end], start + 2, false, old10) {
             Ok(()) => {}
             // A colon in a valid Name is a namespace error.
-            Err(error) if validate_name(&body[..name_end], start + 2, true).is_ok() => {
+            Err(error) if validate_edition(&body[..name_end], start + 2, true, old10).is_ok() => {
                 let error = Error::new(ErrorKind::Namespace, error.offset);
                 self.budget.recover(error)?;
             }
             // libxml2 targets the longest Name there, colons included, and
             // reads a PI without one as text after `<?`.
             Err(error) => {
-                name_end = name_length(body);
+                name_end = name_length(body, self.budget.old10);
                 if name_end == 0 {
                     self.markup_as_text(error)?;
                     return self.text_after::<REREADS>(raw, 2, start);
@@ -1129,11 +1175,17 @@ impl<'source> ParserState<'source> {
         }
         let target = &body[..name_end];
         if target == "xml" && start == self.initial && !self.replacement {
+            // Under `OLD10` a version other than 1.0 is fatal.
             let (mut declaration, encoding_offset) = parse_declaration(
                 &body[name_end..],
                 start + 2 + name_end,
                 false,
-                &mut |error| self.budget.recover(error),
+                &mut |error| match error.kind {
+                    ErrorKind::Warning(crate::Warning::UnknownVersion) if old10 => self
+                        .budget
+                        .recover(Error::new(ErrorKind::InvalidDeclaration, error.offset)),
+                    _ => self.budget.recover(error),
+                },
             )?;
             // An auto-detected encoding (a BOM, or the UTF-16 `<?` signature)
             // is kept, as in libxml2's `xmlSetDeclaredEncoding`: a label
@@ -1144,6 +1196,7 @@ impl<'source> ParserState<'source> {
             use crate::encoding::SourceEncoding::{Utf8, Utf16};
             let offset = encoding_offset.unwrap_or(start);
             let auto: Option<(&[&str], &str)> = match self.encoding {
+                _ if self.forced => None,
                 Utf8 if start != 0 => Some((&["UTF-8", "UTF8"], "UTF-8")),
                 Utf16 {
                     little_endian: true,
@@ -1153,7 +1206,8 @@ impl<'source> ParserState<'source> {
                 _ => None,
             };
             self.encoding = match declaration.encoding {
-                Some(label) if auto.is_some() || self.flags.ignores_encoding() => {
+                None if self.forced => self.encoding,
+                Some(label) if auto.is_some() || self.forced || self.flags.ignores_encoding() => {
                     declaration.encoding = match auto {
                         Some((allowed, _))
                             if allowed.iter().any(|a| a.eq_ignore_ascii_case(label)) =>
@@ -1191,13 +1245,15 @@ impl<'source> ParserState<'source> {
             let warning = ErrorKind::Warning(crate::Warning::ReservedTarget);
             self.budget.recover(Error::new(warning, start + 2))?;
         }
-        if self.encoding.requires_declaration() && !self.declaration_seen && !self.replacement {
+        if self.encoding.requires_declaration()
+            && !(self.declaration_seen || self.replacement || self.forced)
+        {
             return Err(Error::new(ErrorKind::EncodingMismatch, start));
         }
         let data = body[name_end..].trim_start_matches([' ', '\t', '\r', '\n']);
         let offset = start + raw.len() - 2 - data.len();
         #[cfg(feature = "catalog")]
-        self.note_catalog(target, data);
+        self.note_catalog(target, data, start)?;
         Ok(Some(Event::ProcessingInstruction {
             target: Cow::Borrowed(target),
             data: self.normalized::<REREADS>(data, offset, false, false, true)?,
@@ -1234,12 +1290,13 @@ impl<'source> ParserState<'source> {
             raw: &raw[1..content_end],
             cursor: 0,
             offset: start + 1,
+            old10: self.budget.old10,
         };
         let (qualified, split) = match scan.scan_name() {
             Ok(name) => name,
             // libxml2 names the element by the longest Name there, and reads
             // a tag without one as text after `<`.
-            Err(error) => match name_length(scan.raw) {
+            Err(error) => match name_length(scan.raw, scan.old10) {
                 0 => {
                     self.markup_as_text(error)?;
                     return self.text_after::<REREADS>(raw, 1, start);
@@ -1259,6 +1316,7 @@ impl<'source> ParserState<'source> {
         }
         let bindings_start = self.bindings.len();
         let mut attributes = self.take_attributes();
+        let mut xml_id = None;
         loop {
             let attribute = match scan.attribute(&mut |error| self.budget.recover(error)) {
                 Ok(Some(attribute)) => attribute,
@@ -1313,9 +1371,28 @@ impl<'source> ParserState<'source> {
                     Err(error) => return Err(error),
                 }
             };
-            if name == "xml:space" && !matches!(&*value, "default" | "preserve") {
-                let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
-                self.budget.recover(Error::new(warning, offset))?;
+            match name {
+                "xml:space" if !matches!(self.unlent(&value), "default" | "preserve") => {
+                    let warning = ErrorKind::Warning(crate::Warning::SpaceValue);
+                    self.budget.recover(Error::new(warning, offset))?;
+                }
+                "xml:lang" if self.flags.pedantic() && !language_id(self.unlent(&value)) => {
+                    let warning = ErrorKind::Warning(crate::Warning::LangValue);
+                    self.budget.recover(Error::new(warning, offset))?;
+                }
+                // SAX2 checks `xml:id` unless the value keeps references, the
+                // element is entity content or a DOCTYPE validates it.
+                "xml:id"
+                    if kept.is_none()
+                        && !self.replacement
+                        && !(declarations.is_some() && self.flags.validates())
+                        && !is_ncname(
+                            self.unlent(&value).trim_matches([' ', '\t', '\n', '\r']),
+                        ) =>
+                {
+                    xml_id = Some(offset);
+                }
+                _ => {}
             }
             let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
             if let Some(bound_prefix) = declaration {
@@ -1331,7 +1408,7 @@ impl<'source> ParserState<'source> {
                 let warning = match crate::uri::has_scheme(&value) {
                     _ if value.is_empty() => None,
                     None => Some(crate::Warning::NamespaceUri),
-                    Some(false) if bound_prefix.is_empty() => {
+                    Some(false) if bound_prefix.is_empty() || self.flags.pedantic() => {
                         Some(crate::Warning::RelativeNamespaceUri)
                     }
                     Some(_) => None,
@@ -1371,6 +1448,14 @@ impl<'source> ParserState<'source> {
         }
         if let Some(declarations) = declarations {
             for default in declarations.defaults(&mut self.budget, qualified, start)? {
+                if default.0 == "xml:id"
+                    && default.2.is_none()
+                    && !self.replacement
+                    && !self.flags.validates()
+                    && !is_ncname(default.1.trim_matches([' ', '\t', '\n', '\r']))
+                {
+                    xml_id.get_or_insert(start);
+                }
                 self.default_attribute(&mut attributes, default, start, retain)?;
             }
         }
@@ -1385,6 +1470,10 @@ impl<'source> ParserState<'source> {
         if element_prefix.is_some() && name.namespace().is_none() {
             let error = Error::new(ErrorKind::Namespace, start + 1);
             self.budget.recover(error)?;
+        }
+        if let Some(offset) = xml_id {
+            let warning = ErrorKind::Warning(crate::Warning::XmlIdValue);
+            self.budget.recover(Error::new(warning, offset))?;
         }
         let element = Element {
             name,
@@ -1828,6 +1917,7 @@ impl<'source> ParserState<'source> {
             raw: body,
             cursor: 0,
             offset: start + 2,
+            old10: self.budget.old10,
         };
         // The open element's name is a validated QName: an exact match needs
         // no rescan, and any other spelling takes the diagnosing path.
@@ -1968,9 +2058,13 @@ fn bound_in<'source>(
 }
 
 /// The length of the longest Name, colons included, that `text` starts with.
-pub(crate) fn name_length(text: &str) -> usize {
+/// Fourth Edition names under `old10`.
+pub(crate) fn name_length(text: &str, old10: bool) -> usize {
     text.char_indices()
-        .find(|&(i, c)| !(name_char(c, true) && (i > 0 || name_start(c, true))))
+        .find(|&(i, c)| match old10 {
+            true => !crate::name::old10_char(c, i == 0),
+            false => !(name_char(c, true) && (i > 0 || name_start(c, true))),
+        })
         .map_or(text.len(), |(i, _)| i)
 }
 
@@ -2009,6 +2103,61 @@ fn expanded<'n>(name: &'n Name<'_>) -> (&'n str, Option<&'n str>) {
     match name.namespace() {
         None => (name.qualified(), None),
         namespace => (name.local(), namespace),
+    }
+}
+
+/// `xmlCheckLanguageID`: libxml2's reading of an RFC 4646 tag, a language
+/// then optional extlang, script, region (letters or three digits) and
+/// variant subtags in that order; anything may follow a variant.
+fn language_id(tag: &str) -> bool {
+    #[derive(Clone, Copy, PartialEq)]
+    enum At {
+        Language,
+        Extlang,
+        Script,
+        Region,
+        Variant,
+    }
+    let b = tag.as_bytes();
+    let letters = |from: usize| {
+        from + b[from..]
+            .iter()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .count()
+    };
+    if let [b'i' | b'I' | b'x' | b'X', b'-', ..] = b {
+        return letters(2) == b.len();
+    }
+    let mut end = letters(0);
+    let mut at = match end {
+        2 | 3 => At::Language,
+        4..=8 => return end == b.len(),
+        _ => return false,
+    };
+    loop {
+        match b.get(end) {
+            None => return true,
+            Some(b'-') if at == At::Variant => return true,
+            Some(b'-') => {}
+            Some(_) => return false,
+        }
+        let start = end + 1;
+        if at != At::Region && b.get(start).is_some_and(u8::is_ascii_digit) {
+            let digits = b.get(start..start + 3);
+            if !digits.is_some_and(|digits| digits.iter().all(u8::is_ascii_digit)) {
+                return false;
+            }
+            (end, at) = (start + 3, At::Region);
+            continue;
+        }
+        end = letters(start);
+        at = match (at, end - start) {
+            (_, 5..=8) => At::Variant,
+            (At::Language, 3) => At::Extlang,
+            (At::Language | At::Extlang, 4) => At::Script,
+            (At::Language | At::Extlang | At::Script, 2) => At::Region,
+            _ => return false,
+        };
     }
 }
 
@@ -2170,6 +2319,7 @@ struct TagScanner<'a> {
     raw: &'a str,
     cursor: usize,
     offset: usize,
+    old10: bool,
 }
 
 struct ScannedAttribute<'a> {
@@ -2222,7 +2372,7 @@ impl<'a> TagScanner<'a> {
             .first()
             .map_or(0, |&byte| NAME_BYTES[usize::from(byte)]);
         if all & CONTINUE == 0 || first & START == 0 || length == 0 {
-            validate_name(name, self.offset + start, true)?;
+            validate_edition(name, self.offset + start, true, self.old10)?;
         }
         // A valid Name is a QName when its only colon is followed by a
         // name-start character; prefix characters are already valid.
@@ -2308,6 +2458,7 @@ pub(crate) fn parse_declaration<'a>(
         raw,
         cursor: 0,
         offset,
+        old10: false,
     };
     let mut declaration = Declaration {
         version: "1.0",
@@ -2395,6 +2546,9 @@ fn validate_encoding(
         };
     };
     let kind = match (source, crate::encoding::charset(label)) {
+        // libxml2 records a UCS-4 document's label without checking it.
+        // A caller's converter was opened for the label.
+        (SourceEncoding::Ucs4 { .. } | SourceEncoding::Custom, _) => return Ok(source),
         (_, None) => ErrorKind::UnsupportedEncoding,
         (SourceEncoding::Utf8, Some(Charset::Utf8)) => return Ok(source),
         (SourceEncoding::Utf8, Some(Charset::Byte(table))) if switchable => {
@@ -2402,6 +2556,10 @@ fn validate_encoding(
         }
         // Transcoded input, which the label switched already.
         (SourceEncoding::Byte(_), Some(Charset::Byte(_))) => return Ok(source),
+        // An EBCDIC declaration, read in IBM037, names the code page that follows.
+        (SourceEncoding::Ebcdic(_), Some(Charset::Ebcdic(table))) => {
+            return Ok(SourceEncoding::Ebcdic(table));
+        }
         _ => ErrorKind::UnsupportedEncoding,
     };
     Err(Error::new(kind, offset))

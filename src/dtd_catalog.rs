@@ -120,6 +120,9 @@ pub(crate) struct EntityDecl {
     /// Where an internal entity's replacement text appears verbatim in the
     /// complete input, as its declaration's literal.
     pub(crate) input: Option<usize>,
+    /// An internal entity's literal as written (libxml2's `orig`), when it
+    /// differs from the replacement text.
+    pub(crate) literal: Option<Box<str>>,
 }
 
 #[derive(Clone, Copy)]
@@ -217,6 +220,17 @@ impl DtdCatalog {
             subset: None,
             undeclared: Vec::new(),
         }
+    }
+
+    /// Takes all of `dtd`'s declarations as already applied, so more can
+    /// follow them (`Editor::add_declarations`).
+    pub(crate) fn resume(&mut self, dtd: &Dtd) {
+        self.seed(dtd);
+        let entities = std::mem::take(&mut self.dtd.entities);
+        self.dtd = Dtd {
+            entities,
+            ..dtd.clone()
+        };
     }
 
     /// Takes `dtd`'s entity and notation declarations as already applied.
@@ -430,10 +444,20 @@ impl DtdCatalog {
             return true;
         }
         let name = raw.get(1..).unwrap_or_default();
-        let end = name
-            .bytes()
-            .position(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n' | b'/' | b'>'))
+        let end = (name.bytes())
+            .position(|byte| {
+                !(byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b':' | b'.' | b'-'))
+            })
             .unwrap_or(name.len());
+        // The parser names an element by its longest Name (`<r'x'>` is `r`),
+        // so a name that does not end at a delimiter, or is not ASCII, takes
+        // the declarations path.
+        if !matches!(
+            name.as_bytes().get(end),
+            None | Some(b' ' | b'\t' | b'\r' | b'\n' | b'/' | b'>')
+        ) {
+            return false;
+        }
         self.element_decl(&name[..end])
             .is_none_or(|element| self.dtd.elements[element].attributes.is_empty())
     }
@@ -467,13 +491,16 @@ impl DtdCatalog {
             .iter()
     }
 
-    /// Applies one declaration. Failure offsets are relative to `unit`, or
-    /// absent inside replacement text.
+    /// Applies one declaration, returning the warning libxml2 raises for it
+    /// and where in `unit`: an invalid redeclaration of a predefined entity
+    /// (dropped), a redefined entity under `PEDANTIC` or an `xml:id`
+    /// attribute declared other than ID. Failure
+    /// offsets are relative to `unit`, or absent inside replacement text.
     pub(crate) fn apply(
         &mut self,
         unit: &DtdUnit<'_>,
         context: DeclarationContext,
-    ) -> Result<(), DtdError> {
+    ) -> Result<Option<(crate::Warning, usize)>, DtdError> {
         let at = Some(0);
         let limits = self.limits;
         increment(
@@ -507,16 +534,26 @@ impl DtdCatalog {
             }
             DtdUnitView::Entity(entity) => {
                 let parameter = entity.is_parameter();
-                let mut input = None;
+                let (mut input, mut written) = (None, None);
                 // WFC Entity Declared: a standalone document cannot use general
                 // entities from external markup, so they are stored (libxml2
                 // still finds them for ENTITY attributes) but never bound.
                 let bound = parameter || !self.standalone || context.internal_subset;
-                let duplicate = match (parameter, bound) {
-                    (true, _) => self.dtd.parameter.contains_key(entity.name()),
-                    (false, true) => self.dtd.general.contains_key(entity.name()),
-                    (false, false) => self.dtd.declared(entity.name()).is_some(),
+                let existing = match (parameter, bound) {
+                    (true, _) => self.dtd.parameter.get(entity.name()).copied(),
+                    (false, true) => self.dtd.general.get(entity.name()).copied(),
+                    (false, false) => self.dtd.declared(entity.name()),
                 };
+                let duplicate = existing.is_some();
+                // libxml2 keeps one table per subset and warns under PEDANTIC
+                // about a second declaration in the same one.
+                let redefined = existing
+                    .filter(|id| {
+                        self.limits.flags.pedantic()
+                            && self.dtd.entities[id.0].external_subset
+                                == self.reading_external_subset
+                    })
+                    .map(|_| (crate::Warning::EntityRedefined, 0));
                 let (body, bytes) = match entity.definition() {
                     EntityDefinitionView::Internal(literal) => {
                         let (content, offset) = literal.content();
@@ -531,14 +568,17 @@ impl DtdCatalog {
                             && let Some(character) = predefined(entity.name())
                             && !valid_predefined(entity.name(), character, &result)
                         {
-                            return Err(DtdError::new(ErrorKind::InvalidDtd, Some(offset)));
+                            return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(());
+                            return Ok(redefined);
                         }
                         let bytes = result.len();
-                        input = context.input.filter(|_| result == content);
-                        input = input.map(|unit| unit + offset);
+                        match result == content {
+                            true => input = context.input.map(|unit| unit + offset),
+                            false => written = Some(copy_string(content)?.into_boxed_str()),
+                        }
+                        let bytes = bytes + written.as_ref().map_or(0, |text| text.len());
                         (EntityBody::Internal(result.into_owned()), bytes)
                     }
                     EntityDefinitionView::External {
@@ -546,10 +586,10 @@ impl DtdCatalog {
                         notation,
                     } => {
                         if !parameter && predefined(entity.name()).is_some() {
-                            return Err(DtdError::new(ErrorKind::InvalidDtd, at));
+                            return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
                         if duplicate {
-                            return Ok(());
+                            return Ok(redefined);
                         }
                         let bytes = checked_sum(&[
                             identifier
@@ -566,11 +606,16 @@ impl DtdCatalog {
                 };
                 self.store_bytes(checked_sum(&[entity.name().len(), bytes])?)?;
                 self.add_binding()?;
-                self.insert_entity(entity.name(), (parameter, bound, input), body)?;
+                let stored = (parameter, bound, input, written);
+                self.insert_entity(entity.name(), stored, body)?;
             }
             DtdUnitView::AttributeList(list) => {
+                let mut warning = None;
                 for definition in list.definitions() {
                     let kind = definition.kind();
+                    if definition.name() == "xml:id" && kind != AttributeKind::Id {
+                        warning.get_or_insert((crate::Warning::XmlIdType, definition.end()));
+                    }
                     let default = match definition.default() {
                         DefaultDeclarationView::Required => StoredDefault::Required,
                         DefaultDeclarationView::Implied => StoredDefault::Implied,
@@ -633,6 +678,7 @@ impl DtdCatalog {
                         .map_err(|()| allocation())?;
                     self.attribute_lists = true;
                 }
+                return Ok(warning);
             }
             DtdUnitView::Element(view) => {
                 let element = self.element_slot(view.name())?;
@@ -670,7 +716,7 @@ impl DtdCatalog {
             }
             _ => {}
         }
-        Ok(())
+        Ok(None)
     }
 
     /// The index of `name`'s element declaration, created on first use.
@@ -696,7 +742,7 @@ impl DtdCatalog {
     fn insert_entity(
         &mut self,
         name: &str,
-        (parameter, bound, input): (bool, bool, Option<usize>),
+        (parameter, bound, input, literal): (bool, bool, Option<usize>, Option<Box<str>>),
         body: EntityBody,
     ) -> Result<(), DtdError> {
         let dtd = &mut self.dtd;
@@ -708,6 +754,7 @@ impl DtdCatalog {
             parameter,
             external_subset: self.reading_external_subset,
             input,
+            literal,
         });
         // `apply` returned for duplicates: the name is new to its table.
         let table = match (bound, parameter) {

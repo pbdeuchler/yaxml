@@ -83,6 +83,9 @@ pub enum Code {
     NoDtd = 522,
     /// A required prefixed attribute appears unprefixed (a warning).
     NoPrefix = 524,
+    /// The tree has no document element (`xmlValidateRoot`); nothing else
+    /// is checked.
+    NoRoot = 525,
     /// A repeated notation declaration.
     NotationRedefined = 526,
     /// A `NOTATION` value outside its enumeration.
@@ -243,6 +246,62 @@ impl Dtd {
     /// ENTITY attribute validation finds it.
     pub(crate) fn declared(&self, name: &str) -> Option<EntityId> {
         (self.unbound.get(name).or_else(|| self.general.get(name))).copied()
+    }
+
+    /// `self`, a freshly read internal subset, followed by `old`'s
+    /// declarations from the external subset: a name `self` declares keeps
+    /// its own, as libxml2 looks in `intSubset` before `extSubset`. Fails
+    /// without memory.
+    pub(crate) fn with_external(mut self, old: &Dtd) -> Result<Self, ()> {
+        let entities = old.entities.iter().filter(|entity| entity.external_subset);
+        (self.entities.try_reserve(entities.clone().count())).map_err(drop)?;
+        (self.elements.try_reserve(old.elements.len())).map_err(drop)?;
+        (self.element_index.try_reserve(old.elements.len())).map_err(drop)?;
+        for entity in entities {
+            let (name, parameter) = (&entity.name, entity.parameter);
+            let table = match (parameter, parameter || !self.standalone) {
+                (true, _) if self.parameter.contains_key(name) => continue,
+                (false, _) if self.declared(name).is_some() => continue,
+                (true, _) => &mut self.parameter,
+                (false, true) => &mut self.general,
+                (false, false) => &mut self.unbound,
+            };
+            table.insert(name.clone(), EntityId(self.entities.len()));
+            let input = None;
+            self.entities.push(EntityDecl {
+                input,
+                ..entity.clone()
+            });
+        }
+        for notation in old.notations.iter().filter(|notation| !notation.internal) {
+            self.declare_notation(notation.clone());
+        }
+        for old in &old.elements {
+            let content = old.content.as_ref().filter(|_| !old.internal);
+            let mut attributes = old.attributes.iter().filter(|a| !a.internal).peekable();
+            if content.is_none() && attributes.peek().is_none() {
+                continue;
+            }
+            let index = *(self.element_index)
+                .entry(old.name.clone())
+                .or_insert(self.elements.len());
+            if index == self.elements.len() {
+                self.elements.push(ElementDecl::new(old.name.clone()));
+            }
+            let element = &mut self.elements[index];
+            if element.content.is_none()
+                && let Some(content) = content
+            {
+                element.content = Some(content.clone());
+                element.model = old.model.clone();
+            }
+            for attribute in attributes {
+                if element.attribute(&attribute.name).is_none() {
+                    element.push_attribute(attribute.clone())?;
+                }
+            }
+        }
+        Ok(self)
     }
 
     /// The first declaration of each general entity (see `declared`).
@@ -495,7 +554,7 @@ impl Dtd {
             StoredDefault::Value { value, .. } => Some(value.as_str()),
             _ => None,
         };
-        let lexical = default.is_none_or(|value| lexical(attribute.kind, value));
+        let lexical = default.is_none_or(|value| value_matches(attribute.kind, value));
         if !lexical {
             let message = format!("Attribute {owner} of {name}: invalid default value");
             self.issues.push((Code::AttributeDefault, None, message));
@@ -608,6 +667,9 @@ pub struct Entity<'a> {
     /// resolver has loaded it; an unparsed entity's notation, as libxml2
     /// stores it; otherwise `None`.
     pub content: Option<&'a str>,
+    /// An internal or predefined entity's literal as written, references
+    /// unexpanded (libxml2's `orig`); `None` for external entities.
+    pub original: Option<&'a str>,
     /// The public identifier.
     pub public_id: Option<&'a str>,
     /// The system identifier as written.
@@ -657,6 +719,161 @@ impl<'a> Element<'a> {
     pub fn attributes(self) -> impl Iterator<Item = Attribute<'a>> {
         let element = self.decl.name.as_str();
         (self.decl.attributes.iter()).map(move |decl| Attribute::new(element, decl))
+    }
+
+    /// The names in the content model, each once in model order, `#PCDATA`
+    /// for mixed content (`xmlValidGetPotentialChildren`); none for `EMPTY`
+    /// and `ANY`.
+    pub fn potential_children(self) -> impl Iterator<Item = &'a str> {
+        let mut seen = std::collections::HashSet::new();
+        (self.model.unwrap_or_default())
+            .split(['(', ')', '|', ',', '?', '*', '+', ' '])
+            .filter(move |name| !name.is_empty() && seen.insert(*name))
+    }
+
+    /// The mixed or element content model as a tree (libxml2's
+    /// `xmlElementContent`); `None` for `EMPTY`, `ANY` and undeclared.
+    ///
+    /// ```
+    /// use yaxml::Document;
+    /// use yaxml::valid::{Occurrence, ParticleKind};
+    /// let document = Document::parse("<!DOCTYPE r [<!ELEMENT r (a, (b | c)*)>]><r/>")?;
+    /// let model = document.dtd().unwrap().element("r").unwrap().content().unwrap();
+    /// assert_eq!((model.kind(), model.occurrence()), (ParticleKind::Sequence, Occurrence::Once));
+    /// let [a, choice] = model.children().collect::<Vec<_>>()[..] else { panic!() };
+    /// assert_eq!((a.kind(), a.name()), (ParticleKind::Element, Some("a")));
+    /// assert_eq!((choice.kind(), choice.occurrence()), (ParticleKind::Choice, Occurrence::ZeroOrMore));
+    /// assert_eq!(choice.children().filter_map(|c| c.name()).collect::<Vec<_>>(), ["b", "c"]);
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn content(self) -> Option<Particle<'a>> {
+        let (group, occurrence) = Particle::split(self.model?);
+        let body = &group[1..group.len() - 1];
+        // A one-item model is that item, with the model's occurrence.
+        let text = match separator(body) {
+            Some(_) => group,
+            None => body,
+        };
+        Some(Particle { text, occurrence })
+    }
+}
+
+/// How often a particle occurs; the discriminant is libxml2's
+/// `xmlElementContentOccur`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum Occurrence {
+    /// No indicator.
+    Once = 1,
+    /// `?`
+    Optional = 2,
+    /// `*`
+    ZeroOrMore = 3,
+    /// `+`
+    OneOrMore = 4,
+}
+
+/// A particle's kind; the discriminant is libxml2's `xmlElementContentType`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum ParticleKind {
+    /// `#PCDATA`, the first child of a mixed model's choice (or the whole
+    /// `(#PCDATA)` model).
+    Pcdata = 1,
+    /// An element name.
+    Element = 2,
+    /// `(a , b)`
+    Sequence = 3,
+    /// `(a | b)`
+    Choice = 4,
+}
+
+/// One particle of a content model, borrowed from its [`Element`]. libxml2
+/// chains a group's items through binary `c1`/`c2` nodes; here a group lists
+/// them, read from [`Element::model`] (`xmlBufDumpElementContent`'s form), so
+/// a group of the same connector without an indicator merges into its parent:
+/// `(a , (b , c))`, `((a , b) , c)` and `(a , b , c)` are one three-item
+/// sequence (libxml2 keeps `((a , b) , c)` left-nested), while
+/// `((a , b)* , c)` keeps its inner group.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Particle<'a> {
+    /// A name, `#PCDATA` or a parenthesized group, without its indicator.
+    text: &'a str,
+    occurrence: Occurrence,
+}
+
+/// The connector of a group's body: the first one outside nested groups.
+fn separator(body: &str) -> Option<u8> {
+    let mut depth = 0usize;
+    body.bytes().find(|&byte| {
+        match byte {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            _ => return depth == 0 && matches!(byte, b',' | b'|'),
+        }
+        false
+    })
+}
+
+impl<'a> Particle<'a> {
+    /// Splits a printed item into its text and occurrence indicator.
+    fn split(item: &'a str) -> (&'a str, Occurrence) {
+        let occurrence = match item.as_bytes().last() {
+            Some(b'?') => Occurrence::Optional,
+            Some(b'*') => Occurrence::ZeroOrMore,
+            Some(b'+') => Occurrence::OneOrMore,
+            _ => return (item, Occurrence::Once),
+        };
+        (&item[..item.len() - 1], occurrence)
+    }
+
+    /// The particle's kind.
+    pub fn kind(self) -> ParticleKind {
+        match self.text.as_bytes()[0] {
+            b'#' => ParticleKind::Pcdata,
+            b'(' if separator(&self.text[1..self.text.len() - 1]) == Some(b',') => {
+                ParticleKind::Sequence
+            }
+            b'(' => ParticleKind::Choice,
+            _ => ParticleKind::Element,
+        }
+    }
+
+    /// Its occurrence indicator.
+    pub fn occurrence(self) -> Occurrence {
+        self.occurrence
+    }
+
+    /// The qualified element name of an [`ParticleKind::Element`] particle
+    /// (libxml2 splits it into `prefix` and `name`).
+    pub fn name(self) -> Option<&'a str> {
+        (self.kind() == ParticleKind::Element).then_some(self.text)
+    }
+
+    /// A group's items in order; none for a name or `#PCDATA`.
+    pub fn children(self) -> impl Iterator<Item = Particle<'a>> + 'a {
+        let body = match self.text.strip_prefix('(') {
+            Some(body) => &body[..body.len() - 1],
+            None => "",
+        };
+        let mut rest = (!body.is_empty()).then_some(body);
+        std::iter::from_fn(move || {
+            let item = rest?;
+            let mut depth = 0usize;
+            let end = item.bytes().position(|byte| {
+                match byte {
+                    b'(' => depth += 1,
+                    b')' => depth -= 1,
+                    b' ' if depth == 0 => return true,
+                    _ => {}
+                }
+                false
+            });
+            // Items are separated by " , " or " | ".
+            rest = end.map(|end| &item[end + 3..]);
+            let (text, occurrence) = Particle::split(&item[..end.unwrap_or(item.len())]);
+            Some(Particle { text, occurrence })
+        })
     }
 }
 
@@ -754,6 +971,7 @@ pub fn predefined_entity(name: &str) -> Option<Entity<'static>> {
         name,
         kind: EntityKind::Predefined,
         content: Some(content),
+        original: Some(content),
         public_id: None,
         system_id: None,
         uri: None,
@@ -783,6 +1001,10 @@ impl Dtd {
                 .body
                 .text()
                 .or(external.and_then(|e| e.notation.as_deref())),
+            original: decl.literal.as_deref().or(match &decl.body {
+                EntityBody::Internal(text) => Some(text),
+                EntityBody::External(_) => None,
+            }),
             public_id: external.and_then(|external| external.public.as_deref()),
             system_id: external.and_then(|external| external.system.as_deref()),
             uri: external
@@ -884,10 +1106,21 @@ fn blank(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\r')
 }
 
-/// The lexical check of `xmlValidateAttributeValueInternal`: names are
-/// separated by runs of U+0020, and NMTOKENS (and enumerations) may also have
-/// leading blanks and trailing spaces.
-fn lexical(kind: AttributeKind, value: &str) -> bool {
+/// Whether `value` is lexically valid for an attribute of type `kind`
+/// (`xmlValidateAttributeValue`; `Id` = `xmlValidateNameValue`, `IdRefs` =
+/// `xmlValidateNamesValue`, `NmToken`/`NmTokens` = `xmlValidateNmtoken(s)Value`).
+/// Names are separated by runs of U+0020, and NMTOKENS (and enumerations) may
+/// also have leading blanks and trailing spaces. XML 1.0 fifth-edition names.
+///
+/// ```
+/// use yaxml::valid::{AttributeKind, value_matches};
+///
+/// assert!(value_matches(AttributeKind::IdRefs, "a b  c"));
+/// assert!(!value_matches(AttributeKind::IdRefs, "a b "));
+/// assert!(value_matches(AttributeKind::NmTokens, "\t1 2 "));
+/// assert!(!value_matches(AttributeKind::Id, "1a"));
+/// ```
+pub fn value_matches(kind: AttributeKind, value: &str) -> bool {
     match kind {
         AttributeKind::Cdata => true,
         AttributeKind::Id
@@ -913,6 +1146,39 @@ fn lexical(kind: AttributeKind, value: &str) -> bool {
 /// `dtd` and the DOCTYPE name are not repeated.
 pub fn validate<T: Tree>(tree: &T, dtd: &Dtd) -> Vec<Diagnostic<T::Id>> {
     engine::run(tree, dtd, false)
+}
+
+/// The element names that can be inserted between siblings `prev` and `next`
+/// keeping their parent valid (`xmlValidGetValidElements`): each of the
+/// parent declaration's [potential children](Element::potential_children),
+/// at most 256, for which the parent, with a childless element of that name
+/// in place of the nodes between `prev` and `next`, passes
+/// `xmlValidateOneElement` (its attributes and content; descendants and
+/// IDREFs are not checked). `prev` alone appends after it, `next` alone
+/// prepends before it. `None` (libxml2's -1) when both are `None` or the
+/// parent is not an element type `dtd` names.
+///
+/// ```
+/// use yaxml::{OwnedDocument, ParseOptions, valid};
+///
+/// let input = "<!DOCTYPE r [<!ELEMENT r (a, b?, c)> <!ELEMENT a EMPTY> \
+///     <!ELEMENT b EMPTY> <!ELEMENT c EMPTY>]><r><a/><c/></r>";
+/// let document = OwnedDocument::parse(input)?;
+/// let dtd = document.dtd().unwrap();
+/// let a = document.document_element().unwrap().first_child().unwrap();
+/// let c = a.next_sibling().unwrap();
+/// let between = valid::valid_elements(&document, dtd, Some(a.id()), Some(c.id()));
+/// assert_eq!(between, Some(vec!["b"]));
+/// assert_eq!(valid::valid_elements(&document, dtd, Some(c.id()), None), Some(vec![]));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub fn valid_elements<'d, T: Tree>(
+    tree: &T,
+    dtd: &'d Dtd,
+    prev: Option<T::Id>,
+    next: Option<T::Id>,
+) -> Option<Vec<&'d str>> {
+    engine::insertable(tree, dtd, prev, next)
 }
 
 /// `xmlValidateDocument` with the checks libxml2 makes while parsing.

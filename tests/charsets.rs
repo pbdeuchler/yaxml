@@ -162,8 +162,15 @@ fn failures_report_original_byte_offsets() {
             error(ErrorKind::UnsupportedEncoding, 20),
         ),
         (
+            // A cut-off declaration once the `encodings` feature decodes EBCDIC.
             b"Lo\xa7\x94\x93@\xa5\x85\x99".to_vec(),
-            error(ErrorKind::UnsupportedEncoding, 0),
+            error(
+                match cfg!(feature = "encodings") {
+                    true => ErrorKind::UnexpectedEof,
+                    false => ErrorKind::UnsupportedEncoding,
+                },
+                0,
+            ),
         ),
     ];
     for (input, expected) in cases {

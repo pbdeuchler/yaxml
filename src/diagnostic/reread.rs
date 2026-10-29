@@ -211,8 +211,8 @@ pub(super) struct Found {
     /// reports the error there rather than in the document.
     pub(super) place: Option<(usize, usize)>,
     pub(super) message: String,
-    pub(super) str1: Option<String>,
-    pub(super) str2: Option<String>,
+    /// `xmlError.str1`..`str3`.
+    pub(super) strs: [Option<Box<str>>; 3],
     pub(super) int1: i64,
 }
 
@@ -222,8 +222,7 @@ fn fail(code: u16, at: usize, message: impl Into<String>) -> Found {
         at,
         place: None,
         message: message.into(),
-        str1: None,
-        str2: None,
+        strs: [None, None, None],
         int1: 0,
     }
 }
@@ -231,8 +230,7 @@ fn fail(code: u16, at: usize, message: impl Into<String>) -> Found {
 impl Found {
     fn strs(self, str1: &str, str2: Option<&str>) -> Self {
         Self {
-            str1: Some(str1.into()),
-            str2: str2.map(Into::into),
+            strs: [Some(str1.into()), str2.map(Into::into), None],
             ..self
         }
     }
@@ -679,7 +677,7 @@ impl Attr<'_> {
     }
 }
 
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML_NS;
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
 
 /// The namespace-declaration checks of `xmlParseStartTag2`.
@@ -801,9 +799,13 @@ fn start_tag<'t>(
                     let message = format!(
                         "Namespace prefix {prefix} for {local} on {element} is not defined"
                     );
-                    return Err(c
-                        .here(NS_UNDEFINED_NAMESPACE, message)
-                        .strs(prefix, Some(local)));
+                    let found = c.here(NS_UNDEFINED_NAMESPACE, message);
+                    let strs = [
+                        Some(prefix.into()),
+                        Some(local.into()),
+                        Some(element.into()),
+                    ];
+                    return Err(Found { strs, ..found });
                 }
                 uri
             }
@@ -1959,8 +1961,27 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             "Invalid value \"{value}\" for xml:space : \"default\" or \"preserve\" expected"
         ))
         .strs(&value, None),
-        Warning::RelativeNamespaceUri => {
-            past(format!("xmlns: URI {value} is not absolute")).strs(&value, None)
+        Warning::RelativeNamespaceUri => match name.strip_prefix("xmlns:") {
+            Some(prefix) => past(format!("xmlns:{prefix}: URI {value} is not absolute"))
+                .strs(prefix, Some(&value)),
+            None => past(format!("xmlns: URI {value} is not absolute")).strs(&value, None),
+        },
+        Warning::LangValue => {
+            past(format!("Malformed value for xml:lang : {value}")).strs(&value, None)
+        }
+        // Raised past the instruction; its data follows the target.
+        Warning::CatalogPi => {
+            let end = memchr::memmem::find(&t[c.i..], b"?>").map_or(t.len(), |k| c.i + k);
+            let mut target = Cur { i: c.i + 2, ..*c };
+            target.name(true);
+            let data = String::from_utf8_lossy(&t[target.i.min(end)..end]);
+            let data = data.trim_start_matches([' ', '\t', '\r', '\n']);
+            fail(
+                code,
+                (end + 2).min(t.len()),
+                format!("Catalog PI syntax error: {data}"),
+            )
+            .strs(data, None)
         }
         Warning::NamespaceUri => match name.strip_prefix("xmlns:") {
             Some(prefix) => past(format!("xmlns:{prefix}: '{value}' is not a valid URI"))
@@ -1977,6 +1998,114 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             past(message).strs(&value, Some(detected))
         }
         Warning::ReservedTarget => r.here(code, "xmlParsePITarget: invalid name prefix 'xml'"),
+        // Raised by the SAX handler past the declaration's value, or past the
+        // parameter-entity reference whose text declares it; libxml2's
+        // column after an entity value (or a reference) is that of its last
+        // character, less a lag.
+        Warning::PredefinedEntity | Warning::EntityRedefined => {
+            let literal = |text: &str| {
+                (text.split_ascii_whitespace().filter(|&word| word != "%"))
+                    .nth(1)
+                    .is_some_and(|value| value.starts_with(['"', '\'']))
+            };
+            // libxml2's column falls one behind per entity value earlier on
+            // the line (one less at a reference).
+            let line = memchr::memrchr(b'\n', &t[..c.i]).map_or(0, |i| i + 1);
+            let declarations = std::iter::successors(Some((line, line)), |&(_, from)| {
+                let start = from + memchr::memmem::find(&t[from..c.i], b"<!ENTITY")?;
+                Some((
+                    start,
+                    unquoted(t, start, b">").map_or(c.i, |end| end.min(c.i)),
+                ))
+            });
+            let values = (declarations.skip(1))
+                .filter(|&(start, end)| literal(&String::from_utf8_lossy(&t[start + 8..end])))
+                .count();
+            let lag = values.saturating_sub(usize::from(c.b() == b'%'));
+            let mut r = Cur { i: c.i + 1, ..*c };
+            let (text, end) = match c.b() {
+                b'%' => {
+                    let text = match declared(c, r.name(true).unwrap_or_default(), true) {
+                        Ok(Declared::Internal(text)) => text,
+                        _ => String::new(),
+                    };
+                    (text, r.i - lag)
+                }
+                _ => {
+                    let end = unquoted(t, c.i, b">").unwrap_or(t.len());
+                    let text = String::from_utf8_lossy(&t[c.i..end]).into_owned();
+                    let last = (c.i..end).rfind(|&i| !blank(t[i])).unwrap_or(c.i);
+                    let past = usize::from(!literal(&text["<!ENTITY".len().min(text.len())..]));
+                    (text, last + past - lag)
+                }
+            };
+            let mut names = (text.split("<!ENTITY").skip(1)).filter_map(|declaration| {
+                let mut words = declaration.split_ascii_whitespace();
+                words
+                    .next()
+                    .filter(|&word| word != "%")
+                    .or_else(|| words.next())
+            });
+            let (name, message) = match warning {
+                Warning::PredefinedEntity => {
+                    let name = names.find(|name| predefined(name).is_some());
+                    (name, "Invalid redeclaration of predefined entity '{}'")
+                }
+                _ => (
+                    names.next(),
+                    "Entity({}) already defined in the internal subset",
+                ),
+            };
+            let name = name.unwrap_or_default();
+            fail(code, end, message.replace("{}", name)).strs(name, None)
+        }
+        // Raised by SAX2 at the tag's `/>` or `>` (one column early once the
+        // tag expanded a declared entity) with the normalized value; a
+        // default (`DTDATTR`) at its tag. The element's first internal-subset
+        // definition of `xml:id` gives a default's literal, and with a
+        // tokenized type the value is normalized as one.
+        Warning::XmlIdValue => {
+            let tag = memchr::memrchr(b'<', &t[..=c.i]).unwrap_or(0);
+            let mut r = Cur { i: tag + 1, ..*c };
+            let attlist = format!("<!ATTLIST {} ", r.name(true).unwrap_or_default());
+            let definition = |at: usize| {
+                let end = unquoted(t, at, b">")?;
+                let id = at + 6 + memchr::memmem::find(&t[at..end], b"xml:id")?;
+                let kind = String::from_utf8_lossy(&t[id..end]);
+                let tokenized = kind.split_ascii_whitespace().next() != Some("CDATA");
+                Some((tokenized, (id..end).find(|&i| matches!(t[i], b'"' | b'\''))))
+            };
+            let definition =
+                memchr::memmem::find_iter(&t[..tag], attlist.as_bytes()).find_map(definition);
+            let (open, from) = match c.i == tag {
+                true => (definition.and_then(|(_, open)| open).unwrap_or(tag), tag),
+                false => (open, close + 1),
+            };
+            let mut r = Cur { i: open, ..*c };
+            let mut value = att_value(&mut r, ErrorKind::Syntax, open).unwrap_or_default();
+            if definition.is_some_and(|(tokenized, _)| tokenized) {
+                value = value.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+            }
+            let end = unquoted(t, from, b">").unwrap_or(t.len());
+            let expanded = (String::from_utf8_lossy(&t[tag..end]).split('&').skip(1))
+                .filter_map(|rest| Some(rest.split_once(';')?.0))
+                .any(|name| !name.starts_with('#') && predefined(name).is_none());
+            let end = end - usize::from(t[end - 1] == b'/') - usize::from(expanded);
+            let message = format!("xml:id : attribute value {value} is not an NCName");
+            fail(code, end, message).strs(&value, None)
+        }
+        // Raised past the definition's default (`at` = its end) and the
+        // blanks after it, or at the `;` of the parameter-entity reference
+        // there (the caret past it, see `LineIndex::cursor`).
+        Warning::XmlIdType => {
+            let mut r = Cur { ..*c };
+            r.blanks();
+            if r.b() == b'%' {
+                r.i += 1;
+                r.name(true);
+            }
+            r.here(code, "xml:id : attribute type should be ID")
+        }
         Warning::UndeclaredEntity { .. } => {
             let mut r = Cur {
                 i: c.i + usize::from(!c.eof()),

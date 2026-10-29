@@ -343,6 +343,41 @@ impl Date {
         }
     }
 
+    /// The canonical form: a zoned time, date or dateTime is normalized to
+    /// UTC and ends in `Z`; the g* types drop their time zone.
+    pub(super) fn canonical(&self, ty: Type) -> String {
+        let year = |year: i64| match year < 0 {
+            true => format!("-{:04}", year.unsigned_abs()),
+            false => format!("{year:04}"),
+        };
+        let zoned = self.zoned && matches!(ty, Type::Time | Type::Date | Type::DateTime);
+        let d = self.normalize(ty, 0.0);
+        let zone = if zoned { "Z" } else { "" };
+        let second = seconds(d.second);
+        let pad = if second.find('.').unwrap_or(second.len()) < 2 {
+            "0"
+        } else {
+            ""
+        };
+        match ty {
+            Type::GYear => year(d.year),
+            Type::GMonth => format!("--{:02}", d.month),
+            Type::GDay => format!("---{:02}", d.day),
+            Type::GMonthDay => format!("--{:02}-{:02}", d.month, d.day),
+            Type::GYearMonth => format!("{}-{:02}", year(d.year), d.month),
+            Type::Time => format!("{:02}:{:02}:{pad}{second}{zone}", d.hour, d.minute),
+            Type::Date => format!("{}-{:02}-{:02}{zone}", year(d.year), d.month, d.day),
+            _ => format!(
+                "{}-{:02}-{:02}T{:02}:{:02}:{pad}{second}{zone}",
+                year(d.year),
+                d.month,
+                d.day,
+                d.hour,
+                d.minute
+            ),
+        }
+    }
+
     /// `_xmlSchemaDateCastYMToDays` plus the day of month.
     fn days(&self) -> i64 {
         let month = usize::from(self.month.max(1)) - 1;
@@ -529,6 +564,38 @@ impl Duration {
             };
         }
         Some(duration)
+    }
+}
+
+impl Duration {
+    /// The canonical form, every field written: `-P1Y2M3DT4H5M6.5S`.
+    pub(super) fn canonical(&self) -> String {
+        let negative = self.months < 0 || self.days < 0 || self.seconds < 0.0;
+        let (months, seconds_left) = (self.months.unsigned_abs(), self.seconds.abs());
+        let hours = (seconds_left / 3600.0).floor();
+        let minutes = ((seconds_left - hours * 3600.0) / 60.0).floor();
+        format!(
+            "{}P{}Y{}M{}DT{hours}H{minutes}M{}S",
+            if negative { "-" } else { "" },
+            months / 12,
+            months % 12,
+            self.days.unsigned_abs(),
+            seconds(seconds_left - hours * 3600.0 - minutes * 60.0)
+        )
+    }
+}
+
+/// Seconds as libxml2's `%.14g` writes them below 10^14, without its
+/// exponent form: 14 significant digits, trailing zeros dropped.
+fn seconds(seconds: f64) -> String {
+    let places = match seconds {
+        0.0 => 0,
+        s => (13 - s.log10().floor() as i64).max(0) as usize,
+    };
+    let text = format!("{seconds:.places$}");
+    match text.contains('.') {
+        true => text.trim_end_matches('0').trim_end_matches('.').into(),
+        false => text,
     }
 }
 

@@ -24,7 +24,7 @@ use crate::{DecodeLimits, EditError, EditErrorKind, EditLimit, ParseOptions, Pus
 use crate::{EditComponent, EditLocation};
 
 const XMLNS: &str = "http://www.w3.org/2000/xmlns/";
-const XML: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE as XML;
 
 mod construction;
 mod copy;
@@ -531,6 +531,12 @@ pub struct OwnedDocument<A: Allocator = Global> {
     errors: Vec<Error>,
     /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
     url: Option<String>,
+    /// Property bits fixed at creation: `properties::USERBUILT` (created or
+    /// copied, `xmlNewDoc`; with `HTML` from `html::create`) or
+    /// `properties::OLD10` (parsed with `OLD10`).
+    marks: u32,
+    /// The flags it was parsed with: libxml2's `doc->parseFlags`.
+    flags: u32,
 }
 
 impl OwnedDocument {
@@ -730,7 +736,10 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             allocator,
         )?;
         let content = context.is_some();
-        let document = if !content && crate::encoding::needs_decoding(input) {
+        let converts = options.input_converters().is_some();
+        let document = if !content
+            && (options.encoding.is_some() || crate::encoding::needs_decoding(input, converts))
+        {
             let mut parser = PushParser::configured(limits, decode, flags, options);
             let end = parser
                 .feed_with(input, |event, origin, budget| {
@@ -777,7 +786,12 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
             builder.finish(reader.position(), reader.take_dtd(), flags, errors, content)?
         };
         Ok((
-            OwnedDocument { url, ..document },
+            OwnedDocument {
+                url,
+                marks: crate::properties::OLD10 * u32::from(flags.old10()),
+                flags: flags.0,
+                ..document
+            },
             flags,
             include.map(|resolver| (resolver, base, limits)),
         ))
@@ -906,7 +920,8 @@ impl<A: Allocator> OwnedDocument<A> {
     }
 
     /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2): namespace errors and warnings, which never stop a parse
+    /// libxml2, which past that still keeps the first error clearing a
+    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
     /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
     /// well-formedness error recovered from; empty for a namespace-well-formed
     /// document.
@@ -919,13 +934,29 @@ impl<A: Allocator> OwnedDocument<A> {
         &self.validity
     }
 
+    /// libxml2's `doc->properties` bits ([`crate::properties`]); edits leave
+    /// them unchanged, as in libxml2.
+    pub fn properties(&self) -> u32 {
+        use crate::properties::{HTML, USERBUILT, parsed};
+        match (self.marks & USERBUILT, &self.html) {
+            (0, Some(_)) => HTML,
+            (0, None) => parsed(&self.errors, &self.validity, self.dtd()) | self.marks,
+            _ => self.marks,
+        }
+    }
+
     /// Checks the current tree against its DTD, as libxml2's `xmlValidateDocument`.
     /// Never fails: an empty result means valid; see [`crate::valid`].
     pub fn validate(&self) -> Vec<crate::valid::Diagnostic<OwnedNodeId>> {
         crate::valid::validate_document(self, self.dtd())
     }
 
-    pub(crate) fn ids(&self) -> &[(OwnedNodeId, usize)] {
+    /// libxml2's ID table (`doc->ids`, `xmlIDTable`): `(element, attribute
+    /// position)` of every `xml:id` and DTD-declared `ID` attribute, sorted
+    /// by element and kept by edits. libxml2 keeps only the first element per value; here a
+    /// repeated value is listed again, and [`Self::element_by_id`] picks the
+    /// first in document order.
+    pub fn ids(&self) -> &[(OwnedNodeId, usize)] {
         &self.ids
     }
 
@@ -1030,6 +1061,13 @@ impl<A: Allocator> OwnedDocument<A> {
     /// libxml2's `doc->URL`), against which [`OwnedNode::base_uri`] resolves.
     pub fn url(&self) -> Option<&str> {
         self.url.as_deref()
+    }
+
+    /// The flags the document was parsed with, libxml2's `doc->parseFlags`:
+    /// `ParseOptions::flags`, or `html::Options::flags` for HTML; 0 for a
+    /// created or copied document.
+    pub fn parse_flags(&self) -> u32 {
+        self.flags
     }
 
     /// True for documents built by the HTML parser.
@@ -1463,6 +1501,297 @@ impl<A: Allocator> Editor<'_, A> {
         Ok(())
     }
 
+    /// Appends `content` to the value of a Text, CDATA, comment or PI node
+    /// (`xmlTextConcat`), or as text to an element (`xmlNodeAddContent`): to
+    /// its last child when that is Text, as `xmlAddChild` merges, else as a
+    /// new Text child. Empty `content` changes nothing. The joined value is
+    /// checked as [`set_node_value`](Self::set_node_value) checks one.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<r>a<!--c--></r>")?;
+    /// let root = document.root_element().id();
+    /// let comment = document.root_element().last_child().unwrap().id();
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.add_content(comment, "d")?;
+    /// editor.add_content(root, "b")?; // a new Text: the last child is the comment
+    /// editor.add_content(root, "c")?; // merges into it
+    /// let root = editor.document().root_element();
+    /// let values: Vec<_> = root.children().map(|child| child.text().unwrap()).collect();
+    /// assert_eq!(values, ["a", "cd", "bc"]);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_content(&mut self, node: OwnedNodeId, content: &str) -> Result<(), EditError> {
+        let view = self.document.node(node);
+        let view = view.ok_or(EditError::new(EditErrorKind::InvalidHandle, None))?;
+        let target = match view.kind() {
+            OwnedNodeKind::Element => view
+                .last_child()
+                .filter(|last| last.kind() == OwnedNodeKind::Text),
+            _ => Some(view),
+        };
+        match (target, content.is_empty()) {
+            (_, true) => Ok(()),
+            (None, false) => self.append_text(node, content).map(|_| ()),
+            (Some(target), false) => {
+                let old = target
+                    .text()
+                    .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))?;
+                let joined = crate::fallible::concat(&[old, content])
+                    .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+                self.set_node_value(target.id(), &joined)
+            }
+        }
+    }
+
+    /// Appends markup declarations (`<!ENTITY>`, `<!ELEMENT>`, `<!ATTLIST>`,
+    /// `<!NOTATION>`, PIs, comments, parameter-entity references) to the
+    /// internal subset, creating it before the document element when the
+    /// document has no DOCTYPE (`xmlCreateIntSubset`, named after the
+    /// document element). They are read after the declarations the document
+    /// already has, as more of its internal subset (`xmlAddEntity`,
+    /// `xmlAddElementDecl`, `xmlAddAttributeDecl`, `xmlAddNotationDecl`): a
+    /// name declared before keeps its first declaration, and they are saved.
+    /// As in libxml2, attributes already in the tree are not retyped:
+    /// [`OwnedDocument::element_by_id`] finds only IDs set after an `ID`
+    /// declaration.
+    ///
+    /// # Errors
+    ///
+    /// Malformed markup is [`EditErrorKind::Parse`] at its byte offset, and
+    /// nothing changes; an HTML or rootless document without a DOCTYPE is
+    /// `WrongNodeKind`.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, save};
+    /// let mut document = OwnedDocument::parse("<r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.add_declarations("<!ENTITY who 'world'><!ELEMENT r (#PCDATA)>")?;
+    /// let dtd = editor.document().dtd().unwrap();
+    /// assert_eq!(dtd.entity("who").unwrap().content, Some("world"));
+    /// let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+    /// assert!(saved.contains("<!DOCTYPE r [\n<!ENTITY who \"world\">\n<!ELEMENT r (#PCDATA)>\n]>"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_declarations(&mut self, markup: &str) -> Result<(), EditError> {
+        self.write_subset(markup, false)
+    }
+
+    /// Replaces the internal subset's declarations with `markup`, read as
+    /// [`add_declarations`](Self::add_declarations) reads it, to remove or
+    /// redefine declarations (libxml2 unlinks and frees declaration nodes,
+    /// then calls `xmlAddEntity` and the like). The DOCTYPE is created as
+    /// there when missing. Declarations from a loaded external subset stay,
+    /// after the new ones: a name both declare takes the internal
+    /// declaration, as libxml2 looks in `intSubset` first. An external
+    /// declaration an internal one shadowed when the document was read is not
+    /// kept (libxml2 keeps it in `extSubset`), so it does not come back.
+    ///
+    /// # Errors
+    ///
+    /// As [`add_declarations`](Self::add_declarations); nothing changes.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument};
+    /// let mut document = OwnedDocument::parse("<!DOCTYPE r [<!ENTITY a 'x'>]><r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.set_internal_subset("<!ENTITY b 'y'>")?;
+    /// let dtd = editor.document().dtd().unwrap();
+    /// assert!(dtd.entity("a").is_none() && dtd.entity("b").is_some());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn set_internal_subset(&mut self, markup: &str) -> Result<(), EditError> {
+        self.write_subset(markup, true)
+    }
+
+    /// Removes the DOCTYPE with its internal subset's declarations
+    /// (`xmlUnlinkNode` and `xmlFreeDtd` on `intSubset`); declarations from a
+    /// loaded external subset stay, as libxml2 keeps `extSubset`.
+    ///
+    /// # Errors
+    ///
+    /// A document without a DOCTYPE is [`EditErrorKind::WrongNodeKind`].
+    pub fn remove_doctype(&mut self) -> Result<(), EditError> {
+        let index = self.doctype_slot()?;
+        let external = match self.document.dtd.as_deref() {
+            Some(old) => {
+                let fresh = crate::valid::Dtd {
+                    standalone: old.standalone,
+                    ..Default::default()
+                };
+                let fresh = (fresh.with_external(old))
+                    .map_err(|()| EditError::new(EditErrorKind::Allocation, None))?;
+                let empty = fresh.entities.is_empty()
+                    && fresh.notations.is_empty()
+                    && fresh.elements.is_empty();
+                (!empty).then(|| Box::new(fresh))
+            }
+            None => None,
+        };
+        self.document.detach(index);
+        self.document.dtd = external;
+        Ok(())
+    }
+
+    /// Sets the DOCTYPE's public and system identifiers (libxml2's
+    /// `ExternalID` and `SystemID`). Nothing is loaded or dropped: the
+    /// declarations stay as read.
+    ///
+    /// # Errors
+    ///
+    /// No DOCTYPE is [`EditErrorKind::WrongNodeKind`]; a public identifier
+    /// without a system one or with a character outside `PubidChar`, and a
+    /// system identifier with both quote characters, are `InvalidValue`.
+    ///
+    /// ```
+    /// use yaxml::{EditLimits, OwnedDocument, save};
+    /// let mut document = OwnedDocument::parse("<!DOCTYPE r><r/>")?;
+    /// let mut editor = document.edit(EditLimits::default())?;
+    /// editor.set_doctype_ids(Some("-//P//EN"), Some("r.dtd"))?;
+    /// let saved = String::from_utf8(save::to_vec(&document, &save::Options::default())?)?;
+    /// assert!(saved.contains(r#"<!DOCTYPE r PUBLIC "-//P//EN" "r.dtd">"#));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn set_doctype_ids(
+        &mut self,
+        public: Option<&str>,
+        system: Option<&str>,
+    ) -> Result<(), EditError> {
+        let index = self.doctype_slot()?;
+        let invalid = |offset| Err(EditError::new(EditErrorKind::InvalidValue, offset));
+        for value in public.into_iter().chain(system) {
+            validate_value_length(value, self.limits.max_value_bytes)?;
+            validate_characters(value)?;
+        }
+        if let Some(public) = public {
+            if let Some(offset) = public.find(|c: char| !crate::chars::is_pubid_char(c)) {
+                return invalid(Some(offset));
+            }
+            if system.is_none() {
+                return invalid(None);
+            }
+        }
+        if system.is_some_and(|system| system.contains('"') && system.contains('\'')) {
+            return invalid(None);
+        }
+        let (document, limit) = (&mut *self.document, self.limits.max_owned_bytes);
+        let mut store = |value: Option<&str>| {
+            let spent = &mut document.edit_owned_bytes;
+            value.map(|value| document.pool.store_edit(value, spent, limit))
+        };
+        let (public, system) = (store(public).transpose()?, store(system).transpose()?);
+        let Content::DocumentType(doctype) = &mut self.document.nodes[index].content else {
+            unreachable!("a DOCTYPE node");
+        };
+        (doctype.public_id, doctype.system_id) = (public, system);
+        Ok(())
+    }
+
+    /// The DOCTYPE node's slot; `WrongNodeKind` without one.
+    fn doctype_slot(&self) -> Result<usize, EditError> {
+        let mut children = self.document.root().children();
+        let doctype = children.find(|node| node.kind() == OwnedNodeKind::DocumentType);
+        doctype
+            .map(|node| node.id().slot)
+            .ok_or(EditError::new(EditErrorKind::WrongNodeKind, None))
+    }
+
+    /// `markup` appended to the internal subset, or replacing its
+    /// declarations.
+    fn write_subset(&mut self, markup: &str, replace: bool) -> Result<(), EditError> {
+        validate_value_length(markup, self.limits.max_value_bytes)?;
+        let document = &*self.document;
+        let wrong = EditError::new(EditErrorKind::WrongNodeKind, None);
+        if document.is_html() {
+            return Err(wrong);
+        }
+        let doctype = document
+            .root()
+            .children()
+            .find(|node| node.kind() == OwnedNodeKind::DocumentType);
+        let (name, subset) = match doctype.and_then(OwnedNode::doctype) {
+            Some(doctype) => (doctype.name, doctype.internal_subset.unwrap_or_default()),
+            None => (
+                document
+                    .document_element()
+                    .and_then(OwnedNode::qualified_name)
+                    .ok_or(wrong)?,
+                "",
+            ),
+        };
+        let empty = crate::valid::Dtd::default();
+        let old = document.dtd().unwrap_or(&empty);
+        // A replacing subset is read from scratch: its errors stay strict.
+        let fresh = crate::valid::Dtd {
+            name: old.name.clone(),
+            standalone: old.standalone,
+            ..Default::default()
+        };
+        let seed = if replace { &fresh } else { old };
+        // Offsets in markup: the subset is read as `<!DOCTYPE name [markup]>`.
+        let start = "<!DOCTYPE  [".len() + name.len();
+        let mut dtd =
+            crate::save::dtd::units(name, markup, Some(seed), |_, _| {}).map_err(|error| {
+                let offset = error.offset.saturating_sub(start).min(markup.len());
+                EditError::new(EditErrorKind::Parse(error.kind), Some(offset))
+            })?;
+        // New diagnostics have no offset in the document.
+        for issue in &mut dtd.issues[seed.issues.len()..] {
+            issue.1 = None;
+        }
+        let allocation = || EditError::new(EditErrorKind::Allocation, None);
+        let dtd = match replace {
+            true => dtd.with_external(old).map_err(|()| allocation())?,
+            false => dtd,
+        };
+        let kept = if replace { "" } else { subset };
+        let joined = crate::fallible::concat(&[kept, markup])
+            .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+        let doctype = doctype.map(|node| node.id().slot);
+        let name = (doctype.is_none()).then(|| name.to_owned());
+        let created = self.document.edit_created_nodes + usize::from(doctype.is_none());
+        if created > self.limits.max_created_nodes {
+            let limit = EditLimit::CreatedNodes;
+            return Err(EditError::new(EditErrorKind::LimitExceeded(limit), None));
+        }
+        let (spent, limit) = (
+            &mut self.document.edit_owned_bytes,
+            self.limits.max_owned_bytes,
+        );
+        let subset = self.document.pool.store_edit(&joined, spent, limit)?;
+        match doctype {
+            Some(index) => {
+                let Content::DocumentType(doctype) = &mut self.document.nodes[index].content else {
+                    unreachable!("a DOCTYPE node");
+                };
+                doctype.internal_subset = Some(subset);
+            }
+            None => {
+                let name = name.unwrap_or_default();
+                let (spent, limit) = (
+                    &mut self.document.edit_owned_bytes,
+                    self.limits.max_owned_bytes,
+                );
+                let name = self.document.pool.store_edit(&name, spent, limit)?;
+                let id = NodeId::new(self.document.nodes.len());
+                (self.document.nodes.try_reserve(1))
+                    .map_err(|_| EditError::new(EditErrorKind::Allocation, None))?;
+                let content = Content::DocumentType(StoredDoctype {
+                    name,
+                    public_id: None,
+                    system_id: None,
+                    internal_subset: Some(subset),
+                });
+                self.document.nodes.push(OwnedRecord::detached(id, content));
+                let root = self.document.root_element;
+                self.document.attach(id.index(), 0, Link::new(root));
+                self.document.edit_created_nodes = created;
+            }
+        }
+        self.document.dtd = Some(Box::new(dtd));
+        Ok(())
+    }
+
     /// Replaces the value of an existing attribute, selected by expanded name
     /// (`Some("")` and `None` are different namespaces). Its spelling and
     /// position are kept.
@@ -1816,6 +2145,8 @@ impl<A: Allocator + Clone> OwnedBuilder<A> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            marks: 0,
+            flags: 0,
         })
     }
 }
@@ -1960,7 +2291,8 @@ impl TreeBuilder {
         self.nodes[id.index()].subtree_size = self.nodes.len() - id.index();
     }
 
-    pub(crate) fn finish(self) -> Result<OwnedDocument, Error> {
+    /// The built document, with `dtd` as its declarations.
+    pub(crate) fn finish(self, dtd: Option<crate::valid::Dtd>) -> Result<OwnedDocument, Error> {
         let document = OwnedBuilder {
             nodes: self.nodes,
             xml_ids: Vec::new(),
@@ -1984,7 +2316,12 @@ impl TreeBuilder {
                 (element, index)
             })
             .collect();
-        Ok(OwnedDocument { ids, ..document })
+        let dtd = dtd.map(Box::new);
+        Ok(OwnedDocument {
+            ids,
+            dtd,
+            ..document
+        })
     }
 }
 
@@ -2054,13 +2391,16 @@ pub(crate) struct HtmlBuilder {
     root_element: NodeId,
     valueless: Vec<usize>,
     budget: Budget,
+    flags: Option<u32>,
 }
 
 #[cfg(feature = "html")]
 impl HtmlBuilder {
-    pub(crate) fn new(source_length: usize, limits: Limits) -> Result<Self, Error> {
-        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(source_length, 0, Global)?;
+    /// `flags`: the parse's `html::Options::flags`, `None` for `html::create`.
+    pub(crate) fn new(flags: Option<u32>, limits: Limits) -> Result<Self, Error> {
+        let OwnedBuilder { nodes, .. } = OwnedBuilder::new(0, 0, Global)?;
         Ok(Self {
+            flags,
             nodes,
             attributes: allocator::Vec::new_in(Global),
             pool: Pool::default(),
@@ -2261,6 +2601,11 @@ impl HtmlBuilder {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            marks: (self.flags).map_or(
+                crate::properties::HTML | crate::properties::USERBUILT,
+                |_| 0,
+            ),
+            flags: self.flags.unwrap_or(0),
         };
         // xmlIsID for HTML: any valued `id` attribute, and `name` on `a`.
         document.ids = document

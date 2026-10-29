@@ -150,8 +150,9 @@ libxml2 and every known difference. The [API mapping](docs/libxml2-api.tsv)
 has one row per libxml2 function, and [conformance](docs/conformance.md)
 covers the W3C test suite results.
 
-Not yet supported: XML 1.1, encodings that libxml2 reads only through iconv or
-ICU (Shift_JIS, EUC-JP, GBK and others), and the SAX2 handler table. The
+Not yet supported: XML 1.1, and built-in decoding of the multi-byte encodings that
+libxml2 reads only through iconv or ICU (Shift_JIS, EUC-JP, GBK and others); a
+caller can supply them through `ParseOptions::converters`. The
 [remaining work](docs/remaining-work.md) lists what is left.
 
 ## Cargo features
@@ -175,8 +176,11 @@ yaxml = { version = "0.1", default-features = false, features = ["xpath"] }
 | `catalog` | `catalog`, the `CATALOG_PI` parser flag | | 1,250 |
 | `schemas` | `xsd`, `relaxng`, `schematron`, `schema_types`, `regexp` | `xpath` | 16,800 |
 | `html` | `html`, `save::AS_HTML` | | 6,250 |
-| `textreader` | `TextReader` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 1,700 |
+| `textreader` | `TextReader`, `Walker` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 1,700 |
 | `textwriter` | `TextWriter` | | 1,200 |
+| `debug` | `debug` (libxml2's debugXML dumps, `yaxmllint --debug`) | | 750 |
+| `sax` | `sax` (SAX2-style callbacks, libxml2's `xmlSAXHandler`) | | 290 |
+| `encodings` | UCS-4 and EBCDIC input and `save` output (the code pages of the macOS iconv) | | 450 |
 | `full` | all of the above (default) | | |
 | `allocator_api` | Rust 1.100+: `OwnedDocument` storage in any `Allocator` (`OwnedDocument::parse_in`); not in `full` | | |
 

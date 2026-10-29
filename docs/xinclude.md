@@ -24,6 +24,7 @@ assert_eq!(result.root_element().text_chunks().collect::<String>(), "none");
 | libxml2 | yaxml |
 | --- | --- |
 | `xmlXIncludeProcess*`, `XML_PARSE_XINCLUDE` | `xinclude::process` on a parsed document |
+| `xmlXIncludeProcessNode`, `xmlXIncludeProcessTree*` | `xinclude::process_node`: only the node's subtree is expanded and checked; `None` for a node outside the tree |
 | `XML_PARSE_NOXINCNODE` | Always: no `XINCLUDE_START`/`END` nodes (the DOM has no such kind) |
 | `XML_PARSE_NOBASEFIX` | `Options::base_fixup = false` |
 | `xmlXIncludeSetResourceLoader`, `XML_RESOURCE_XINCLUDE{,_TEXT}` | The `Resolver`; `ResourceKind::XInclude`, `XIncludeText` |
@@ -76,14 +77,22 @@ The `--noxincludenode` runs of the suite expect the same bytes.
   stores them; adjacent Text nodes are not merged.
 - With marker nodes, libxml2 writes `<p></p>` for an element left empty by an
   inclusion; the result here is `<p/>`, as with `NOXINCNODE`.
-- Entity declarations are not merged into the result's DTD (entities are
-  always expanded in yaxml trees); the `ENTITY_DEF_MISMATCH` check is absent.
+- General entities of an included document's DTD are declared in the
+  including document's internal subset (`xmlXIncludeMergeEntities`: once per
+  loaded document, only into its immediate includer, external-subset ones
+  unless a DOCTYPE identifier matches, an existing or predefined name kept,
+  another declaration of an unparsed entity `ErrorKind::EntityMismatch` in
+  the included document). They are written in declaration order (libxml2: hash
+  order) and as literals that read back to the same replacement text (`&#34;`
+  for a quote, `&#38;` for an `&` that starts no reference; libxml2 writes
+  `&quot;` and leaves `&#38;` as is, changing the entity). A mismatch fails
+  `process`; libxml2 reports it and keeps the inclusion.
 - `xml:lang` fixup (XInclude 1.0 section 4.5.6) is opt-in through
   `Options::lang_fixup`; libxml2 never performs it.
 - An inclusion inside a fallback keeps the base fixup computed for its own
   element, not recomputed against the outer inclusion.
-- No streaming (`xmlTextReader`) XInclude, `xmlXIncludeProcessTree` on a
-  subtree, error handler callbacks, or `_private` data. `xmlns()` bindings do
+- No streaming (`xmlTextReader`) XInclude, error handler callbacks, or
+  `_private` data. `xmlns()` bindings do
   not leak between inclusions, as libxml2's shared XPath context lets them.
 - Resolver failures are treated as missing resources; libxml2 counts I/O
   errors other than "not found" and network refusal for `parse="text"`.

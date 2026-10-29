@@ -9,10 +9,10 @@ use std::collections::HashSet;
 
 use super::Out;
 use crate::dtd::{
-    AttributeKind, Connector, DefaultDeclarationView, DtdLimits, DtdUnitView, ElementContentView,
-    EntityDefinitionView, ExternalIdView, ModelTokenView, Occurrence,
+    AttributeDefinitionView, AttributeKind, Connector, DefaultDeclarationView, DtdLimits,
+    DtdUnitView, ElementContentView, EntityDefinitionView, ModelTokenView, Occurrence,
 };
-use crate::dtd_catalog::DtdCatalog;
+use crate::dtd_catalog::{DtdCatalog, StoredDefault};
 use crate::dtd_controller::{DtdController, DtdEvent};
 use crate::parser::Budget;
 use crate::{DecodeLimits, Doctype, Error, ErrorKind, Limits};
@@ -71,6 +71,24 @@ fn declarations(
     notations: &mut Out<'_>,
     out: &mut Out<'_>,
 ) -> Result<bool, Error> {
+    let (mut seen, mut declared) = (HashSet::new(), false);
+    units(name, subset, None, |view, catalog| {
+        declared |= declaration(view, catalog, &mut seen, notations, out);
+    })?;
+    Ok(declared)
+}
+
+/// Reads the internal subset again, expanding internal parameter entities,
+/// and passes each unit in order with the catalog read so far; returns the
+/// declarations. A stored subset is read recovering (a recovered document's
+/// can hold what libxml2 reads on from); declarations added after `seed`'s
+/// are read strictly.
+pub(crate) fn units(
+    name: &str,
+    subset: &str,
+    seed: Option<&crate::valid::Dtd>,
+    mut each: impl FnMut(DtdUnitView<'_>, &DtdCatalog),
+) -> Result<crate::valid::Dtd, Error> {
     // The subset is source text; parsing normalizes its line ends.
     let subset = subset.replace("\r\n", "\n").replace('\r', "\n");
     let text = format!("<!DOCTYPE {name} [{subset}]>");
@@ -79,17 +97,21 @@ fn declarations(
         max_dtd_bytes: defaults.max_dtd_bytes.max(text.len()),
         ..defaults
     };
-    let options = DtdLimits::new(limits, DecodeLimits::default());
-    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, false);
-    // A recovered document's subset can hold what libxml2 reads on from.
-    let mut budget = Budget::new(limits).recovering();
-    let (mut seen, mut declared) = (HashSet::new(), false);
+    // Without NOENT, so defaults keep their references (`StoredDefault` `kept`).
+    let options = DtdLimits {
+        flags: crate::options::Flags(0),
+        ..DtdLimits::new(limits, DecodeLimits::default())
+    };
+    let standalone = seed.is_some_and(|dtd| dtd.standalone);
+    let mut controller = DtdController::stable_utf8(&text, 0, 0, options, standalone);
+    let mut budget = Budget::new(limits);
+    match seed {
+        Some(dtd) => controller.catalog_mut().resume(dtd),
+        None => budget = budget.recovering(),
+    }
     while !controller.is_complete() {
         match controller.current() {
-            Some((DtdEvent::Item(unit), _)) => {
-                let view = unit.view();
-                declared |= declaration(view, controller.catalog(), &mut seen, notations, out);
-            }
+            Some((DtdEvent::Item(unit), _)) => each(unit.view(), controller.catalog()),
             Some(_) => {}
             None => {
                 controller.advance_borrowed(&mut budget)?;
@@ -98,7 +120,38 @@ fn declarations(
         }
         controller.release();
     }
-    Ok(declared)
+    // Added declarations must not close the subset (`]>`) early.
+    let end = controller.physical_position();
+    if seed.is_some() && end < text.len() {
+        return Err(Error::new(ErrorKind::InvalidDtd, end));
+    }
+    Ok(controller.catalog_mut().take_dtd())
+}
+
+/// The default libxml2 stores for an attribute definition: references
+/// expanded, then normalized.
+pub(crate) fn stored_default<'a>(
+    catalog: &'a DtdCatalog,
+    element: &str,
+    definition: &AttributeDefinitionView<'a>,
+    kept: bool,
+) -> Option<&'a str> {
+    let DefaultDeclarationView::Value { literal, .. } = definition.default() else {
+        return None;
+    };
+    let stored = catalog
+        .attributes(element)
+        .find(|binding| binding.name == definition.name())
+        .and_then(|binding| match (&binding.default, kept) {
+            (
+                StoredDefault::Value {
+                    kept: Some(form), ..
+                },
+                true,
+            ) => Some(form.as_str()),
+            (default, _) => default.value(),
+        });
+    Some(stored.unwrap_or(literal.content().0))
 }
 
 /// Writes one unit unless it repeats a declaration; true for declarations.
@@ -160,22 +213,13 @@ fn declaration(
                     }
                     out.raw(")");
                 }
-                let (keyword, literal) = match definition.default() {
-                    DefaultDeclarationView::Required => (" #REQUIRED", None),
-                    DefaultDeclarationView::Implied => (" #IMPLIED", None),
-                    DefaultDeclarationView::Value { fixed, literal } => (
-                        if fixed { " #FIXED" } else { "" },
-                        Some(literal.content().0),
-                    ),
-                };
-                out.raw(keyword);
-                if let Some(literal) = literal {
-                    // The stored default: references expanded, then normalized.
-                    let value = catalog
-                        .attributes(element)
-                        .find(|binding| binding.name == definition.name())
-                        .and_then(|binding| binding.default.value())
-                        .unwrap_or(literal);
+                out.raw(match definition.default() {
+                    DefaultDeclarationView::Required => " #REQUIRED",
+                    DefaultDeclarationView::Implied => " #IMPLIED",
+                    DefaultDeclarationView::Value { fixed: true, .. } => " #FIXED",
+                    DefaultDeclarationView::Value { .. } => "",
+                });
+                if let Some(value) = stored_default(catalog, element, &definition, false) {
                     out.raw(" \"");
                     out.text(value, true);
                     out.raw("\"");
@@ -187,6 +231,10 @@ fn declaration(
         }
         DtdUnitView::Entity(entity) => {
             let parameter = entity.is_parameter();
+            // An invalid predefined-entity redeclaration was dropped.
+            if !parameter && catalog.dtd().declared(entity.name()).is_none() {
+                return false;
+            }
             if first(if parameter { "%" } else { "&" }, entity.name()) {
                 out.raw(if parameter {
                     "<!ENTITY % "
@@ -203,7 +251,11 @@ fn declaration(
                         identifier,
                         notation,
                     } => {
-                        external(out, identifier);
+                        external(
+                            out,
+                            identifier.public.map(unquote),
+                            identifier.system.map(unquote),
+                        );
                         if let Some(notation) = notation {
                             out.raw(" NDATA ");
                             out.raw(notation);
@@ -215,11 +267,10 @@ fn declaration(
         }
         DtdUnitView::Notation(notation) => {
             if first("notation", notation.name()) {
-                notations.raw("<!NOTATION ");
-                notations.raw(notation.name());
-                notations.raw(" ");
-                external(notations, notation.identifier());
-                notations.raw(" >\n");
+                let identifier = notation.identifier();
+                let (public, system) = (identifier.public, identifier.system);
+                let (public, system) = (public.map(unquote), system.map(unquote));
+                self::notation(notations, notation.name(), public, system);
             }
         }
         DtdUnitView::Comment(text) => {
@@ -243,20 +294,30 @@ fn declaration(
     true
 }
 
-/// `PUBLIC "p" "s"` or `SYSTEM "s"`; only notations may lack the system literal.
-fn external(out: &mut Out<'_>, identifier: ExternalIdView<'_>) {
-    match identifier.public {
+/// `<!NOTATION name PUBLIC "p" "s" >`, as `xmlBufDumpNotationDecl` writes it.
+pub(super) fn notation(out: &mut Out<'_>, name: &str, public: Option<&str>, system: Option<&str>) {
+    out.raw("<!NOTATION ");
+    out.raw(name);
+    out.raw(" ");
+    external(out, public, system);
+    out.raw(" >\n");
+}
+
+/// `PUBLIC "p" "s"` or `SYSTEM "s"` of unquoted literals; only notations may
+/// lack the system literal.
+fn external(out: &mut Out<'_>, public: Option<&str>, system: Option<&str>) {
+    match public {
         Some(public) => {
             out.raw("PUBLIC ");
-            out.quoted(unquote(public), false);
-            if let Some(system) = identifier.system {
+            out.quoted(public, false);
+            if let Some(system) = system {
                 out.raw(" ");
-                out.quoted(unquote(system), false);
+                out.quoted(system, false);
             }
         }
         None => {
             out.raw("SYSTEM ");
-            out.quoted(identifier.system.map_or("", unquote), false);
+            out.quoted(system.unwrap_or_default(), false);
         }
     }
 }

@@ -17,7 +17,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, lexical, predefined_entity,
+    AttributeDecl, AttributeKind, Code, Content, Diagnostic, Dtd, blank, predefined_entity,
+    value_matches,
 };
 use crate::dtd_catalog::{EntityBody, StoredDefault};
 use crate::fallible::collected;
@@ -502,7 +503,7 @@ impl<Id: Copy> Validator<Id> {
             let message = format!("No declaration for attribute {shown} of element {owner}");
             return self.report(key, Code::UnknownAttribute, Some(node), message);
         };
-        if !lexical(decl.kind, value) {
+        if !value_matches(decl.kind, value) {
             let code = match namespace {
                 true => Code::InvalidDefault,
                 false => Code::AttributeValue,
@@ -697,6 +698,8 @@ pub(crate) fn run<T: Navigate>(tree: &T, dtd: &Dtd, document: bool) -> Vec<Diagn
                 id = tree.parent(id).expect("inside the document element");
             }
         }
+    } else {
+        validator.note(Code::NoRoot, None, "no root element".into());
     }
     let mut out = validator.sorted();
     for diagnostic in &mut out {
@@ -707,4 +710,82 @@ pub(crate) fn run<T: Navigate>(tree: &T, dtd: &Dtd, document: bool) -> Vec<Diagn
         }
     }
     out
+}
+
+/// Feeds `id` as a child of the open element without validating below it;
+/// entity references are entered, as `xmlValidateOneElement` reads them.
+fn shallow<T: Navigate>(validator: &mut Validator<T::Id>, tree: &T, dtd: &Dtd, id: T::Id) {
+    match tree.item(id) {
+        Item::Element(name) => {
+            let node = Node { id, offset: None };
+            validator.start(dtd, node, name, std::iter::empty());
+            validator.end(dtd);
+        }
+        Item::Text(text) => {
+            validator.flush(dtd);
+            validator.text(dtd, text, tree.is_cdata(id));
+        }
+        Item::EntityRef(_) => {
+            validator.other(dtd);
+            let mut child = tree.first_child(id);
+            while let Some(id) = child {
+                shallow(validator, tree, dtd, id);
+                child = tree.next_sibling(id);
+            }
+            validator.flush(dtd);
+        }
+        Item::Comment(_) | Item::Pi(..) => validator.other(dtd),
+        Item::Root => {}
+    }
+}
+
+/// `xmlValidGetValidElements`: see [`super::valid_elements`].
+pub(crate) fn insertable<'d, T: Navigate>(
+    tree: &T,
+    dtd: &'d Dtd,
+    prev: Option<T::Id>,
+    next: Option<T::Id>,
+) -> Option<Vec<&'d str>> {
+    let parent = tree.parent(prev.or(next)?)?;
+    let Item::Element(name) = tree.item(parent) else {
+        return None;
+    };
+    let (_, decl) = dtd.element_for(name)?;
+    let siblings = |from| std::iter::successors(from, |&id| tree.next_sibling(id));
+    let head = prev.map_or(0, |prev| {
+        siblings(tree.first_child(parent))
+            .take_while(|&id| id != prev)
+            .count()
+            + 1
+    });
+    let node = Node {
+        id: parent,
+        offset: None,
+    };
+    let mut valid = Vec::new();
+    // libxml2 collects at most 256 names.
+    for candidate in dtd.element_view(decl).potential_children().take(256) {
+        let mut validator = Validator::new(false);
+        let attributes = (0..).map_while(|index| tree.attribute(parent, index));
+        validator.start(dtd, node, name, attributes);
+        for id in siblings(tree.first_child(parent)).take(head) {
+            shallow(&mut validator, tree, dtd, id);
+        }
+        validator.start(dtd, node, QName::new((candidate, None)), std::iter::empty());
+        validator.end(dtd);
+        for id in siblings(next) {
+            shallow(&mut validator, tree, dtd, id);
+        }
+        validator.end(dtd);
+        if validator.refused {
+            return None;
+        }
+        // The parent is the first element started; IDREFs are not resolved.
+        let errors = (validator.keys.iter().zip(&validator.out))
+            .any(|(&(ordinal, _), diagnostic)| ordinal == 1 && !diagnostic.code.is_warning());
+        if !errors {
+            valid.push(candidate);
+        }
+    }
+    Some(valid)
 }

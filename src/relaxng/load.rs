@@ -164,10 +164,7 @@ impl<'l> Loader<'l> {
             None => Err(self.error(
                 SchemaCode::Empty,
                 at,
-                format!(
-                    "xmlRelaxNGParse: {} is not a RELAX NG schema",
-                    self.resources[resource]
-                ),
+                format!("xmlRelaxNGParse: {} is empty", self.resources[resource]),
             )),
         }
     }
@@ -218,11 +215,21 @@ impl<'l> Loader<'l> {
                     attrs.push((attribute.local.to_owned(), value.to_owned()));
                 }
                 None => {
-                    return Err(self.error(
-                        SchemaCode::ForbiddenAttribute,
-                        at,
-                        format!("Attribute {} is not allowed on {name}", attribute.local),
-                    ));
+                    let local = attribute.local;
+                    return Err(
+                        match matches!(local, "name" | "type" | "href" | "combine") {
+                            true => self.error(
+                                SchemaCode::ForbiddenAttribute,
+                                at,
+                                format!("Attribute {local} is not allowed on {name}"),
+                            ),
+                            false => self.error(
+                                SchemaCode::UnknownAttribute,
+                                at,
+                                format!("Unknown attribute {local} on {name}"),
+                            ),
+                        },
+                    );
                 }
             }
         }
@@ -258,12 +265,22 @@ impl<'l> Loader<'l> {
         let first = tree.first_child(id);
         for child in std::iter::successors(first, |&child| tree.next_sibling(child)) {
             match tree.item(child) {
-                Item::Element(_) if matches!(name, "value" | "param" | "name") => {
-                    return Err(self.error(
-                        SchemaCode::TextExpected,
-                        at,
-                        format!("Element {name} has element content"),
-                    ));
+                Item::Element(qname) if matches!(name, "value" | "param" | "name") => {
+                    let (code, message) = match (qname.namespace == Some(RNG_NS), name) {
+                        (false, _) => (
+                            SchemaCode::ForeignElement,
+                            format!("element {name} doesn't allow foreign elements"),
+                        ),
+                        (true, "value") => (
+                            SchemaCode::TextExpected,
+                            "Expecting a single text value for <value>content".into(),
+                        ),
+                        (true, _) => (
+                            SchemaCode::TextExpected,
+                            format!("Element {name} has element content"),
+                        ),
+                    };
+                    return Err(self.error(code, at, message));
                 }
                 Item::Element(qname) if qname.namespace == Some(RNG_NS) => {
                     let el = self.convert(tree, child, qname, &here)?;
@@ -298,28 +315,35 @@ impl<'l> Loader<'l> {
         }
     }
 
-    /// Section 4.3: an absolute URI without fragment, or empty.
+    /// Section 4.3: an absolute URI without fragment, or empty; libxml2's
+    /// checks in its order.
     fn check_library(&self, uri: &str, at: Loc) -> Result<(), SchemaError> {
         if uri.is_empty() {
             return Ok(());
         }
-        match Uri::parse_raw(uri) {
-            Ok(parsed) if parsed.fragment.is_some() => Err(self.error(
-                SchemaCode::UriFragment,
-                at,
-                format!("Attribute datatypeLibrary URI {uri} has a fragment ID"),
-            )),
+        let (code, message) = match Uri::parse(uri) {
+            Err(_) => (
+                SchemaCode::InvalidUri,
+                format!("contains invalid URI {uri}"),
+            ),
             // RFC 2396: an absolute URI has a scheme and a non-empty part after it.
+            Ok(Uri { ref scheme, .. })
+                if scheme.as_ref().is_none_or(|s| uri.len() <= s.len() + 1) =>
+            {
+                (
+                    SchemaCode::UriNotAbsolute,
+                    format!("URI {uri} is not absolute"),
+                )
+            }
             Ok(Uri {
-                scheme: Some(scheme),
-                ..
-            }) if uri.len() > scheme.len() + 1 => Ok(()),
-            _ => Err(self.error(
-                SchemaCode::UriNotAbsolute,
-                at,
-                format!("Attribute datatypeLibrary URI {uri} is not absolute"),
-            )),
-        }
+                fragment: Some(_), ..
+            }) => (
+                SchemaCode::UriFragment,
+                format!("URI {uri} has a fragment ID"),
+            ),
+            Ok(_) => return Ok(()),
+        };
+        Err(self.error(code, at, format!("Attribute datatypeLibrary {message}")))
     }
 
     /// Loads the document an `externalRef` or `include` names (sections 4.5
@@ -466,6 +490,15 @@ impl<'l> Loader<'l> {
                 ),
             ));
         }
+        let url = &self.resources[grammar.at.resource];
+        if el
+            .children
+            .iter()
+            .any(|c| c.name == "define" && c.attr("name").is_none())
+        {
+            let message = format!("xmlRelaxNG: include {url} has define without name");
+            return Err(self.error(SchemaCode::NameMissing, el.at, message));
+        }
         let mut start = false;
         let mut defines = HashSet::new();
         overrides(&el.children, &mut start, &mut defines);
@@ -473,7 +506,7 @@ impl<'l> Loader<'l> {
             return Err(self.error(
                 SchemaCode::StartMissing,
                 el.at,
-                "xmlRelaxNG: include has a start but not the included grammar".into(),
+                format!("xmlRelaxNG: include {url} has a start but not the included grammar"),
             ));
         }
         for name in defines {
@@ -482,7 +515,9 @@ impl<'l> Loader<'l> {
                 return Err(self.error(
                     SchemaCode::DefineMissing,
                     el.at,
-                    format!("xmlRelaxNG: include has a define {name} but not the included grammar"),
+                    format!(
+                        "xmlRelaxNG: include {url} has a define {name} but not the included grammar"
+                    ),
                 ));
             }
         }

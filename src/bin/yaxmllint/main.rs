@@ -157,7 +157,12 @@ fn parse(o: &Opts, name: &str, input: &[u8]) -> Result<OwnedDocument, yaxml::Err
         for diagnostic in &parsed.diagnostics {
             eprint!("{}", diagnostic.render(name, &lines));
         }
-        return Ok(parsed.document);
+        // htmlReadFile records the file name as the document URL.
+        let mut document = parsed.document;
+        if let Ok(mut editor) = document.edit(yaxml::EditLimits::DEFAULT) {
+            _ = editor.set_url(Some(name));
+        }
+        return Ok(document);
     }
     let options = ParseOptions::new(flags(o)).with_limits(limits);
     OwnedDocument::parse_with(input, options.with_resolver(name, resolver(o)))
@@ -237,17 +242,37 @@ fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &Owne
     let verdict = |ok| verdict(o, file, ok);
     let lines = LineIndex::new(input);
     let dtd_valid = (o.valid || o.postvalid).then(|| {
+        // Parse-time `--valid` (SAX2.c startElementNs) stops at a missing DTD
+        // or one declaring no element, attribute, notation or general entity,
+        // without failing; `--postvalid` validates against it.
+        let general = |e: valid::Entity| {
+            !matches!(
+                e.kind,
+                valid::EntityKind::InternalParameter | valid::EntityKind::ExternalParameter
+            )
+        };
+        let declared = document.dtd().is_some_and(|dtd| {
+            dtd.elements().next().is_some()
+                || dtd.notations().next().is_some()
+                || dtd.entities().any(general)
+        });
+        if !o.postvalid && !declared {
+            let root = document.root_element();
+            let missing = valid::Diagnostic::<yaxml::OwnedNodeId> {
+                code: valid::Code::NoDtd,
+                node: None,
+                offset: root.range().map(|range| range.start),
+                message: "Validation failed: no DTD found !".to_owned(),
+            };
+            print_all(file, &lines, [missing.describe(&lines)]);
+            return 0;
+        }
         let found = document.validate();
         let ok = print_all(file, &lines, found.iter().map(|d| d.describe(&lines)));
         if !ok && o.postvalid {
             eprintln!("Document {file} does not validate");
         }
-        // Parse-time `--valid` reports a missing DTD but does not fail on it.
-        if ok || (!o.postvalid && document.dtd().is_none()) {
-            0
-        } else {
-            VALID
-        }
+        if ok { 0 } else { VALID }
     });
     let dtdvalid = o.dtdvalid.as_deref().map(|path| {
         let Ok(dtd) = valid::Dtd::load(path, Default::default(), loader(&o.path)) else {
@@ -356,6 +381,9 @@ fn lint(o: &Opts, schemas: &Schemas, file: &str) -> i32 {
         .as_deref()
         .map_or(0, |expression| query(&document, expression, o, &mut out));
     let saved = if o.noout {
+        0
+    } else if o.debug {
+        out.extend_from_slice(yaxml::debug::dump_document(&document).as_bytes());
         0
     } else {
         save(o, &document, &mut out)

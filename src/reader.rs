@@ -213,6 +213,32 @@ pub struct Doctype<'a> {
 }
 
 impl<'a> Doctype<'a> {
+    /// Whether it names XHTML 1.0 by one of the three Strict, Frameset or
+    /// Transitional public or system identifiers (`xmlIsXHTML`), which makes
+    /// [`save`](crate::save) apply XHTML rules.
+    ///
+    /// ```
+    /// let document = yaxml::Document::parse(
+    ///     "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'x.dtd'><html/>",
+    /// )?;
+    /// assert!(document.doctype().unwrap().is_xhtml());
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn is_xhtml(&self) -> bool {
+        const PUBLIC: [&str; 3] = [
+            "-//W3C//DTD XHTML 1.0 Strict//EN",
+            "-//W3C//DTD XHTML 1.0 Frameset//EN",
+            "-//W3C//DTD XHTML 1.0 Transitional//EN",
+        ];
+        const SYSTEM: [&str; 3] = [
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd",
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd",
+            "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
+        ];
+        self.public_id.is_some_and(|id| PUBLIC.contains(&id))
+            || self.system_id.is_some_and(|id| SYSTEM.contains(&id))
+    }
+
     /// Splits a complete, already validated declaration from `<!DOCTYPE` to `>`.
     pub(crate) fn parse(raw: &'a str) -> Self {
         let (doctype, end) = Self::header(raw);
@@ -248,7 +274,7 @@ impl<'a> Doctype<'a> {
             ))
         };
         let name_start = skip("<!DOCTYPE".len());
-        let name_end = name_start + crate::parser::name_length(&raw[name_start..]);
+        let name_end = name_start + crate::parser::name_length(&raw[name_start..], false);
         let mut at = skip(name_end);
         let identifier = |at: &mut usize, public| {
             let (value, end) = literal(*at, public)?;
@@ -421,8 +447,9 @@ impl<'a> Reader<'a> {
     /// # Errors
     ///
     /// As [`Reader::new`] (under `RECOVER` invalid UTF-8 and characters
-    /// outside `Char` are recovered from instead); `DTDVALID`, `NOBLANKS`
-    /// and `XINCLUDE` are [`ErrorKind::UnsupportedOption`].
+    /// outside `Char` are recovered from instead); `DTDVALID`, `NOBLANKS`,
+    /// `XINCLUDE` and a forced [`ParseOptions::encoding`] (read
+    /// [`Transcoded`] input instead) are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: &'a [u8], options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, crate::options::NOBLANKS)?;
         Self::borrowing(input, None, flags, options)
@@ -450,6 +477,21 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
+        if decoded.is_none() && options.encoding.is_some() {
+            // Only `Transcoded::new` decodes in a forced encoding.
+            return Err(Error::new(ErrorKind::UnsupportedOption, 0));
+        }
+        // A document that needs decoding goes through `Transcoded`; content
+        // parsed in context is never sniffed (libxml2 `hasTextDecl = 0`), and
+        // the owned builder sends every document `needs_decoding` to a stream.
+        if decoded.is_none()
+            && (input.starts_with(&[0xff, 0xfe])
+                || input.starts_with(&[0xfe, 0xff])
+                || input.starts_with(&[0, 0, 0xfe, 0xff])
+                || input.starts_with(&[0, b'<', 0, b'?']))
+        {
+            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
+        }
         let (limits, decode) = options.effective_limits();
         let (limits, decode) = match decoded {
             // `Transcoded::new` checked the source's length.
@@ -477,8 +519,11 @@ impl<'a> Reader<'a> {
         flags: Flags,
         options: ParseOptions,
     ) -> Result<Self, Error> {
-        let (ordinary, cut, character) =
+        let (mut ordinary, cut, character) =
             SliceReader::with_decode_limits(input, decoded, limits, decode, flags)?;
+        if options.encoding.is_some() {
+            ordinary.state.force_encoding();
+        }
         // The DTD stack does not repair characters: it reads the prefix
         // before the first one outside `Char`.
         let dtd_cut = character.or(cut);
@@ -529,6 +574,24 @@ impl<'a> Reader<'a> {
             BorrowedContentController::stable_utf8(body, parser, self.source, decoded)?;
         self.session.push(Phase::Content(controller));
         Ok(self)
+    }
+
+    /// The declarations of the document's DTD, once its DOCTYPE was read
+    /// (its internal subset); complete after the document element's start tag (the external subset
+    /// loads while it is read).
+    ///
+    /// ```
+    /// let mut reader = yaxml::Reader::new(b"<!DOCTYPE r [<!ENTITY a 'v'>]><r/>")?;
+    /// assert!(reader.dtd().is_none());
+    /// reader.read_event()?; // the DOCTYPE
+    /// assert_eq!(reader.dtd().unwrap().entity("a").unwrap().content, Some("v"));
+    /// # Ok::<(), yaxml::Error>(())
+    /// ```
+    pub fn dtd(&self) -> Option<&crate::valid::Dtd> {
+        match self.session.first()? {
+            Phase::Declarations { controller, .. } => Some(controller.catalog().dtd()),
+            Phase::Content(controller) => Some(controller.catalog().dtd()),
+        }
     }
 
     /// The finished document's declarations, moved out of the reader.
@@ -823,14 +886,6 @@ impl<'a> SliceReader<'a> {
     ) -> Result<(Self, Option<Error>, Option<Error>), Error> {
         if input.len() > limits.max_input_bytes {
             return Err(Error::new(ErrorKind::LimitExceeded(Limit::InputBytes), 0));
-        }
-        if decoded.is_none()
-            && (input.starts_with(&[0xff, 0xfe])
-                || input.starts_with(&[0xfe, 0xff])
-                || input.starts_with(&[0, 0, 0xfe, 0xff])
-                || input.starts_with(&[0, b'<', 0, b'?']))
-        {
-            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
         }
         let (encoding, cut) = decoded.copied().unwrap_or((SourceEncoding::Utf8, None));
         // Decoded text is UTF-8; its decoding error (`cut`) ends it.

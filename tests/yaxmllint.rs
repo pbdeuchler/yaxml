@@ -415,8 +415,8 @@ fn xpath_pairs() -> Vec<Vec<String>> {
 }
 
 /// Inputs where yaxml's library semantics differ from libxml2's, so stdout or the
-/// verdict cannot agree: undeclared-prefix and predefined-entity redeclaration
-/// are fatal here but recoverable there, ISO-8859-5 is not decoded, and `id2`
+/// verdict cannot agree: an undeclared prefix is fatal here but recoverable
+/// there, ISO-8859-5 is not decoded, and `id2`
 /// fails libxml2's post-parse validation (its ID is inside a kept entity
 /// reference). Under `--valid` libxml2 also tolerates an external DTD that cannot be loaded and exits 0 on
 /// `extra-content`, `trailing-null-1` and `truncated-utf16`, which fail to parse here.
@@ -424,7 +424,6 @@ fn known_gap(input: &str) -> bool {
     input.starts_with("namespaces/err_")
         || [
             "iso-8859-5.xml",
-            "errors/ent_redecl.xml",
             "errors/ns-undeclared.xml",
             "valid/127772.xml",
             "valid/id2.xml",

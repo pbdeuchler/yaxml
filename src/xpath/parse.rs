@@ -424,8 +424,25 @@ fn lex(source: &str) -> Result<Vec<(Tok, u32)>, Error> {
     Ok(tokens)
 }
 
+/// libxml2's `XML_XPATH_CHECKNS` and `XML_XPATH_NOVAR`: a name-test prefix
+/// `bound` rejects, and with `variables` false a variable reference, is an
+/// error where the parser meets it, before any later syntax error.
+#[derive(Clone, Copy)]
+pub(crate) struct Checks<'c> {
+    pub(crate) bound: &'c dyn Fn(&str) -> bool,
+    pub(crate) variables: bool,
+}
+
+impl Checks<'_> {
+    pub(crate) const NONE: Checks<'static> = Checks {
+        bound: &|_| true,
+        variables: true,
+    };
+}
+
 struct Parser<'s> {
     source: &'s str,
+    checks: Checks<'s>,
     tokens: Vec<(Tok, u32)>,
     position: usize,
     ast: Ast,
@@ -434,7 +451,7 @@ struct Parser<'s> {
     max_depth: usize,
 }
 
-pub(crate) fn parse(source: &str, limits: &Limits) -> Result<Ast, Error> {
+pub(crate) fn parse(source: &str, limits: &Limits, checks: Checks<'_>) -> Result<Ast, Error> {
     if source.len() > limits.max_expression_bytes || u32::try_from(source.len()).is_err() {
         return Err(Error::at(
             ErrorKind::LimitExceeded(Limit::ExpressionBytes),
@@ -443,6 +460,7 @@ pub(crate) fn parse(source: &str, limits: &Limits) -> Result<Ast, Error> {
     }
     let mut parser = Parser {
         source,
+        checks,
         tokens: lex(source)?,
         position: 0,
         ast: Ast::default(),
@@ -718,6 +736,15 @@ impl Parser<'_> {
             _ => Axis::Child,
         };
         let test = self.node_test()?;
+        if let Test::Name(QName {
+            prefix: Some(prefix),
+            ..
+        })
+        | Test::Any(Some(prefix)) = test
+            && !(self.checks.bound)(prefix.text(self.source))
+        {
+            return Err(Error::at(ErrorKind::UndefinedPrefix, prefix.range().start));
+        }
         let predicates = self.predicates()?;
         Ok(Step {
             axis,
@@ -771,6 +798,9 @@ impl Parser<'_> {
     fn primary(&mut self) -> Result<u32, Error> {
         let offset = self.tokens[self.position].1 as usize;
         match self.bump() {
+            Tok::Variable(name) if !self.checks.variables => {
+                Err(Error::at(ErrorKind::ForbiddenVariable, name.start()))
+            }
             Tok::Variable(name) => self.push(Expr::Variable(name)),
             Tok::Literal(text) => self.push(Expr::Literal(text)),
             Tok::Number(value) => self.push(Expr::Number(value)),

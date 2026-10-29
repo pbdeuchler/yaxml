@@ -293,6 +293,24 @@ fn owned_documents_validate_their_current_tree() {
     assert_eq!(codes(&document.validate()), [AttributeValue]);
 }
 
+#[test]
+fn rootless_documents_report_no_root() {
+    // xmlValidateRoot: a recovered rootless tree reports only that.
+    let options = || yaxml::ParseOptions::new(yaxml::options::RECOVER);
+    let input = b"<!DOCTYPE r [<!ELEMENT r EMPTY><!ATTLIST r i ID #IMPLIED>]><!--c-->";
+    let document = OwnedDocument::parse_with(input, options()).unwrap();
+    let dtd = document.dtd().unwrap();
+    for diagnostics in [document.validate(), valid::validate(&document, dtd)] {
+        assert_eq!(codes(&diagnostics), [NoRoot]);
+        assert_eq!(diagnostics[0].message, "no root element");
+    }
+    let borrowed = Document::parse_with(input, options()).unwrap();
+    assert_eq!(codes(&valid::validate(&borrowed, dtd)), [NoRoot]);
+    // With a root nothing is reported.
+    let rooted = OwnedDocument::parse("<!DOCTYPE r [<!ELEMENT r EMPTY>]><!--c--><r/>").unwrap();
+    assert!(rooted.validate().is_empty());
+}
+
 fn serve(files: &'static [(&'static str, &'static str)]) -> Box<dyn yaxml::Resolver> {
     Box::new(move |request: Request<'_>| {
         Ok(files
@@ -518,4 +536,84 @@ fn loading(
     yaxml::ParseOptions::new(flags)
         .with_limits(limits)
         .with_resolver(base, resolver)
+}
+
+/// libxml2's binary `xmlElementContent` shape of a particle: group items
+/// right-nested through `c2`, the occurrence on the outermost node.
+fn libxml2_tree(particle: valid::Particle<'_>) -> String {
+    use valid::{Occurrence, ParticleKind};
+    let occurrence = match particle.occurrence() {
+        Occurrence::Once => "",
+        Occurrence::Optional => "?",
+        Occurrence::ZeroOrMore => "*",
+        Occurrence::OneOrMore => "+",
+    };
+    let connector = match particle.kind() {
+        ParticleKind::Pcdata => return format!("#PCDATA{occurrence}"),
+        ParticleKind::Element => return format!("{}{occurrence}", particle.name().unwrap()),
+        ParticleKind::Sequence => "SEQ",
+        ParticleKind::Choice => "OR",
+    };
+    let items: Vec<String> = particle.children().map(libxml2_tree).collect();
+    let chain = (items.iter().rev()).fold(None, |tail: Option<String>, item| match tail {
+        None => Some(item.clone()),
+        Some(tail) => Some(format!("{connector}[{item} {tail}]")),
+    });
+    format!("{}{occurrence}", chain.unwrap())
+}
+
+#[test]
+fn content_models_have_libxml2_trees() {
+    // Recorded from xmlGetDtdElementDesc(...)->content (c1/c2, ocur), except
+    // that a same-connector group without an indicator merges into its
+    // parent (libxml2: SEQ[SEQ[a b] c] and OR[OR[a b] c]), as
+    // xmlBufDumpElementContent prints it.
+    let cases = [
+        ("(a)", "a"),
+        ("(a)*", "a*"),
+        ("(a*)", "a*"),
+        ("(a,b,c)", "SEQ[a SEQ[b c]]"),
+        ("(a,(b,c))", "SEQ[a SEQ[b c]]"),
+        ("((a,b),c)", "SEQ[a SEQ[b c]]"),
+        ("((a,b)*,c)", "SEQ[SEQ[a b]* c]"),
+        ("(a|b|c)+", "OR[a OR[b c]]+"),
+        ("(a,(b|c)*,d?)", "SEQ[a SEQ[OR[b c]* d?]]"),
+        ("(#PCDATA)", "#PCDATA"),
+        ("(#PCDATA)*", "#PCDATA*"),
+        ("(#PCDATA|a|b)*", "OR[#PCDATA OR[a b]]*"),
+        ("((a))", "a"),
+        ("((a)*)", "a*"),
+        ("((a,b))?", "SEQ[a b]?"),
+        ("(p:a,b)", "SEQ[p:a b]"),
+        ("(a?,b+)*", "SEQ[a? b+]*"),
+        ("((a|b),(c|d))", "SEQ[OR[a b] OR[c d]]"),
+        ("(a|(b|c))", "OR[a OR[b c]]"),
+        ("((a|b)|c)", "OR[a OR[b c]]"),
+        ("((a,b)*)", "SEQ[a b]*"),
+        ("(((a)))+", "a+"),
+    ];
+    for (model, tree) in cases {
+        let input = format!("<!DOCTYPE r [<!ELEMENT r {model}>]><r/>");
+        let document = Document::parse(&input).unwrap();
+        let content = document.dtd().unwrap().element("r").unwrap().content();
+        assert_eq!(content.map(libxml2_tree).as_deref(), Some(tree), "{model}");
+    }
+    // No tree without a mixed or element model.
+    let input =
+        "<!DOCTYPE r [<!ELEMENT r EMPTY><!ELEMENT a ANY><!ATTLIST b c CDATA #IMPLIED>]><r/>";
+    let document = Document::parse(input).unwrap();
+    let dtd = document.dtd().unwrap();
+    for name in ["r", "a", "b"] {
+        assert_eq!(dtd.element(name).unwrap().content(), None, "{name}");
+        assert_eq!(
+            dtd.element(name)
+                .unwrap()
+                .content()
+                .map(|c| c.children().count()),
+            None
+        );
+    }
+    let leaf = Document::parse("<!DOCTYPE r [<!ELEMENT r (a)>]><r/>").unwrap();
+    let leaf = leaf.dtd().unwrap().element("r").unwrap().content().unwrap();
+    assert_eq!((leaf.children().count(), leaf.name()), (0, Some("a")));
 }

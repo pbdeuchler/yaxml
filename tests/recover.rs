@@ -187,6 +187,26 @@ fn recovery_builds_libxml2s_tree_and_lists_the_errors() {
 }
 
 #[test]
+fn a_malformed_start_tag_keeps_its_attlist_defaults() {
+    use yaxml::options::DTDATTR;
+    // libxml2 names an element by its longest Name and defaults it from
+    // that name's ATTLIST, however the tag goes on.
+    #[rustfmt::skip]
+    let cases = [
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r/>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'>]><r'x'>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST b<r'x'>", "<r a=\"x\"/>"),
+        ("<!DOCTYPE q [<!ATTLIST r a CDATA 'x'>]><q'x'>", "<q/>"),
+        ("<!DOCTYPE \u{e9} [<!ATTLIST \u{e9} a CDATA 'x'>]><\u{e9}/>", "<\u{e9} a=\"x\"/>"),
+        ("<!DOCTYPE \u{e9} [<!ATTLIST \u{e9} a CDATA 'x'>]><\u{e9}'x'>", "<\u{e9} a=\"x\"/>"),
+    ];
+    for (input, root) in cases {
+        let (saved, _) = recover(input.as_bytes(), DTDATTR).unwrap();
+        assert_eq!(saved.lines().last(), Some(root), "{input}");
+    }
+}
+
+#[test]
 fn recovery_reads_invalid_utf8_as_libxml2() {
     // (input, owned DOM saved after the declaration): libxml2 reads each
     // byte that starts no UTF-8 sequence as U+FFFD, also inside a name.
@@ -248,6 +268,31 @@ fn recovery_decodes_utf16_like_utf8() {
         let [utf8, utf16] = [utf8, utf16].map(|document| save::to_vec(&document, &options));
         assert_eq!(utf8, utf16, "{input}");
     }
+}
+
+#[test]
+fn a_rootless_document_adopts_its_first_element() {
+    use yaxml::{EditErrorKind, EditLimits};
+    let source = OwnedDocument::parse("<r><a/></r>").unwrap();
+    let element = source.root_element().id();
+    let mut document = OwnedDocument::parse_with(b"<!--c-->", ParseOptions::new(RECOVER)).unwrap();
+    let (root, comment) = (
+        document.root().id(),
+        document.root().first_child().unwrap().id(),
+    );
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    let first = editor.import(&source, element, true).unwrap();
+    assert_eq!(editor.insert_before(comment, first), Ok(first));
+    assert_eq!(
+        editor.document().document_element().map(|node| node.id()),
+        Some(first)
+    );
+    // ... but only one: libxml2's xmlAddChild would add a second
+    let second = editor.import(&source, element, false).unwrap();
+    let refused = editor.append_child(root, second).unwrap_err();
+    assert_eq!(refused.kind, EditErrorKind::Hierarchy);
+    let saved = String::from_utf8(save::to_vec(&document, &save::Options::default()).unwrap());
+    assert_eq!(saved.unwrap(), format!("{DECL}<r><a/></r>\n<!--c-->\n"));
 }
 
 #[test]
@@ -338,6 +383,45 @@ fn recovered_errors_survive_xinclude_and_validation() {
         let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
         assert_eq!(kinds, [MismatchedEndTag]);
         assert_eq!(!document.validity().is_empty(), invalid);
+    }
+}
+
+#[test]
+fn errors_after_a_repaired_character_point_into_the_input() {
+    // Recovery drops characters outside `Char` from text and replaces them
+    // with U+FFFD in values; later errors still name input offsets.
+    #[rustfmt::skip]
+    let cases: &[(&str, &[(ErrorKind, usize)])] = &[
+        ("<r>a\x01b&#x;</r>", &[(InvalidCharacter, 4), (InvalidReference, 6)]),
+        ("<r>\x01\x01&</r>", &[(InvalidCharacter, 3), (InvalidCharacter, 4), (InvalidReference, 5)]),
+        ("<r a='\x01&#x;'/>", &[(InvalidCharacter, 6), (InvalidReference, 7), (TextOutsideRoot, 11)]),
+        ("<r a='\x01\x01&#x;\x01'/>", &[(InvalidCharacter, 6), (InvalidCharacter, 7), (InvalidCharacter, 12), (InvalidReference, 8), (TextOutsideRoot, 12)]),
+        ("<r>a&#x;</r>", &[(InvalidReference, 4)]),
+    ];
+    let errors = |stream: Result<Stream, ErrorKind>| -> Vec<(ErrorKind, usize)> {
+        let (_, errors) = stream.unwrap();
+        errors
+            .iter()
+            .map(|error| (error.kind, error.offset))
+            .collect()
+    };
+    for &(input, expected) in cases {
+        assert_eq!(errors(sliced(input.as_bytes(), 0)), expected, "{input:?}");
+        assert_eq!(
+            errors(pushed(&[input.as_bytes()], 0)),
+            expected,
+            "{input:?}"
+        );
+        // UTF-16BE: a BOM, then two bytes per ASCII character.
+        let utf16: Vec<u8> = [0xfe, 0xff]
+            .into_iter()
+            .chain(input.encode_utf16().flat_map(u16::to_be_bytes))
+            .collect();
+        let doubled: Vec<_> = expected
+            .iter()
+            .map(|&(kind, at)| (kind, 2 + 2 * at))
+            .collect();
+        assert_eq!(errors(pushed(&[&utf16], 0)), doubled, "{input:?}");
     }
 }
 

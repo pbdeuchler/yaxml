@@ -83,7 +83,7 @@ fn cases() -> Vec<(&'static str, String, String, String)> {
             ParseOptions,
             format!(
                 "ParseOptions {{ flags: 0x0, limits: {}, decode_limits: DecodeLimits {{ \
-                 max_decoded_bytes: {}, max_decoded_token_bytes: {} }}, base: None, resolver: None }}",
+                 max_decoded_bytes: {}, max_decoded_token_bytes: {} }}, base: None, resolver: None, converters: None, encoding: None }}",
                 xml(),
                 64 * MIB,
                 MIB
@@ -92,7 +92,7 @@ fn cases() -> Vec<(&'static str, String, String, String)> {
         case!(
             "html::Options",
             html::Options,
-            format!("Options {{ flags: 0, limits: {} }}", xml())
+            format!("Options {{ flags: 0, limits: {}, encoding: None }}", xml())
         ),
         case!(
             "save::Options",

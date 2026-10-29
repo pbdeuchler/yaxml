@@ -1,0 +1,31 @@
+0 r
+  prepend: s t
+  append: s t
+  before 0: s t
+  replace 0: s t
+  before 1: s t
+  replace 1: s t
+  before 2: s t
+  replace 2: s t
+  before 3: s t
+  replace 3: s t
+1 s
+  prepend:
+  append:
+  before 0:
+  replace 0: u
+  before 1:
+  replace 1: u
+2 u
+3 u
+4 t
+5 s
+  prepend:
+  append:
+  before 0:
+  replace 0: u
+  before 1:
+  replace 1: u
+6 u
+7 u
+8 t

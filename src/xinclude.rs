@@ -45,9 +45,11 @@ use crate::{
     OwnedNodeId, OwnedNodeKind, ParseOptions, Request, Resolver, ResourceKind, xpath, xpointer,
 };
 
-const NS: &str = "http://www.w3.org/2003/XInclude";
-const OLD_NS: &str = "http://www.w3.org/2001/XInclude";
-const XML_NS: &str = "http://www.w3.org/XML/1998/namespace";
+/// The XInclude namespace (`XINCLUDE_NS`).
+pub const NS: &str = "http://www.w3.org/2003/XInclude";
+/// The 2001 draft namespace, still recognized (`XINCLUDE_OLD_NS`).
+pub const OLD_NS: &str = "http://www.w3.org/2001/XInclude";
+use crate::XML_NAMESPACE as XML_NS;
 const XMLNS_NS: &str = "http://www.w3.org/2000/xmlns/";
 /// libxml2's `XML_MAX_URI_LENGTH`.
 const MAX_URI: usize = 2000;
@@ -156,6 +158,9 @@ pub enum ErrorKind {
     IncludeInInclude,
     /// `FALLBACKS_IN_INCLUDE`
     MultipleFallbacks,
+    /// `ENTITY_DEF_MISMATCH`: an included document declares the named
+    /// unparsed entity other than the including document does.
+    EntityMismatch(String),
     /// `FALLBACK_NOT_IN_INCLUDE`
     FallbackNotInInclude,
     /// A limit or allocation failure while loading or building.
@@ -175,21 +180,41 @@ pub fn process(
     resolver: Box<dyn Resolver>,
     options: &Options,
 ) -> Result<OwnedDocument, Error> {
+    process_node(document, document.root().id(), base, resolver, options)
+        .expect("the document node is in its tree")
+}
+
+/// [`process`] limited to the subtree of `node` (`xmlXIncludeProcessNode`,
+/// `xmlXIncludeProcessTree`): inclusions elsewhere are copied as they are,
+/// and only the subtree is checked for misplaced `xi:fallback`s. `None` for
+/// a node that is not in `document`'s tree (stale or detached).
+pub fn process_node(
+    document: &OwnedDocument,
+    node: OwnedNodeId,
+    base: &str,
+    resolver: Box<dyn Resolver>,
+    options: &Options,
+) -> Option<Result<OwnedDocument, Error>> {
+    let top = document.node(node)?;
+    let root = std::iter::successors(Some(top), |node| node.parent()).last()?;
+    if root.kind() != OwnedNodeKind::Document {
+        return None;
+    }
     let budget = Budget {
         resolver,
         loads: options.limits.max_external_loads,
         bytes: options.limits.max_external_bytes,
         exceeded: None,
     };
-    Processor {
+    let mut processor = Processor {
         options,
         loader: Loader(Arc::new(Mutex::new(budget))),
         documents: Vec::new(),
         texts: HashMap::new(),
         legacy: false,
         visited: 0,
-    }
-    .document(document, base, 0)
+    };
+    Some(processor.document(document, top, base, 0))
 }
 
 /// The caller's resolver with the call's cumulative budgets, shared with the
@@ -297,9 +322,17 @@ struct Local<'d> {
     url: &'d str,
     /// `None` while expanding, to detect loops.
     memo: HashMap<OwnedNodeId, Option<Rc<[Piece]>>>,
-    /// A newly loaded document had a DTD; libxml2 then creates an empty
-    /// internal subset in a document without one.
-    doctype: bool,
+    /// The DTDs of the newly loaded documents that have one, in load order:
+    /// libxml2 creates an internal subset in a document without one and
+    /// merges their general entities into it.
+    subsets: Vec<Subset>,
+}
+
+/// A loaded document's URL, DOCTYPE identifiers (public, system) and DTD.
+struct Subset {
+    url: String,
+    ids: [Option<String>; 2],
+    dtd: Option<Box<crate::valid::Dtd>>,
 }
 
 /// A load that failed without an error, so the fallback applies.
@@ -320,6 +353,7 @@ impl Processor<'_> {
     fn document(
         &mut self,
         document: &OwnedDocument,
+        top: OwnedNode<'_>,
         url: &str,
         depth: usize,
     ) -> Result<OwnedDocument, Error> {
@@ -327,9 +361,9 @@ impl Processor<'_> {
             document,
             url,
             memo: HashMap::new(),
-            doctype: false,
+            subsets: Vec::new(),
         };
-        self.walk(&mut local, document.root(), depth, true)?;
+        self.walk(&mut local, top, depth, true)?;
         self.emit(&local)
     }
 
@@ -610,8 +644,18 @@ impl Processor<'_> {
             Err(error) if fatal(error) => return Err(fail(local, None, ErrorKind::Xml(error))),
             Err(error) => return Ok(Err(Some(error))),
         };
-        local.doctype |= document.doctype().is_some();
-        self.document(&document, url, depth).map(Ok)
+        let ids = (document.doctype())
+            .map(|doctype| [doctype.public_id, doctype.system_id].map(|id| id.map(str::to_owned)));
+        let processed = self.document(&document, document.root(), url, depth)?;
+        if let Some(ids) = ids {
+            let dtd = document.dtd().cloned().map(Box::new);
+            local.subsets.push(Subset {
+                url: url.to_owned(),
+                ids,
+                dtd,
+            });
+        }
+        Ok(Ok(processed))
     }
 
     /// `xmlXIncludeLoadTxt`.
@@ -693,7 +737,7 @@ impl Processor<'_> {
             parent: TreeBuilder::ROOT,
             default: "",
         }];
-        let mut doctype = local.doctype && document.doctype().is_none();
+        let mut doctype = !local.subsets.is_empty() && document.doctype().is_none();
         while let Some(work) = stack.pop() {
             match work {
                 Work::Close(id) => builder.close(id),
@@ -787,7 +831,16 @@ impl Processor<'_> {
                 Work::Nodes { next: None, .. } => {}
             }
         }
-        builder.finish().map_err(xml)
+        let mut out = builder.finish(document.dtd().cloned()).map_err(xml)?;
+        for subset in &local.subsets {
+            let uri = || subset.url.clone();
+            merge(&mut out, subset).map_err(|kind| Error {
+                kind,
+                uri: uri(),
+                offset: None,
+            })?;
+        }
+        Ok(out)
     }
 
     /// `xmlXIncludeIncludeNode`'s check for a top-level inclusion.
@@ -938,6 +991,111 @@ struct Copy<'a> {
     root: Option<&'a Root>,
     parent: NodeId,
     default: &'a str,
+}
+
+/// `xmlXIncludeMergeEntities`: declares in `out`'s internal subset the
+/// general entities of an included document's internal subset, and of its
+/// external subset unless both DOCTYPE identifiers match; a name `out`
+/// declares (or a predefined one) keeps its declaration. libxml2 walks a hash
+/// table; declaration order is kept here.
+fn merge(out: &mut OwnedDocument, subset: &Subset) -> Result<(), ErrorKind> {
+    use crate::valid::EntityKind::{
+        ExternalParsedGeneral, ExternalUnparsedGeneral, InternalGeneral,
+    };
+    let Some(from) = subset.dtd.as_deref() else {
+        return Ok(());
+    };
+    let target = out.root().children().find_map(OwnedNode::doctype);
+    let ids = target.map_or([None, None], |doctype| {
+        [doctype.public_id, doctype.system_id]
+    });
+    let external = (0..2).all(|i| ids[i] != subset.ids[i].as_deref());
+    let mut markup = String::new();
+    for entity in from.entities() {
+        let general = matches!(
+            entity.kind,
+            InternalGeneral | ExternalParsedGeneral | ExternalUnparsedGeneral
+        );
+        if !general || entity.external_subset && !external {
+            continue;
+        }
+        let previous = (out.dtd().and_then(|dtd| dtd.entity(entity.name)))
+            .or_else(|| crate::valid::predefined_entity(entity.name));
+        match previous {
+            None => declare(&mut markup, &entity),
+            Some(previous)
+                if entity.kind == ExternalUnparsedGeneral
+                    && (previous.kind, previous.system_id) != (entity.kind, entity.system_id) =>
+            {
+                return Err(ErrorKind::EntityMismatch(entity.name.to_owned()));
+            }
+            Some(_) => {}
+        }
+    }
+    if markup.is_empty() {
+        return Ok(());
+    }
+    let limits = crate::EditLimits::DEFAULT.max_value_bytes(usize::MAX);
+    let edited = out
+        .edit(limits)
+        .and_then(|mut editor| editor.add_declarations(&markup));
+    edited.map_err(|error| {
+        let kind = match error.kind {
+            crate::EditErrorKind::Parse(kind) => kind,
+            crate::EditErrorKind::Allocation => crate::ErrorKind::Allocation,
+            _ => crate::ErrorKind::LimitExceeded(Limit::OwnedBytes),
+        };
+        ErrorKind::Xml(crate::Error::new(kind, 0))
+    })
+}
+
+/// Appends `entity`'s declaration, which reads back to the same entity:
+/// replacement text escapes what the literal would expand again.
+fn declare(markup: &mut String, entity: &crate::valid::Entity<'_>) {
+    let quote = |markup: &mut String, text: &str| {
+        let quote = if text.contains('"') { '\'' } else { '"' };
+        markup.extend([quote]);
+        markup.push_str(text);
+        markup.extend([quote]);
+    };
+    markup.push_str("<!ENTITY ");
+    markup.push_str(entity.name);
+    match (entity.public_id, entity.system_id) {
+        (Some(public), system) => {
+            markup.push_str(" PUBLIC ");
+            quote(markup, public);
+            markup.push(' ');
+            quote(markup, system.unwrap_or_default());
+        }
+        (None, Some(system)) => {
+            markup.push_str(" SYSTEM ");
+            quote(markup, system);
+        }
+        (None, None) => {
+            let content = entity.content.unwrap_or_default();
+            markup.push_str(" \"");
+            for (index, c) in content.char_indices() {
+                let rest = &content[index + 1..];
+                let reference = c == '&' && {
+                    let length = crate::parser::name_length(rest, false);
+                    length > 0 && rest[length..].starts_with(';')
+                };
+                match c {
+                    '&' if !reference => markup.push_str("&#38;"),
+                    '%' => markup.push_str("&#x25;"),
+                    '"' => markup.push_str("&#34;"),
+                    '\r' => markup.push_str("&#13;"),
+                    c => markup.push(c),
+                }
+            }
+            markup.push('"');
+        }
+    }
+    if let Some(notation) = entity.notation {
+        markup.push_str(" NDATA ");
+        markup.push_str(notation);
+    }
+    markup.push('>');
 }
 
 fn fail(local: &Local<'_>, node: Option<OwnedNode<'_>>, kind: ErrorKind) -> Error {
@@ -1148,6 +1306,25 @@ fn decode_text(bytes: &[u8], charset: Charset) -> Option<String> {
                 _ => Some(table[usize::from(byte - 0x80)])
                     .filter(|&code| code != 0)
                     .and_then(|code| char::from_u32(code.into())),
+            })
+            .collect(),
+        // UTF-32 is big-endian; its BOM stays U+FEFF.
+        Charset::Ucs4(order) => bytes
+            .chunks(4)
+            .map(|unit| {
+                let unit = <[u8; 4]>::try_from(unit).ok()?;
+                char::from_u32(match order {
+                    Some(true) => u32::from_le_bytes(unit),
+                    _ => u32::from_be_bytes(unit),
+                })
+            })
+            .collect(),
+        Charset::Ebcdic(table) => bytes
+            .iter()
+            .map(|&byte| {
+                Some(table[usize::from(byte)])
+                    .filter(|&code| code != 0 || byte == 0)
+                    .and_then(|code| char::from_u32(code.into()))
             })
             .collect(),
     }

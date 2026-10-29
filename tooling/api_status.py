@@ -164,11 +164,11 @@ OPT = {  # XML_PARSE_<x> -> (status, note)
     "RECOVER": ("P", "every surface; repair differences in compatibility.md#recovery-recover"),
     "DTDVALID": ("P", "DOMs and TextReader; valid::StreamValidator for other streams"),
     "NOBLANKS": ("P", "every surface but the slice Reader"),
-    "PEDANTIC": ("P", "accepted; libxml2 only prints more warnings"),
-    "OLD10": ("N", "constant defined, rejected with UnsupportedOption"),
-    "OLDSAX": ("N", "constant defined, rejected with UnsupportedOption"),
-    "UNZIP": ("N", "constant defined, rejected with UnsupportedOption"),
-    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver)"),
+    "PEDANTIC": ("P", "xml:lang, internal-subset entity redefinition and relative prefixed namespace URI warnings (Warning); external-subset redefinitions not reported"),
+    "OLD10": ("P", "Fourth Edition names on every surface; DTDVALID value checks keep Fifth Edition names"),
+    "OLDSAX": ("A", "declined: deprecated legacy predefined-entity lookup order; rejected with UnsupportedOption (docs/compatibility.md#option-compatibility)"),
+    "UNZIP": ("I", "accepted with no effect, as libxml2 built without zlib (features::Feature::Zlib is false)"),
+    "CATALOG_PI": ("P", "acts only through a resolver that takes the instruction (catalog::CatalogResolver); syntax errors = Warning::CatalogPi"),
 }
 OPT_ALL = "RECOVER NOENT DTDLOAD DTDATTR DTDVALID NOERROR NOWARNING PEDANTIC NOBLANKS SAX1 XINCLUDE NONET NODICT NSCLEAN NOCDATA NOXINCNODE COMPACT OLD10 NOBASEFIX HUGE OLDSAX IGNORE_ENC BIG_LINES NO_XXE UNZIP NO_SYS_CATALOG CATALOG_PI SKIP_IDS".split()
 HTML_OPT = {"HTML5": ("I", "token-level events; trees follow them unbalanced, as in libxml2")}
@@ -215,7 +215,7 @@ XINCLUDE_ERR = {
     "UNKNOWN_ENCODING": "UnknownEncoding", "INVALID_CHAR": "InvalidCharacter", "XPTR_FAILED": "XPointer",
     "XPTR_RESULT": "XPointerResult", "NO_FALLBACK": "NoFallback", "MULTIPLE_ROOT": "MultipleRoots",
     "INCLUDE_IN_INCLUDE": "IncludeInInclude", "FALLBACKS_IN_INCLUDE": "MultipleFallbacks",
-    "FALLBACK_NOT_IN_INCLUDE": "FallbackNotInInclude",
+    "FALLBACK_NOT_IN_INCLUDE": "FallbackNotInInclude", "ENTITY_DEF_MISMATCH": "EntityMismatch",
 }
 PARSER_ERR = {  # XML_ERR_<x> -> ErrorKind (category only)
     "ATTRIBUTE_REDEFINED": "DuplicateAttribute", "TAG_NAME_MISMATCH": "MismatchedEndTag",
@@ -272,17 +272,12 @@ READER_TYPE_UNUSED = {"DOCUMENT", "DOCUMENT_FRAGMENT", "END_ENTITY", "ENTITY", "
 READER_MODE = {"INITIAL": "Initial", "INTERACTIVE": "Interactive", "ERROR": "Error", "EOF": "Eof"}
 READER_PROP = {"LOADDTD": "LoadDtd", "DEFAULTATTRS": "DefaultAttributes", "VALIDATE": "Validate", "SUBST_ENTITIES": "SubstituteEntities"}
 RESOURCE = {"DTD": "DtdSubset", "GENERAL_ENTITY": "GeneralEntity", "PARAMETER_ENTITY": "ParameterEntity", "XINCLUDE": "XInclude", "XINCLUDE_TEXT": "XIncludeText"}
-ENC = {"UTF8", "UTF16", "UTF16LE", "UTF16BE", "ASCII", "WINDOWS_1252"} | {f"8859_{n}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16)}
+ENC = {"UTF16LE": "Utf16Le", "UTF16BE": "Utf16Be", "UCS4LE": "Ucs4Le", "UCS4BE": "Ucs4Be", "UCS4_2143": "Ucs4_2143", "UCS4_3412": "Ucs4_3412", "2022_JP": "Iso2022Jp", "WINDOWS_1252": "Windows1252"} | {f"8859_{n}": f"Iso8859_{n}" for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16)}
 
 # Struct fields of these libxml2 structs have no Rust counterpart by design.
 FIELD_DEFAULT = {
     "_xmlParserCtxt": ("A", "internal parser state; parsers are opaque Rust types"),
     "_xmlParserInput": ("A", "internal input state; std Read/BufRead replace it"),
-    "_xmlParserNodeInfo": ("N", "no node-info table (Node::range gives byte ranges)"),
-    "_xmlParserNodeInfoSeq": ("N", "no node-info table (Node::range gives byte ranges)"),
-    "_xmlSAXHandler": ("N", "SAX2 handler table not started (roadmap 15)"),
-    "_xmlSAXHandlerV1": ("N", "SAX1 handler table not started"),
-    "_xmlSAXLocator": ("N", "SAX locator not started (roadmap 15)"),
     "_xmlBuffer": ("A", "Vec<u8>/String replace xmlBuffer"),
     "_xmlOutputBuffer": ("A", "std::io::Write replaces xmlOutputBuffer"),
     "_xmlParserInputBuffer": ("A", "std::io::Read replaces xmlParserInputBuffer"),
@@ -298,24 +293,27 @@ FIELD_DEFAULT = {
     "_xmlChLRange": ("A", "the chars predicates keep their range tables private"),
     "_xmlChSRange": ("A", "the chars predicates keep their range tables private"),
     "_xmlChRangeGroup": ("A", "the chars predicates keep their range tables private"),
-    "_xmlCharEncodingHandler": ("N", "no public encoding handler registry"),
-    "_xlinkHandler": ("N", "XLink callbacks not started"),
+    "_xmlCharEncodingHandler": ("A", "encoding::Handler keeps its converter private"),
     "_xmlDOMWrapCtxt": ("A", "no DOM-wrapper context; copies plan namespaces themselves"),
     "_xmlEntity": ("A", "tree links and bookkeeping; valid::Entity is a borrowed view"),
     "_xmlElement": ("A", "tree links and bookkeeping; valid::Element is a borrowed view"),
     "_xmlAttribute": ("A", "tree links and bookkeeping; valid::Attribute is a borrowed view"),
     "_xmlNotation": ("A", "valid::Notation is a borrowed view"),
     "_xmlDtd": ("A", "tree links; valid::Dtd is read through its accessors"),
-    "_xmlElementContent": ("N", "no public content-model tree"),
     "_xmlEnumeration": ("N", "no public enumeration list"),
-    "_xmlID": ("N", "IDs via Document::element_by_id"),
-    "_xmlRef": ("N", "no IDREF table"),
+    "_xmlID": ("P", "Document::ids, OwnedDocument::ids - (element, attribute position) entries"),
+    "_xmlRef": ("R", "only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally"),
     "_xmlError": ("A", "no counterpart field"),
-    "_htmlElemDesc": ("N", "no public HTML element table"),
-    "_htmlEntityDesc": ("N", "no public HTML entity table"),
+    "_htmlElemDesc": ("R", "returned only by htmlTagLookup, deprecated in 2.15.4"),
+    "_htmlEntityDesc": ("R", "returned only by htmlEntityLookup/htmlEntityValueLookup, deprecated in 2.15.4"),
 }
-for _s in "Schema SchemaAnnot SchemaAttribute SchemaAttributeGroup SchemaAttributeLink SchemaElement SchemaFacet SchemaFacetLink SchemaNotation SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
-    FIELD_DEFAULT[f"_xml{_s}"] = ("N", "no public schema component model; xsd::Schema is opaque")
+FIELD_DEFAULT["_xmlSchemaAttributeGroup"] = ("A", "deprecated, unused or builder bookkeeping; xsd::AttributeGroup exposes the compiled properties")
+FIELD_DEFAULT["_xmlSchemaAttributeLink"] = ("A", "never used by libxml2 2.15.4")
+FIELD_DEFAULT["_xmlSchemaNotation"] = ("A", "never set by libxml2 (identifier) or builder bookkeeping")
+for _s in "SchemaFacet SchemaFacetLink".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; schema_types::Facet is the compiled facet")
+for _s in "Schema SchemaAttribute SchemaElement SchemaType SchemaTypeLink SchemaWildcard SchemaWildcardNs".split():
+    FIELD_DEFAULT[f"_xml{_s}"] = ("A", "schema builder bookkeeping; the xsd component views expose the compiled properties")
 
 TREE_FIELDS = {
     "_xmlNode.name": ("I", "Node::name, OwnedNode::name"),
@@ -329,7 +327,7 @@ TREE_FIELDS = {
     "_xmlNode.properties": ("I", "Node::attributes, OwnedNode::attributes"),
     "_xmlNode.ns": ("P", "Name::namespace"),
     "_xmlNode.nsDef": ("P", "Node::namespaces, OwnedNode::namespaces"),
-    "_xmlNode.line": ("N", "no line numbers"),
+    "_xmlNode.line": ("P", "diagnostic::LineIndex - computed from the node offset by Node::line and OwnedNode::line"),
     "_xmlNode.doc": ("A", "nodes borrow their document"),
     "_xmlNode._private": ("A", "no user pointer"),
     "_xmlNode.psvi": ("A", "no schema PSVI"),
@@ -340,9 +338,9 @@ TREE_FIELDS = {
     "_xmlAttr.next": ("P", "Node::attributes - iteration replaces links"),
     "_xmlAttr.prev": ("P", "Node::attributes - iteration replaces links"),
     "_xmlAttr.last": ("P", "Node::attributes - iteration replaces links"),
-    "_xmlAttr.parent": ("N", "attributes do not point to their element"),
+    "_xmlAttr.parent": ("A", "attributes are reached through their element, by position"),
     "_xmlAttr.doc": ("A", "attributes borrow their document"),
-    "_xmlAttr.atype": ("N", "no public attribute type"),
+    "_xmlAttr.atype": ("P", "Editor::is_id - xmlIsID by name; libxml2 marks the attribute XML_ATTRIBUTE_ID, the only value it stores"),
     "_xmlAttr.type": ("A", "attributes are not nodes"),
     "_xmlAttr._private": ("A", "no user pointer"),
     "_xmlAttr.psvi": ("A", "no schema PSVI"),
@@ -355,11 +353,11 @@ TREE_FIELDS = {
     "_xmlDoc.intSubset": ("P", "Document::doctype, OwnedDocument::doctype"),
     "_xmlDoc.ids": ("P", "Document::element_by_id, OwnedDocument::element_by_id"),
     "_xmlDoc.type": ("P", "OwnedDocument::is_html"),
-    "_xmlDoc.extSubset": ("N", "external subset not exposed"),
-    "_xmlDoc.name": ("N", "not stored"),
-    "_xmlDoc.properties": ("N", "no document property flags"),
-    "_xmlDoc.parseFlags": ("N", "flags are not stored"),
-    "_xmlDoc.charset": ("N", "not stored"),
+    "_xmlDoc.extSubset": ("P", "Document::dtd, OwnedDocument::dtd - one declaration set for both subsets; entities record which subset declared them"),
+    "_xmlDoc.name": ("A", "libxml2 never sets it (only xmlCopyDoc copies it)"),
+    "_xmlDoc.properties": ("I", "Document::properties, OwnedDocument::properties"),
+    "_xmlDoc.parseFlags": ("I", "Document::parse_flags, OwnedDocument::parse_flags"),
+    "_xmlDoc.charset": ("A", "always XML_CHAR_ENCODING_UTF8: documents hold UTF-8"),
     "_xmlDoc.compression": ("A", "no compression"),
     "_xmlDoc.dict": ("A", "no dictionary"),
     "_xmlDoc.oldNs": ("A", "internal"),
@@ -375,8 +373,8 @@ TREE_FIELDS = {
     "_xmlNs.type": ("A", "namespace nodes carry no type tag"),
     "_xmlNs._private": ("A", "no user pointer"),
     "_xmlDtd.name": ("I", "valid::Dtd::name"),
-    "_xmlDtd.ExternalID": ("N", "not exposed"),
-    "_xmlDtd.SystemID": ("N", "not exposed"),
+    "_xmlDtd.ExternalID": ("I", "reader::Doctype::public_id, Editor::set_doctype_ids"),
+    "_xmlDtd.SystemID": ("I", "reader::Doctype::system_id, Editor::set_doctype_ids"),
     "_xmlError.code": ("I", "diagnostic::Diagnostic::code"),
     "_xmlError.domain": ("I", "diagnostic::Diagnostic::domain"),
     "_xmlError.level": ("I", "diagnostic::Diagnostic::level"),
@@ -388,18 +386,18 @@ TREE_FIELDS = {
     "_xmlError.int1": ("I", "diagnostic::Diagnostic::int1"),
     "_xmlError.node": ("P", "diagnostic::Diagnostic::element - the element's local name"),
     "_xmlError.file": ("A", "the caller's file name, passed to Diagnostic::render"),
-    "_xmlError.str3": ("N", "no third string in the errors yaxml describes"),
+    "_xmlError.str3": ("I", "diagnostic::Diagnostic::str3"),
     "_xmlError.ctxt": ("A", "no parser context object"),
     "_xmlURI.scheme": ("I", "Uri::scheme"),
     "_xmlURI.user": ("I", "Uri::user"),
     "_xmlURI.server": ("I", "Uri::host"),
     "_xmlURI.port": ("I", "Uri::port"),
     "_xmlURI.path": ("I", "Uri::path"),
-    "_xmlURI.query": ("I", "Uri::query"),
+    "_xmlURI.query": ("P", "Uri::query - as written; uri::unescape gives libxml2's unescaped query"),
     "_xmlURI.fragment": ("I", "Uri::fragment"),
     "_xmlURI.authority": ("P", "Uri::has_authority"),
-    "_xmlURI.opaque": ("N", "not stored"),
-    "_xmlURI.query_raw": ("N", "not stored"),
+    "_xmlURI.opaque": ("A", "xmlParseURI never sets it; only xmlSaveUri reads it, for hand-built URIs"),
+    "_xmlURI.query_raw": ("I", "Uri::query"),
     "_xmlURI.cleanup": ("A", "internal flag"),
 }
 
@@ -415,50 +413,99 @@ P|xmlRecoverDoc xmlRecoverMemory xmlRecoverFile|OwnedDocument::parse_with, optio
 I|xmlParseDTD|valid::Dtd::parse
 P|xmlCtxtParseDtd xmlIOParseDTD|valid::Dtd::parse
 I|xmlParseInNodeContext|Editor::parse_content, html::parse_fragment - UTF-8 input, not the document's encoding; the first error, where libxml2 returns its last
-P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment - no text declaration (hasTextDecl); UTF-8 input
+P|xmlCtxtParseContent|Editor::parse_content, html::parse_fragment, Editor::parse_external_entity - hasTextDecl is parse_external_entity; UTF-8 input
 I|xmlParseBalancedChunkMemory|Editor::parse_content - on OwnedDocument::root with default options
 P|xmlParseBalancedChunkMemoryRecover|Editor::parse_content - with RECOVER; the nodes come back without libxml2's error code
-N|xmlParseCtxtExternalEntity xmlParseExternalEntity xmlParseExtParsedEnt xmlParseEntity|external parsed entities as standalone input not started
-N|xmlSAXParse* xmlSAXUserParse*|SAX2 handler table not started (roadmap 15)
+P|xmlParseCtxtExternalEntity xmlParseExternalEntity|Editor::parse_external_entity - takes the entity bytes, not a URL; no SAX callbacks
+P|xmlParseExtParsedEnt xmlParseEntity|Editor::parse_external_entity - on a new document's root(): the content comes back as detached nodes, not as document children (a document holds one element and no text)
+I|xmlSAXUserParseMemory|sax::parse
+P|xmlSAXUserParseFile|sax::parse - on the bytes read by the caller
+P|xmlSAXParseMemory xmlSAXParseMemoryWithData xmlSAXParseDoc xmlSAXParseFile xmlSAXParseFileWithData|sax::parse - callbacks only, no tree is built
+R|xmlSAXParseDTD xmlSAXParseEntity|deprecated in 2.15.4
 I|xmlCreatePushParserCtxt|PushParser::new
 I|xmlParseChunk|PushParser::feed, PushParser::finish
 P|xmlCtxtReset xmlCtxtResetPush xmlClearParserCtxt|PushParser::reset_with, BufferedReader::reset_with, TextReader::reset_with - not for DOM builders or Reader
 P|xmlNewParserCtxt xmlInitParserCtxt xmlCreateDocParserCtxt xmlCreateIOParserCtxt|ParseOptions::new - configuration value plus the parser type
-N|xmlNewSAXParserCtxt|SAX2 handler table not started
+P|xmlNewSAXParserCtxt|sax::parse - the handler is passed with the input
 A|xmlFreeParserCtxt xmlFreeInputStream xmlFreeParserInputBuffer|Drop
 P|xmlCtxtSetOptions xmlCtxtUseOptions xmlCtxtGetOptions|ParseOptions::new, ParseOptions::has
 I|xmlCtxtSetResourceLoader|ParseOptions::with_resolver
 P|xmlCtxtSetMaxAmplification|Limits::max_entity_amplification
 A|xmlSetExternalEntityLoader xmlGetExternalEntityLoader xmlLoadExternalEntity|no global loader; ParseOptions::with_resolver per parse
-N|xmlCtxtSetErrorHandler|no error callback; errors are returned (roadmap 6)
+A|xmlCtxtSetErrorHandler|no error callback: errors are returned values (Document::errors, diagnostic::LineIndex::describe_all)
 P|xmlCtxtSetCatalogs xmlCtxtGetCatalogs|catalog::CatalogResolver::new
 A|xmlCtxtGetDict xmlCtxtSetDict xmlCtxtGetPrivate xmlCtxtSetPrivate xmlCtxtGetUserData|no dictionary or user pointer
 P|xmlCtxtGetDeclaredEncoding xmlCtxtGetStandalone xmlCtxtGetVersion|Declaration
 P|xmlCtxtGetDocTypeDecl|Doctype
 P|xmlCtxtGetInputPosition xmlByteConsumed|PushParser::position
-N|xmlCtxtGetDocument xmlCtxtGetNode xmlCtxtGetInputWindow xmlCtxtGetStatus xmlCtxtGetValidCtxt xmlCtxtIsHtml xmlCtxtIsInSubset xmlCtxtIsStopped|no inspectable parser context
-N|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|SAX2 handler table not started
+P|xmlCtxtGetStatus|properties - see xmlParserStatus
+P|xmlCtxtGetInputWindow|sax::Locator::window - the document input only, not entity inputs
+A|xmlCtxtGetDocument xmlCtxtGetNode|no tree while parsing: the DOM parses return the document
+A|xmlCtxtGetValidCtxt|valid::StreamValidator, valid::validate
+A|xmlCtxtIsHtml|HTML parses have their own entry points (html)
+A|xmlCtxtIsInSubset|declaration callbacks follow internal_subset (internal) or external_subset (external)
+A|xmlCtxtIsStopped|a callback's ControlFlow::Break stops sax::parse
+A|xmlCtxtGetSaxHandler xmlCtxtSetSaxHandler|no parser context; the handler is passed to sax::parse
 P|xmlStopParser|PushParser::feed, html::parse_events - ControlFlow cancellation of the event callback
 P|xmlCtxtValidateDocument xmlCtxtValidateDtd|valid::validate
 I|xmlHasFeature|features::has
 A|xmlInitParser xmlCleanupParser xmlInitGlobals xmlCleanupGlobals|no global state
 A|xml*Default xml*DefaultValue __xml*DefaultValue __xmlIndentTreeOutput __xmlSaveNoEmptyTags __xmlTreeIndentString xmlIndentTreeOutput xmlSaveNoEmptyTags xmlTreeIndentString xmlThrDef*|global default; per-call ParseOptions or save::Options flags
 A|xmlNewInputFrom* xmlNewIOInputStream xmlParserInputGrow xmlParserInputRead xmlParserInputDeallocate xmlSetupParserForBuffer xmlParserInputBufferCreate* xmlAllocParserInputBuffer|std::io::Read/BufRead or byte slices replace input streams
-N|xmlInputSetEncodingHandler xmlCtxtSetCharEncConvImpl|no caller-provided encoding handler
-N|xmlParserAddNodeInfo xmlParserFindNodeInfo xmlParserFindNodeInfoIndex xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserNodeInfo xmlParserNodeInfoSeq|no node-info table; Node::range gives byte ranges
+P|xmlInputSetEncodingHandler xmlSwitchToEncoding xmlSwitchEncodingName|ParseOptions::encoding - before the parse, the document only (not external entities or HTML); an unknown name fails at Handler::open
+P|xmlCtxtSetCharEncConvImpl|ParseOptions::converters - input of the document only (not HTML, external entities or output)
+P|_xmlParserNodeInfo xmlParserNodeInfo xmlParserFindNodeInfo|Node::range, OwnedNode::range - recorded for every parsed node, always (libxml2: elements, under record_info); lines from diagnostic::LineIndex::line
+I|_xmlParserNodeInfo.begin_pos _xmlParserNodeInfo.end_pos|Node::range, OwnedNode::range
+I|_xmlParserNodeInfo.begin_line _xmlParserNodeInfo.end_line|diagnostic::LineIndex::line - at the range's ends
+A|_xmlParserNodeInfo.node|the node is the lookup key
+A|_xmlParserNodeInfoSeq _xmlParserNodeInfoSeq.buffer _xmlParserNodeInfoSeq.length _xmlParserNodeInfoSeq.maximum xmlParserNodeInfoSeq xmlInitNodeInfoSeq xmlClearNodeInfoSeq xmlParserAddNodeInfo xmlParserFindNodeInfoIndex|the table's storage and upkeep; each node carries its own range
 A|xmlAttrHashBucket xmlParserNsData xmlStartTag xmlParserInputState xmlParserMode xmlParserInputFlags parser.h:XML_PARSER_* parser.h:XML_INPUT_* XML_SKIP_IDS XML_SAX2_MAGIC XML_DEFAULT_VERSION XML_TREE_INTERNALS|internal parser state or flag
-N|XML_COMPLETE_ATTRS XML_DETECT_IDS|SAX2 loadsubset bits; SAX2 handler table not started
-N|xmlParserStatus XML_STATUS_*|no xmlParserStatus
-N|XML_RESOURCE_MAIN_DOCUMENT|ResourceKind has no main-document kind
+A|XML_COMPLETE_ATTRS XML_DETECT_IDS|parser-context loadsubset bits; options::DTDATTR and options::SKIP_IDS set them
+P|xmlParserStatus XML_STATUS_*|properties - the inverse of the WELLFORMED/NSVALID/DTDVALID bits (DTD_VALIDATION_FAILED only with DTDVALID); CATASTROPHIC_ERROR = ErrorKind::Allocation or error::ReadError::Io
+A|XML_RESOURCE_MAIN_DOCUMENT|the main document is the caller's input: no surface loads it through a Resolver
 A|XML_RESOURCE_UNKNOWN|no unknown resource kind
 P|xmlParserOption|options
 I|xmlResourceType|ResourceKind
 P|xmlResourceLoader|Resolver
 I|xmlFeature|features::Feature
 P|xmlParserVersion|features::LIBXML2_COMPAT_VERSION
-N|*SAXFunc *SAX2Func|SAX2 handler table not started (roadmap 15)
-N|xmlDefaultSAXHandler xmlDefaultSAXLocator xmlSAXHandlerV1 xmlSAXHandlerV1Ptr xmlSAXHandler xmlSAXHandlerPtr xmlSAXLocator xmlSAXLocatorPtr|SAX2 handler table not started
-N|xmlExternalEntityLoader|use Resolver
+I|_xmlSAXHandler.startDocument startDocumentSAXFunc|sax::Handler::start_document
+I|_xmlSAXHandler.endDocument endDocumentSAXFunc|sax::Handler::end_document
+I|_xmlSAXHandler.internalSubset internalSubsetSAXFunc|sax::Handler::internal_subset
+I|_xmlSAXHandler.externalSubset externalSubsetSAXFunc|sax::Handler::external_subset
+I|_xmlSAXHandler.entityDecl entityDeclSAXFunc|sax::Handler::entity_decl
+I|_xmlSAXHandler.unparsedEntityDecl unparsedEntityDeclSAXFunc|sax::Handler::unparsed_entity_decl
+I|_xmlSAXHandler.notationDecl notationDeclSAXFunc|sax::Handler::notation_decl
+I|_xmlSAXHandler.elementDecl elementDeclSAXFunc|sax::Handler::element_decl
+I|_xmlSAXHandler.attributeDecl attributeDeclSAXFunc|sax::Handler::attribute_decl
+I|_xmlSAXHandler.startElementNs startElementNsSAX2Func|sax::Handler::start_element
+I|_xmlSAXHandler.endElementNs endElementNsSAX2Func|sax::Handler::end_element
+I|_xmlSAXHandler.characters charactersSAXFunc|sax::Handler::characters
+I|_xmlSAXHandler.cdataBlock cdataBlockSAXFunc|sax::Handler::cdata_block
+I|_xmlSAXHandler.comment commentSAXFunc|sax::Handler::comment
+I|_xmlSAXHandler.processingInstruction processingInstructionSAXFunc|sax::Handler::processing_instruction
+I|_xmlSAXHandler.reference referenceSAXFunc|sax::Handler::reference
+I|_xmlSAXHandler.warning warningSAXFunc|sax::Handler::warning
+I|_xmlSAXHandler.error errorSAXFunc|sax::Handler::error
+I|_xmlSAXHandler.fatalError fatalErrorSAXFunc|sax::Handler::fatal_error
+P|_xmlSAXHandler.serror|sax::Handler::error - warning, error and fatal_error receive the Error
+A|_xmlSAXHandler.startElement _xmlSAXHandler.endElement startElementSAXFunc endElementSAXFunc attributeSAXFunc|SAX1 callbacks; sax::Handler::start_element gets expanded names
+A|_xmlSAXHandler.getEntity _xmlSAXHandler.getParameterEntity _xmlSAXHandler.resolveEntity _xmlSAXHandler.isStandalone _xmlSAXHandler.hasInternalSubset _xmlSAXHandler.hasExternalSubset getEntitySAXFunc getParameterEntitySAXFunc resolveEntitySAXFunc isStandaloneSAXFunc hasInternalSubsetSAXFunc hasExternalSubsetSAXFunc|queries to the handler; the parser keeps the declarations and a Resolver loads resources
+A|_xmlSAXHandler.initialized _xmlSAXHandler._private|C handler-table bookkeeping; a Handler is a Rust value
+P|_xmlSAXHandler.setDocumentLocator setDocumentLocatorSAXFunc|sax::Handler::locate - called when the place changes, with the place
+A|_xmlSAXHandler.ignorableWhitespace ignorableWhitespaceSAXFunc|never called for a SAX handler: areBlanks needs the tree node only the SAX2 builder sets, so sax::parse reports blanks as characters under NOBLANKS too
+P|xmlSAXHandler _xmlSAXHandler|sax::Handler - feature sax; callbacks over the slice reader's events (docs/compatibility.md#sax2-callbacks)
+A|xmlSAXHandlerPtr|raw pointer alias
+A|xmlDefaultSAXHandler|sax::Handler - its default methods do nothing; OwnedDocument builds trees
+A|xmlSAXHandlerV1 xmlSAXHandlerV1Ptr _xmlSAXHandlerV1 _xmlSAXHandlerV1.*|SAX1 handler table (deprecated); sax::Handler is the SAX2 shape
+P|xmlSAXLocator _xmlSAXLocator|sax::Locator - declaration callbacks and entity content get the place of the DOCTYPE, root or reference
+I|_xmlSAXLocator.getLineNumber|sax::Locator::line
+I|_xmlSAXLocator.getColumnNumber|sax::Locator::column
+I|_xmlSAXLocator.getSystemId|sax::Locator::system_id
+A|_xmlSAXLocator.getPublicId|always null in libxml2
+A|xmlDefaultSAXLocator|sax::Locator - sax::parse supplies it
+A|xmlSAXLocatorPtr|raw pointer alias
+A|xmlExternalEntityLoader|the global loader's type; no global loader, a Resolver per parse
 P|xmlParserCtxt|PushParser
 A|xmlParserInput xmlParserCtxtPtr xmlParserInputPtr xmlParserNodeInfoPtr xmlParserNodeInfoSeqPtr|input stream or raw pointer alias
 A|xmlParserInputBuffer xmlParserInputBufferPtr xmlOutputBuffer xmlOutputBufferPtr|std::io::Read/Write
@@ -477,11 +524,13 @@ P|XML_MAX_DICTIONARY_LIMIT XML_MAX_LOOKUP_LIMIT|Limits
 P|XML_MAX_HUGE_LENGTH XML_MAX_TEXT_LENGTH XML_MAX_NAME_LENGTH XML_MAX_NAMELEN|Limits::max_token_bytes
 P|xmlParserMaxDepth|Limits::max_depth
 A|XML_SUBSTITUTE_* inputPop inputPush xmlCtxtErrMemory xmlCtxtPopInput xmlCtxtPushInput xmlCreateFileParserCtxt xmlCreateMemoryParserCtxt xmlCreateURLParserCtxt xmlNewInputFromFile xmlNewInputStream xmlNewStringInputStream xmlStringText xmlStringTextNoenc|internal parser plumbing
-N|xmlParseContent xmlSwitchEncoding xmlSwitchEncodingName xmlSwitchToEncoding|parser-internal entry point not exposed
+P|xmlParseContent|Editor::parse_content - the content production as xmlCtxtParseContent runs it; no parser context to continue
+P|xmlSwitchEncoding|ParseOptions::encoding, Handler::lookup - before the parse, the document only
 P|xmlSplitQName|Name::new
 # ---- tree.h
 A|LIBXML2_NEW_BUFFER XML_BUFFER_ALLOC_* xmlBuf xmlBuf* xmlBuffer xmlBuffer* xmlChildrenNode xmlRootNode xmlDefaultBufferSize XML_GET_CONTENT XML_GET_LINE XML_LOCAL_NAMESPACE|Vec<u8>/String or field-alias macro
-N|XML_XML_ID XML_XML_NAMESPACE|namespace constants not exported
+I|XML_XML_NAMESPACE|XML_NAMESPACE
+A|XML_XML_ID|names are (namespace, local) pairs: xml:id is (XML_NAMESPACE, "id")
 A|xmlGetDocCompressMode xmlSetDocCompressMode|no compression
 I|xmlDoc|Document, OwnedDocument
 I|xmlNode|Node, OwnedNode
@@ -492,12 +541,23 @@ P|xmlDtd|valid::Dtd
 I|xmlElementType|NodeKind, OwnedNodeKind
 A|xmlDocPtr xmlNodePtr xmlAttrPtr xmlNsPtr xmlDtdPtr xmlElementPtr xmlAttributePtr xmlEntityPtr xmlNotationPtr xmlIDPtr xmlRefPtr xmlEnumerationPtr xmlElementContentPtr xmlBufferPtr xmlBufPtr xmlErrorPtr|raw pointer alias; references and OwnedNodeId
 P|xmlEntity|valid::Entity - a borrowed view
-P|xmlElement|valid::Element - a borrowed view; the content model is printed, not a tree
+P|xmlElement|valid::Element, valid::Element::content - a borrowed view; the content model as a valid::Particle tree
 P|xmlAttribute|valid::Attribute - a borrowed view
 P|xmlNotation|valid::Notation - a borrowed view
 P|xmlEnumeration|valid::Attribute::values
-N|xmlElementContent xmlElementContentOccur xmlElementContentType XML_ELEMENT_CONTENT_*|no content-model tree; valid::Element::model prints it
-N|xmlID xmlRef|no public ID/IDREF tables
+P|xmlElementContent _xmlElementContent|valid::Particle, valid::Element::content - n-ary groups read from the printed model (same-connector groups without an indicator merge); no parent links
+I|xmlElementContentType|valid::ParticleKind
+I|XML_ELEMENT_CONTENT_PCDATA|valid::ParticleKind::Pcdata
+I|XML_ELEMENT_CONTENT_ELEMENT|valid::ParticleKind::Element
+I|XML_ELEMENT_CONTENT_SEQ|valid::ParticleKind::Sequence
+I|XML_ELEMENT_CONTENT_OR|valid::ParticleKind::Choice
+I|xmlElementContentOccur|valid::Occurrence
+I|XML_ELEMENT_CONTENT_ONCE|valid::Occurrence::Once
+I|XML_ELEMENT_CONTENT_OPT|valid::Occurrence::Optional
+I|XML_ELEMENT_CONTENT_MULT|valid::Occurrence::ZeroOrMore
+I|XML_ELEMENT_CONTENT_PLUS|valid::Occurrence::OneOrMore
+P|xmlID|Document::ids, OwnedDocument::ids - (element, attribute position) entries
+R|xmlRef|only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally
 I|xmlAttributeType|valid::AttributeKind
 I|XML_ATTRIBUTE_CDATA|valid::AttributeKind::Cdata
 I|XML_ATTRIBUTE_ID|valid::AttributeKind::Id
@@ -527,6 +587,7 @@ P|_xmlElement.content|valid::Element::model - printed as xmlDumpElementDecl writ
 I|_xmlElement.attributes|valid::Element::attributes
 A|_xmlElement.prefix _xmlAttribute.prefix|names are qualified as declared
 R|_xmlAttribute.tree _xmlElement.contModel|deprecated in 2.15.4
+R|_xmlID.attr _xmlID.doc _xmlID.lineno _xmlID.name _xmlID.next _xmlID.value|deprecated in 2.15.4
 I|_xmlAttribute.elem|valid::Attribute::element
 I|_xmlAttribute.name|valid::Attribute::name
 I|_xmlAttribute.atype|valid::Attribute::kind
@@ -538,10 +599,18 @@ P|_xmlDtd.entities _xmlDtd.pentities|valid::Dtd::entities - an iterator over bot
 P|_xmlDtd.elements|valid::Dtd::elements
 P|_xmlDtd.attributes|valid::Element::attributes
 P|_xmlDtd.notations|valid::Dtd::notations
-P|XML_DOC_HTML|OwnedDocument::is_html
-N|XML_DOC_*|no document property flags
-N|xmlDocProperties|no document property flags
-N|XML_ELEMENT_DECL XML_ENTITY_DECL XML_NAMESPACE_DECL|no public DTD declaration nodes
+I|XML_DOC_HTML|properties::HTML - also OwnedDocument::is_html
+I|XML_DOC_WELLFORMED|properties::WELLFORMED
+I|XML_DOC_NSVALID|properties::NSVALID
+I|XML_DOC_DTDVALID|properties::DTDVALID
+I|XML_DOC_USERBUILT|properties::USERBUILT
+I|XML_DOC_OLD10|properties::OLD10
+I|XML_DOC_XINCLUDE|properties::XINCLUDE - never set, as in libxml2 2.15.4
+I|XML_DOC_INTERNAL|properties::INTERNAL - never set: marks libxml2's scratch documents
+I|xmlDocProperties|properties
+A|XML_ELEMENT_DECL XML_ENTITY_DECL XML_ATTRIBUTE_DECL XML_NAMESPACE_DECL|type tags of declaration and namespace structs; valid::Element/Attribute/Entity and NamespaceBinding are views, not tree nodes
+A|XML_ENTITY_NODE XML_NOTATION_NODE|libxml2 2.15.4 never creates nodes of these types
+P|XML_DOCUMENT_FRAG_NODE|Fragment - parsed content comes back as detached nodes (Fragment::nodes), not under a fragment node
 R|XML_DOCB_DOCUMENT_NODE xmlRegisterNodeFunc xmlDeregisterNodeFunc|DocBook and node registration callbacks removed upstream
 A|XML_XINCLUDE_START XML_XINCLUDE_END|xinclude never adds marker nodes (NOXINCNODE behaviour)
 I|xmlNewDoc|OwnedDocument::create
@@ -553,15 +622,21 @@ P|xmlNewPI xmlNewDocPI|Editor::append_processing_instruction
 I|xmlNewNs|Editor::declare_namespace
 P|xmlNewProp xmlNewNsProp xmlNewDocProp|Editor::set_attribute
 A|xmlNewNodeEatName xmlNewNsPropEatName xmlNewDocNodeEatName|no dictionary or name ownership transfer
-N|xmlNewReference xmlNewCharRef xmlNewDocFragment xmlNewDtd xmlCreateIntSubset|not started (no detached nodes, entity-reference or DTD construction)
+P|xmlNewReference|Editor::parse_content - of `&name;`: declared entities only (libxml2 also makes predefined and undeclared ones)
+A|xmlNewCharRef|a character reference is its character (Editor::append_text)
+P|xmlNewDocFragment|Fragment - Editor::parse_content returns detached top-level nodes; there is no fragment node
+P|xmlNewDtd|valid::Dtd::parse - a detached DTD from declaration markup (empty: no declarations); no name or identifiers, not attached as an external subset
+P|xmlCreateIntSubset|Editor::add_declarations, Editor::set_internal_subset - created by the first declarations, named after the document element
 I|xmlAddChild|Editor::append_child
 I|xmlAddNextSibling|Editor::insert_after
 I|xmlAddPrevSibling|Editor::insert_before
-N|xmlAddChildList xmlAddSibling|not started
+P|xmlAddSibling|Editor::append_child - on the node's parent (merges Text, as xmlAddSibling)
+P|xmlAddChildList|Editor::append_child - once per node of the list
 I|xmlUnlinkNode|Editor::unlink
 I|xmlReplaceNode|Editor::replace
 P|xmlFreeNode xmlFreeNodeList|Editor::remove_subtree
-A|xmlFreeDoc xmlFreeDtd xmlFreeNs xmlFreeNsList xmlFreeProp xmlFreePropList|Drop
+P|xmlFreeDtd|Editor::remove_doctype - the internal subset with its DOCTYPE; external-subset declarations stay; a parsed valid::Dtd is Drop
+A|xmlFreeDoc xmlFreeNs xmlFreeNsList xmlFreeProp xmlFreePropList|Drop
 I|xmlSetProp xmlSetNsProp|Editor::set_attribute
 I|xmlUnsetProp xmlUnsetNsProp|Editor::remove_attribute
 P|xmlRemoveProp|Editor::remove_attribute
@@ -576,7 +651,9 @@ P|xmlFirstElementChild xmlLastElementChild xmlNextElementSibling xmlPreviousElem
 I|xmlNodeGetContent|Node::content, OwnedNode::content
 P|xmlNodeBufGetContent xmlBufGetNodeContent|Node::content, OwnedNode::content
 P|xmlNodeSetContent xmlNodeSetContentLen|Editor::set_node_value
-N|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat xmlTextMerge xmlStringGetNodeList xmlStringLenGetNodeList|not started
+I|xmlNodeAddContent xmlNodeAddContentLen xmlTextConcat|Editor::add_content
+P|xmlTextMerge|Editor::add_content - then Editor::remove_subtree on the second node
+P|xmlStringGetNodeList xmlStringLenGetNodeList|Editor::parse_content - `<` must be escaped; undeclared references and a `&` without `;` fail (libxml2: empty entity-ref node, dropped `&`)
 I|xmlNodeListGetString|Node::list_string, OwnedNode::list_string
 P|xmlNodeListGetRawString|OwnedNode::list_string - list_string(true) is its inLine 1; its inLine 0 escaping (xmlEncodeSpecialChars) is not offered
 I|xmlNodeSetName|Editor::set_name
@@ -584,9 +661,11 @@ P|xmlSetNs|Editor::set_name
 I|xmlNodeGetBase xmlNodeGetBaseSafe|Node::base_uri, OwnedNode::base_uri
 I|xmlNodeGetLang|Node::lang, OwnedNode::lang
 I|xmlNodeGetSpacePreserve|Node::space_preserve, OwnedNode::space_preserve
-N|xmlNodeSetBase xmlNodeSetLang xmlNodeSetSpacePreserve|not started
+P|xmlNodeSetBase xmlNodeSetLang xmlNodeSetSpacePreserve|Editor::set_attribute - xml:base, xml:lang, xml:space in the XML namespace; Editor::set_url for the document
 P|xmlNodeIsText|Node::kind, OwnedNode::kind
-N|xmlIsBlankNode xmlIsXHTML xmlBuildQName|not started
+I|xmlIsXHTML|Doctype::is_xhtml
+P|xmlIsBlankNode|OwnedNode::text - with chars::is_blank over a Text or CDATA value
+A|xmlBuildQName|format! of prefix and local name
 I|xmlGetLineNo|diagnostic::LineIndex - Node::line and OwnedNode::line
 I|xmlGetNodePath|Node::path, OwnedNode::path
 I|xmlGetNsList xmlGetNsListSafe|Node::namespaces, OwnedNode::namespaces
@@ -609,11 +688,11 @@ A|xmlDOMWrapAcquireNsFunction|no custom namespace callback; copies never rename
 A|xmlDOMWrap*|no DOM-wrapper context; copies plan namespaces themselves
 A|xmlSetTreeDoc xmlSetListDoc|a node belongs to its arena; Editor::import copies
 P|xmlGetIntSubset|Document::doctype, OwnedDocument::doctype
-P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_vec - returns bytes; caller writes the file
+P|xmlDocDump xmlDocFormatDump xmlSaveFile xmlSaveFileEnc xmlSaveFileTo xmlSaveFormatFile xmlSaveFormatFileEnc xmlSaveFormatFileTo|save::to_writer, save::to_vec - any Write sink (the caller opens the file) or a Vec
 I|xmlDocDumpMemory xmlDocDumpFormatMemory xmlDocDumpMemoryEnc xmlDocDumpFormatMemoryEnc|save::to_vec
 P|xmlNodeDump xmlElemDump xmlNodeDumpOutput xmlAttrSerializeTxtContent|save::to_vec, save::Tree
 P|xmlValidateNCName xmlValidateNMToken xmlValidateName xmlValidateQName|Name::new
-N|xmlSplitQName2 xmlSplitQName3|not started (Name::new parses a whole QName)
+A|xmlSplitQName2 xmlSplitQName3|str::split_once on ':'; Name views carry prefix and local parts
 R|xmlIsMixedElement xmlIsRef|deprecated in 2.15.4
 # ---- entities.h
 I|xmlGetDocEntity|valid::Dtd::entity
@@ -631,7 +710,8 @@ I|XML_EXTERNAL_PARAMETER_ENTITY|valid::EntityKind::ExternalParameter
 I|XML_INTERNAL_PREDEFINED_ENTITY|valid::EntityKind::Predefined
 P|xmlEntitiesTable|valid::Dtd::entities - an iterator, no table type
 A|xmlFreeEntity|Drop
-N|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity xmlNewEntity|no declaration construction (roadmap 8)
+P|xmlAddDocEntity xmlAddDtdEntity xmlAddEntity|Editor::add_declarations - declarations as markup, appended to the internal subset
+P|xmlNewEntity|valid::Dtd::parse, valid::Dtd::entity - a detached declaration parsed from markup; attached ones: Editor::add_declarations
 I|_xmlEntity.name|valid::Entity::name
 I|_xmlEntity.etype|valid::Entity::kind
 P|_xmlEntity.content|valid::Entity::content - also the text of loaded external entities, which libxml2 leaves unset
@@ -639,7 +719,7 @@ I|_xmlEntity.ExternalID|valid::Entity::public_id
 I|_xmlEntity.SystemID|valid::Entity::system_id
 P|_xmlEntity.URI|valid::Entity::uri - resolved only when a resolver supplies the base
 A|_xmlEntity.length|str::len of valid::Entity::content
-N|_xmlEntity.orig|the literal as written is not kept
+I|_xmlEntity.orig|valid::Entity::original
 # ---- xmlerror.h
 A|xmlLastError __xmlStructuredError*|no global error state
 A|xmlGetLastError xmlResetLastError xmlResetError xmlCopyError xmlCtxtResetLastError xmlSetGenericErrorFunc xmlSetStructuredErrorFunc initGenericErrorDefaultFunc xmlGenericError* xmlStructuredError* xmlParserError xmlParserWarning xmlParserValidityError xmlParserValidityWarning xmlParserPrintFileInfo xmlParserPrintFileContext __xmlGenericError*|no global error state or printing; diagnostics are returned values
@@ -651,7 +731,7 @@ I|xmlErrorLevel|diagnostic::Level
 I|xmlParserErrors|diagnostic::code - codes yaxml produces; ErrorKind::libxml2_code
 # ---- xpath.h / xpathInternals.h
 I|xmlXPathCompile|xpath::XPath::compile
-P|xmlXPathCtxtCompile|xpath::XPath::compile_with_limits
+I|xmlXPathCtxtCompile|xpath::XPath::compile_in
 I|xmlXPathCompiledEval|xpath::XPath::evaluate
 P|xmlXPathCompiledEvalToBoolean xmlXPathEval xmlXPathEvalExpression xmlXPathNodeEval xmlXPathEvalPredicate xmlXPathEvaluatePredicateResult|xpath::XPath::evaluate
 I|xmlXPathNewContext|xpath::Context::new
@@ -660,21 +740,35 @@ I|xmlXPathRegisterVariable|xpath::Context::with_variable
 I|xmlXPathRegisterVariableNS|xpath::Context::with_variable_ns
 I|xmlXPathRegisterFunc|xpath::Context::with_function
 I|xmlXPathRegisterFuncNS|xpath::Context::with_function_ns
-N|xmlXPathRegisterFuncLookup xmlXPathRegisterVariableLookup xmlXPathFunctionLookup xmlXPathFunctionLookupNS xmlXPathVariableLookup xmlXPathVariableLookupNS xmlXPathNsLookup xmlXPathRegisterAllFunctions xmlXPathSetErrorHandler xmlXPathContextSetCache xmlXPathSetContextNode|lookup callbacks not started (docs/xpath.md)
-N|XML_XPATH_CHECKNS XML_XPATH_NOVAR|CHECKNS/NOVAR flags not implemented (docs/xpath.md)
+I|xmlXPathRegisterVariableLookup|xpath::Context::with_variable_lookup
+I|xmlXPathVariableLookupFunc|xpath::VariableLookup
+I|xmlXPathFuncLookupFunc|xpath::FunctionLookup - returns the result, not the function
+I|xmlXPathRegisterFuncLookup|xpath::Context::with_function_lookup - a dispatcher that calls the function
+I|xmlXPathVariableLookup xmlXPathVariableLookupNS|xpath::Context::variable
+P|xmlXPathFunctionLookup xmlXPathFunctionLookupNS|xpath::Context::call - extension functions only; core functions are bound at compilation
+I|xmlXPathNsLookup|xpath::Context::namespace
+A|xmlXPathRegisterAllFunctions|core functions are built into compilation
+A|xmlXPathSetContextNode|the node argument of xpath::XPath::evaluate
+A|xmlXPathContextSetCache|no object cache; values are plain Rust values
+A|xmlXPathSetErrorHandler|errors are returned (xpath::Error)
+I|XML_XPATH_CHECKNS XML_XPATH_NOVAR|xpath::CHECKNS, xpath::NOVAR - applied by XPath::compile_in
+I|_xmlXPathContext.flags|xpath::Context::with_flags
 A|xmlXPathFreeContext xmlXPathFreeCompExpr xmlXPathFreeNodeSet xmlXPathFreeNodeSetList xmlXPathFreeObject xmlXPathFreeParserContext xmlXPathRegisteredFuncsCleanup xmlXPathRegisteredNsCleanup xmlXPathRegisteredVariablesCleanup xmlXPathInit|Drop
 I|xmlXPathObject xmlXPathObjectType|xpath::Value
 I|xmlXPathCompExpr|xpath::XPath
 P|xmlXPathContext|xpath::Context
 A|xmlXPathContextPtr xmlXPathCompExprPtr xmlXPathObjectPtr xmlXPathParserContextPtr xmlNodeSetPtr xmlXPathAxisPtr xmlXPathFuncPtr xmlXPathTypePtr xmlXPathVariablePtr|raw pointer alias
-A|xmlNodeSet xmlXPathParserContext xmlXPathAxis xmlXPathType xmlXPathVariable xmlXPathFunct xmlXPathAxisFunc xmlXPathConvertFunc xmlXPathEvalFunc xmlXPathFuncLookupFunc xmlXPathVariableLookupFunc|internal XPath machinery; Vec<xpath::Node> and closures
+A|xmlNodeSet xmlXPathParserContext xmlXPathAxis xmlXPathType xmlXPathVariable xmlXPathFunct xmlXPathAxisFunc xmlXPathConvertFunc xmlXPathEvalFunc|internal XPath machinery; Vec<xpath::Node> and closures
 I|xmlXPathFunction|xpath::Function
 I|XPATH_NODESET XPATH_BOOLEAN XPATH_NUMBER XPATH_STRING|xpath::Value
-N|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|no such XPath value type (range extensions removed in 2.15)
+A|XPATH_UNDEFINED XPATH_POINT XPATH_RANGE XPATH_LOCATIONSET XPATH_USERS XPATH_XSLT_TREE|never an expression result: UNDEFINED is an unset object, POINT/RANGE/LOCATIONSET bare macros since the range extensions went in 2.15, USERS/XSLT_TREE made only by XSLT
 A|XPATH_EXPRESSION_OK|success is Ok(..)
 A|XPATH_MEMORY_ERROR|allocation failure aborts
-N|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_ENCODING_ERROR XPATH_STACK_ERROR XPATH_FORBID_VARIABLE_ERROR XPTR_SYNTAX_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|no matching xpath::ErrorKind
+A|XPATH_NUMBER_ERROR XPATH_INVALID_OPERAND XPATH_INVALID_CTXT_SIZE XPATH_INVALID_CTXT_POSITION XPATH_STACK_ERROR|C value-stack and context guards no expression text reaches (numbers are scanned only after a digit; size/position are set through the C API)
+A|XPATH_ENCODING_ERROR XPTR_RESOURCE_ERROR XPTR_SUB_RESOURCE_ERROR|never raised in libxml2 2.15
+P|XPTR_SYNTAX_ERROR|xpointer::Error::Syntax - category only
 P|xmlXPathError|xpath::ErrorKind
+I|XPATH_FORBID_VARIABLE_ERROR|xpath::ErrorKind::ForbiddenVariable
 P|xmlXPathCast* xmlXPathConvert* xmlXPathStringEvalNumber|xpath::XPath::evaluate - conversions run inside evaluation
 P|xmlXPath*Function|xpath::XPath::evaluate - core function library, not individually callable
 P|xmlXPathNext*|xpath::XPath::evaluate - axes run inside evaluation
@@ -682,12 +776,15 @@ P|xmlXPathAddValues xmlXPathSubValues xmlXPathMultValues xmlXPathDivValues xmlXP
 A|xmlXPathIsInf xmlXPathIsNaN|f64::is_infinite, f64::is_nan
 R|xmlXPathNAN xmlXPathPINF xmlXPathNINF|deprecated; use f64::NAN and f64::INFINITY
 A|xmlXPathNodeSet* xmlXPathEmptyNodeSet xmlXPathNewNodeSet* xmlXPathNewBoolean xmlXPathNewCString xmlXPathNewFloat xmlXPathNewString xmlXPathNewValueTree xmlXPathWrap* xmlXPathReturn* xmlXPathObjectCopy xmlXPathDifference xmlXPathDistinct* xmlXPathHasSameNodes xmlXPathIntersection xmlXPathLeading* xmlXPathNodeLeading* xmlXPathNodeTrailing* xmlXPathTrailing* xmlXPathPop* xmlXPathValue* xmlXPathStackIs* xmlXPathNewParserContext xmlXPathParseNCName xmlXPathParseName xmlXPathRoot xmlXPathSetArityError xmlXPathSetError xmlXPathSetTypeError xmlXPathCheckError xmlXPathGetContextNode xmlXPathGetDocument xmlXPathGetError xmlXPathErr xmlXPatherror xmlXPathIsNodeType CAST_TO_* CHECK_* XP_ERROR XP_ERROR0 valuePop valuePush|XPath evaluator internals; xpath::Value, Vec and closures replace the object and stack API
-N|xmlXPathCmpNodes xmlXPathOrderDocElems xmlXPathDebugDump*|not started
+I|xmlXPathCmpNodes|xpath::compare - namespace nodes ordered by their element
+I|xmlXPathDebugDumpObject|debug::dump_xpath_object - features debug + xpath
+A|xmlXPathDebugDumpCompExpr|declined: prints libxml2's compiled step array; yaxml compiles XPath to its own expression tree
+A|xmlXPathOrderDocElems|caches document order in node content for speed; XPath ranks nodes with its own order keys
 # ---- xmlreader.h
 I|xmlReaderForMemory xmlReaderForDoc xmlReaderForIO xmlReaderForFd xmlNewTextReader|TextReader::with_options, TextReader::new
 P|xmlReaderForFile xmlNewTextReaderFilename|TextReader::new - caller opens the file
 P|xmlReaderNewDoc xmlReaderNewFd xmlReaderNewFile xmlReaderNewIO xmlReaderNewMemory xmlTextReaderSetup|TextReader::reset_with
-N|xmlReaderWalker xmlReaderNewWalker|reading an existing tree not started
+I|xmlReaderWalker xmlReaderNewWalker|Walker::new, Walker::reset - over an OwnedDocument (docs/textreader.md#walker)
 A|xmlFreeTextReader xmlTextReaderClose|Drop
 I|xmlTextReader|TextReader
 A|xmlTextReaderPtr xmlTextReaderLocatorPtr|raw pointer alias
@@ -714,7 +811,8 @@ I|xmlTextReaderNormalization|TextReader::normalization
 I|xmlTextReaderStandalone|TextReader::standalone
 I|xmlTextReaderByteConsumed|TextReader::byte_consumed - exact bytes taken, libxml2 counts 4 KiB chunks
 I|xmlTextReaderGetRemainder|TextReader::into_remainder
-N|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode xmlTextReaderPreserve xmlTextReaderPreservePattern|live tree pointers and free-behind; rejected, TextReader::expand copies a subtree (docs/textreader.md)
+P|xmlTextReaderCurrentDoc xmlTextReaderCurrentNode|Walker::document, Walker::current_node - walker only; the parsing reader keeps no tree (docs/textreader.md)
+A|xmlTextReaderPreserve xmlTextReaderPreservePattern|declined: live tree pointers and free-behind; TextReader::expand copies a subtree (docs/textreader.md)
 I|xmlTextReaderHasAttributes|TextReader::has_attributes
 I|xmlTextReaderHasValue|TextReader::has_value
 I|xmlTextReaderIsEmptyElement|TextReader::is_empty_element
@@ -739,22 +837,33 @@ P|xmlTextReaderSetResourceLoader|ParseOptions::with_resolver
 P|xmlTextReaderSetMaxAmplification|Limits::max_entity_amplification
 I|xmlTextReaderGetParserLineNumber|TextReader::line_number - takes the caller's LineIndex
 I|xmlTextReaderGetParserColumnNumber|TextReader::column_number - takes the caller's LineIndex
-N|xmlTextReaderConstEncoding xmlTextReaderConstString xmlTextReaderConstXmlVersion xmlTextReaderIsNamespaceDecl xmlTextReaderNextSibling xmlTextReaderQuoteChar xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|not started (docs/textreader.md)
-N|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler xmlTextReaderGetLastError|no error callback; xsd_diagnostics/relaxng_diagnostics return values
+I|xmlTextReaderConstEncoding|TextReader::encoding
+I|xmlTextReaderConstXmlVersion|TextReader::xml_version
+I|xmlTextReaderIsNamespaceDecl|TextReader::is_namespace_decl - false without a node (libxml2 -1)
+I|xmlTextReaderQuoteChar|TextReader::quote_char
+A|xmlTextReaderConstString|strings are borrowed &str; no reader dictionary
+I|xmlTextReaderNextSibling|Walker::next_sibling - walker only, as in libxml2 (-1 for parsing readers)
+A|xmlTextReaderLocatorBaseURI xmlTextReaderLocatorLineNumber|no error callback: locators exist only inside xmlTextReaderSetErrorHandler callbacks; TextReader::line_number gives the place
+A|xmlTextReaderErrorFunc xmlTextReaderGetErrorHandler xmlTextReaderSetErrorHandler xmlTextReaderSetStructuredErrorHandler|no error callback: read returns the error, xsd_diagnostics/relaxng_diagnostics return validity errors (docs/textreader.md)
+P|xmlTextReaderGetLastError|TextReader::read - after a failure every read returns the same error (ReadState::Error); validity errors via xsd_diagnostics/relaxng_diagnostics
 I|xmlReaderTypes|NodeType
 I|xmlTextReaderMode|ReadState
 I|xmlParserProperties|ParserProperty
-N|xmlParserSeverities XML_PARSER_SEVERITY_*|no severity levels
-N|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|ReadState has no such variant
+A|xmlParserSeverities XML_PARSER_SEVERITY_*|argument of the xmlTextReaderErrorFunc callback only; diagnostic::Diagnostic::level carries the level
+A|XML_TEXTREADER_MODE_CLOSED XML_TEXTREADER_MODE_READING|READING is never set in libxml2; CLOSED only by xmlTextReaderClose, which is Drop here
 # ---- xmlsave.h
 I|xmlSaveDoc xmlSaveTree|save::to_vec
-P|xmlSaveToBuffer xmlSaveToFd xmlSaveToFilename xmlSaveToIO xmlSaveClose xmlSaveFinish xmlSaveFlush xmlSaveSetIndentString|save::to_vec, save::Options - returns a Vec; no Write sink yet
+I|xmlSaveToIO|save::to_writer
+I|xmlSaveSetIndentString|save::Options::indent
+P|xmlSaveToBuffer xmlSaveToFd xmlSaveToFilename|save::to_writer, save::to_vec - any Write sink (the caller opens files or fds) or a Vec
+P|xmlSaveClose xmlSaveFinish xmlSaveFlush|save::to_writer - one call per tree, the sink flushed at its end; no open save context
 I|xmlSaveOption|save::Options
 P|xmlSaveCtxt|save::Options
 A|xmlSaveCtxtPtr|raw pointer alias
 # ---- xmlwriter.h
 P|xmlNewTextWriter xmlNewTextWriterFilename xmlNewTextWriterMemory|TextWriter::new - any Write sink; the caller opens files
-N|xmlNewTextWriterDoc xmlNewTextWriterTree xmlNewTextWriterPushParser|not started
+P|xmlNewTextWriterDoc xmlNewTextWriterPushParser|TextWriter::new - write into a Vec, then OwnedDocument::parse_with(ParseOptions::new(0)) (docs/writer.md)
+P|xmlNewTextWriterTree|Editor::parse_content - then append_child; prefixes resolve in context (docs/writer.md)
 I|xmlTextWriter|TextWriter
 A|xmlTextWriterPtr xmlFreeTextWriter|Drop
 A|xmlTextWriterWriteFormat* xmlTextWriterWriteVFormat*|format!/write! replace printf-style formatting
@@ -778,32 +887,71 @@ I|xmlGetDtdNotationDesc|valid::Dtd::notation
 P|xmlElementTable|valid::Dtd::elements - an iterator, no table type
 P|xmlAttributeTable|valid::Element::attributes - an iterator, no table type
 P|xmlNotationTable|valid::Dtd::notations - an iterator, no table type
-N|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl xmlAddID xmlAddIDSafe xmlRemoveID xmlIsID xmlValidGetPotentialChildren xmlValidGetValidElements xmlValidateNameValue xmlValidateNamesValue xmlValidateNmtokenValue xmlValidateNmtokensValue xmlDumpNotationTable xmlValidState xmlValidStatePtr|no public declaration model (docs/compatibility.md DTD rows)
-N|xmlIDTable xmlIDTablePtr xmlRefTable xmlRefTablePtr xmlValidityErrorFunc xmlValidityWarningFunc|no public declaration tables
+P|xmlAddAttributeDecl xmlAddElementDecl xmlAddNotationDecl|Editor::add_declarations - declarations as markup, appended to the internal subset
+I|xmlIsID|OwnedDocument::is_id
+P|xmlAddID xmlAddIDSafe xmlRemoveID|Editor::set_attribute, Editor::remove_attribute - the ID table follows ID-typed attributes; no IDs by hand
+I|xmlValidGetPotentialChildren|valid::Element::potential_children
+I|xmlValidGetValidElements|valid::valid_elements - names, not a caller array; at most 256 as libxml2
+P|xmlDumpNotationTable|save::notation_table - declaration order (libxml2: hash order)
+A|xmlValidState xmlValidStatePtr|opaque push-validation state; valid::StreamValidator keeps its own
+P|xmlIDTable xmlIDTablePtr|Document::ids, OwnedDocument::ids - every ID attribute, a repeated value listed again (libxml2 keeps the first)
+R|xmlRefTable xmlRefTablePtr|only used by xmlAddRef/xmlGetRefs/xmlFreeRefTable/xmlRemoveRef and _xmlDoc.refs, deprecated in 2.15.4 (xmlRef is @cond ignore); validators check IDREFs internally
+A|xmlValidityErrorFunc xmlValidityWarningFunc|no error callback: validators return valid::Diagnostic lists
 # ---- encoding.h
-P|XML_CHAR_ENCODING_UTF8 XML_CHAR_ENCODING_UTF16 XML_CHAR_ENCODING_UTF16LE XML_CHAR_ENCODING_UTF16BE XML_CHAR_ENCODING_ASCII XML_CHAR_ENCODING_WINDOWS_1252|OwnedDocument::parse_bytes - decoded by label; no public encoding enum
-N|XML_CHAR_ENCODING_UCS4BE XML_CHAR_ENCODING_UCS4LE XML_CHAR_ENCODING_UCS4_2143 XML_CHAR_ENCODING_UCS4_3412 XML_CHAR_ENCODING_UCS2 XML_CHAR_ENCODING_EBCDIC XML_CHAR_ENCODING_2022_JP XML_CHAR_ENCODING_SHIFT_JIS XML_CHAR_ENCODING_EUC_JP XML_CHAR_ENCODING_HTML XML_CHAR_ENCODING_NONE XML_CHAR_ENCODING_ERROR|encoding unsupported (docs/encoding.md)
-N|xmlCharEnc* xmlCharEncoding* xmlCreateCharEncodingHandler xmlDetectCharEncoding xmlFindCharEncodingHandler xmlGetCharEncodingHandler xmlGetCharEncodingName xmlLookupCharEncodingHandler xmlNewCharEncodingHandler xmlOpenCharEncodingHandler xmlParseCharEncoding xmlRegisterCharEncodingHandler xmlIsolat1ToUTF8 xmlUTF8ToIsolat1 UTF8Toisolat1 isolat1ToUTF8 XML_ENC_*|no public encoding handlers or registry (roadmap 22)
+P|xmlCharEncConvImpl|Converters::open - for labels without a built-in charset; input only
+P|xmlCharEncConvFunc xmlCharEncodingInputFunc|Converter::decode - to UTF-8 only
+P|xmlRegisterCharEncodingHandler xmlCharEncNewCustomHandler|ParseOptions::converters - per parse, no global registry; input only
+P|xmlNewCharEncodingHandler|Converters::open - per parse, no global registry; input only
+I|xmlCharEncoding|encoding::CharEncoding
+I|xmlDetectCharEncoding|encoding::CharEncoding::detect
+I|xmlParseCharEncoding|encoding::CharEncoding::parse
+I|xmlGetCharEncodingName|encoding::CharEncoding::name
+I|xmlCharEncError|encoding::EncError
+I|XML_ENC_ERR_SUCCESS|encoding::Handler::decode, encoding::Handler::encode - Ok
+I|XML_ENC_ERR_INTERNAL|encoding::EncError::Internal - never returned
+I|XML_ENC_ERR_INPUT|encoding::EncError::Input
+I|XML_ENC_ERR_SPACE|encoding::EncError::Space - never returned: outputs grow
+I|XML_ENC_ERR_MEMORY|encoding::EncError::Memory
+I|xmlCharEncodingHandler xmlCharEncodingHandlerPtr _xmlCharEncodingHandler|encoding::Handler
+I|xmlLookupCharEncodingHandler xmlGetCharEncodingHandler|encoding::Handler::lookup - built-in charsets
+I|xmlOpenCharEncodingHandler xmlFindCharEncodingHandler|encoding::Handler::open - built-in charsets (no iconv/ICU); UTF-8 gets an identity handler
+P|xmlCreateCharEncodingHandler|encoding::Handler::open - no implementation callback or HTML flag
+I|xmlCharEncInFunc|encoding::Handler::decode
+P|xmlCharEncFirstLine|encoding::Handler::decode - no first-line cap
+I|xmlCharEncOutFunc|encoding::Handler::encode, encoding::Handler::bom
+I|xmlCharEncCloseFunc|encoding::Handler - dropped
+P|xmlCharEncodingOutputFunc|encoding::Handler::encode - built-in charsets; a Converter only decodes
+A|xmlCharEncConvCtxtDtor|a Converter drops its own state
+A|xmlCharEncFlags XML_ENC_INPUT XML_ENC_OUTPUT XML_ENC_HTML|a Handler converts both ways; the HTML parser remaps its labels itself
+P|xmlIsolat1ToUTF8 isolat1ToUTF8|encoding::Handler::decode - of the ISO-8859-1 handler
+P|xmlUTF8ToIsolat1 UTF8Toisolat1|encoding::Handler::encode - of the ISO-8859-1 handler; character references instead of XML_ENC_ERR_INPUT
 # ---- HTMLparser.h / HTMLtree.h
 I|htmlReadDoc htmlReadMemory htmlParseDoc|html::parse
-P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse - bytes in, no ctxt reuse
+P|htmlReadFd htmlReadFile htmlReadIO htmlParseFile htmlParseDocument htmlCtxtParseDocument htmlCtxtReadDoc htmlCtxtReadFd htmlCtxtReadFile htmlCtxtReadIO htmlCtxtReadMemory|html::parse, html::Options::encoding - bytes in, no ctxt reuse
 I|htmlCreatePushParserCtxt|html::PushParser::new
 I|htmlParseChunk|html::PushParser::feed, html::PushParser::finish
 P|htmlCreateFileParserCtxt htmlCreateMemoryParserCtxt htmlNewParserCtxt htmlCtxtSetOptions htmlCtxtUseOptions|html::Options::new
 P|htmlNewSAXParserCtxt|html::parse_events, html::EventParser::new - a closure receives each callback as an html::Event
-N|htmlCtxtReset|ctxt reuse not started (docs/html.md)
+P|htmlCtxtReset|html::PushParser::reset - no allocations recycled; EventParser: build a new one
 A|htmlFreeParserCtxt|Drop
 P|htmlParserCtxt|html::PushParser
 A|htmlDocPtr htmlNodePtr htmlParserCtxtPtr htmlParserInputPtr htmlSAXHandlerPtr htmlElemDescPtr htmlEntityDescPtr|raw pointer alias
 P|htmlSAXHandler|html::Event - the callbacks HTML parsing makes, as events
 I|XML_HTML_STRUCURE_ERROR|diagnostic::code::HTML_STRUCTURE_ERROR, html::DiagnosticKind::MisplacedTag
-N|htmlParserInput htmlParserNodeInfo htmlElemDesc htmlEntityDesc|node info and element/entity tables not public (docs/html.md)
+A|htmlParserInput|input stream (xmlParserInput)
+P|htmlParserNodeInfo|OwnedNode::range - an empty range at the offset whose line libxml2 records (docs/html.md); lines from diagnostic::LineIndex::html
+R|htmlElemDesc htmlEntityDesc _htmlElemDesc _htmlEntityDesc|types of htmlTagLookup/htmlEntityLookup, deprecated in 2.15.4
 I|htmlDocDumpMemory htmlDocDumpMemoryFormat|html::to_html, html::save
 P|htmlDocDump htmlSaveFile htmlSaveFileEnc htmlSaveFileFormat|html::save - returns bytes
-N|htmlNodeDump htmlNodeDumpFile htmlNodeDumpFileFormat htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocContentDumpFormatOutput htmlSetMetaEncoding htmlNewDoc htmlNewDocNoDtD|HTML subtree output and construction not started (docs/html.md)
-P|htmlGetMetaEncoding|OwnedDocument::html_encoding
+I|htmlNodeDump|html::dump_node - format true
+P|htmlNodeDumpFormatOutput htmlNodeDumpOutput htmlDocContentDumpOutput htmlDocContentDumpFormatOutput|html::dump_node - returns UTF-8 bytes (a converting output buffer: save with save::AS_HTML)
+P|htmlNodeDumpFile htmlNodeDumpFileFormat|html::dump_node - returns bytes
+I|htmlNewDocNoDtD|html::create
+P|htmlNewDoc|html::create - pass the HTML 4.0 Transitional ids for htmlNewDoc(NULL, NULL); an explicit DOCTYPE without ids is not built
+I|htmlSetMetaEncoding|html::set_meta_encoding
+I|htmlGetMetaEncoding|html::meta_encoding - the charset alone, not libxml2's value suffix
 A|HTML_COMMENT_NODE HTML_ENTITY_REF_NODE HTML_PI_NODE HTML_PRESERVE_NODE HTML_TEXT_NODE|node-type aliases
-N|HTML_DEPRECATED HTML_INVALID HTML_NA HTML_REQUIRED HTML_VALID htmlStatus htmlDefaultSubelement htmlElementAllowedHereDesc htmlRequiredAttrs UTF8ToHtml|no public HTML element table
+R|HTML_DEPRECATED HTML_INVALID HTML_NA HTML_REQUIRED HTML_VALID htmlStatus htmlDefaultSubelement htmlElementAllowedHereDesc htmlRequiredAttrs UTF8ToHtml|only used by functions deprecated in 2.15.4 (htmlAttrAllowed, htmlNodeStatus, htmlElementAllowedHere, htmlUTF8ToHtml) or deprecated htmlElemDesc members
 P|htmlParserOption|html::Options
 # ---- uri.h
 I|xmlParseURI xmlParseURISafe xmlParseURIReference|Uri::parse
@@ -811,7 +959,11 @@ I|xmlParseURIRaw|Uri::parse_raw
 I|xmlBuildURI xmlBuildURISafe|uri::resolve
 I|xmlBuildRelativeURI xmlBuildRelativeURISafe|uri::relative
 I|xmlCanonicPath|uri::canonic_path
-N|xmlPathToURI|not started
+I|xmlValidateNameValue|valid::value_matches - AttributeKind::Id
+I|xmlValidateNamesValue|valid::value_matches - AttributeKind::IdRefs
+I|xmlValidateNmtokenValue|valid::value_matches - AttributeKind::NmToken
+I|xmlValidateNmtokensValue|valid::value_matches - AttributeKind::NmTokens
+I|xmlPathToURI|uri::canonic_path - xmlPathToURI is xmlCanonicPath
 I|xmlNormalizeURIPath|uri::normalize_path
 P|xmlURIEscape|uri::escape
 I|xmlURIEscapeStr|uri::escape
@@ -836,7 +988,8 @@ P|xmlCatalogAddLocal|catalog::CatalogResolver::catalog_pi - the resolver of a CA
 A|xmlCatalogFreeLocal|the resolver owns the list and drops it with the parse
 A|xmlCatalogAdd xmlCatalogRemove xmlCatalogDump xmlCatalogDumpDoc xmlLoadCatalogs xmlCatalogGetPublic xmlCatalogGetSystem|operate on the process-wide default catalog; Catalog::add/remove/dump edit a catalog value (docs/catalog.md)
 A|xmlCatalogConvert xmlConvertSGMLCatalog|declined: 2.15.4 passes the address of its argument as the catalog, and converting through the right one moves nothing (docs/catalog.md)
-N|xmlLoadSGMLSuperCatalog xmlCatalogIsEmpty|not started (docs/catalog.md)
+I|xmlLoadSGMLSuperCatalog|catalog::Catalog::load_super
+I|xmlCatalogIsEmpty|catalog::Catalog::is_empty - not lazy (docs/catalog.md)
 A|xmlCatalogCleanup xmlInitializeCatalog xmlCatalogSetDefaults xmlCatalogGetDefaults xmlCatalogSetDefaultPrefer xmlCatalogSetDebug xmlCatalogAllow xmlCatalogPrefer XML_CATA_ALLOW_* XML_CATA_PREFER_NONE xmlFreeCatalog|no global catalog state
 P|XML_CATA_PREFER_PUBLIC XML_CATA_PREFER_SYSTEM|catalog::Catalog::parse - read from the catalog file's prefer attribute
 A|XML_CATALOGS_NAMESPACE XML_CATALOG_PI|private constants of catalog::Catalog and the parser
@@ -852,9 +1005,141 @@ I|xmlSchema|xsd::Schema
 P|xmlSchemaNewValidCtxt xmlSchemaValidCtxt|xsd::StreamValidator::new
 A|xmlSchemaFree xmlSchemaFreeParserCtxt xmlSchemaFreeValidCtxt xmlSchemaPtr xmlSchemaParserCtxt xmlSchemaParserCtxtPtr xmlSchemaValidCtxtPtr|Drop or raw pointer alias
 A|xmlSchemaSet*Errors xmlSchemaSet*StructuredErrors xmlSchemaGet*Errors xmlSchemaValidity*Func|diagnostics are returned as Vec<xsd::Diagnostic>
-N|xmlSchemaDump xmlSchemaSAXPlug xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaSAXUnplug xmlSchemaSetValidOptions xmlSchemaValidCtxtGetOptions xmlSchemaValidCtxtGetParserCtxt xmlSchemaValidateOneElement xmlSchemaValidateSetFilename xmlSchemaValidateSetLocator xmlSchemaValidOption XML_SCHEMA_VAL_VC_I_CREATE xmlSchemaValidError XML_SCHEMAS_ERR_*|not started (docs/xsd.md)
+A|xmlSchemaDump|declined: debug printer of libxml2's schema component model, which yaxml does not keep (xsd::Schema is opaque)
+P|xmlSchemaSAXPlug xmlSchemaSAXUnplug|xsd::StreamValidator - the caller feeds it each event; no SAX handler wrapping
+A|xmlSchemaSAXPlugPtr xmlSchemaSAXPlugStruct xmlSchemaValidCtxtGetParserCtxt|no parser or validation contexts
+P|xmlSchemaValidateSetLocator|xsd::StreamValidator - positions come from each event's SourceOrigin
+P|xmlSchemaValidateSetFilename|diagnostic::Diagnostic::render - the file name is given when rendering
+I|xmlSchemaValidateOneElement|xsd::Schema::validate_element
+I|XML_SCHEMA_VAL_VC_I_CREATE|xsd::Schema::validate_creating
+P|xmlSchemaSetValidOptions xmlSchemaValidOption|xsd::Schema::validate_creating - the one option is a method
+A|xmlSchemaValidCtxtGetOptions|options are chosen per call
+A|xmlSchemaValidError XML_SCHEMAS_ERR_*|never raised by libxml2 2.15.4: validity errors carry XML_SCHEMAV_* codes
 # ---- schemasInternals.h
-N|xmlSchemaFreeType xmlSchemaFreeWildcard xmlSchemaAnnot xmlSchemaAnnotPtr xmlSchemaAttribute xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr xmlSchemaAttributePtr xmlSchemaContentType xmlSchemaElement xmlSchemaElementPtr xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr xmlSchemaFacetPtr xmlSchemaNotation xmlSchemaNotationPtr xmlSchemaType xmlSchemaTypeLink xmlSchemaTypeLinkPtr xmlSchemaTypePtr xmlSchemaTypeType xmlSchemaVal xmlSchemaValPtr xmlSchemaWildcard xmlSchemaWildcardNs xmlSchemaWildcardNsPtr xmlSchemaWildcardPtr XML_SCHEMAS_* XML_SCHEMA_CONTENT_* XML_SCHEMA_TYPE_* XML_SCHEMA_EXTRA_*|no public schema component model; xsd::Schema is opaque
+I|xmlSchemaElement xmlSchemaElementPtr _xmlSchemaElement|xsd::ElementDeclaration
+I|xmlSchemaAttribute xmlSchemaAttributePtr _xmlSchemaAttribute|xsd::AttributeDeclaration
+P|xmlSchemaType xmlSchemaTypePtr _xmlSchemaType|xsd::TypeDefinition - simple and complex type definitions; particles and model groups have no view
+I|xmlSchemaWildcard xmlSchemaWildcardPtr _xmlSchemaWildcard|xsd::Wildcard
+I|xmlSchemaWildcardNs xmlSchemaWildcardNsPtr _xmlSchemaWildcardNs|xsd::Namespaces::Set - sorted, absent namespace first
+I|xmlSchemaTypeLink xmlSchemaTypeLinkPtr _xmlSchemaTypeLink|xsd::SimpleVariety::Union - a Vec of member types
+I|xmlSchemaContentType|xsd::ContentType
+P|xmlSchemaTypeType|xsd::TypeKind - simple or complex; other component kinds have no view
+I|_xmlSchema.elemDecl|xsd::Schema::element, xsd::Schema::elements
+I|_xmlSchema.attrDecl|xsd::Schema::attribute, xsd::Schema::attributes
+I|_xmlSchema.typeDecl|xsd::Schema::type_definition, xsd::Schema::type_definitions
+I|_xmlSchema.notaDecl _xmlSchemaNotation.name _xmlSchemaNotation.targetNamespace|xsd::Schema::notations - (namespace, name) pairs
+P|xmlSchemaNotation xmlSchemaNotationPtr|xsd::Schema::notations - pairs, no notation type
+A|_xmlSchema.schemasImports|imported components are found by the same lookups
+I|_xmlSchema.targetNamespace|xsd::Schema::target_namespace
+A|_xmlSchema.version|never set by libxml2 2.15.4
+I|_xmlSchema.attrgrpDecl|xsd::Schema::attribute_group, xsd::Schema::attribute_groups
+I|xmlSchemaAttributeGroup xmlSchemaAttributeGroupPtr _xmlSchemaAttributeGroup|xsd::AttributeGroup
+I|_xmlSchemaAttributeGroup.name|xsd::AttributeGroup::name
+I|_xmlSchemaAttributeGroup.targetNamespace|xsd::AttributeGroup::namespace
+I|_xmlSchemaAttributeGroup.attrUses|xsd::AttributeGroup::attribute_uses - references expanded
+I|_xmlSchemaAttributeGroup.attributeWildcard|xsd::AttributeGroup::attribute_wildcard
+A|xmlSchemaAttributeLink xmlSchemaAttributeLinkPtr _xmlSchemaAttributeLink|never used by libxml2 2.15.4
+A|xmlSchemaFreeType xmlSchemaFreeWildcard|Drop; components are borrowed views
+P|xmlSchemaVal xmlSchemaValPtr|schema_types::Value - an owned value, no raw pointer
+I|_xmlSchema.groupDecl|xsd::Schema::model_group, xsd::Schema::model_groups
+I|_xmlSchema.idcDef|xsd::Schema::identity_constraint
+I|_xmlSchemaElement.name|xsd::ElementDeclaration::name
+I|_xmlSchemaElement.targetNamespace|xsd::ElementDeclaration::namespace
+I|_xmlSchemaElement.subtypes|xsd::ElementDeclaration::type_definition
+I|_xmlSchemaElement.value|xsd::ElementDeclaration::value
+I|_xmlSchemaElement.flags|xsd::ElementDeclaration::is_nillable, xsd::ElementDeclaration::is_abstract, xsd::ElementDeclaration::block, xsd::ElementDeclaration::final_, xsd::ElementDeclaration::substitutes
+I|_xmlSchemaElement.substGroup _xmlSchemaElement.substGroupNs|xsd::ElementDeclaration::substitution_group
+I|_xmlSchemaElement.idcs|xsd::ElementDeclaration::identity_constraints
+I|xmlSchemaAnnot xmlSchemaAnnotPtr _xmlSchemaAnnot|xsd::Annotations
+I|_xmlSchemaAnnot.next|xsd::Annotations - iterates the chain
+P|_xmlSchemaAnnot.content|xsd::Annotations - copies under one synthetic document, blank text, comments and PIs dropped (xmlSchemaCleanupDoc)
+I|_xmlSchema.annot|xsd::Schema::annotation
+I|_xmlSchemaElement.annot|xsd::ElementDeclaration::annotations
+I|_xmlSchemaAttribute.annot|xsd::AttributeDeclaration::annotations
+I|_xmlSchemaAttributeGroup.annot|xsd::AttributeGroup::annotations
+I|_xmlSchemaType.annot|xsd::TypeDefinition::annotations
+I|_xmlSchemaWildcard.annot|xsd::Wildcard::annotations
+I|_xmlSchemaAttribute.name|xsd::AttributeDeclaration::name
+I|_xmlSchemaAttribute.targetNamespace|xsd::AttributeDeclaration::namespace
+I|_xmlSchemaAttribute.subtypes|xsd::AttributeDeclaration::type_definition
+I|_xmlSchemaAttribute.defValue|xsd::AttributeDeclaration::value
+I|_xmlSchemaAttribute.flags|xsd::Constraint::fixed
+I|_xmlSchemaType.name|xsd::TypeDefinition::name
+I|_xmlSchemaType.targetNamespace|xsd::TypeDefinition::namespace
+I|_xmlSchemaType.baseType|xsd::TypeDefinition::base
+I|_xmlSchemaType.subtypes|xsd::SimpleVariety::List, xsd::TypeDefinition::particle - a list's item type, a complex type's content particle
+I|_xmlSchemaType.memberTypes|xsd::SimpleVariety::Union
+I|_xmlSchemaType.contentType|xsd::TypeDefinition::kind
+I|_xmlSchemaType.contentTypeDef|xsd::ContentType::Simple
+I|_xmlSchemaType.attrUses|xsd::TypeDefinition::attribute_uses
+I|_xmlSchemaType.attributeWildcard|xsd::TypeDefinition::attribute_wildcard
+P|_xmlSchemaType.builtInType|xsd::TypeDefinition::is_builtin - a bool
+P|_xmlSchemaType.flags|xsd::TypeDefinition::final_, xsd::TypeDefinition::block, xsd::TypeDefinition::is_abstract, xsd::TypeDefinition::is_extension, xsd::TypeDefinition::kind, xsd::TypeDefinition::whitespace
+P|_xmlSchemaType.facetSet|xsd::TypeDefinition::facets, xsd::TypeDefinition::patterns - typed values; no enumerations
+A|_xmlSchemaType.facets|the facets as written; facetSet is the effective set
+P|xmlSchemaFacet xmlSchemaFacetPtr _xmlSchemaFacet xmlSchemaFacetLink xmlSchemaFacetLinkPtr _xmlSchemaFacetLink|schema_types::Facet - a typed value, no lexical form or fixed flag
+P|_xmlSchemaFacet.type _xmlSchemaFacet.val|schema_types::Facet
+I|_xmlSchemaFacet.whitespace|schema_types::Facet::WhiteSpace
+I|_xmlSchemaFacet.regexp|xsd::TypeDefinition::patterns
+I|_xmlSchemaFacetLink.facet|xsd::TypeDefinition::facets
+I|_xmlSchemaTypeLink.type|xsd::SimpleVariety::Union
+I|_xmlSchemaWildcard.any _xmlSchemaWildcard.nsSet _xmlSchemaWildcard.negNsSet|xsd::Wildcard::namespaces
+I|_xmlSchemaWildcard.processContents|xsd::Wildcard::process
+I|_xmlSchemaWildcardNs.value|xsd::Namespaces::Set
+I|XML_SCHEMA_CONTENT_EMPTY|xsd::ContentType::Empty
+I|XML_SCHEMA_CONTENT_ELEMENTS|xsd::ContentType::Elements
+I|XML_SCHEMA_CONTENT_MIXED|xsd::ContentType::Mixed
+I|XML_SCHEMA_CONTENT_SIMPLE|xsd::ContentType::Simple
+A|XML_SCHEMA_CONTENT_UNKNOWN XML_SCHEMA_CONTENT_MIXED_OR_ELEMENTS XML_SCHEMA_CONTENT_BASIC XML_SCHEMA_CONTENT_ANY|built-in or transitional content types; xs:anyType reads as Mixed
+I|XML_SCHEMA_TYPE_SIMPLE|xsd::TypeKind::Simple
+I|XML_SCHEMA_TYPE_COMPLEX|xsd::TypeKind::Complex
+I|XML_SCHEMA_TYPE_BASIC|xsd::TypeDefinition::is_builtin
+I|XML_SCHEMA_TYPE_ELEMENT|xsd::ElementDeclaration
+I|XML_SCHEMA_TYPE_ATTRIBUTE|xsd::AttributeDeclaration
+I|XML_SCHEMA_TYPE_ATTRIBUTE_USE|xsd::AttributeUse
+I|XML_SCHEMA_TYPE_ANY_ATTRIBUTE|xsd::Wildcard
+I|XML_SCHEMA_TYPE_ATTRIBUTEGROUP|xsd::AttributeGroup
+I|XML_SCHEMA_TYPE_NOTATION|xsd::Schema::notations
+I|XML_SCHEMA_TYPE_FACET|schema_types::Facet
+I|XML_SCHEMA_TYPE_SEQUENCE|xsd::Compositor::Sequence
+I|XML_SCHEMA_TYPE_CHOICE|xsd::Compositor::Choice
+I|XML_SCHEMA_TYPE_ALL|xsd::Compositor::All
+I|XML_SCHEMA_TYPE_GROUP|xsd::ModelGroupDefinition
+I|XML_SCHEMA_TYPE_PARTICLE|xsd::Particle
+I|XML_SCHEMA_TYPE_ANY|xsd::Term::Wildcard
+I|XML_SCHEMA_TYPE_IDC_UNIQUE|xsd::IdcKind::Unique
+I|XML_SCHEMA_TYPE_IDC_KEY|xsd::IdcKind::Key
+I|XML_SCHEMA_TYPE_IDC_KEYREF|xsd::IdcKind::KeyRef
+I|XML_SCHEMA_TYPE_LIST|xsd::SimpleVariety::List
+I|XML_SCHEMA_TYPE_UNION|xsd::SimpleVariety::Union
+I|XML_SCHEMA_TYPE_EXTENSION|xsd::TypeDefinition::is_extension
+A|XML_SCHEMA_TYPE_RESTRICTION XML_SCHEMA_TYPE_SIMPLE_CONTENT XML_SCHEMA_TYPE_COMPLEX_CONTENT XML_SCHEMA_TYPE_UR XML_SCHEMA_EXTRA_*|schema document syntax, folded into the compiled definitions
+I|XML_SCHEMAS_ELEM_NILLABLE|xsd::ElementDeclaration::is_nillable
+I|XML_SCHEMAS_ELEM_ABSTRACT|xsd::ElementDeclaration::is_abstract
+I|XML_SCHEMAS_ELEM_FIXED XML_SCHEMAS_ELEM_DEFAULT XML_SCHEMAS_ATTR_FIXED|xsd::Constraint::fixed
+I|XML_SCHEMAS_ELEM_BLOCK_EXTENSION XML_SCHEMAS_ELEM_BLOCK_RESTRICTION XML_SCHEMAS_ELEM_BLOCK_SUBSTITUTION|xsd::ElementDeclaration::block
+I|XML_SCHEMAS_ELEM_FINAL_EXTENSION XML_SCHEMAS_ELEM_FINAL_RESTRICTION|xsd::ElementDeclaration::final_
+I|XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD|xsd::ElementDeclaration::substitutes - non-empty
+I|XML_SCHEMAS_ATTR_USE_REQUIRED XML_SCHEMAS_ATTR_USE_OPTIONAL|xsd::AttributeUse::is_required
+A|XML_SCHEMAS_ATTR_USE_PROHIBITED|prohibited uses are dropped from a type's uses (libxml2 too)
+I|XML_SCHEMAS_ANYATTR_SKIP XML_SCHEMAS_ANY_SKIP|xsd::ProcessContents::Skip
+I|XML_SCHEMAS_ANYATTR_LAX XML_SCHEMAS_ANY_LAX|xsd::ProcessContents::Lax
+I|XML_SCHEMAS_ANYATTR_STRICT XML_SCHEMAS_ANY_STRICT|xsd::ProcessContents::Strict
+I|XML_SCHEMAS_TYPE_ABSTRACT|xsd::TypeDefinition::is_abstract
+I|XML_SCHEMAS_TYPE_BLOCK_EXTENSION XML_SCHEMAS_TYPE_BLOCK_RESTRICTION|xsd::TypeDefinition::block
+I|XML_SCHEMAS_TYPE_FINAL_EXTENSION XML_SCHEMAS_TYPE_FINAL_RESTRICTION XML_SCHEMAS_TYPE_FINAL_LIST XML_SCHEMAS_TYPE_FINAL_UNION|xsd::TypeDefinition::final_
+I|XML_SCHEMAS_TYPE_DERIVATION_METHOD_EXTENSION XML_SCHEMAS_TYPE_DERIVATION_METHOD_RESTRICTION|xsd::TypeDefinition::is_extension
+I|XML_SCHEMAS_TYPE_VARIETY_ATOMIC|xsd::SimpleVariety::Atomic
+I|XML_SCHEMAS_TYPE_VARIETY_LIST|xsd::SimpleVariety::List
+I|XML_SCHEMAS_TYPE_VARIETY_UNION|xsd::SimpleVariety::Union
+I|XML_SCHEMAS_TYPE_MIXED|xsd::ContentType::Mixed
+I|XML_SCHEMAS_TYPE_WHITESPACE_PRESERVE XML_SCHEMAS_TYPE_WHITESPACE_REPLACE XML_SCHEMAS_TYPE_WHITESPACE_COLLAPSE|xsd::TypeDefinition::whitespace
+I|XML_SCHEMAS_FACET_PRESERVE|schema_types::WhiteSpace::Preserve
+I|XML_SCHEMAS_FACET_REPLACE|schema_types::WhiteSpace::Replace
+I|XML_SCHEMAS_FACET_COLLAPSE|schema_types::WhiteSpace::Collapse
+A|XML_SCHEMAS_FACET_UNKNOWN|no unknown whitespace mode
+A|XML_SCHEMAS_BLOCK_DEFAULT_* XML_SCHEMAS_FINAL_DEFAULT_* XML_SCHEMAS_QUALIF_*|schema document defaults, folded into each component
+A|XML_SCHEMAS_*|schema builder bookkeeping
 I|xmlSchemaValType|schema_types::Type
 # ---- xmlschemastypes.h
 I|xmlSchemaValidatePredefinedType|schema_types::Type::parse
@@ -869,7 +1154,14 @@ I|xmlSchemaValidateFacet xmlSchemaValidateFacetWhtsp|schema_types::Facet::check
 P|xmlSchemaValidateLengthFacet xmlSchemaValidateLengthFacetWhtsp xmlSchemaValidateListSimpleTypeFacet|schema_types::Facet::check
 I|xmlSchemaCollapseString xmlSchemaWhiteSpaceReplace|schema_types::normalize
 A|xmlSchemaCopyValue xmlSchemaFreeValue xmlSchemaFreeFacet xmlSchemaInitTypes xmlSchemaCleanupTypes|Clone/Drop; no global type table
-N|xmlSchemaGetCanonValue xmlSchemaGetCanonValueWhtsp xmlSchemaGetFacetValueAsULong xmlSchemaIsBuiltInTypeFacet xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue xmlSchemaNewStringValue xmlSchemaValueAppend xmlSchemaValueGetAsBoolean xmlSchemaValueGetAsString xmlSchemaValueGetNext|not started (canonical values, list values; docs/schema-types.md)
+I|xmlSchemaGetCanonValue xmlSchemaGetCanonValueWhtsp|schema_types::Value::canonical - WhiteSpace::Preserve = GetCanonValue; None for lists/anySimpleType (libxml2 ???); fixes value-changing and non-lexical forms (docs/schema-types.md)
+I|xmlSchemaValueGetAsString|schema_types::Value::as_str
+I|xmlSchemaValueGetAsBoolean|schema_types::Value::as_bool - None for non-booleans (libxml2 0)
+I|xmlSchemaGetFacetValueAsULong|schema_types::Facet::count - length and digits facets
+I|xmlSchemaIsBuiltInTypeFacet|schema_types::Type::allows_facet - by facet name
+I|xmlSchemaNewStringValue|schema_types::Value::string
+I|xmlSchemaNewNOTATIONValue xmlSchemaNewQNameValue|schema_types::Value::qname
+A|xmlSchemaValueAppend xmlSchemaValueGetNext|a list is one Value of a list type
 I|xmlSchemaWhitespaceValueType|schema_types::WhiteSpace
 I|XML_SCHEMA_WHITESPACE_PRESERVE|schema_types::WhiteSpace::Preserve
 I|XML_SCHEMA_WHITESPACE_REPLACE|schema_types::WhiteSpace::Replace
@@ -880,7 +1172,11 @@ I|xmlRelaxNGParse|relaxng::Schema::parse
 P|xmlRelaxNGNewParserCtxt xmlRelaxNGNewMemParserCtxt xmlRelaxNGNewDocParserCtxt xmlRelaxNGSetResourceLoader|relaxng::Schema::parse, relaxng::Schema::from_tree
 I|xmlRelaxNGValidateDoc|relaxng::Schema::validate
 P|xmlRelaxNGValidatePushElement xmlRelaxNGValidatePopElement xmlRelaxNGValidatePushCData|relaxng::Stream::event
-N|xmlRelaxNGValidateFullElement XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|not started (docs/relaxng.md)
+A|XML_RELAXNG_ERR_EXTRACONTENT XML_RELAXNG_ERR_EXTRADATA XML_RELAXNG_ERR_INTEREXTRA XML_RELAXNG_ERR_INTERSEQ XML_RELAXNG_ERR_NOTELEM|raised by libxml2's backtracking engine only; yaxml's derivative engine reports the libxml2 error its states reach (ELEMWRONG/TEXTWRONG/LISTEXTRA/NOELEM), a documented divergence (docs/relaxng.md)
+A|XML_RELAXNG_ERR_ELEMNOTEMPTY XML_RELAXNG_ERR_LACKDATA|never raised by libxml2 2.15.4: relaxng.c only names them in its message table
+A|XML_RELAXNG_ERR_NOGRAMMAR XML_RELAXNG_ERR_NOSTATE XML_RELAXNG_ERR_NODEFINE XML_RELAXNG_ERR_INTERNODATA|raised only on states a compiled schema excludes (no grammar, state, ref target or interleave partitions) or on allocation failure
+A|xmlRelaxNGValidateFullElement|relaxng::Stream never asks for a subtree (docs/relaxng.md)
+A|XML_RELAXNGP_CRNG xmlRelaxNGParserFlag xmlRelaxParserSetFlag|libxml2 2.15.4 stores these flags and never reads them: no compact syntax there either
 A|xmlRelaxNGDump xmlRelaxNGDumpTree|declined: debug printers of libxml2's define tree and of the schema document it rewrites in place; yaxml keeps neither (docs/relaxng.md)
 P|xmlRelaxParserSetIncLImit|relaxng::Limits::max_include_depth
 A|XML_RELAXNGP_FREE_DOC XML_RELAXNGP_NONE XML_RELAXNG_OK|no parser flags or success code
@@ -892,14 +1188,17 @@ I|xmlRegexpCompile|regexp::Regex::new
 I|xmlRegexpExec|regexp::Regex::is_match
 I|xmlRegexp|regexp::Regex
 A|xmlRegFreeRegexp xmlRegexpPtr|Drop
-N|xmlRegexpIsDeterminist xmlRegExecCallbacks xmlRegExecCtxt xmlRegExecCtxtPtr|push execution contexts not started (docs/compatibility.md)
+R|xmlRegExecCallbacks xmlRegExecCtxt xmlRegExecCtxtPtr|types of the push execution functions, deprecated in 2.15.4
+A|xmlRegexpIsDeterminist|declined: a verdict on libxml2's own automaton construction, not on the language; matching never depends on it (docs/schema-types.md#intentional-differences)
 R|xmlAutomata* xmlFreeAutomata xmlNewAutomata|deprecated; LIBXML_AUTOMATA off in 2.15
 # ---- xinclude.h
 I|xmlXIncludeProcess xmlXIncludeProcessFlags xmlXIncludeProcessFlagsData|xinclude::process
-P|xmlXIncludeProcessNode xmlXIncludeProcessTree xmlXIncludeProcessTreeFlags xmlXIncludeProcessTreeFlagsData|xinclude::process - whole documents only
+I|xmlXIncludeProcessNode xmlXIncludeProcessTree xmlXIncludeProcessTreeFlags xmlXIncludeProcessTreeFlagsData|xinclude::process_node - returns the processed copy
 P|xmlXIncludeNewContext xmlXIncludeSetFlags xmlXIncludeSetResourceLoader|xinclude::Options
 A|xmlXIncludeFreeContext xmlXIncludeCtxt xmlXIncludeCtxtPtr xmlXIncludeSetErrorHandler xmlXIncludeGetLastError|Drop; errors returned by xinclude::process
-N|XINCLUDE_*|namespace and attribute name constants not exported
+I|XINCLUDE_NS|xinclude::NS
+I|XINCLUDE_OLD_NS|xinclude::OLD_NS
+A|XINCLUDE_*|element/attribute/value names are the spec's literals (include, fallback, href, parse, xml, text, encoding, xpointer)
 # ---- pattern.h / c14n.h / schematron.h / xpointer.h
 I|xmlPatterncompile xmlPatternCompileSafe|pattern::Pattern::compile
 I|xmlPatternMatch|pattern::Pattern::matches
@@ -911,7 +1210,10 @@ I|xmlStreamWantsAnyNode|pattern::StreamMatcher::wants_any_node
 I|xmlPattern|pattern::Pattern
 I|xmlStreamCtxt|pattern::StreamMatcher
 A|xmlFreePattern xmlFreePatternList xmlFreeStreamCtxt xmlPatternPtr xmlStreamCtxtPtr|Drop or raw pointer alias
-N|xmlPatternFromRoot xmlPatternMaxDepth xmlPatternMinDepth xmlPatternStreamable|depth queries not started (docs/pattern.md)
+I|xmlPatternStreamable|pattern::Pattern::streamable
+I|xmlPatternMinDepth|pattern::Pattern::min_depth
+I|xmlPatternMaxDepth|pattern::Pattern::max_depth - None = not streamable, Some(None) = unbounded (-2)
+I|xmlPatternFromRoot|pattern::Pattern::from_root
 I|xmlPatternFlags|pattern
 I|XML_PATTERN_XPATH|pattern::XPATH
 I|XML_PATTERN_XSSEL|pattern::XS_SELECTOR
@@ -948,8 +1250,13 @@ R|LIBXML_HTTP_STUBS_ENABLED|HTTP/FTP stubs removed upstream
 A|LIBXML_VERSION_EXTRA LIBXML_MODULE_EXTENSION LIBXML_THREAD_ALLOC_ENABLED LIBXML_ATTR_ALLOC_SIZE LIBXML_ATTR_FORMAT LIBXML_DLL_IMPORT XMLCALL XMLCDECL XMLPUBFUN XMLPUBVAR XML_DEPRECATED XML_DEPRECATED_MEMBER|C build or ABI macro
 P|LIBXML_*_ENABLED|features::Feature - runtime query rather than a build macro
 # ---- SAX2.h xlink.h
-N|xmlSAX2* xmlSAXVersion|SAX2 handler table not started (roadmap 15)
-N|xlink* XLINK_*|XLink callbacks not started
+I|xmlSAX2GetLineNumber|sax::Locator::line
+I|xmlSAX2GetColumnNumber|sax::Locator::column
+I|xmlSAX2GetSystemId|sax::Locator::system_id
+A|xmlSAX2GetPublicId|always null in libxml2
+A|xmlSAX2SetDocumentLocator|the SAX2 default does nothing, as sax::Handler::locate
+A|xmlSAX2* xmlSAXVersion|libxml2's tree-building handlers; OwnedDocument builds the tree and sax::Handler defaults do nothing
+R|xlink* XLINK_* _xlinkHandler*|xlink.h is deprecated in 2.15.4 ("don't use"); the parser never calls its handlers
 # ---- xmlstring.h chvalid.h dict.h hash.h list.h debugXML.h threads.h xmlmemory.h xmlmodule.h nanohttp.h
 A|BAD_CAST xmlChar xmlStr* xmlCharStr* xmlCheckUTF8 xmlGetUTF8Char xmlUTF8*|str/String/char replace xmlChar helpers (Rust strings are valid UTF-8)
 I|xmlIsChar xmlIsCharQ xmlIsChar_ch|chars::is_char
@@ -963,7 +1270,17 @@ I|xmlIsPubidChar xmlIsPubidCharQ xmlIsPubidChar_ch|chars::is_pubid_char
 P|xmlIsPubidChar_tab|chars::is_pubid_char - a predicate, no table
 A|xmlChLRange* xmlChRange* xmlChSRange* xmlCharInRange xmlIs*Group|the chars predicates keep their range tables private
 A|xmlDict* xmlInitializeDict xmlHash* xmlLink* xmlList* XML_CAST_FPTR|no dictionary, hash or list API; HashMap/Vec/VecDeque replace them
-N|xmlDebug*|diagnostic dumps not started (roadmap 22)
+I|xmlDebugDumpString|debug::dump_string
+I|xmlDebugDumpDocumentHead|debug::dump_document_head
+I|xmlDebugDumpNode|debug::dump_node
+I|xmlDebugDumpOneNode|debug::dump_one_node
+I|xmlDebugDumpNodeList|debug::dump_node_list
+I|xmlDebugDumpAttr|debug::dump_attribute - attribute by position
+I|xmlDebugDumpAttrList|debug::dump_attributes
+P|xmlDebugDumpDocument|debug::dump_document - no NOENT entity-declaration children, CRLF and `<?pi ?>` divergences (feature `debug`)
+P|xmlDebugDumpDTD|debug::dump_dtd - the internal subset re-read, as save reads it
+P|xmlDebugDumpEntities|debug::dump_entities - declaration order
+P|xmlDebugCheckDocument|debug::check_document - detached roots and non-Name names; the tree keeps libxml2's other checked invariants
 A|xmlMem* xmlGcMem* xmlMalloc* xmlRealloc* xmlFree xmlFreeFunc xmlCleanupMemory xmlInitMemory xmlMemoryStrdup xmlMemoryDump xmlStrdupFunc __xmlFree __xmlMalloc __xmlMallocAtomic __xmlMemStrdup __xmlRealloc|global allocator and Drop; no allocation callbacks
 A|xmlCheckThreadLocalStorage xmlCleanupThreads xmlFreeMutex xmlFreeRMutex xmlInitThreads xmlLockLibrary xmlMutex xmlMutexLock xmlMutexPtr xmlMutexUnlock xmlNewMutex xmlNewRMutex xmlRMutex xmlRMutexLock xmlRMutexPtr xmlRMutexUnlock xmlUnlockLibrary|no global state; types are Send
 R|xmlModule* XML_MODULE_*|dynamic modules removed from default builds (Feature::Modules is false)
@@ -1003,6 +1320,10 @@ class Ctx:
         self.valid = rust_codes("valid.rs", "Code")
         self.rngp = rust_codes("relaxng.rs", "SchemaCode")
         self.rngv = rust_codes("relaxng.rs", "Code")
+        # Every identifier libxml2 itself uses (error.c only names them).
+        files = [f for f in [*src.parent.parent.glob("*.c"), *(src.parent.parent / "include" / "private").glob("*.h")] if f.name != "error.c"]
+        code = lambda f: re.sub(r"/\*.*?\*/", "", f.read_text(errors="replace"), flags=re.S)
+        self.raised = {w for f in files for w in re.findall(r"\bXML_\w+", code(f))}
 
 
 def by_code(codes, value, path, kind):
@@ -1017,7 +1338,10 @@ DIAG_DOMAIN = {
     f"XML_FROM_{c}": rust
     for c, rust in [("PARSER", "Parser"), ("NAMESPACE", "Namespace"), ("HTML", "Html"), ("IO", "Io"), ("XINCLUDE", "XInclude"),
                     ("XPATH", "XPath"), ("SCHEMASP", "SchemasParser"), ("SCHEMASV", "SchemasValidity"),
-                    ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity")]
+                    ("RELAXNGV", "RelaxNgValidity"), ("VALID", "Valid"), ("SCHEMATRONV", "SchematronValidity"),
+                    ("DTD", "Dtd"), ("OUTPUT", "Output"), ("XPOINTER", "XPointer"), ("REGEXP", "Regexp"),
+                    ("DATATYPE", "Datatype"), ("RELAXNGP", "RelaxNgParser"), ("CATALOG", "Catalog"), ("C14N", "C14n"),
+                    ("WRITER", "Writer")]
 }
 
 
@@ -1026,11 +1350,36 @@ def DIAG_NAME(i):
     return re.sub(r"^XML_(?:ERR_|(NS_)ERR_|)", lambda m: m.group(1) or "", i)
 
 
+# relaxng.c sites no schema reaches as its first error (yaxml reports only that).
+RNGP_NEVER_FIRST = {f"XML_RNGP_{n}" for n in """ATTRIBUTE_CONTENT ATTRIBUTE_NOOP CREATE_FAILURE
+    DEFINE_CREATE_FAILED ELEMENT_CONTENT ELEM_CONTENT_EMPTY EMPTY_CONTENT ERROR_TYPE_LIB
+    EXTERNALREF_EMTPY INCLUDE_EMPTY INTERLEAVE_ADD INTERLEAVE_CREATE_FAILED NSNAME_NO_NS
+    PARENTREF_CREATE_FAILED PAT_LIST_REF REF_CREATE_FAILED VALUE_NO_CONTENT""".split()}
+
+
+# Schematron codes in the XML_SCHEMA* range that no xsd::Code carries.
+SCHEMATRON_CODES = {"XML_SCHEMAV_ATTRINVALID": "AttrInvalid", "XML_SCHEMAP_FAILED_PARSE": "FailedParse"}
+
+
 def error_rule(i, ctx):
+    if i in SCHEMATRON_CODES:
+        return "I", f"schematron::Code::{SCHEMATRON_CODES[i]} - raised by the Schematron parser"
+    if i in ("XML_SCHEMAP_NOTHING_TO_PARSE", "XML_SCHEMAP_UNKNOWN_FACET_TYPE"):
+        return "A", "unreachable: every parse takes input, and only known facet names are parsed as facets"
     if re.fullmatch(r"XML_SCHEMA[PV]_\w+", i):
         return by_code(ctx.xsd, ctx.err[i], "xsd::Code", "XML_SCHEMA*")
+    if i in RNGP_NEVER_FIRST:
+        return "A", "libxml2 raises it only after an earlier schema error, internally or on allocation failure"
+    if i == "XML_RNGP_PAT_DATA_EXCEPT_REF":
+        return "A", "data/except//ref to a non-element define is accepted, as the specification allows"
     if i.startswith("XML_RNGP_") or i == "XML_ERR_RESOURCE_LIMIT":
         return by_code(ctx.rngp, ctx.err[i], "relaxng::SchemaCode", "XML_RNGP")
+    if i in ("XML_DTD_MULTIPLE_ID", "XML_DTD_NO_DOC", "XML_DTD_MIXED_CORRUPT"):
+        return "A", "raised only with a NULL document, a corrupt tree or the err flag no caller sets"
+    if i == "XML_DTD_LOAD_ERROR":
+        return "P", "valid::Dtd::load - a failed load is an Err, not a diagnostic"
+    if i.startswith("XML_DTD_") and (name := DIAG_NAME(i)) in DIAG_CODES:
+        return "I", f"diagnostic::code::{name} - parser domain"
     if i.startswith("XML_DTD_") or i in ("XML_ERR_UNDECLARED_ENTITY", "XML_ERR_ENTITY_BOUNDARY"):
         return by_code(ctx.valid, ctx.err[i], "valid::Code", "XML_DTD")
     if i.startswith("XML_SCHEMATRONV_"):
@@ -1048,10 +1397,16 @@ def error_rule(i, ctx):
     xptr = {"XML_XPTR_CHILDSEQ_START": "ChildSequenceStart", "XML_XPTR_UNKNOWN_SCHEME": "UnknownScheme", "XML_XPTR_SYNTAX_ERROR": "Syntax"}
     if i in xptr:
         return "P", f"xpointer::Error::{xptr[i]} - category only"
+    if i in ("XML_XPTR_EVAL_FAILED", "XML_XPTR_EXTRA_OBJECTS"):
+        return "A", "xmlXPtrEval stack guards: a part whose value is not a node-set is dropped before the check (xpointer::evaluate gives an empty set)"
     if i.startswith("XML_XPTR_"):
         return "N", "no matching xpointer::Error"
     if i == "XML_C14N_RELATIVE_NAMESPACE":
         return "P", "c14n::Error::RelativeNamespace - category only"
+    if i == "XML_C14N_INVALID_NODE":
+        return "P", "c14n::Error::EntityReference - category only"
+    if i in ("XML_C14N_REQUIRES_UTF8", "XML_C14N_CREATE_CTXT", "XML_C14N_UNKNOW_NODE"):
+        return "A", "C14N writes UTF-8 to an io::Write and walks a typed tree; context creation fails only on allocation"
     if i.startswith("XML_C14N_"):
         return "N", "no matching c14n::Error"
     if i == "XML_REGEXP_COMPILE_ERROR":
@@ -1081,18 +1436,34 @@ def error_rule(i, ctx):
         return "N", "no error domain; each module has its own error type"
     if i.startswith(("XML_MODULE_", "XML_FTP_", "XML_HTTP_")):
         return "R", "dynamic modules and HTTP/FTP removed upstream"
+    if re.fullmatch(r"XML_IO_(E[A-Z]+|UNKNOWN)", i):
+        return "I", "diagnostic::io_code - xmlIOErr errno mapping of a std::io::Error"
+    if i == "XML_IO_NETWORK_ATTEMPT":
+        return "A", "raised by the default entity loader under NONET; no loads without a Resolver, and FileResolver never uses the network"
+    if i == "XML_IO_WRITE":
+        return "P", "WriteError::Io - save::to_writer and TextWriter return the sink's std::io::Error"
     if i.startswith("XML_IO_"):
         return "N", "no per-code I/O errors; std::io::Error and ErrorKind::ExternalResource"
     if i.startswith("XML_HTML_"):
         return "N", "html::DiagnosticKind has no matching variant"
-    if i.startswith(("XML_CATALOG_", "XML_SAVE_", "XML_TREE_", "XML_BUF_", "XML_I18N_", "XML_CHECK_", "XML_WAR_")):
+    if i in ("XML_CHECK_NO_PARENT", "XML_CHECK_NOT_NCNAME"):
+        return "I", "debug::check_document - reported by number"
+    if i.startswith("XML_CHECK_"):
+        return "A", "debug::check_document - pointer-tree invariant kept by construction"
+    if i.startswith("XML_CATALOG_") and (name := DIAG_NAME(i)) in DIAG_CODES:
+        return "I", f"diagnostic::code::{name} - catalog::Catalog::diagnostics"
+    if i == "XML_CATALOG_RECURSION":
+        return "P", "catalog::Limits::max_depth - loops and deep nesting are cut without a report"
+    if i.startswith(("XML_CATALOG_", "XML_SAVE_", "XML_TREE_", "XML_BUF_", "XML_I18N_", "XML_WAR_")):
         return "N", "no per-code diagnostic"
     return None
 
 
 def header_rule(h, i, k, ctx):
     if h == "xmlerror.h":
-        return error_rule(i, ctx)
+        s, note = error_rule(i, ctx) or (None, None)
+        unused = (s == "N" or s == "P" and i.startswith("XML_ERR_")) and k == "enum_value" and i not in ctx.raised
+        return ("A", "never raised by libxml2 2.15.4") if unused else (s, note) if s else None
     if m := re.fullmatch(r"XML_PARSE_(\w+)", i):
         n = m.group(1)
         if n in OPT_ALL:
@@ -1123,15 +1494,18 @@ def header_rule(h, i, k, ctx):
         if m.group(1) in RESOURCE:
             return "I", f"ResourceKind::{RESOURCE[m.group(1)]}"
     if m := re.fullmatch(r"XML_CHAR_ENCODING_(\w+)", i):
-        if m.group(1) in ENC:
-            return "P", "OwnedDocument::parse_bytes - decoded by label; no public encoding enum"
+        name = ENC.get(m.group(1)) or "".join(w.capitalize() for w in m.group(1).split("_"))
+        if m.group(1) == "HTML":
+            return "P", "encoding::CharEncoding::Html - no handler: the HTML serializer writes entities"
+        return "I", f"encoding::CharEncoding::{name}"
     if h == "schemasInternals.h" and k == "enum_value" and (m := re.fullmatch(r"XML_SCHEMAS_(\w+)", i)):
         if m.group(1) in SCHEMA_TYPES:
             return "I", f"schema_types::Type::{SCHEMA_TYPES[m.group(1)]}"
     if m := re.fullmatch(r"XML_SCHEMA_FACET_(\w+)", i):
         return "I", f"schema_types::Facet::{FACETS[m.group(1)]}"
     if m := re.fullmatch(r"XML_RELAXNG_ERR_(\w+)", i):
-        return by_code(ctx.rngv, ctx.rng[i], "relaxng::Code", "XML_RELAXNG_ERR")
+        s, note = by_code(ctx.rngv, ctx.rng[i], "relaxng::Code", "XML_RELAXNG_ERR")
+        return ("A", "never raised by libxml2 2.15.4") if s == "N" and i not in ctx.raised else (s, note)
     if m := re.fullmatch(r"XPATH_(\w+)", i):
         if m.group(1) in XPATH_ERR:
             return "P", f"xpath::ErrorKind::{XPATH_ERR[m.group(1)]} - category only; no numeric code"

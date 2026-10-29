@@ -125,3 +125,30 @@ def test_schema_include_through_resolver():
     assert seen == [("file:///s/inc.xsd", "schema")]
     with pytest.raises(et.XMLSchemaParseError):
         et.XMLSchema(et.parse(io.BytesIO(main), base_url="file:///s/main.xsd"))
+
+
+DEFAULTS_XSD = b"""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="r">
+    <xs:complexType>
+      <xs:sequence><xs:element name="n" type="xs:integer" default="7" maxOccurs="unbounded"/></xs:sequence>
+      <xs:attribute name="a" type="xs:token" default="  x  y "/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>"""
+
+
+@pytest.mark.parametrize(
+    ("defaults", "document", "valid", "expected"),
+    [
+        (True, b"<r><n/><n>2</n></r>", True, b'<r a="x y"><n>7</n><n>2</n></r>'),
+        (True, b'<r a="z"><n/></r>', True, b'<r a="z"><n>7</n></r>'),
+        (True, b"<r><n>q</n></r>", False, b'<r a="x y"><n>q</n></r>'),
+        (False, b"<r><n/><n>2</n></r>", True, b"<r><n/><n>2</n></r>"),
+    ],
+)
+def test_attribute_defaults(defaults, document, valid, expected):
+    schema = et.XMLSchema(file=io.BytesIO(DEFAULTS_XSD), attribute_defaults=defaults)
+    tree = et.parse(io.BytesIO(document))
+    assert schema.validate(tree) is valid
+    assert (len(schema.error_log) == 0) is valid
+    assert et.tostring(tree) == expected

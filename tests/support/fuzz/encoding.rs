@@ -22,7 +22,9 @@ pub(super) fn recognizes(input: &[u8]) -> bool {
         })
 }
 
-/// UCS-4 and EBCDIC signatures, which have no built-in libxml2 decoder.
+/// UCS-4 and EBCDIC signatures: no built-in libxml2 decoder and no reference
+/// here (the `encodings` feature is checked by tests/encodings.rs, and its
+/// surfaces against each other by `transcoded`).
 fn unsupported_signature(prefix: &[u8]) -> bool {
     matches!(
         prefix,

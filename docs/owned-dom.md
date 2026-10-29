@@ -204,6 +204,8 @@ assert_eq!(editor.document().node(text).unwrap().text(), Some("new & text"));
 ```
 
 `set_node_value` replaces Text, CDATA, Comment or PI data; PI targets stay fixed.
+`add_content` appends to that data (`xmlTextConcat`), or adds text to an
+element (`xmlNodeAddContent`): into a Text last child, else as a new one.
 `set_attribute_value` replaces one existing attribute by expanded name
 `(namespace, local)`, preserving its qualified spelling and position. Missing
 attributes are errors. The default namespace does not apply to ordinary
@@ -357,7 +359,10 @@ remains available under the writer's own limits.
 ## Moving, unlinking and replacing
 
 Every node except the synthetic root, the DOCTYPE and the document element can
-move; each method takes the node's handle wherever it is:
+move; each method takes the node's handle wherever it is. Under the document
+node only comments and PIs move, plus one element when the document has none
+(an HTML, `RECOVER` or `html::create` document), which becomes the document
+element; libxml2's `xmlAddChild` would accept more.
 
 | Method | libxml2 | Behavior |
 | --- | --- | --- |
@@ -411,9 +416,13 @@ content (here `WrongNodeKind`).
 | `declare_namespace(element, prefix, uri)` | `xmlNewNs` | Adds a declaration (`None`: default, `""` undeclares it). The prefix must not already be declared there (`DuplicateAttribute`); `xml`, `xmlns` and the XML/XMLNS URIs are reserved. |
 | `set_name(element, NameSpec)` | `xmlNodeSetName` + `xmlSetNs` | Renames; `Automatic` prefers the in-scope default, then a prefixed binding, then `nsN`. |
 | `set_url(url)` | `doc->URL` | The URL `base_uri` resolves against. |
+| `add_declarations(markup)` | `xmlAddEntity`, `xmlAddElementDecl`, `xmlAddAttributeDecl`, `xmlAddNotationDecl`, `xmlCreateIntSubset` | Appends markup declarations to the internal subset, read after the existing declarations (first declaration of a name wins; earlier parameter entities expand); creates a DOCTYPE named after the document element before it when there is none. Malformed markup, or markup that closes the subset, is `Parse` and changes nothing; HTML documents are `WrongNodeKind`. Attributes already in the tree are not retyped. |
+| `set_internal_subset(markup)` | freeing declaration nodes, then `xmlAddEntity` and the like | Replaces the internal subset's declarations, read as `add_declarations` reads them, from scratch. Declarations from a loaded external subset stay, after the new ones; one an internal declaration shadowed at parse time was dropped then. |
+| `remove_doctype()` | `xmlUnlinkNode` + `xmlFreeDtd` on `intSubset` | Removes the DOCTYPE and its internal declarations; loaded external-subset declarations stay (`dtd()` is `None` when there are none). No DOCTYPE is `WrongNodeKind`. |
+| `set_doctype_ids(public, system)` | `ExternalID`, `SystemID` | Sets the identifiers; nothing is loaded. A public identifier needs a system one and only `PubidChar`s; a system identifier cannot hold both quotes (`InvalidValue`). |
 
 New attributes join the ID table when libxml2's `xmlIsID` would: `xml:id`,
-HTML `id` (`name` on `a`), or a DTD-declared `ID`; removal drops the entry.
+HTML `id` (`name` on `a`), or a DTD-declared `ID` (`OwnedDocument::is_id`); removal drops the entry.
 Single-item name errors locate attribute or namespace item 0; the rename locates
 the element name. HTML documents take no namespaces. Like construction, these
 methods copy strings before returning and check lengths, characters and names
@@ -571,6 +580,8 @@ visit the same tree in the same order. It fails only on allocation
 | --- | --- | --- |
 | `editor.parse_content(node, input, options)` | `xmlParseInNodeContext(node, data, len, options, &list)`, `xmlCtxtParseContent(ctxt, input, node, 0)` | The top-level nodes of `input`, parsed as content of `node`, detached in this document. |
 | `editor.parse_content(document.root().id(), input, ParseOptions::default())` | `xmlParseBalancedChunkMemory(doc, NULL, NULL, 0, string, &list)` | The same, with the document's entities and no namespaces. |
+| `editor.parse_content(node, b"a&amp;b&e;", ParseOptions::default())` | `xmlStringGetNodeList(doc, value)`, `xmlNewReference(doc, "e")` | Text and entity-reference nodes. Only declared entities parse (libxml2 also makes nodes for predefined and undeclared names), `<` must be escaped, and a `&` without `;` fails (libxml2 drops it). |
+| `editor.parse_external_entity(document.root().id(), bytes, options)` | `xmlParseCtxtExternalEntity(ctxt, URL, ID, &list)`, `xmlCtxtParseContent(ctxt, input, node, 1)`; `xmlParseEntity`/`xmlParseExtParsedEnt` on a new document (libxml2 makes the content document children; here it stays detached nodes) | An external parsed entity (`TextDecl? content`): a BOM or the text declaration picks the encoding, then as `parse_content`. Any context node works. |
 
 `input` is any sequence of content: text, several elements, comments, PIs,
 CDATA and references, but no XML declaration or DOCTYPE. It is parsed in the
@@ -580,6 +591,12 @@ namespaces and the document's general entities. The nodes come back in
 `Fragment::nodes`, detached like a [copy](#copying-and-importing); under the
 element they were parsed in they need no new declarations, and anywhere else
 insertion declares what the new place lacks.
+
+`parse_external_entity` takes the entity's bytes, not a URL (load them with a
+`Resolver` first). Like libxml2 it requires `encoding` in the text
+declaration, rejects `standalone`, and accepts any version, since the parser
+context has no document version. Its error offsets are into the decoded text
+after the declaration; decoding and declaration errors have none.
 
 ```rust
 use yaxml::{EditLimits, OwnedDocument, ParseOptions, save};
@@ -808,7 +825,7 @@ implemented behavior from pending coverage, review and performance evidence.
 Owned storage supports temporary decoded input, complete UTF-8 serialization
 through `Writer::write_owned_document`, and retaining trees in language
 adapters. Slot reuse (a renumbering
-rebuild), DOCTYPE and declaration editing, entity-interpreting setters
+rebuild), removing or replacing declarations and the DOCTYPE's identifiers, entity-interpreting setters
 (`xmlNodeSetContent`), foreign registries, an allocator-aware string pool,
 formatting and UTF-16 output remain separate work items. Comparative
 parsing/serialization performance and complete fuzz coverage remain open

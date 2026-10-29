@@ -295,11 +295,13 @@ impl DtdCatalog {
             } else if rest.starts_with("<!--") || rest.starts_with("<?") {
                 let close = if rest.starts_with("<?") { "?>" } else { "-->" };
                 let end = rest.find(close).ok_or_else(syntax)? + close.len();
-                DtdUnit::parse(&rest[..end], self.limits).map_err(|e| error(e.kind))?;
+                let unit = DtdUnit::parse(&rest[..end], self.limits).map_err(|e| error(e.kind))?;
+                self.fourth_edition(&unit)?;
                 end
             } else if rest.starts_with("<!") {
                 let declaration = self.collect(subset, frames, outer, Until::Declaration)?;
                 let unit = DtdUnit::parse(declaration, self.limits).map_err(|e| error(e.kind))?;
+                self.fourth_edition(&unit)?;
                 if !matches!(
                     unit.view(),
                     DtdUnitView::Element(_)
@@ -398,6 +400,14 @@ impl DtdCatalog {
                 _ => {}
             }
             output.push(character);
+        }
+    }
+
+    /// `OLD10`: a unit whose names are not Fourth Edition names is an error.
+    fn fourth_edition(&self, unit: &DtdUnit<'_>) -> Result<(), DtdError> {
+        match self.limits.flags.old10() && !unit.fourth_edition() {
+            true => Err(error(ErrorKind::InvalidName)),
+            false => Ok(()),
         }
     }
 

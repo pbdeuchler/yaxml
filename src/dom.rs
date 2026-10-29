@@ -154,6 +154,8 @@ pub struct Document<'input> {
     errors: Vec<Error>,
     /// `ParseOptions::base`: libxml2's `doc->URL`.
     url: Option<String>,
+    /// The flags it was parsed with: libxml2's `doc->parseFlags`.
+    flags: u32,
 }
 
 impl<'input> Document<'input> {
@@ -173,7 +175,8 @@ impl<'input> Document<'input> {
     }
 
     /// Parses with libxml2 parser options; see [`crate::options`].
-    /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here.
+    /// `XINCLUDE` needs an owned tree and is `UnsupportedOption` here, as is
+    /// a forced `encoding` (see [`Document::parse_transcoded`]).
     pub fn parse_with(input: &'input [u8], options: ParseOptions) -> Result<Self, Error> {
         Self::borrowing(input, None, options)
     }
@@ -201,7 +204,11 @@ impl<'input> Document<'input> {
             .min(options.limits.max_events);
         let reader = Reader::borrowing(input, decoded, flags, options)?;
         let document = Self::from_reader(reader, input.len(), nodes, flags)?;
-        Ok(Self { url, ..document })
+        Ok(Self {
+            url,
+            flags: flags.0,
+            ..document
+        })
     }
 
     /// The document URL (`ParseOptions::base`, libxml2's `doc->URL`), against
@@ -231,6 +238,7 @@ impl<'input> Document<'input> {
             validity: Vec::new(),
             errors: Vec::new(),
             url: None,
+            flags: 0,
         };
         let mut parents = Vec::new();
         let end = loop {
@@ -389,7 +397,8 @@ impl<'input> Document<'input> {
     }
 
     /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2): namespace errors and warnings, which never stop a parse
+    /// libxml2, which past that still keeps the first error clearing a
+    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
     /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
     /// well-formedness error recovered from; empty for a namespace-well-formed
     /// document.
@@ -400,6 +409,18 @@ impl<'input> Document<'input> {
     /// Validity diagnostics found by `DTDVALID`; empty without it.
     pub fn validity(&self) -> &[crate::valid::Diagnostic<NodeId>] {
         &self.validity
+    }
+
+    /// libxml2's `doc->properties` bits ([`crate::properties`]).
+    pub fn properties(&self) -> u32 {
+        let old10 = crate::properties::OLD10 * u32::from(Flags(self.flags).old10());
+        crate::properties::parsed(&self.errors, &self.validity, self.dtd()) | old10
+    }
+
+    /// The flags the document was parsed with (`ParseOptions::flags`),
+    /// libxml2's `doc->parseFlags`.
+    pub fn parse_flags(&self) -> u32 {
+        self.flags
     }
 
     /// The declarations of the internal and loaded external subsets.
@@ -419,7 +440,12 @@ impl<'input> Document<'input> {
         crate::xpath::tree::element_by_id(self, &self.ids, value).and_then(|id| self.node(id))
     }
 
-    pub(crate) fn ids(&self) -> &[(NodeId, usize)] {
+    /// libxml2's ID table (`doc->ids`, `xmlIDTable`): `(element, attribute
+    /// position)` of every `xml:id` and DTD-declared `ID` attribute, sorted
+    /// by element. libxml2 keeps only the first element per value; here a
+    /// repeated value is listed again, and [`Self::element_by_id`] picks the
+    /// first in document order.
+    pub fn ids(&self) -> &[(NodeId, usize)] {
         &self.ids
     }
 

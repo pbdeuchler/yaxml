@@ -54,7 +54,7 @@ re-signs ad hoc; Linux is unaffected.
 | `c14n`, `write_c14n` | `c14n(el_or_tree, exclusive=, with_comments=, inclusive_ns_prefixes=, version="1.0"\|"1.1")` | No C14N 2.0. |
 | `iterparse(source, events, tag)` | same | On the streaming `TextReader`: `start`, `end`, `start-ns`, `end-ns`, `comment`, `pi`; the tree grows as you iterate (`.root`). Entities substituted by default, as in lxml. |
 | `XPath(path, namespaces=)` | same; `__call__(el_or_tree, **variables)` | Results: elements, `str` (text, attributes), `float`, `bool`, `(prefix, uri)` for namespace nodes. |
-| `XMLSchema`, `RelaxNG`, `DTD`, `Schematron` | `validate`, `__call__`, `assertValid`, `assert_`, `error_log` | From a tree or `file=`; `resolver=` for includes and imports. |
+| `XMLSchema`, `RelaxNG`, `DTD`, `Schematron` | `validate`, `__call__`, `assertValid`, `assert_`, `error_log` | From a tree or `file=`; `resolver=` for includes and imports; `XMLSchema(attribute_defaults=True)` adds defaulted attributes and element values while validating (`xsd::Schema::validate_creating`). |
 | exceptions | `Error`, `XMLSyntaxError` (`code`, `domain`, `lineno`, `offset`, `position`, `error_log`), `DocumentInvalid`, `XPathEvalError`, `XPathSyntaxError`, `XMLSchemaParseError`, `RelaxNGParseError`, `DTDParseError`, `SchematronParseError`, `C14NError`, `SerialisationError`, `StaleElementError` | Codes, domains, levels, lines and messages are libxml2 2.15.4's. |
 
 ## Proxies, identity and moves

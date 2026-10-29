@@ -491,24 +491,26 @@ fn describe_matches_libxml2() {
 
 #[test]
 fn describe_fills_libxml2_extras() {
-    let mismatch = describe(b"<a>\n<b></c></a>");
-    assert_eq!(
+    // (input, code, str1, str2, str3, int1), recorded from libxml2's xmlError.
+    let cases: [(&[u8], u16, _, _, _, i64); 4] = [
+        (b"<a>\n<b></c></a>", 76, Some("b"), Some("c"), None, 2),
         (
-            mismatch.str1.as_deref(),
-            mismatch.str2.as_deref(),
-            mismatch.int1
+            b"<d p:a='1' p:a='2' xmlns:p='u'/>",
+            42,
+            Some("p"),
+            Some("a"),
+            None,
+            0,
         ),
-        (Some("b"), Some("c"), 2)
-    );
-    let duplicate = describe(b"<d p:a='1' p:a='2' xmlns:p='u'/>");
-    assert_eq!(
-        (
-            duplicate.code,
-            duplicate.str1.as_deref(),
-            duplicate.str2.as_deref()
-        ),
-        (42, Some("p"), Some("a"))
-    );
+        (b"<d p:a='1'/>", 201, Some("p"), Some("a"), Some("d"), 0),
+        (b"<p:d/>", 201, Some("p"), Some("d"), None, 0),
+    ];
+    for (input, code, str1, str2, str3, int1) in cases {
+        let d = describe(input);
+        let found = (d.code, d.str1.as_deref(), d.str2.as_deref());
+        let found = (found, d.str3.as_deref(), d.int1);
+        assert_eq!(found, ((code, str1, str2), str3, int1), "{input:?}");
+    }
     let reference = describe(b"<d>&#1;</d>");
     assert_eq!((reference.int1, reference.str1), (1, None));
     assert!(!reference.entity && reference.element.is_none());
@@ -954,4 +956,96 @@ fn owned_line_index_matches_borrowed() {
         error.describe(&owned),
         error.describe(&LineIndex::new(input.as_bytes()))
     );
+}
+
+#[test]
+fn io_errors_map_to_libxml2_io_codes() {
+    use std::io::{Error, ErrorKind};
+    use yaxml::diagnostic::io_code;
+    // Built from a kind (resolvers, callbacks), or unnamed: XML_IO_UNKNOWN.
+    let kinds = [
+        (ErrorKind::NotFound, 1524),
+        (ErrorKind::PermissionDenied, 1501),
+        (ErrorKind::AlreadyExists, 1510),
+        (ErrorKind::InvalidInput, 1515),
+        (ErrorKind::BrokenPipe, 1536),
+        (ErrorKind::TimedOut, 1541),
+        (ErrorKind::Unsupported, 1529),
+        (ErrorKind::OutOfMemory, 1527),
+        (ErrorKind::IsADirectory, 1517),
+        (ErrorKind::UnexpectedEof, 1500),
+        (ErrorKind::Other, 1500),
+    ];
+    for (kind, code) in kinds {
+        assert_eq!(io_code(&Error::from(kind)), code, "{kind:?}");
+    }
+    assert_eq!(io_code(&Error::other("refused")), 1500);
+    // Real failures carry the OS number.
+    let missing = std::fs::File::open("/nonexistent/yaxml").unwrap_err();
+    assert_eq!(io_code(&missing), 1524);
+    let file = std::env::current_exe().unwrap();
+    let not_directory = std::fs::read_dir(&file).unwrap_err();
+    assert_eq!(io_code(&not_directory), 1530);
+    // Every number libxml2 names, found on this system by its message.
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        let named: &[(&[&str], u16)] = &[
+            (&["Operation not permitted"], 1535),
+            (&["No such process"], 1540),
+            (&["Input/output error"], 1516),
+            (
+                &["Device not configured", "No such device or address"],
+                1534,
+            ),
+            (&["Exec format error"], 1525),
+            (&["Bad file descriptor"], 1503),
+            (&["No child processes"], 1507),
+            (&["Bad address"], 1511),
+            (
+                &["Operation not supported by device", "No such device"],
+                1523,
+            ),
+            (&["Too many open files in system"], 1522),
+            (&["Too many open files"], 1518),
+            (&["Inappropriate ioctl for device"], 1533),
+            (&["Numerical argument out of domain"], 1509),
+            (&["Result too large", "Numerical result out of range"], 1537),
+            (&["No locks available"], 1526),
+            (&["Bad message"], 1504),
+            (&["Operation canceled"], 1506),
+            (&["Operation not supported"], 1532),
+            (&["Operation already in progress"], 1555),
+            (&["Operation now in progress"], 1513),
+            (&["Socket operation on non-socket"], 1550),
+            (&["Message too long"], 1520),
+            (
+                &[
+                    "Address family not supported by protocol family",
+                    "Address family not supported by protocol",
+                ],
+                1556,
+            ),
+            (
+                &[
+                    "Socket is already connected",
+                    "Transport endpoint is already connected",
+                ],
+                1551,
+            ),
+            (&["No such file or directory"], 1524),
+            (&["Permission denied"], 1501),
+        ];
+        for &(messages, code) in named {
+            let errno = (1..200).find(|&n| {
+                let text = Error::from_raw_os_error(n).to_string();
+                messages.contains(&text.split(" (os error").next().unwrap())
+            });
+            let errno = errno.unwrap_or_else(|| panic!("{messages:?} not found"));
+            assert_eq!(
+                io_code(&Error::from_raw_os_error(errno)),
+                code,
+                "{messages:?}"
+            );
+        }
+    }
 }

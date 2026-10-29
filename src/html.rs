@@ -28,7 +28,7 @@ use std::borrow::Cow;
 use std::ops::ControlFlow;
 
 use crate::diagnostic::{self, Domain, Level, code};
-use crate::encoding::WINDOWS_1252;
+use crate::encoding::{Handler, WINDOWS_1252};
 use crate::owned::HtmlBuilder;
 use crate::{Error, ErrorKind, Limit, Limits, LineIndex, OwnedDocument};
 
@@ -39,12 +39,12 @@ mod tables;
 mod tokenizer;
 mod tree;
 
-use encoding::{Decoder, meta_charset, prescan, sniff};
+use encoding::{Decoder, forced, meta_charset, prescan, sniff};
 use tokenizer::{Stop, TagEnd, Token, Tokenizer};
 use tree::{Document, Events, Place, Reaction, Settings, Sink, Tree};
 
 pub(crate) use serialize::save_node;
-pub use serialize::{save, to_html};
+pub use serialize::{dump_node, meta_encoding, save, set_meta_encoding, to_html};
 pub(crate) use tables::boolean_attribute;
 
 /// `HTML_PARSE_RECOVER`: accepted; HTML parsing always recovers.
@@ -93,7 +93,7 @@ const SUPPORTED: u32 = RECOVER
     | HTML5;
 
 /// HTML parser options: `htmlParserOption` flags and resource ceilings.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Options {
     /// `HTML_PARSE_*` flags from this module's constants.
@@ -104,9 +104,16 @@ pub struct Options {
     /// built so far; the other ceilings fail with
     /// [`ErrorKind::LimitExceeded`].
     pub limits: Limits,
+    /// The `encoding` argument of `htmlCtxtReadMemory`: the input is decoded
+    /// with the handler's own charset (ASCII and Latin-1 are not read as
+    /// windows-1252), whatever a byte-order mark or `<meta>` says; a mark is
+    /// skipped only when it decodes to U+FEFF. EBCDIC and UCS-4 have no HTML
+    /// converter here ([`ErrorKind::UnsupportedEncoding`]). [`parse_fragment`]
+    /// takes the context's encoding instead.
+    pub encoding: Option<Handler>,
 }
 
-setters!(const Options { flags: u32, limits: Limits });
+setters!(fn Options { flags: u32, limits: Limits, encoding: Option<Handler> });
 
 impl Default for Options {
     fn default() -> Self {
@@ -123,6 +130,7 @@ impl Options {
         Self {
             flags,
             limits: Limits::DEFAULT,
+            encoding: None,
         }
     }
 
@@ -320,9 +328,47 @@ impl Decoding {
 
 /// Parses a complete HTML document, like `htmlReadMemory`.
 pub fn parse(input: &[u8], options: Options) -> Result<Parsed, Error> {
-    let mut engine = Engine::new(options, document(options)?, false)?;
+    let mut engine = Engine::new(options.clone(), document(&options)?, false)?;
     engine.whole(Cow::Borrowed(input))?;
     engine.document()
+}
+
+/// An empty HTML document to build with
+/// [`OwnedDocument::edit`](crate::OwnedDocument::edit), like
+/// `htmlNewDocNoDtD(uri, public_id)`: an `html` DOCTYPE when either id is
+/// given, else none. `htmlNewDoc(NULL, NULL)` passes the HTML 4.0
+/// Transitional ids that [`parse`] implies.
+///
+/// ```
+/// use yaxml::{EditLimits, html};
+/// let source = html::parse(b"<p>x", html::Options::default())?.document;
+/// let mut document = html::create(None, Some("-//P"))?;
+/// let root = document.root().id();
+/// let mut editor = document.edit(EditLimits::default())?;
+/// let copy = editor.import(&source, source.root_element().id(), true)?;
+/// editor.append_child(root, copy)?; // the document element
+/// let saved = html::to_html(&document)?;
+/// let expected = "<!DOCTYPE html PUBLIC \"-//P\">\n<html><body><p>x</p></body></html>\n";
+/// assert_eq!(saved, expected.as_bytes());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// Only allocation failure.
+pub fn create(uri: Option<&str>, public_id: Option<&str>) -> Result<OwnedDocument, Error> {
+    let doctype = (uri.is_some() || public_id.is_some()).then_some(crate::Doctype {
+        name: "html",
+        public_id,
+        system_id: uri,
+        internal_subset: None,
+    });
+    let decoding = Decoding {
+        skip: 0,
+        initial: Decoder::Utf8,
+        switch: None,
+    };
+    HtmlBuilder::new(None, Limits::default())?.finish(doctype, None, decoding)
 }
 
 /// Parses `input` as content of an HTML node, like `xmlCtxtParseContent`.
@@ -338,7 +384,7 @@ pub fn parse_fragment(
     encoding: Option<&str>,
     options: Options,
 ) -> Result<Parsed, Error> {
-    let mut engine = Engine::new(options, document(options)?.fragment(), true)?;
+    let mut engine = Engine::new(options.clone(), document(&options)?.fragment(), true)?;
     engine.count(input.len())?;
     let decoder = encoding.and_then(Decoder::for_label);
     engine.encoding = encoding.filter(|_| decoder.is_some()).map(str::to_owned);
@@ -386,9 +432,9 @@ where
 }
 
 /// The tree builder `options` configure.
-fn document(options: Options) -> Result<Document, Error> {
-    let (value_limit, _, max_depth) = ceilings(&options);
-    let builder = HtmlBuilder::new(0, options.limits)?;
+fn document(options: &Options) -> Result<Document, Error> {
+    let (value_limit, _, max_depth) = ceilings(options);
+    let builder = HtmlBuilder::new(Some(options.flags), options.limits)?;
     Ok(Document::new(builder, max_depth, value_limit))
 }
 
@@ -416,8 +462,8 @@ impl PushParser {
     /// Unsupported flags.
     pub fn new(options: Options) -> Result<Self, Error> {
         Ok(Self(Push::new(Engine::new(
-            options,
-            document(options)?,
+            options.clone(),
+            document(&options)?,
             false,
         )?)))
     }
@@ -430,6 +476,18 @@ impl PushParser {
     /// Signals the end of input and returns the document.
     pub fn finish(self) -> Result<Parsed, Error> {
         self.0.finish()?.document()
+    }
+
+    /// Drops the document in progress (or the terminal error) and starts a
+    /// new one with the same options, like `htmlCtxtReset`. Nothing is
+    /// recycled.
+    ///
+    /// # Errors
+    ///
+    /// Allocation failure, which leaves the parser unchanged.
+    pub fn reset(&mut self) -> Result<(), Error> {
+        *self = Self::new(self.0.engine.options.clone())?;
+        Ok(())
     }
 }
 
@@ -599,6 +657,13 @@ impl<'a, S: Sink> Engine<'a, S> {
         if options.flags & !SUPPORTED != 0 {
             return Err(Error::new(ErrorKind::UnsupportedOption, 0));
         }
+        if options
+            .encoding
+            .as_ref()
+            .is_some_and(|h| forced(h, b"").is_none())
+        {
+            return Err(Error::new(ErrorKind::UnsupportedEncoding, 0));
+        }
         let (value_limit, name_limit, _) = ceilings(&options);
         let settings = Settings {
             // In context, libxml2 adds no implied elements.
@@ -658,11 +723,18 @@ impl<'a, S: Sink> Engine<'a, S> {
         self.run(true)
     }
 
-    /// Sniffs the first bytes and starts decoding.
+    /// Sniffs the first bytes, unless an encoding is forced, and starts
+    /// decoding.
     fn start(&mut self, input: Cow<'a, [u8]>, last: bool) {
-        let sniffed = sniff(&input);
+        let handler = self.options.encoding.as_ref();
+        let sniffed = handler
+            .and_then(|handler| forced(handler, &input))
+            .unwrap_or_else(|| sniff(&input));
         self.tokenizer.has_encoding = sniffed.has_encoding;
-        self.encoding = sniffed.name.map(str::to_owned);
+        self.encoding = handler
+            .map(Handler::name)
+            .or(sniffed.name)
+            .map(str::to_owned);
         self.begin(sniffed.decoder, input, sniffed.bom, last);
     }
 

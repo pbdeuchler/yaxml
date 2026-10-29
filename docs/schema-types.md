@@ -11,8 +11,15 @@ The shared foundation for XML Schema and RELAX NG validation.
   types: `Type::parse` (`xmlSchemaValidatePredefinedType`), `Value::compare`
   (`xmlSchemaCompareValues`), `Value::equals` (`xmlSchemaAreValuesEqual`),
   `Facet::new` (`xmlSchemaCheckFacet`) and `Facet::check` (the validator's
-  facet checks). `QName`, `NOTATION`, `ENTITY` and `ENTITIES` consult a
-  caller `Context` for namespaces, notations and unparsed entities.
+  facet checks), `Facet::name`, `Facet::count` (`xmlSchemaGetFacetValueAsULong`),
+  `Type::allows_facet` (`xmlSchemaIsBuiltInTypeFacet`: primitive types only),
+  `Value::canonical` (`xmlSchemaGetCanonValueWhtsp`; with
+  `WhiteSpace::Preserve`, `xmlSchemaGetCanonValue`), `Value::as_str` and
+  `Value::as_bool` (`xmlSchemaValueGetAsString`/`GetAsBoolean`),
+  `Value::string` and `Value::qname` (`xmlSchemaNewStringValue`,
+  `xmlSchemaNewQNameValue`, `xmlSchemaNewNOTATIONValue`). `QName`,
+  `NOTATION`, `ENTITY` and `ENTITIES` consult a caller `Context` for
+  namespaces, notations and unparsed entities.
 
 ```rust
 use yaxml::schema_types::{Comparison, Facet, Type};
@@ -109,9 +116,28 @@ exceeds the budget.
 - libxml2 aborts a match after 10 million backtracking pushes with an error;
   this engine never backtracks. Inputs with non-XML characters do not match
   (libxml2 returns an error).
-- Values are UTF-8 Rust strings; there are no canonical-value
-  (`xmlSchemaGetCanonValue`) or list-value APIs yet, and the progressive
-  `xmlRegExec*`/`xmlAutomata*` interfaces are not implemented.
+- Canonical values follow libxml2's formats (`%.14e` floats, `0.0`
+  decimals, every duration field, zoned time/date/dateTime normalized to
+  `Z`, g* types dropping their zone; `tests/schema_types.rs`
+  `canonical_values` was recorded from `xmlSchemaGetCanonValue`) but fix the
+  forms that change the value or are not lexical forms of the type: libxml2
+  writes durations with the sign inverted (`-P1Y` -> `P1Y...`) and without
+  their days, a namespaced QName as `{uri}uri` (here `{uri}local`; a
+  NOTATION here as a QName, libxml2 its local name), negative zero as `-0`
+  and `-0.0`, `inf`/`-inf`/`nan` for `INF`/`-INF`/`NaN`, seconds below 10
+  with a fraction in one digit (`13:20:0.5`) and negative years in three
+  (`-044`). Lists and anySimpleType have no canonical form (`None`; libxml2
+  `"???"`).
+- Values are UTF-8 Rust strings; a list is one `Value` of a list type, so
+  there is no value chaining (`xmlSchemaValueAppend`/`GetNext`), and the
+  progressive `xmlRegExec*`/`xmlAutomata*` interfaces are not implemented.
+- `xmlRegexpIsDeterminist` is declined. Its answer depends on libxml2's
+  automaton, not on the language: the order transitions are built in,
+  simple-epsilon folding (`a|a` counts as deterministic because both branches
+  collapse onto one state), atom comparisons that are conservative per
+  character category, and the `\P` bug above. Matching never depends on the
+  verdict. XSD content models, the one place libxml2 acts on determinism,
+  replicate the check in `src/xsd/automaton.rs` ([xsd.md](xsd.md)).
 
 ## Fuzzing
 

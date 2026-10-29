@@ -18,14 +18,14 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 | Output | `--noout`, `--output FILE` / `-o`, `--format`, `--pretty 0\|1\|2`, `--encode ENC`, `--xmlout`, `--noblanks`, `XMLLINT_INDENT` |
 | Canonical XML | `--c14n`, `--c14n11`, `--exc-c14n` (all with comments, like xmllint) |
 | XPath | `--xpath EXPR`, `--xpath0 EXPR` (implies `--noout`) |
-| DTD | `--valid`, `--postvalid`, `--dtdvalid FILE`, `--loaddtd`, `--dtdattr`, `--noent` |
+| DTD | `--valid`, `--postvalid`, `--dtdvalid FILE`, `--loaddtd`, `--dtdattr`, `--noent`, `--oldxml10` |
 | Schemas | `--schematron FILE`, `--relaxng FILE`, `--schema FILE` |
 | XInclude | `--xinclude`, `--noxincludenode`, `--nofixup-base-uris` |
 | Resources | `--path DIRS`, `--catalogs` (reads `XML_CATALOG_FILES`), `--nocatalogs`, `--nonet` |
 | Misc | `--quiet`, `--timing`, `--version` |
 
 `--push --memory --nowarning --pedantic --nodict --nocompact --repeat
---oldxml10 --strict-namespace --load-trace` are accepted and ignored.
+--strict-namespace --load-trace` are accepted and ignored.
 `--debug --shell --copy --sax --sax1 --insert
 --walker --dropdtd --auto --compress --pattern --dtdvalidfpi` are
 xmllint options with no counterpart: they print `unsupported option` and exit

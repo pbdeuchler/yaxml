@@ -583,12 +583,21 @@ class _Validator:
 
 
 class XMLSchema(_Validator):
-    """XML Schema (XSD 1.0). Includes and imports load only through ``resolver``."""
+    """XML Schema (XSD 1.0). Includes and imports load only through ``resolver``.
+    With ``attribute_defaults``, validating adds the schema's default attributes
+    and element values to the document (lxml; libxml2 XML_SCHEMA_VAL_VC_I_CREATE)."""
 
-    def __init__(self, etree: Any = None, *, file: Any = None, resolver: Resolver | None = None) -> None:
+    def __init__(
+        self,
+        etree: Any = None,
+        *,
+        file: Any = None,
+        attribute_defaults: bool = False,
+        resolver: Resolver | None = None,
+    ) -> None:
         super().__init__()
         data, url = _schema_source(etree, file)
-        self._impl = _XMLSchema(data, url, resolver)
+        self._impl = _XMLSchema(data, url, resolver, attribute_defaults)
 
 
 class RelaxNG(_Validator):

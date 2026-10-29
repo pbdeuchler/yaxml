@@ -12,13 +12,33 @@ use crate::encoding::Output;
 use crate::fallible::Memory;
 use crate::save::CHUNK;
 use crate::{
-    Doctype, Error, ErrorKind, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, WriteError,
+    AttributeSpec, Doctype, EditError, EditErrorKind, Editor, ElementItem, ElementSpec, Error,
+    ErrorKind, NameSpec, OwnedDocument, OwnedNode, OwnedNodeId, OwnedNodeKind, PrefixPolicy,
+    WriteError,
 };
 
 /// `htmlDocDumpMemory`: formatted, in the document's encoding (ASCII with
 /// HTML 4 entities when it has none), leaving `<meta>` declarations alone.
 pub fn to_html(document: &OwnedDocument) -> Result<Vec<u8>, Error> {
-    to_vec(document.root(), true, None)
+    to_vec(document.root(), true, None, None)
+}
+
+/// `htmlNodeDump` (`format` true) and `htmlNodeDumpFormatOutput` into an
+/// output buffer without a converter: `node` and its subtree, or the whole
+/// document for its root (`htmlDocContentDumpFormatOutput`), in UTF-8 with
+/// `<meta>` declarations left alone.
+///
+/// ```
+/// use yaxml::html;
+/// let document = html::parse(b"<p>a&lt;<b>x</b></p>", html::Options::default())?.document;
+/// let p = document.document_element().unwrap().last_child().unwrap().first_child().unwrap();
+/// assert_eq!(html::dump_node(p, false)?, b"<p>a&lt;<b>x</b></p>");
+/// // As in libxml2, formatting adds a line end only before a next sibling.
+/// assert_eq!(html::dump_node(p, true)?, b"<p>a&lt;<b>x</b></p>");
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub fn dump_node(node: OwnedNode<'_>, format: bool) -> Result<Vec<u8>, Error> {
+    to_vec(node, format, Some("UTF-8"), None)
 }
 
 /// `xmlSaveDoc` for an HTML document, which is what `xmllint --html` prints:
@@ -28,6 +48,7 @@ pub fn save(document: &OwnedDocument, format: bool) -> Result<Vec<u8>, Error> {
     to_vec(
         document.root(),
         format,
+        Some(document.html_encoding().unwrap_or("HTML")),
         Some(document.html_encoding().unwrap_or("HTML")),
     )
 }
@@ -41,12 +62,17 @@ pub(crate) fn save_node(
     label: &str,
     sink: &mut dyn Write,
 ) -> Result<(), WriteError> {
-    dump(node, format, Some(label), sink)
+    dump(node, format, Some(label), Some(label), sink)
 }
 
-fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<Vec<u8>, Error> {
+fn to_vec(
+    node: OwnedNode<'_>,
+    format: bool,
+    label: Option<&str>,
+    meta: Option<&str>,
+) -> Result<Vec<u8>, Error> {
     let mut bytes = Memory::default();
-    match dump(node, format, encoding, &mut bytes) {
+    match dump(node, format, label, meta, &mut bytes) {
         Ok(()) => Ok(bytes.0),
         Err(WriteError::Xml(error)) => Err(error),
         // Memory fails only to grow.
@@ -54,13 +80,17 @@ fn to_vec(node: OwnedNode<'_>, format: bool, encoding: Option<&str>) -> Result<V
     }
 }
 
+/// Writes `node` converted by the `label` converter (the document's
+/// encoding when None), naming `meta` in `<meta>` declarations (None leaves
+/// them unchanged).
 fn dump(
     node: OwnedNode<'_>,
     format: bool,
-    encoding: Option<&str>,
+    label: Option<&str>,
+    meta: Option<&str>,
     sink: &mut dyn Write,
 ) -> Result<(), WriteError> {
-    let output = output(encoding.or(node.document().html_encoding())).map_err(WriteError::Xml)?;
+    let output = output(label.or(node.document().html_encoding())).map_err(WriteError::Xml)?;
     let mut dumper = Dumper {
         out: Vec::new(),
         encoded: output.map_or(&[][..], Output::bom).to_vec(),
@@ -68,7 +98,7 @@ fn dump(
         output,
         error: None,
         format,
-        encoding,
+        encoding: meta,
         meta_head: None,
     };
     dumper.node(node);
@@ -151,8 +181,112 @@ fn meta_attribute(node: OwnedNode<'_>) -> Option<(usize, bool)> {
     content.filter(|_| content_type).map(|index| (index, true))
 }
 
+/// `htmlFindHead`: the first `head` element child of the first `html`
+/// element child of the document, names compared ASCII case-insensitively.
+fn head(document: &OwnedDocument) -> Option<OwnedNode<'_>> {
+    fn first<'d>(parent: OwnedNode<'d>, name: &str) -> Option<OwnedNode<'d>> {
+        (parent.children()).find(|child| {
+            child.kind() == OwnedNodeKind::Element
+                && (child.name()).is_some_and(|n| n.qualified().eq_ignore_ascii_case(name))
+        })
+    }
+    first(first(document.root(), "html")?, "head")
+}
+
+/// `htmlGetMetaEncoding`: the charset declared by the first `<meta charset>`
+/// or `<meta http-equiv="Content-Type" content="...; charset=...">` child of
+/// the `head`, blanks trimmed. libxml2 returns the rest of the attribute
+/// value from the charset on; this stops at its end.
+///
+/// ```
+/// use yaxml::html;
+/// let input = b"<head><meta http-equiv=content-type content='text/html; charset=latin1'>";
+/// let document = html::parse(input, html::Options::default())?.document;
+/// assert_eq!(html::meta_encoding(&document), Some("latin1"));
+/// # Ok::<(), yaxml::Error>(())
+/// ```
+pub fn meta_encoding(document: &OwnedDocument) -> Option<&str> {
+    let (node, (index, start, end)) =
+        (head(document)?.children()).find_map(|node| Some((node, charset_range(node)?)))?;
+    let value = node.attributes().nth(index)?.value;
+    match value {
+        std::borrow::Cow::Borrowed(value) => Some(&value[start..end]),
+        std::borrow::Cow::Owned(_) => unreachable!("owned attribute values borrow the pool"),
+    }
+}
+
+/// `htmlSetMetaEncoding`: rewrites the charset of every encoding-declaring
+/// `<meta>` child of the `head` (the pseudo-encoding `HTML` is written as
+/// `ASCII`), or, when there is none, inserts `<meta charset="encoding">` as
+/// the head's first child. `Ok(false)` = no `head` (libxml2's 1); the
+/// document's own encoding is unchanged.
+///
+/// ```
+/// use yaxml::{EditLimits, html};
+/// let mut document = html::parse(b"<title>t</title>", html::Options::default())?.document;
+/// let mut editor = document.edit(EditLimits::default())?;
+/// assert!(html::set_meta_encoding(&mut editor, "UTF-8")?);
+/// assert_eq!(html::meta_encoding(&document), Some("UTF-8"));
+/// let saved = html::dump_node(document.root_element(), false)?;
+/// let expected = "<html><head><meta charset=\"UTF-8\"><title>t</title></head></html>";
+/// assert_eq!(saved, expected.as_bytes());
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// The editor's limits and allocation failure.
+pub fn set_meta_encoding(editor: &mut Editor<'_>, encoding: &str) -> Result<bool, EditError> {
+    let Some(head) = head(editor.document()) else {
+        return Ok(false);
+    };
+    let (head, first) = (head.id(), head.first_child().map(|node| node.id()));
+    let replacement = match encoding.eq_ignore_ascii_case("HTML") {
+        true => "ASCII",
+        false => encoding,
+    };
+    let allocation = || EditError::new(EditErrorKind::Allocation, None);
+    let (mut next, mut found) = (first, false);
+    while let Some(node) = next.and_then(|id| editor.document().node(id)) {
+        next = node.next_sibling().map(|node| node.id());
+        let Some((index, start, end)) = charset_range(node) else {
+            continue;
+        };
+        let attribute = node.attributes().nth(index).ok_or_else(allocation)?;
+        let value = attribute.value.as_ref();
+        let (before, after) = (&value[..start], &value[end..]);
+        let value =
+            crate::fallible::concat(&[before, replacement, after]).map_err(|_| allocation())?;
+        let name =
+            crate::fallible::concat(&[attribute.name.qualified()]).map_err(|_| allocation())?;
+        editor.set_attribute_value(node.id(), None, &name, &value)?;
+        found = true;
+    }
+    if found {
+        return Ok(true);
+    }
+    let name = |local| NameSpec {
+        local,
+        namespace: None,
+        prefix: PrefixPolicy::Exact(None),
+    };
+    let charset = ElementItem::Attribute(AttributeSpec {
+        name: name("charset"),
+        value: encoding,
+    });
+    let meta = ElementSpec {
+        name: name("meta"),
+        items: &[charset],
+    };
+    let meta = editor.append_element(head, meta)?;
+    if let Some(first) = first {
+        editor.insert_before(first, meta)?;
+    }
+    Ok(true)
+}
+
 /// `htmlParseMetaEncoding`: the attribute and byte range naming the charset.
-fn meta_encoding(node: OwnedNode<'_>) -> Option<(usize, usize, usize)> {
+fn charset_range(node: OwnedNode<'_>) -> Option<(usize, usize, usize)> {
     let (index, content_type) = meta_attribute(node)?;
     let attribute = node.attributes().nth(index)?;
     let value = attribute.value.as_ref();
@@ -364,7 +498,7 @@ impl Dumper<'_> {
         let info = info(node);
         let name = element_name(node).unwrap_or("");
         let parent = node.parent();
-        let meta = self.encoding.and_then(|_| meta_encoding(node));
+        let meta = self.encoding.and_then(|_| charset_range(node));
         let add_meta = self
             .encoding
             .is_some_and(|encoding| !encoding.eq_ignore_ascii_case("HTML"))

@@ -1,0 +1,11 @@
+state 0 ver 1.0 enc - sa -1
+before 0 0 - -1
+0 8 #comment #comment - - e0 v1 a0 h0 [x] lang=- base=bare.xml ns=- string=-
+  inner=
+  outer=<!--x-->
+  get - - - - - - - ns - - no - - - mv 0 #comment in - 0 #comment -1 #comment -1 #comment 0 #comment el 0 0 look - http://www.w3.org/XML/1998/namespace
+0 1 r r - - e1 v0 a0 h0 [-] lang=- base=bare.xml ns=- string=-
+  inner=
+  outer=<r/>
+  get - - - - - - - ns - - no - - - mv 0 r in - 0 r 0 r 0 r 0 r el 0 0 look - http://www.w3.org/XML/1998/namespace
+end 0 state 0 type 15

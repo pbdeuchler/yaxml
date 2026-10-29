@@ -289,8 +289,14 @@ into a counting sink, no `Vec`) runs at the same speed as `save`.
 contents) and notation declarations, `end_element`, `full_end_element`,
 `end_document`, `set_indent`, `set_indent_string`, `set_quote_char` and
 `flush`, one method per libxml2 function with `None` for NULL. The `*Format*`
-variants are `write_*(&format!(..))`. `xmlNewTextWriterDoc`/`Tree` (writing
-into a DOM through the push parser) are not ported.
+variants are `write_*(&format!(..))`. libxml2's `xmlNewTextWriterDoc` and
+`xmlNewTextWriterPushParser` feed the written bytes to a push parser with
+default options: write into a `Vec` and parse it with
+`OwnedDocument::parse_with(.., ParseOptions::new(0))` (or `PushParser::feed`).
+`xmlNewTextWriterTree` appends under a node: `Editor::parse_content` on that
+node, then `append_child` each node. Prefixes then resolve in the node's
+context, where libxml2 reports them unbound, and the newline `end_document`
+writes becomes text (end with `flush` instead).
 
 It is a second writer, not methods on `Writer`, because the two contracts
 conflict. `Writer` accepts only complete events, validates each by reparsing
@@ -371,8 +377,8 @@ runs (5.75 minutes) found no failure.
 The writer supports the reader's UTF-8 XML profile, explicit event output, and
 complete borrowed/owned DOM output; `save` adds libxml2's tree output to any
 sink and `TextWriter` libxml2's call-by-call writer. Namespace repair, raw XML
-injection into `Writer`, `xmlSaveSetEscape`, `xmlNewTextWriterDoc`/`Tree` and
-iconv/ICU encodings are pending. This is neither a canonicalizer nor a
+injection into `Writer`, `xmlSaveSetEscape` and iconv/ICU encodings are
+pending. This is neither a canonicalizer nor a
 byte-preserving rewrite of source spelling.
 
 The pinned [libxml2 writer](https://raw.githubusercontent.com/GNOME/libxml2/v2.15.4/xmlwriter.c)

@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use yaxml::schema_types::{
-    Comparison, Context, Facet, FacetError, InvalidValue, Type, WhiteSpace, normalize,
+    Comparison, Context, Facet, FacetError, InvalidValue, Type, Value, WhiteSpace, normalize,
 };
 
 #[test]
@@ -775,4 +775,250 @@ fn facet_construction_errors() {
         Facet::new("whiteSpace", "preserve", Token, None),
         Ok(Facet::WhiteSpace(WhiteSpace::Preserve))
     ));
+}
+
+#[test]
+fn facet_metadata() {
+    use Type::*;
+    // xmlSchemaIsBuiltInTypeFacet: only primitive types answer yes.
+    for (ty, name, expected) in [
+        (Boolean, "pattern", true),
+        (Boolean, "enumeration", false),
+        (String, "maxLength", true),
+        (String, "totalDigits", false),
+        (HexBinary, "length", true),
+        (Decimal, "fractionDigits", true),
+        (Decimal, "length", false),
+        (Date, "minExclusive", true),
+        (Double, "maxLength", false),
+        (Integer, "pattern", false),
+        (AnySimpleType, "pattern", false),
+        (String, "bogus", false),
+    ] {
+        assert_eq!(ty.allows_facet(name), expected, "{ty:?} {name}");
+    }
+    // xmlSchemaGetFacetValueAsULong for length and digits facets.
+    for (name, value, base, count) in [
+        ("length", "3", String, Some(3)),
+        ("minLength", "0", String, Some(0)),
+        ("maxLength", "18446744073709551615", String, Some(u64::MAX)),
+        ("totalDigits", "5", Decimal, Some(5)),
+        ("fractionDigits", "2", Decimal, Some(2)),
+        ("maxInclusive", "7", Integer, None),
+        ("pattern", "a", String, None),
+        ("enumeration", "a", String, None),
+        ("whiteSpace", "collapse", String, None),
+    ] {
+        let facet = Facet::new(name, value, base, None).unwrap();
+        assert_eq!((facet.name(), facet.count()), (name, count), "{name}");
+    }
+}
+
+#[test]
+fn canonical_values() {
+    // xmlSchemaGetCanonValue; `fixed` rows differ from libxml2, which writes
+    // the bracketed form (docs/schema-types.md).
+    let cases: &[(Type, &str, Option<&str>)] = &[
+        (Type::NormalizedString, " a  b\tc ", Some(" a  b c ")),
+        (Type::Token, " a  b ", Some("a b")),
+        (Type::AnyUri, " http://a/b ", Some("http://a/b")),
+        (Type::Name, "a:b", Some("a:b")),
+        (Type::QName, "p:x", Some("p:x")),
+        (Type::NmTokens, "a b", None),
+        (Type::AnySimpleType, "x", None),
+        (Type::Decimal, "+012.50", Some("12.5")),
+        (Type::Decimal, ".5", Some("0.5")),
+        (Type::Decimal, "-.5", Some("-0.5")),
+        (Type::Decimal, "5.", Some("5.0")),
+        (Type::Decimal, "0", Some("0.0")),
+        (Type::Decimal, "-0.0", Some("0.0")), // fixed: [-0.0]
+        (Type::Decimal, "-1.230", Some("-1.23")),
+        (Type::Integer, "+0012", Some("12")),
+        (Type::Integer, "-12", Some("-12")),
+        (Type::Integer, "-0", Some("0")), // fixed: [-0]
+        (Type::UnsignedByte, "0255", Some("255")),
+        (Type::Boolean, "1", Some("true")),
+        (Type::Boolean, "false", Some("false")),
+        (Type::Float, "1.5", Some("1.50000000000000e+00")),
+        (Type::Float, "0.1", Some("1.00000001490116e-01")),
+        (Type::Float, "1e3", Some("1.00000000000000e+03")),
+        (Type::Float, "-0", Some("-0.00000000000000e+00")),
+        (Type::Float, "INF", Some("INF")),    // fixed: [inf]
+        (Type::Float, "NaN", Some("NaN")),    // fixed: [nan]
+        (Type::Double, "-INF", Some("-INF")), // fixed: [-inf]
+        (Type::Double, "1.1", Some("1.10000000000000e+00")),
+        (Type::Double, "1E-310", Some("9.99999999999997e-311")),
+        // fixed: [-P1Y2M0DT4H5M6.5S] (sign inverted, days dropped)
+        (Type::Duration, "P1Y2M3DT4H5M6.5S", Some("P1Y2M3DT4H5M6.5S")),
+        (Type::Duration, "-P1Y", Some("-P1Y0M0DT0H0M0S")), // fixed: [P1Y0M0DT0H0M0S]
+        (Type::Duration, "PT0S", Some("P0Y0M0DT0H0M0S")),  // fixed: [-P0Y0M0DT0H0M0S]
+        (Type::Duration, "P13M", Some("P1Y1M0DT0H0M0S")),  // fixed: [-P1Y1M0DT0H0M0S]
+        (Type::Duration, "PT36H", Some("P0Y0M1DT12H0M0S")), // fixed: [-P0Y0M0DT12H0M0S]
+        (Type::Duration, "-PT1.25S", Some("-P0Y0M0DT0H0M1.25S")), // fixed: [P0Y0M0DT0H0M1.25S]
+        // fixed: [-P0Y0M0DT13H46M40.000001S]
+        (
+            Type::Duration,
+            "PT1000000.000001S",
+            Some("P0Y0M11DT13H46M40.000001S"),
+        ),
+        (Type::GYear, "2001", Some("2001")),
+        (Type::GYear, "12345", Some("12345")),
+        (Type::GYear, "2001+05:00", Some("2001")),
+        (Type::GYear, "-0044", Some("-0044")), // fixed: [-044]
+        (Type::GMonth, "--05Z", Some("--05")),
+        (Type::GDay, "---07", Some("---07")),
+        (Type::GMonthDay, "--12-25", Some("--12-25")),
+        (Type::GYearMonth, "-0001-10", Some("-0001-10")),
+        (Type::GYearMonth, "2001-10+02:00", Some("2001-10")),
+        (Type::Time, "13:20:00", Some("13:20:00")),
+        (Type::Time, "13:20:00.5", Some("13:20:00.5")), // fixed: [13:20:0.5]
+        (Type::Time, "13:20:00-05:00", Some("18:20:00Z")),
+        (Type::Time, "13:20:07.25Z", Some("13:20:07.25Z")), // fixed: [13:20:7.25Z]
+        (Type::Time, "00:30:00+01:00", Some("23:30:00Z")),
+        (Type::Date, "2001-10-26", Some("2001-10-26")),
+        (Type::Date, "2001-10-26+12:00", Some("2001-10-25Z")),
+        (Type::Date, "2001-10-26Z", Some("2001-10-26Z")),
+        (Type::Date, "-0001-01-01", Some("-0001-01-01")), // fixed: [-001-01-01]
+        (
+            Type::DateTime,
+            "2001-10-26T21:32:52",
+            Some("2001-10-26T21:32:52"),
+        ),
+        (
+            Type::DateTime,
+            "2001-10-26T21:32:52.12679+02:00",
+            Some("2001-10-26T19:32:52.12679Z"),
+        ),
+        (
+            Type::DateTime,
+            "2001-12-31T23:30:00-01:00",
+            Some("2002-01-01T00:30:00Z"),
+        ),
+        (
+            Type::DateTime,
+            "-0045-01-01T00:00:00Z",
+            Some("-0045-01-01T00:00:00Z"), // fixed: [-045-01-01T00:00:00Z]
+        ),
+        (Type::HexBinary, "0fb7", Some("0FB7")),
+        (Type::HexBinary, "", Some("")),
+        (Type::Base64Binary, " QUJD RA== ", Some("QUJDRA==")),
+        (Type::Base64Binary, "YW Jj", Some("YWJj")),
+    ];
+    for &(ty, lexical, expected) in cases {
+        let value = ty.parse(lexical, None).unwrap();
+        let canonical = value.canonical(WhiteSpace::Preserve);
+        assert_eq!(canonical.as_deref(), expected, "{ty:?} {lexical:?}");
+        // A canonical form is a lexical form of an equal value, but for the
+        // time zone the g* types drop and zoned values, which libxml2's
+        // comparison does not find equal to their UTC form.
+        let zoned = ty.name().starts_with('g') && lexical.contains(['Z', '+']);
+        if let Some(canonical) = canonical.filter(|c| !zoned && !c.ends_with('Z')) {
+            let reparsed = ty.parse(&canonical, None).unwrap();
+            assert!(reparsed.equals(&value), "{ty:?} {lexical:?}");
+        }
+    }
+}
+
+#[test]
+fn canonical_whitespace_and_getters() {
+    struct Prefixes;
+    impl Context for Prefixes {
+        fn namespace(&self, prefix: &str) -> Option<&str> {
+            (prefix == "p").then_some("urn:p")
+        }
+    }
+    let resolved = Type::QName.parse("p:x", Some(&Prefixes)).unwrap();
+    // fixed: libxml2 writes {urn:p}urn:p.
+    assert_eq!(
+        resolved.canonical(WhiteSpace::Preserve).unwrap(),
+        "{urn:p}x"
+    );
+    // xmlSchemaGetCanonValueWhtsp: string and normalizedString follow `ws`.
+    let cases = [
+        (Type::String, WhiteSpace::Preserve, " a\t b "),
+        (Type::String, WhiteSpace::Replace, " a  b "),
+        (Type::String, WhiteSpace::Collapse, "a b"),
+        (Type::NormalizedString, WhiteSpace::Preserve, " a  b "),
+        (Type::NormalizedString, WhiteSpace::Collapse, "a b"),
+        (Type::Token, WhiteSpace::Preserve, "a b"),
+    ];
+    for (ty, whitespace, expected) in cases {
+        let value = ty.parse(" a\t b ", None).unwrap();
+        assert_eq!(
+            value.canonical(whitespace).unwrap(),
+            expected,
+            "{ty:?} {whitespace:?}"
+        );
+    }
+    // xmlSchemaValueGetAsString and xmlSchemaValueGetAsBoolean.
+    let getters = [
+        (Type::Token, " a ", Some("a"), None),
+        (Type::AnySimpleType, " a ", Some(" a "), None),
+        (Type::AnyUri, "u", Some("u"), None),
+        (Type::NmTokens, "a b", None, None),
+        (Type::QName, "x", None, None),
+        (Type::Decimal, "1", None, None),
+        (Type::Boolean, "1", None, Some(true)),
+        (Type::Boolean, "false", None, Some(false)),
+    ];
+    for (ty, lexical, string, boolean) in getters {
+        let value = ty.parse(lexical, None).unwrap();
+        assert_eq!(
+            (value.as_str(), value.as_bool()),
+            (string, boolean),
+            "{ty:?}"
+        );
+    }
+}
+
+#[test]
+fn constructed_values() {
+    // xmlSchemaNewStringValue keeps the text as given.
+    let string = Value::string(" a\t ");
+    assert_eq!(
+        (string.ty(), string.as_str()),
+        (Type::String, Some(" a\t "))
+    );
+    assert!(string.equals(&Type::String.parse(" a\t ", None).unwrap()));
+    // xmlSchemaNewQNameValue / xmlSchemaNewNOTATIONValue compare like
+    // parsed names: equal namespace and local name, else indeterminate.
+    let document: Option<&dyn Context> = Some(&Document);
+    let cases = [
+        (
+            Type::QName,
+            Some("urn:p"),
+            "a",
+            "p:a",
+            Comparison::Equal,
+            "{urn:p}a",
+        ),
+        (Type::QName, None, "a", "a", Comparison::Indeterminate, "a"),
+        (
+            Type::QName,
+            Some("urn:default"),
+            "a",
+            "a",
+            Comparison::Equal,
+            "{urn:default}a",
+        ),
+        (Type::Notation, None, "gif", "gif", Comparison::Equal, "gif"),
+        (
+            Type::Notation,
+            Some("urn:p"),
+            "n",
+            "p:n",
+            Comparison::Equal,
+            "{urn:p}n",
+        ),
+    ];
+    for (ty, namespace, local, lexical, expected, canonical) in cases {
+        let value = Value::qname(ty, namespace, local).unwrap();
+        let parsed = ty.parse(lexical, document).unwrap();
+        assert_eq!(value.ty(), ty);
+        assert_eq!(value.compare(&parsed), expected, "{ty:?} {lexical:?}");
+        assert_eq!(value.canonical(WhiteSpace::Preserve).unwrap(), canonical);
+    }
+    for ty in [Type::String, Type::Token, Type::AnyUri, Type::Entity] {
+        assert!(Value::qname(ty, None, "a").is_none(), "{ty:?}");
+    }
 }

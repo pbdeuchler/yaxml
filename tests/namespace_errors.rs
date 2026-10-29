@@ -9,7 +9,7 @@
 use std::io::BufReader;
 use std::ops::ControlFlow;
 
-use yaxml::options::{NOENT, RECOVER};
+use yaxml::options::{DTDATTR, DTDVALID, NOENT, RECOVER};
 use yaxml::{
     BufferedReader, Document, EditLimits, Error, ErrorKind, Event, LineIndex, NodeKind, NodeType,
     OwnedDocument, ParseOptions, PushParser, Reader, TextReader,
@@ -394,6 +394,31 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
          "xmlParsePITarget: invalid name prefix 'xml'"),
         ("<!DOCTYPE r SYSTEM 'x.dtd'><r>&u;</r>", Warning::UndeclaredEntity { error: true },
          Domain::Parser, 27, E, 34, "Entity 'u' not defined"),
+        ("<!DOCTYPE r [<!ENTITY gt \">x\">]><r/>", Warning::PredefinedEntity, Domain::Parser,
+         117, W, 29, "Invalid redeclaration of predefined entity 'gt'"),
+        ("<!DOCTYPE r [<!ENTITY amp SYSTEM 'x'>]><r/>", Warning::PredefinedEntity,
+         Domain::Parser, 117, W, 37, "Invalid redeclaration of predefined entity 'amp'"),
+        ("<!DOCTYPE r [<!ENTITY % e \"<!ENTITY quot 'q'>\">%e;]><r/>",
+         Warning::PredefinedEntity, Domain::Parser, 117, W, 50,
+         "Invalid redeclaration of predefined entity 'quot'"),
+        ("<r xml:id=\"1a\"/>", Warning::XmlIdValue, Domain::Parser, 539, E, 15,
+         "xml:id : attribute value 1a is not an NCName"),
+        ("<r xml:id=\"1\" b=\"2\"  />", Warning::XmlIdValue, Domain::Parser, 539, E, 22,
+         "xml:id : attribute value 1 is not an NCName"),
+        ("<r xml:id=\"&#49;\"/>", Warning::XmlIdValue, Domain::Parser, 539, E, 18,
+         "xml:id : attribute value 1 is not an NCName"),
+        ("<r xml:id=''/>", Warning::XmlIdValue, Domain::Parser, 539, E, 13,
+         "xml:id : attribute value  is not an NCName"),
+        ("<r xml:id='p:q'>x</r>", Warning::XmlIdValue, Domain::Parser, 539, E, 16,
+         "xml:id : attribute value p:q is not an NCName"),
+        ("<!DOCTYPE r [<!ENTITY e \"1\">]><r xml:id=\"&e;\"/>", Warning::XmlIdValue,
+         Domain::Parser, 539, E, 45, "xml:id : attribute value 1 is not an NCName"),
+        ("<!DOCTYPE r [<!ATTLIST r xml:id CDATA #IMPLIED>]><r/>", Warning::XmlIdType,
+         Domain::Parser, 540, E, 47, "xml:id : attribute type should be ID"),
+        ("<!DOCTYPE r [<!ATTLIST r b CDATA #IMPLIED xml:id NMTOKEN #IMPLIED >]><r/>",
+         Warning::XmlIdType, Domain::Parser, 540, E, 67, "xml:id : attribute type should be ID"),
+        ("<!DOCTYPE r [<!ENTITY % p \"<!ATTLIST r xml:id CDATA #IMPLIED>\">%p;]><r/>",
+         Warning::XmlIdType, Domain::Parser, 540, E, 66, "xml:id : attribute type should be ID"),
     ];
     for &(input, warning, domain, code, level, column, message) in cases {
         let (_, reference) = document(input.as_bytes(), 0).unwrap();
@@ -439,10 +464,142 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
             assert_eq!(offsets, [13, 24], "{surface} flags {flags}");
         }
     }
+    // Values libxml2 accepts or never checks: blanks around an NCName,
+    // entity content,
+    // and a character reference that spells a valid value (a lent value).
+    #[rustfmt::skip]
+    let silent: &[&str] = &[
+        "<r xml:id=' a '/>", "<r xml:id='\u{e9}1'/>", "<r xml:id='_1\u{b7}'/>",
+        "<!DOCTYPE r [<!ENTITY e \"<a xml:id='1'/>\">]><r>&e;</r>",
+        "<r xml:space='&#100;efault' xml:id='&#97;'/>",
+    ];
+    for &input in silent {
+        for flags in [0, RECOVER] {
+            for (surface, parse) in SURFACES {
+                let (_, errors) = parse(input.as_bytes(), flags)
+                    .unwrap_or_else(|error| panic!("{surface} {flags} rejected {input}: {error}"));
+                assert_eq!(errors, [], "{surface} flags {flags}: {input}");
+            }
+        }
+    }
+    // Nor is a value that keeps its references (no NOENT), or one a DOCTYPE
+    // validates.
+    let input = b"<!DOCTYPE r [<!ENTITY e '1'>]><r xml:id='&e;'/>";
+    assert_eq!(OwnedDocument::parse_bytes(input).unwrap().errors(), []);
+    let input = b"<!DOCTYPE r [<!ATTLIST r xml:id ID #IMPLIED>]><r xml:id='1'/>";
+    let document = OwnedDocument::parse_with(input, options(DTDVALID)).unwrap();
+    assert_eq!(document.errors(), []);
+    // A default is checked at its tag, normalized as its type is.
+    let input = b"<!DOCTYPE r [<!ATTLIST r xml:id ID ' 9 '>]><r/>";
+    let document = OwnedDocument::parse_with(input, options(DTDATTR)).unwrap();
+    let [error] = document.errors() else {
+        panic!("{:?}", document.errors())
+    };
+    let found = error.describe(&LineIndex::new(input));
+    let message = "xml:id : attribute value 9 is not an NCName";
+    assert_eq!(
+        (found.code, found.column, &*found.message),
+        (539, 46, message)
+    );
     // A strict well-formedness error still fails after a warning.
     let input = b"<?xml version='1.1'?><r></s>";
     for (surface, parse) in SURFACES {
         let strict = parse(input, 0).map(drop).map_err(|error| error.kind);
         assert_eq!(strict, Err(ErrorKind::MismatchedEndTag), "{surface}");
     }
+}
+
+#[test]
+fn flagged_warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
+    use yaxml::Warning;
+    use yaxml::options::PEDANTIC;
+    // (input, flag, warning, code, column, message), from the libxml2 2.15.4
+    // error helper; without the flag every input is silent.
+    #[rustfmt::skip]
+    let cases: &[(&str, u32, Warning, u16, usize, &str)] = &[
+        ("<r xml:lang='en-us-x'/>", PEDANTIC, Warning::LangValue, 98, 22,
+         "Malformed value for xml:lang : en-us-x"),
+        ("<r xml:lang=\"de-CH-1996\" a=\"1\"/>", PEDANTIC, Warning::LangValue, 98, 25,
+         "Malformed value for xml:lang : de-CH-1996"),
+        ("<r xmlns:p='rel'/>", PEDANTIC, Warning::RelativeNamespaceUri, 100, 17,
+         "xmlns:p: URI rel is not absolute"),
+        ("<!DOCTYPE r [<!ENTITY e \"a\"><!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 41, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY % p \"a\"><!ENTITY % p 'b'>]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 45, "Entity(p) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY e SYSTEM \"x\"><!ENTITY e \"b\" >]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 49, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY % d \"<!ENTITY e 'b'>\"><!ENTITY e \"a\">%d;]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 61, "Entity(e) already defined in the internal subset"),
+        // libxml2's column lags one per entity value earlier on the line.
+        ("<!DOCTYPE r [<!ENTITY e \"x\"><!ENTITY f \"y\"><!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 55, "Entity(e) already defined in the internal subset"),
+        ("<!DOCTYPE r [<!ENTITY e \"a\"><!ENTITY % p \"\">%p;<!ENTITY e \"b\">]><r/>", PEDANTIC,
+         Warning::EntityRedefined, 107, 59, "Entity(e) already defined in the internal subset"),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog bogus?><r/>", yaxml::options::CATALOG_PI, Warning::CatalogPi, 93,
+         28, "Catalog PI syntax error: bogus"),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog catalog=\"x\" junk?><r/>", yaxml::options::CATALOG_PI,
+         Warning::CatalogPi, 93, 39, "Catalog PI syntax error: catalog=\"x\" junk"),
+        #[cfg(feature = "catalog")]
+        ("<r><?oasis-xml-catalog catalog=x?></r>", yaxml::options::CATALOG_PI,
+         Warning::CatalogPi, 93, 35, "Catalog PI syntax error: catalog=x"),
+    ];
+    for &(input, flag, warning, code, column, message) in cases {
+        let (_, silent) = document(input.as_bytes(), 0).unwrap();
+        assert_eq!(silent, [], "{input}");
+        let (_, reference) = document(input.as_bytes(), flag).unwrap();
+        let kinds: Vec<_> = reference.iter().map(|error| error.kind).collect();
+        assert_eq!(kinds, [ErrorKind::Warning(warning)], "{input}");
+        for flags in [flag, flag | RECOVER] {
+            for (surface, parse) in SURFACES {
+                let (_, errors) = parse(input.as_bytes(), flags)
+                    .unwrap_or_else(|error| panic!("{surface} {flags} rejected {input}: {error}"));
+                assert_eq!(errors, reference, "{surface} flags {flags}: {input}");
+            }
+        }
+        let found = reference[0].describe(&LineIndex::new(input.as_bytes()));
+        assert_eq!(
+            (found.code, found.line, found.column),
+            (code, 1, column),
+            "{input}"
+        );
+        assert_eq!(found.message, message, "{input}");
+    }
+    // Tags libxml2's xmlCheckLanguageID accepts (checked with xmllint
+    // --pedantic), a catalog instruction without `=`, and an entity declared
+    // in each subset.
+    #[rustfmt::skip]
+    let silent: &[(&str, u32)] = &[
+        ("<r xml:lang='en'/>", PEDANTIC), ("<r xml:lang='en-US'/>", PEDANTIC),
+        ("<r xml:lang='i-klingon'/>", PEDANTIC), ("<r xml:lang='abcd'/>", PEDANTIC),
+        ("<r xml:lang='zh-Hant-TW'/>", PEDANTIC), ("<r xml:lang='de-419'/>", PEDANTIC),
+        ("<r xmlns:p='http://x'/>", PEDANTIC),
+        #[cfg(feature = "catalog")]
+        ("<?oasis-xml-catalog catalog x?><r/>", yaxml::options::CATALOG_PI),
+    ];
+    for &(input, flags) in silent {
+        assert_eq!(document(input.as_bytes(), flags).unwrap().1, [], "{input}");
+    }
+    for tag in [
+        "x-foo-bar",
+        "abcdefghi",
+        "e1",
+        "en-",
+        "1en",
+        "sr-Latn-RS-a-b",
+    ] {
+        let input = format!("<r xml:lang='{tag}'/>");
+        let (_, errors) = document(input.as_bytes(), PEDANTIC).unwrap();
+        assert_eq!(errors.len(), 1, "{tag}");
+    }
+    let resolver = |_: yaxml::Request<'_>| Ok(Some(b"<!ENTITY e 'b'>".to_vec()));
+    let input = b"<!DOCTYPE r SYSTEM 'x.dtd' [<!ENTITY e 'a'>]><r/>";
+    let options = ParseOptions::new(PEDANTIC | yaxml::options::DTDLOAD)
+        .with_resolver("doc.xml", Box::new(resolver));
+    assert_eq!(
+        OwnedDocument::parse_with(input, options).unwrap().errors(),
+        []
+    );
 }

@@ -11,7 +11,7 @@ use super::load::{El, Loader, Loc};
 use super::pattern::{Arena, EMPTY, Id, NOT_ALLOWED, NameClass, Pat, Store, TEXT, Tables};
 use super::{SchemaCode, SchemaError, check};
 use crate::fallible::{TryPush, cloned};
-use crate::name::{name_char, name_start};
+use crate::name::is_ncname;
 use crate::schema_types::Type;
 use crate::xpath::tree::XML_NAMESPACE;
 
@@ -250,14 +250,20 @@ impl<'e> Compiler<'e, '_> {
     }
 
     fn leaf(&self, el: &El, id: Id) -> Result<Id> {
-        match el.children.is_empty() {
-            true => Ok(id),
-            false => Err(self.error(
-                SchemaCode::EmptyNotEmpty,
-                el,
-                format!("element {} is not empty", el.name),
-            )),
+        if el.children.is_empty() {
+            return Ok(id);
         }
+        let (code, message) = match el.name.as_str() {
+            "empty" => (SchemaCode::EmptyNotEmpty, "empty: had a child node"),
+            "text" => (SchemaCode::TextHasChild, "text: had a child node"),
+            "notAllowed" => (
+                SchemaCode::NotAllowedNotEmpty,
+                "xmlRelaxNGParse: notAllowed element is not empty",
+            ),
+            "ref" => (SchemaCode::RefNotEmpty, "ref is not empty"),
+            _ => (SchemaCode::ParentRefNotEmpty, "parentRef is not empty"),
+        };
+        Err(self.error(code, el, message.into()))
     }
 
     /// Sections 4.12 to 4.15: the patterns that combine their children.
@@ -291,10 +297,21 @@ impl<'e> Compiler<'e, '_> {
 
     /// `ref` and `parentRef` (section 4.18).
     fn reference(&mut self, el: &'e El, grammar: Option<usize>) -> Result<Id> {
-        self.leaf(el, EMPTY)?;
         let name = el.name.as_str();
+        let (missing, invalid) = match name {
+            "ref" => (SchemaCode::RefNoName, SchemaCode::RefNameInvalid),
+            _ => (
+                SchemaCode::ParentRefNoName,
+                SchemaCode::ParentRefNameInvalid,
+            ),
+        };
         let target = (el.attr("name"))
-            .ok_or_else(|| self.error(SchemaCode::RefNoName, el, format!("{name} has no name")))?;
+            .ok_or_else(|| self.error(missing, el, format!("{name} has no name")))?;
+        if !is_ncname(target) {
+            let message = format!("{name} name '{target}' is not an NCName");
+            return Err(self.error(invalid, el, message));
+        }
+        self.leaf(el, EMPTY)?;
         let scope = match name {
             "ref" => grammar,
             _ => Some(
@@ -323,11 +340,19 @@ impl<'e> Compiler<'e, '_> {
 
     fn patterns(&mut self, els: &'e [El], grammar: Option<usize>, parent: &El) -> Result<Vec<Id>> {
         if els.is_empty() {
-            return Err(self.error(
-                SchemaCode::EmptyConstruct,
-                parent,
-                format!("Element {} is empty", parent.name),
-            ));
+            let (code, message) = match parent.name.as_str() {
+                "interleave" => (
+                    SchemaCode::InterleaveNoContent,
+                    "Element interleave is empty",
+                ),
+                "mixed" => (SchemaCode::EmptyConstruct, "Mixed is empty"),
+                "except" => (SchemaCode::ExceptNoContent, "except has no content"),
+                name => {
+                    let message = format!("Element {name} is empty");
+                    return Err(self.error(SchemaCode::EmptyConstruct, parent, message));
+                }
+            };
+            return Err(self.error(code, parent, message.into()));
         }
         let mut ids = Vec::new();
         ids.try_reserve_exact(els.len())
@@ -366,33 +391,46 @@ impl<'e> Compiler<'e, '_> {
             None => match el.children.split_first() {
                 Some((first, body)) => (self.name_class(first, false, false)?, body),
                 None => {
+                    let (code, name) = match attribute {
+                        true => (SchemaCode::AttributeEmpty, "attribute"),
+                        false => (SchemaCode::ElementEmpty, "Element"),
+                    };
                     return Err(self.error(
-                        SchemaCode::ElementEmpty,
+                        code,
                         el,
-                        format!("xmlRelaxNGParse{}: {} has no children", el.name, el.name),
+                        format!("xmlRelaxNGParse{name}: {} has no children", el.name),
                     ));
                 }
             },
         };
-        if attribute && self.xmlns(class) {
-            return Err(self.error(
-                SchemaCode::XmlnsName,
-                el,
-                "Attribute with QName 'xmlns' or the xmlns namespace is not allowed".into(),
-            ));
+        if attribute && let Some(ns) = self.xmlns(class) {
+            let (code, message) = match ns {
+                "" => (
+                    SchemaCode::XmlnsName,
+                    "Attribute with QName 'xmlns' is not allowed".into(),
+                ),
+                ns => (
+                    SchemaCode::XmlNs,
+                    format!("Attribute with namespace '{ns}' is not allowed"),
+                ),
+            };
+            return Err(self.error(code, el, message));
         }
         Ok((class, body))
     }
 
-    /// Section 4.16: whether an attribute name class mentions the name
-    /// `xmlns` or the xmlns namespace anywhere, `except` included.
-    fn xmlns(&self, class: u32) -> bool {
+    /// Section 4.16: the xmlns namespace an attribute name class mentions
+    /// anywhere, `except` included, or `""` for the name `xmlns`.
+    fn xmlns(&self, class: u32) -> Option<&str> {
         let reserved = |ns: &str| XMLNS_NAMESPACES.contains(&ns);
         match &self.tables.names[class as usize] {
-            NameClass::Name(ns, local) => (ns.is_empty() && &**local == "xmlns") || reserved(ns),
-            NameClass::NsName(ns, except) => reserved(ns) || except.is_some_and(|e| self.xmlns(e)),
-            NameClass::AnyName(except) => except.is_some_and(|e| self.xmlns(e)),
-            NameClass::Choice(a, b) => self.xmlns(*a) || self.xmlns(*b),
+            NameClass::Name(ns, local) if ns.is_empty() && &**local == "xmlns" => Some(""),
+            NameClass::Name(ns, _) => reserved(ns).then_some(ns),
+            NameClass::NsName(ns, _) if reserved(ns) => Some(ns),
+            NameClass::NsName(_, except) | NameClass::AnyName(except) => {
+                except.and_then(|e| self.xmlns(e))
+            }
+            NameClass::Choice(a, b) => self.xmlns(*a).or_else(|| self.xmlns(*b)),
         }
     }
 
@@ -468,7 +506,14 @@ impl<'e> Compiler<'e, '_> {
                 ));
             }
             "nsName" => NameClass::NsName(el.ns.as_ref().into(), self.except_class(el, any, true)?),
-            "choice" if !el.children.is_empty() => {
+            "choice" if el.children.is_empty() => {
+                return Err(self.error(
+                    SchemaCode::ChoiceEmpty,
+                    el,
+                    "Element choice is empty".into(),
+                ));
+            }
+            "choice" => {
                 let classes = el
                     .children
                     .iter()
@@ -482,7 +527,7 @@ impl<'e> Compiler<'e, '_> {
             }
             other => {
                 return Err(self.error(
-                    SchemaCode::ElementName,
+                    SchemaCode::ChoiceContent,
                     el,
                     format!("expecting name, anyName, nsName or choice : got {other}"),
                 ));
@@ -503,9 +548,20 @@ impl<'e> Compiler<'e, '_> {
     }
 
     fn except_class(&mut self, el: &El, any: bool, ns: bool) -> Result<Option<u32>> {
+        let error = |code, message: &str| Err(self.error(code, el, message.into()));
         match el.children.as_slice() {
             [] => Ok(None),
-            [except] if except.name == "except" && !except.children.is_empty() => {
+            [first, ..] if first.name != "except" => {
+                error(SchemaCode::ExceptMissing, "Expecting an except node")
+            }
+            [_, _, ..] => error(
+                SchemaCode::ExceptMultiple,
+                "exceptNameClass allows only a single except node",
+            ),
+            [except] if except.children.is_empty() => {
+                error(SchemaCode::ExceptEmpty, "except has no content")
+            }
+            [except] => {
                 let classes = except
                     .children
                     .iter()
@@ -517,16 +573,15 @@ impl<'e> Compiler<'e, '_> {
                     this.push_class(NameClass::Choice(a, b))
                 })))
             }
-            _ => Err(self.error(
-                SchemaCode::ExceptMultiple,
-                el,
-                "exceptNameClass allows only a single except node".into(),
-            )),
         }
     }
 
     /// Collects a grammar's components (through `div`s) and returns its start.
     fn grammar_start(&mut self, el: &'e El, parent: Option<usize>) -> Result<Id> {
+        if el.children.is_empty() {
+            let message = "grammar has no children".into();
+            return Err(self.error(SchemaCode::GrammarEmpty, el, message));
+        }
         let grammar = self.grammars.len();
         self.grammars.push(Grammar {
             parent,
@@ -556,18 +611,26 @@ impl<'e> Compiler<'e, '_> {
     fn components(&mut self, children: &'e [El], grammar: usize) -> Result<()> {
         for child in children {
             match child.name.as_str() {
+                "start" | "define" if child.children.is_empty() => {
+                    let (code, name) = match child.name.as_str() {
+                        "start" => (SchemaCode::StartEmpty, "start"),
+                        _ if child.attr("name").is_none() => (SchemaCode::DefineNameMissing, ""),
+                        _ => (SchemaCode::DefineEmpty, "define"),
+                    };
+                    let message = match name {
+                        "" => "define has no name".into(),
+                        name => format!("{name} has no children"),
+                    };
+                    return Err(self.error(code, child, message));
+                }
                 "start" => self.component(grammar, None, child)?,
+                // An invalid name is reported when compiled, after the
+                // references the start reaches (libxml2's document order).
                 "define" => {
-                    let name = child
-                        .attr("name")
-                        .filter(|name| is_ncname(name))
-                        .ok_or_else(|| {
-                            self.error(
-                                SchemaCode::InvalidDefineName,
-                                child,
-                                "define has no name or its name is not an NCName".into(),
-                            )
-                        })?;
+                    let name = child.attr("name").ok_or_else(|| {
+                        let message = "define has no name".into();
+                        self.error(SchemaCode::DefineNameMissing, child, message)
+                    })?;
                     self.component(grammar, Some(name), child)?
                 }
                 "div" => self.components(&child.children, grammar)?,
@@ -654,8 +717,16 @@ impl<'e> Compiler<'e, '_> {
             State::Todo => self.defines[index].state = State::Busy,
         }
         let Define {
-            grammar, combine, ..
+            name,
+            grammar,
+            combine,
+            ..
         } = self.defines[index];
+        if !name.is_empty() && !is_ncname(name) {
+            let message = format!("define name '{name}' is not an NCName");
+            let part = self.defines[index].parts[0];
+            return Err(self.error(SchemaCode::InvalidDefineName, part, message));
+        }
         let parts = cloned(&self.defines[index].parts).map_err(|_| self.refused(at))?;
         if let Some(start) = parts
             .iter()
@@ -767,7 +838,7 @@ impl<'e> Compiler<'e, '_> {
             None => ("", "token"),
         };
         let datatype = self.datatype(el, library, name, &[])?;
-        let value = ValueDef::new(datatype, &el.text, el)
+        let value = ValueDef::new(datatype, el.attr("type").is_some(), &el.text, el)
             .map_err(|problem| self.problem(el, problem, library, name))?;
         self.tables
             .values
@@ -791,9 +862,4 @@ fn fold<S, T: Copy>(state: &mut S, items: &[T], combine: fn(&mut S, T, T) -> T) 
             combine(state, left, right)
         }
     }
-}
-
-fn is_ncname(name: &str) -> bool {
-    let mut chars = name.chars();
-    chars.next().is_some_and(|c| name_start(c, false)) && chars.all(|c| name_char(c, false))
 }

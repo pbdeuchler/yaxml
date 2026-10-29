@@ -354,7 +354,10 @@ fn check_recovered(flags: u32, document: &[u8]) {
         .any(|w| w.eq_ignore_ascii_case(b"encoding"));
     let owned = OwnedDocument::parse_with(document, ParseOptions::new(flags));
     if let Ok(owned) = &owned {
-        assert!(owned.errors().len() <= 100);
+        assert!(
+            owned.errors().len() <= 103,
+            "100 + the first error clearing each property bit"
+        );
         super::check_diagnostics(document, owned.errors());
         assert!(owned.errors().iter().all(|error| !matches!(
             error.kind,
@@ -378,7 +381,10 @@ fn check_recovered(flags: u32, document: &[u8]) {
     if (super::encoding::recognizes(document) || declared)
         && let Ok(owned) = OwnedDocument::parse_with(document, ParseOptions::new(flags))
     {
-        assert!(owned.errors().len() <= 100);
+        assert!(
+            owned.errors().len() <= 103,
+            "100 + the first error clearing each property bit"
+        );
     }
     // Only the owned DOM repairs invalid UTF-8, recording the repair.
     if !super::encoding::recognizes(document)
@@ -402,7 +408,10 @@ fn check_recovered(flags: u32, document: &[u8]) {
     let namespace = (tree.errors().iter())
         .all(|e| matches!(e.kind, ErrorKind::Namespace | ErrorKind::Warning(_)));
     assert!(tree.errors().len() == 100 || namespace == strict.is_ok());
-    assert!(tree.errors().len() <= 100);
+    assert!(
+        tree.errors().len() <= 103,
+        "100 + the first error clearing each property bit"
+    );
     // Recovery makes progress: every node but the root starts at a later
     // input byte than the one before, so without entity references there
     // are no more nodes than bytes.

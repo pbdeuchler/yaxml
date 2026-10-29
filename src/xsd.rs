@@ -37,6 +37,15 @@ mod model;
 mod parse;
 mod simple;
 mod validate;
+mod view;
+
+pub use components::IdcKind;
+pub use parse::Compositor;
+pub use view::{
+    Annotations, AttributeDeclaration, AttributeGroup, AttributeUse, Constraint, ContentType,
+    Derivations, ElementDeclaration, IdentityConstraint, ModelGroup, ModelGroupDefinition,
+    Namespaces, Particle, ProcessContents, SimpleVariety, Term, TypeDefinition, TypeKind, Wildcard,
+};
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -46,10 +55,13 @@ use std::sync::Arc;
 use crate::valid::Dtd;
 use crate::xpath::Tree;
 use crate::xpath::tree::QName as NodeName;
-use crate::{BufferedReader, Event, ParseOptions, ReadError, Resolver, SourceOrigin};
+use crate::{
+    BufferedReader, EditError, Editor, Event, NameSpec, OwnedNodeId, ParseOptions, PrefixPolicy,
+    ReadError, Resolver, SourceOrigin,
+};
 
 use components::{
-    AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, TypeDef, TypeId, Wildcard,
+    AttrGroup, AttrId, AttributeDecl, ElemId, ElementDecl, Idc, Names, QName, Sym, TypeDef, TypeId,
 };
 
 /// A schema or validity diagnostic code; the discriminant is libxml2's
@@ -480,18 +492,39 @@ pub struct Schema {
 #[derive(Debug)]
 pub(crate) struct Compiled {
     pub(crate) names: Names,
+    /// The main document's target namespace.
+    pub(crate) target: Sym,
     pub(crate) types: Vec<TypeDef>,
     pub(crate) elements: Vec<ElementDecl>,
     pub(crate) attributes: Vec<AttributeDecl>,
-    pub(crate) wildcards: Vec<Wildcard>,
+    pub(crate) wildcards: Vec<components::Wildcard>,
     pub(crate) idcs: Vec<Idc>,
+    pub(crate) global_idcs: HashMap<QName, usize>,
+    /// Effective content particles by type.
+    pub(crate) particles: HashMap<TypeId, parse::Particle>,
+    /// Model group definitions, references resolved.
+    pub(crate) groups: Vec<parse::GroupDraft>,
+    pub(crate) global_groups: HashMap<QName, usize>,
     pub(crate) global_elements: HashMap<QName, ElemId>,
     pub(crate) global_types: HashMap<QName, TypeId>,
     pub(crate) global_attributes: HashMap<QName, AttrId>,
+    pub(crate) attribute_groups: Vec<AttrGroup>,
+    pub(crate) global_attribute_groups: HashMap<QName, usize>,
     pub(crate) notations: HashSet<QName>,
     pub(crate) warnings: Vec<SchemaDiagnostic>,
     pub(crate) max_counter_vectors: usize,
     pub(crate) max_idc_keys: usize,
+    /// `None` without annotations.
+    pub(crate) notes: Option<Notes>,
+}
+
+/// The annotations, copied out of the schema documents.
+#[derive(Debug)]
+pub(crate) struct Notes {
+    pub(crate) doc: crate::OwnedDocument,
+    pub(crate) owners: HashMap<(parse::Loc, parse::Annotated), Vec<OwnedNodeId>>,
+    /// `_xmlSchema.annot`.
+    pub(crate) schema: Option<OwnedNodeId>,
 }
 
 impl Schema {
@@ -539,7 +572,76 @@ impl Schema {
 
     /// Validates a document (`xmlSchemaValidateDoc`).
     pub fn validate<T: Tree>(&self, tree: &T) -> Vec<Diagnostic<T::Id>> {
-        validate::run(self, tree)
+        validate::run(self, tree, None, false).0
+    }
+
+    /// Validates the editor's document like [`validate`](Self::validate) and
+    /// then adds the defaults the schema supplies, as libxml2 does with
+    /// `XML_SCHEMA_VAL_VC_I_CREATE`: each defaulted attribute (value
+    /// normalized by its type) and the default value of each empty,
+    /// non-nilled element as a text child. A namespaced attribute takes the
+    /// innermost prefix bound to its URI, else `p0`, `p1`, ... declared on
+    /// the document element. An edit error stops with the earlier defaults
+    /// already added.
+    pub fn validate_creating(
+        &self,
+        editor: &mut Editor<'_>,
+    ) -> Result<Vec<Diagnostic<OwnedNodeId>>, EditError> {
+        let (diagnostics, created) = validate::run(self, editor.document(), None, true);
+        for validate::Created {
+            element,
+            attribute,
+            value,
+        } in created
+        {
+            let Some((namespace, local)) = attribute else {
+                editor.append_text(element, &value)?;
+                continue;
+            };
+            let node = editor.document().node(element).expect("validated element");
+            let prefix = match namespace.as_deref() {
+                None => None,
+                Some(uri) => match node
+                    .namespaces()
+                    .into_iter()
+                    .find(|b| b.uri == uri && b.prefix.is_some())
+                {
+                    Some(binding) => binding.prefix.map(str::to_owned),
+                    None => {
+                        let fresh = (0usize..)
+                            .map(|n| format!("p{n}"))
+                            .find(|p| node.search_ns(Some(p)).is_none())
+                            .expect("unbound prefix");
+                        let root = editor
+                            .document()
+                            .document_element()
+                            .expect("validated")
+                            .id();
+                        editor.declare_namespace(root, Some(&fresh), uri)?;
+                        Some(fresh)
+                    }
+                },
+            };
+            let name = NameSpec {
+                local: &local,
+                namespace: namespace.as_deref(),
+                prefix: PrefixPolicy::Exact(prefix.as_deref()),
+            };
+            editor.set_attribute(element, name, &value)?;
+        }
+        Ok(diagnostics)
+    }
+
+    /// Validates the subtree of `element` as if it were the document element
+    /// (`xmlSchemaValidateOneElement`); IDs the parser recorded anywhere in
+    /// the document count. `None` when `element` is not an element.
+    pub fn validate_element<T: Tree>(
+        &self,
+        tree: &T,
+        element: T::Id,
+    ) -> Option<Vec<Diagnostic<T::Id>>> {
+        matches!(tree.item(element), crate::xpath::tree::Item::Element(_))
+            .then(|| validate::run(self, tree, Some(element), false).0)
     }
 
     /// Parses and validates a document in one pass without building a tree

@@ -270,16 +270,19 @@ impl Loader {
             .bytes_left
             .checked_sub(bytes.len())
             .ok_or(ErrorKind::LimitExceeded(Limit::ExternalBytes))?;
-        decode(&bytes).map(Some)
+        decode(&bytes, true).map(Some)
     }
 }
 
 /// Decodes an external parsed entity: BOM or declared encoding, character
 /// validity, line ends and the leading text declaration, which is removed.
-pub(crate) fn decode(bytes: &[u8]) -> Result<String, ErrorKind> {
+/// `versioned`: the entity is read for an XML 1.0 document, so its version
+/// must be 1.0.
+pub(crate) fn decode(bytes: &[u8], versioned: bool) -> Result<String, ErrorKind> {
     let mut output = Vec::new();
-    let table = crate::encoding::declared_table(bytes);
-    let (_, decoded) = crate::encoding::transcode(bytes, table, usize::MAX, &mut output);
+    let switch = crate::encoding::declared(bytes);
+    let (_, _, decoded) =
+        crate::encoding::transcode(bytes, switch, None, None, usize::MAX, &mut output);
     decoded.map_err(|error| error.kind)?;
     let text = String::from_utf8(output).map_err(|_| ErrorKind::InvalidUtf8)?;
     if !text.chars().all(xml_char) {
@@ -299,7 +302,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<String, ErrorKind> {
     let (declaration, _) = crate::parser::parse_declaration(&rest[..end], 0, true, &mut Err)
         .map_err(|error| error.kind)?;
     // libxml2: "Version mismatch between document and entity".
-    if declaration.version != "1.0" {
+    if versioned && declaration.version != "1.0" {
         return Err(ErrorKind::InvalidDeclaration);
     }
     declaration

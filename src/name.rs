@@ -235,6 +235,44 @@ pub(crate) fn name_chars_length(text: &str, colon: bool) -> usize {
             .map_or(rest.len(), |(i, _)| i)
 }
 
+/// An `NCName`, as `xmlValidateNCName` without blanks reads one.
+pub(crate) fn is_ncname(name: &str) -> bool {
+    name.chars().next().is_some_and(|c| name_start(c, false))
+        && name_chars_length(name, false) == name.len()
+}
+
+/// [`validate_name`], then under `old10` the Fourth Edition rule.
+pub(crate) fn validate_edition(
+    name: &str,
+    offset: usize,
+    colon: bool,
+    old10: bool,
+) -> Result<(), Error> {
+    validate_name(name, offset, colon)?;
+    match old10 && !old10_name(name, false) {
+        true => Err(Error::new(ErrorKind::InvalidName, offset)),
+        false => Ok(()),
+    }
+}
+
+/// Whether `name` is a Fourth Edition `Name` (or `Nmtoken`), libxml2's
+/// `XML_PARSE_OLD10` rule. Fourth Edition names are a subset of Fifth
+/// Edition names with the same ASCII, so callers check only names that
+/// passed [`validate_name`] and hold non-ASCII.
+pub(crate) fn old10_name(name: &str, nmtoken: bool) -> bool {
+    name.char_indices()
+        .all(|(i, c)| old10_char(c, i == 0 && !nmtoken))
+}
+
+/// A Fourth Edition name character, or name-start character for `start`.
+pub(crate) fn old10_char(c: char, start: bool) -> bool {
+    use crate::chars::{is_base_char, is_combining, is_digit, is_extender, is_ideographic};
+    is_base_char(c)
+        || is_ideographic(c)
+        || matches!(c, '_' | ':')
+        || !start && (is_digit(c) || is_combining(c) || is_extender(c) || matches!(c, '.' | '-'))
+}
+
 pub(crate) fn name_char(c: char, colon: bool) -> bool {
     name_start(c, colon)
         || matches!(c, '-' | '.' | '0'..='9' | '\u{b7}' | '\u{300}'..='\u{36f}' | '\u{203f}'..='\u{2040}')

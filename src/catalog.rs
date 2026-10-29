@@ -31,9 +31,11 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet, TryReserveError};
 use std::{fmt, io};
 
+use crate::diagnostic::{Diagnostic, Domain, LineIndex, code};
 use crate::fallible::TryPush;
 use crate::save::{ATTRIBUTE, escape_into};
 use crate::uri::{canonic_path, resolve as build};
@@ -47,6 +49,8 @@ const DOCTYPE: &str = "<?xml version=\"1.0\"?>\n<!DOCTYPE catalog PUBLIC \"-//OA
 const URN: &str = "urn:publicid:";
 /// libxml2's `MAX_DELEGATE`: distinct delegate catalogs remembered per step.
 const MAX_DELEGATE: usize = 50;
+/// Diagnostics a catalog keeps (libxml2 has no bound), as the parser's.
+const MAX_DIAGNOSTICS: usize = 100;
 
 /// Budgets for catalog files fetched through the resolver. libxml2 has none.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -94,6 +98,9 @@ pub enum Error {
     LimitExceeded,
     /// Not a well-formed XML catalog, or an SGML catalog libxml2 rejects.
     Malformed,
+    /// A well-formed XML document whose root is not an OASIS `catalog`
+    /// (`XML_CATALOG_NOT_CATALOG`).
+    NotCatalog,
     /// [`Catalog::add`] refused the entry: an unknown type, an SGML entry
     /// without a name or whose name is taken.
     Rejected,
@@ -108,6 +115,7 @@ impl fmt::Display for Error {
             Self::Io(kind) => write!(f, "catalog could not be read: {kind}"),
             Self::LimitExceeded => f.write_str("catalog load limit exceeded"),
             Self::Malformed => f.write_str("malformed catalog"),
+            Self::NotCatalog => f.write_str("not an XML catalog"),
             Self::Rejected => f.write_str("catalog entry rejected"),
             Self::Allocation => f.write_str("catalog allocation failed"),
         }
@@ -274,6 +282,9 @@ struct Fetcher {
     bytes: usize,
     /// An SGML catalog's entries outgrew what the allocator gave.
     refused: bool,
+    /// What libxml2's `xmlCatalogErr` raised while parsing loaded XML
+    /// catalogs, with the URL of each file.
+    diagnostics: Vec<(String, Diagnostic)>,
 }
 
 impl Fetcher {
@@ -284,7 +295,16 @@ impl Fetcher {
             loads: 0,
             bytes: 0,
             refused: false,
+            diagnostics: Vec::new(),
         }
+    }
+
+    /// Keeps `found`, within [`MAX_DIAGNOSTICS`].
+    fn note(&mut self, url: &str, found: Vec<Diagnostic>) {
+        let room = MAX_DIAGNOSTICS - self.diagnostics.len();
+        let found = found.into_iter().take(room);
+        self.diagnostics
+            .extend(found.map(|diagnostic| (url.to_owned(), diagnostic)));
     }
 
     fn get(&mut self, uri: &str) -> Result<Vec<u8>, Error> {
@@ -345,27 +365,43 @@ impl Catalog {
         url: &str,
         resolver: Box<dyn Resolver>,
     ) -> Result<Self, Error> {
-        Self::build(input, url, Fetcher::new(resolver, limits))
+        Self::build(input, url, Fetcher::new(resolver, limits), false)
     }
 
     /// Fetches `url` through `resolver`, then [`Catalog::parse`]s it.
     pub fn load(url: &str, limits: Limits, resolver: Box<dyn Resolver>) -> Result<Self, Error> {
         let mut fetch = Fetcher::new(resolver, limits);
-        Self::build(&fetch.get(url)?, url, fetch)
+        Self::build(&fetch.get(url)?, url, fetch, false)
     }
 
-    fn build(input: &[u8], url: &str, mut fetch: Fetcher) -> Result<Self, Error> {
+    /// Fetches the SGML super catalog at `url` (`xmlLoadSGMLSuperCatalog`):
+    /// its `CATALOG` entries are kept by the name as written and never
+    /// loaded, and the content is SGML whatever it looks like.
+    pub fn load_super(
+        url: &str,
+        limits: Limits,
+        resolver: Box<dyn Resolver>,
+    ) -> Result<Self, Error> {
+        let mut fetch = Fetcher::new(resolver, limits);
+        Self::build(&fetch.get(url)?, url, fetch, true)
+    }
+
+    fn build(input: &[u8], url: &str, mut fetch: Fetcher, super_: bool) -> Result<Self, Error> {
         let first = (input.iter())
             .find(|&&byte| matches!(byte, 0 | b'-' | b'<') || byte.is_ascii_alphabetic());
         let body = match first {
-            Some(b'<') => Body::Xml {
-                root: url.to_owned(),
-                files: vec![parse_xml(input, url, true)?],
-                cache: HashMap::from([(url.to_owned(), 0)]),
-            },
+            Some(b'<') if !super_ => {
+                let (entries, found) = parse_xml(input, url, true)?;
+                fetch.note(url, found);
+                Body::Xml {
+                    root: url.to_owned(),
+                    files: vec![entries],
+                    cache: HashMap::from([(url.to_owned(), 0)]),
+                }
+            }
             _ => {
                 let mut map = HashMap::new();
-                let parsed = parse_sgml(&mut map, &mut fetch, input, url, 0);
+                let parsed = parse_sgml(&mut map, &mut fetch, input, url, (!super_).then_some(0));
                 // A refusal in a nested catalog fails the whole.
                 match (fetch.refused, parsed) {
                     (true, _) => return Err(Error::Allocation),
@@ -380,6 +416,15 @@ impl Catalog {
             cache: HashMap::new(),
         };
         Ok(Self { body, fetch, local })
+    }
+
+    /// What libxml2 reports while reading XML catalogs (`xmlCatalogErr`),
+    /// with the URL of the file, in load order: entries lacking an attribute
+    /// or whose URI does not resolve, bad `prefer` values (all skipped or
+    /// ignored, as in libxml2), and loaded files that are not catalogs. At
+    /// most 100 are kept.
+    pub fn diagnostics(&self) -> &[(String, Diagnostic)] {
+        &self.fetch.diagnostics
     }
 
     /// The URI for an external identifier (`xmlACatalogResolve`; with one
@@ -474,6 +519,16 @@ impl Catalog {
                 .filter(|kind| *kind != Kind::Inert)
                 .count(),
             Body::Sgml(map) => usize::from(map.remove(value).is_some()),
+        }
+    }
+
+    /// Whether the root file (XML) or the table (SGML) has no entries
+    /// (`xmlCatalogIsEmpty`). Removed XML entries still count, as in libxml2;
+    /// unlike libxml2, a loaded XML catalog is not empty before its first lookup.
+    pub fn is_empty(&self) -> bool {
+        match &self.body {
+            Body::Xml { files, .. } => files[0].is_empty(),
+            Body::Sgml(map) => map.is_empty(),
         }
     }
 
@@ -783,7 +838,18 @@ impl<'a> Query<'a> {
         }
         let (url, prefer_public) = (entry.url.clone(), entry.prefer_public);
         let child = self.cache.get(&url).copied().or_else(|| {
-            let entries = parse_xml(&self.fetch.get(&url).ok()?, &url, prefer_public).ok()?;
+            let parsed = parse_xml(&self.fetch.get(&url).ok()?, &url, prefer_public);
+            let (entries, found) = match parsed {
+                Ok(parsed) => parsed,
+                Err(Error::NotCatalog) => {
+                    let message = format!("File {url} is not an XML Catalog");
+                    let diagnostic = catalog_error(code::CATALOG_NOT_CATALOG, message, &url, None);
+                    self.fetch.note(&url, vec![diagnostic]);
+                    return None;
+                }
+                Err(_) => return None,
+            };
+            self.fetch.note(&url, found);
             self.files.push(entries);
             self.cache.insert(url, self.files.len() - 1);
             Some(self.files.len() - 1)
@@ -861,17 +927,41 @@ fn base(node: OwnedNode<'_>, document_url: &str) -> Option<String> {
     crate::xpath::tree::base(node.document(), node.id(), Some(document_url))
 }
 
-fn prefer(node: OwnedNode<'_>, inherited: bool) -> bool {
+/// The preference `node` sets, else `inherited`, which a value other than
+/// `public` or `system` keeps with libxml2's report.
+fn prefer(node: OwnedNode<'_>, inherited: bool) -> (bool, Option<Diagnostic>) {
     match property(node, "prefer").as_deref() {
-        Some("public") => true,
-        Some("system") => false,
-        _ => inherited,
+        Some("public") => (true, None),
+        Some("system") => (false, None),
+        Some(value) => {
+            let message = format!("Invalid value for prefer: '{value}'");
+            let diagnostic = catalog_error(code::CATALOG_PREFER_VALUE, message, value, None);
+            (inherited, Some(diagnostic))
+        }
+        None => (inherited, None),
+    }
+}
+
+/// An `xmlCatalogErr` report: domain catalog, level error.
+fn catalog_error(code: u16, message: String, str1: &str, str2: Option<&str>) -> Diagnostic {
+    Diagnostic {
+        domain: Domain::Catalog,
+        code,
+        message,
+        str1: Some(str1.to_owned()),
+        str2: str2.map(str::to_owned),
+        ..Diagnostic::default()
     }
 }
 
 /// `xmlParseXMLCatalogFile`: the entries of an XML catalog, `group`
-/// members flattened in document order.
-fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>, Error> {
+/// members flattened in document order, and the problems libxml2 reports
+/// while reading them (at most [`MAX_DIAGNOSTICS`]).
+fn parse_xml(
+    input: &[u8],
+    url: &str,
+    prefer_public: bool,
+) -> Result<(Vec<Entry>, Vec<Diagnostic>), Error> {
     let document = OwnedDocument::parse_legacy(input, crate::Limits::default()).map_err(
         |error| match error.kind {
             crate::ErrorKind::Allocation => Error::Allocation,
@@ -885,12 +975,28 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>,
     };
     let root = document.root_element();
     if local(root).as_deref() != Some("catalog") {
-        return Err(Error::Malformed);
+        return Err(Error::NotCatalog);
     }
     let document_url = canonic_path(url);
+    let lines = OnceCell::new();
+    let mut found = Vec::new();
+    let mut report = |node: OwnedNode<'_>, diagnostic: Diagnostic| {
+        if found.len() < MAX_DIAGNOSTICS {
+            let lines = lines.get_or_init(|| LineIndex::new(input));
+            found.push(Diagnostic {
+                line: node.line(lines).unwrap_or(0),
+                element: node.name().map(|name| name.local().to_owned()),
+                ..diagnostic
+            });
+        }
+    };
+    let (now, problem) = prefer(root, prefer_public);
+    problem
+        .into_iter()
+        .for_each(|diagnostic| report(root, diagnostic));
     // Elements whose children are entries (the root and nested groups):
     // group number and preference.
-    let mut scopes = HashMap::from([(root.id(), (0, prefer(root, prefer_public)))]);
+    let mut scopes = HashMap::from([(root.id(), (0, now))]);
     let mut entries: Vec<Entry> = Vec::new();
     for node in root.descendants().skip(1) {
         let scope = node.parent().and_then(|parent| scopes.get(&parent.id()));
@@ -898,7 +1004,10 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>,
             continue;
         };
         if element == "group" {
-            let (id, now) = (scopes.len(), prefer(node, prefer_public));
+            let ((now, problem), id) = (prefer(node, prefer_public), scopes.len());
+            problem
+                .into_iter()
+                .for_each(|diagnostic| report(node, diagnostic));
             scopes.try_reserve(1)?;
             scopes.insert(node.id(), (id, now));
             let base = (node.attributes())
@@ -924,14 +1033,25 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>,
         let Some(&(_, kind, name, target)) = ENTRIES.iter().find(|entry| entry.0 == element) else {
             continue;
         };
-        let name = match name {
-            Some(name) => match property(node, name) {
-                Some(value) => Some(value),
-                None => continue,
-            },
-            None => None,
-        };
-        let Some(target) = property(node, target) else {
+        let name = name.map(|attribute| (attribute, property(node, attribute)));
+        let uri = (target, property(node, target));
+        for &(attribute, _) in name
+            .iter()
+            .chain([&uri])
+            .filter(|(_, value)| value.is_none())
+        {
+            let message = format!("{element} entry lacks '{attribute}'");
+            let diagnostic = catalog_error(
+                code::CATALOG_MISSING_ATTR,
+                message,
+                &element,
+                Some(attribute),
+            );
+            report(node, diagnostic);
+        }
+        let (Some(name), Some(target)) =
+            (name.map_or(Some(None), |(_, value)| value.map(Some)), uri.1)
+        else {
             continue;
         };
         let url = match base(node, &document_url) {
@@ -939,6 +1059,11 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>,
             None => Ok(target.clone()),
         };
         let Ok(url) = url else {
+            let message = format!("{element} entry '{}' broken ?: {target}", uri.0);
+            report(
+                node,
+                catalog_error(code::CATALOG_ENTRY_BROKEN, message, &element, Some(uri.0)),
+            );
             continue;
         };
         let name = identifier(kind, name.as_deref());
@@ -960,7 +1085,7 @@ fn parse_xml(input: &[u8], url: &str, prefer_public: bool) -> Result<Vec<Entry>,
             })?;
         }
     }
-    Ok(entries)
+    Ok((entries, found))
 }
 
 /// The name an entry of `kind` stores for `name`: public identifiers are
@@ -1040,21 +1165,26 @@ fn dump_sgml(entry: &Named) -> String {
 
 /// `xmlParseCatalogPI`: the `catalog` pseudo-attribute of an
 /// `oasis-xml-catalog` processing instruction's data (`catalog="URL"`, either
-/// quote), or `None` for a syntax error.
-pub(crate) fn pi_catalog(data: &str) -> Option<&str> {
+/// quote); `Ok(None)` without `=` (ignored), `Err` for libxml2's syntax
+/// warning.
+pub(crate) fn pi_catalog(data: &str) -> Result<Option<&str>, ()> {
     fn after<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
         let rest = text.trim_start_matches(blank_char).strip_prefix(prefix)?;
         Some(rest.trim_start_matches(blank_char))
     }
-    let rest = after(after(data, "catalog")?, "=")?;
-    let quote = rest
-        .chars()
-        .next()
-        .filter(|quote| matches!(quote, '"' | '\''))?;
-    let (url, tail) = rest[1..].split_once(quote)?;
-    tail.trim_start_matches(blank_char)
-        .is_empty()
-        .then_some(url)
+    let rest = after(data, "catalog").ok_or(())?;
+    // libxml2 ignores `catalog` without `=` silently.
+    let Some(rest) = after(rest, "=") else {
+        return Ok(None);
+    };
+    let quote = (rest.chars().next())
+        .filter(|quote| matches!(quote, '"' | '\''))
+        .ok_or(())?;
+    let (url, tail) = rest[1..].split_once(quote).ok_or(())?;
+    match tail.trim_start_matches(blank_char).is_empty() {
+        true => Ok(Some(url)),
+        false => Err(()),
+    }
 }
 
 fn blank_char(c: char) -> bool {
@@ -1108,16 +1238,18 @@ fn sgml_literal(text: &[u8]) -> Option<(String, &[u8])> {
     Some((value.iter().copied().map(char::from).collect(), rest))
 }
 
-/// `xmlParseSGMLCatalog`, loading `CATALOG` entries as `xmlExpandCatalog`
-/// does. `None` is libxml2's -1; entries before the error are kept.
+/// `xmlParseSGMLCatalog`, loading `CATALOG` entries at `depth` as
+/// `xmlExpandCatalog` does, or keeping them unloaded by their written name
+/// when `depth` is `None` (a super catalog). `None` is libxml2's -1; entries
+/// before the error are kept.
 fn parse_sgml(
     map: &mut HashMap<String, Named>,
     fetch: &mut Fetcher,
     input: &[u8],
     file: &str,
-    depth: usize,
+    depth: Option<usize>,
 ) -> Option<()> {
-    if depth > fetch.limits.max_depth {
+    if depth.is_some_and(|depth| depth > fetch.limits.max_depth) {
         return None;
     }
     let mut text = &input[..memchr::memchr(0, input).unwrap_or(input.len())];
@@ -1177,10 +1309,11 @@ fn parse_sgml(
                 if keyword == b"BASE" {
                     base = literal;
                 } else if keyword == b"CATALOG" {
-                    let Some(url) = build(&literal, &base)
-                        .ok()
-                        .filter(|url| !map.contains_key(url))
-                    else {
+                    let key = match depth {
+                        Some(_) => build(&literal, &base).ok(),
+                        None => Some(literal.clone()),
+                    };
+                    let Some(url) = key.filter(|url| !map.contains_key(url)) else {
                         continue;
                     };
                     let named = Named {
@@ -1194,8 +1327,10 @@ fn parse_sgml(
                     }
                     map.insert(url.clone(), named);
                     // Nested failures are ignored, as by xmlExpandCatalog.
-                    if let Ok(nested) = fetch.get(&url) {
-                        parse_sgml(map, fetch, &nested, &url, depth + 1);
+                    if let Some(depth) = depth
+                        && let Ok(nested) = fetch.get(&url)
+                    {
+                        parse_sgml(map, fetch, &nested, &url, Some(depth + 1));
                     }
                 }
             }

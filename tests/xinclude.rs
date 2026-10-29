@@ -603,3 +603,165 @@ fn loading(
         .with_limits(limits)
         .with_resolver(base, resolver)
 }
+
+#[test]
+fn included_entities_merge_like_libxml2() {
+    // Recorded with xmllint --xinclude --loaddtd; libxml2 walks a hash table,
+    // so its order differs, and it writes `&quot;` for a quote.
+    let files: &[(&str, &[u8])] = &[
+        ("ent.xml", b"<!DOCTYPE e [<!NOTATION n SYSTEM 'n'><!ENTITY i 'a&amp;b&#37;c&#38;#38;d'><!ENTITY u SYSTEM 'u.bin' NDATA n><!ENTITY % p 'x'><!ENTITY q '\"'><!ENTITY lt '&#38;#60;'>]><e/>"),
+        ("nest.xml", b"<!DOCTYPE n [<!ENTITY mid 'm'>]><n><xi:include href='ent.xml' xmlns:xi='http://www.w3.org/2001/XInclude'/></n>"),
+        ("s.dtd", b"<!ENTITY ext 'external'>"),
+        ("es.xml", b"<!DOCTYPE e SYSTEM 's.dtd' [<!ENTITY int 'i'>]><e/>"),
+    ];
+    let ent = r#"<!ENTITY i "a&amp;b&#x25;c&#38;#38;d"><!ENTITY u SYSTEM "u.bin" NDATA n><!ENTITY q "&#34;">"#;
+    let body =
+        |content: &str| format!(r#"<r xmlns:xi="http://www.w3.org/2001/XInclude">{content}</r>"#);
+    let cases: &[(&str, String, Result<String, ErrorKind>)] = &[
+        (
+            "general entities, not parameter or predefined ones",
+            include("href='ent.xml'"),
+            Ok(format!("<!DOCTYPE r [{ent}]>{}", body("<e/>"))),
+        ),
+        (
+            "a declared name keeps its declaration",
+            format!(
+                "<!DOCTYPE r [<!ENTITY i 'mine'>]>{}",
+                include("href='ent.xml'")
+            ),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY i 'mine'><!ENTITY u SYSTEM "u.bin" NDATA n><!ENTITY q "&#34;">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "an equal unparsed entity is no mismatch",
+            format!(
+                "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u.bin' NDATA n>]>{}",
+                include("href='ent.xml'")
+            ),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'u.bin' NDATA n><!ENTITY i "a&amp;b&#x25;c&#38;#38;d"><!ENTITY q "&#34;">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "another unparsed entity of that name",
+            format!(
+                "<!DOCTYPE r [<!NOTATION n SYSTEM 'n'><!ENTITY u SYSTEM 'other.bin' NDATA n>]>{}",
+                include("href='ent.xml'")
+            ),
+            Err(ErrorKind::EntityMismatch("u".into())),
+        ),
+        (
+            "an internal entity of that name",
+            format!(
+                "<!DOCTYPE r [<!ENTITY u 'text'>]>{}",
+                include("href='ent.xml'")
+            ),
+            Err(ErrorKind::EntityMismatch("u".into())),
+        ),
+        (
+            "entities of nested inclusions stay in their includer",
+            include("href='nest.xml'"),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY mid "m">]>{}"#,
+                body("<n><e/></n>")
+            )),
+        ),
+        (
+            "the external subset merges unless an identifier matches",
+            include("href='es.xml'"),
+            Ok(format!(
+                r#"<!DOCTYPE r [<!ENTITY int "i">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "a shared external subset is not merged",
+            format!("<!DOCTYPE r SYSTEM 's.dtd'>{}", include("href='es.xml'")),
+            Ok(format!(
+                r#"<!DOCTYPE r SYSTEM "s.dtd" [<!ENTITY int "i">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+    ];
+    for (label, main, expected) in cases {
+        let result = run(main, files).map_err(|error| {
+            assert_eq!(error.uri, "ent.xml", "{label}");
+            error.kind
+        });
+        assert_eq!(&result, expected, "{label}");
+    }
+}
+
+/// `xmlXIncludeProcessNode` on the last element named `at` (`None`: the
+/// document node); results recorded with libxml2 2.15.4.
+#[test]
+fn subtree_inclusions_match_libxml2() {
+    let main = wrap(
+        "<a><xi:include href='plain.xml'/></a><c><xi:include href='plain.xml'/><xi:fallback/></c>\
+         <xi:include href='t.txt' parse='text'/>",
+    );
+    let fallback = Err(ErrorKind::FallbackNotInInclude);
+    let cases: &[(Option<&str>, Result<&str, ErrorKind>)] = &[
+        (
+            Some("a"),
+            Ok(
+                "<a><y><z/></y></a><c><xi:include href=\"plain.xml\"/><xi:fallback/></c><xi:include href=\"t.txt\" parse=\"text\"/>",
+            ),
+        ),
+        (
+            Some("xi:include"),
+            Ok(
+                "<a><xi:include href=\"plain.xml\"/></a><c><xi:include href=\"plain.xml\"/><xi:fallback/></c>a &lt; b &amp; c&#13;\n",
+            ),
+        ),
+        (Some("r"), fallback.clone()),
+        (Some("c"), fallback.clone()),
+        (Some("xi:fallback"), fallback.clone()),
+        (None, fallback),
+    ];
+    let (resolver, _) = memory(FILES);
+    let options = loading(Limits::default(), "main.xml", resolver);
+    let document = OwnedDocument::parse_with(main.as_bytes(), options).unwrap();
+    for (at, expected) in cases {
+        let node = match at {
+            Some(at) => document
+                .nodes()
+                .filter(|n| n.name().is_some_and(|name| name.qualified() == *at))
+                .last(),
+            None => Some(document.root()),
+        };
+        let (resolver, _) = memory(FILES);
+        let result = xinclude::process_node(
+            &document,
+            node.unwrap().id(),
+            "main.xml",
+            resolver,
+            &Options::default(),
+        )
+        .expect("an attached node");
+        let result = result.map(|result| {
+            let mut writer = Writer::new(Vec::new());
+            writer.write_owned_document(&result).unwrap();
+            String::from_utf8(writer.into_inner()).unwrap()
+        });
+        let expected = expected.clone().map(included);
+        assert_eq!(result.map_err(|error| error.kind), expected, "{at:?}");
+    }
+    // A detached or foreign node is not in the tree.
+    let mut edited = document.try_clone().unwrap();
+    let a = edited
+        .nodes()
+        .find(|n| n.name().is_some_and(|name| name.local() == "a"))
+        .unwrap()
+        .id();
+    edited.edit(Default::default()).unwrap().unlink(a).unwrap();
+    for (tree, node) in [(&edited, a), (&edited, document.root().id())] {
+        let (resolver, _) = memory(FILES);
+        assert!(
+            xinclude::process_node(tree, node, "main.xml", resolver, &Options::default()).is_none()
+        );
+    }
+}

@@ -704,7 +704,8 @@ fn syntax_and_lexical_failures_report_the_selected_production_offset() {
         ("<?^1x?>", ErrorKind::InvalidName),
         ("<?p data?>^x", ErrorKind::InvalidDtd),
         ("<?p data?>^ more?>", ErrorKind::InvalidDtd),
-        ("<!DOCTYPE r SYSTEM 'a^#b'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e SYSTEM 'a^#b'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY % e PUBLIC 'p#' 's^#'>", ErrorKind::InvalidDtd),
     ];
     let mut mismatches = Vec::new();
     for (marked_raw, kind) in cases {
@@ -760,6 +761,15 @@ fn public_literals_and_character_references_use_their_distinct_grammars() {
         parse(&notation_raw).view(),
         DtdUnitView::Notation(_)
     ));
+    // libxml2 rejects a fragment only in an entity's system identifier.
+    for raw in [
+        "<!NOTATION n SYSTEM 'a#b'>",
+        "<!NOTATION n PUBLIC 'p' 'a#b'>",
+        "<!DOCTYPE r SYSTEM 'a#b'>",
+        "<!ENTITY e PUBLIC 'p#' 's'>",
+    ] {
+        assert!(DtdUnit::parse(raw, DtdLimits::STANDALONE).is_ok(), "{raw}");
+    }
 
     for invalid in ['[', ']', '&', '<', 'π'] {
         let raw = format!("<!NOTATION n PUBLIC \"a{invalid}b\">");

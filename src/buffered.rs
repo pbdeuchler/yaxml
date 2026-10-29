@@ -92,6 +92,7 @@ impl<R: BufRead> BufferedReader<R> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
         let mut session = StreamingSession::new(limits, decode, flags);
+        session.set_input(&options);
         if let Some(resolver) = options.resolver {
             session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
         }
@@ -123,6 +124,7 @@ impl<R: BufRead> BufferedReader<R> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
         self.session.reset(limits, decode, flags);
+        self.session.set_input(&options);
         if let Some(resolver) = options.resolver {
             self.session
                 .set_resolver(options.base.as_deref().unwrap_or_default(), resolver);

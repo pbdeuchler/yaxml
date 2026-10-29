@@ -135,7 +135,10 @@ pub(super) fn exercise(input: &[u8], flags: u32, control: u8) {
     );
     if let Ok((events, errors)) = &stream {
         assert!(events.len() <= super::event_bound(input.len()));
-        assert!(errors.len() <= 100);
+        assert!(
+            errors.len() <= 103,
+            "100 + the first error clearing each property bit"
+        );
         for error in errors {
             assert!(error.offset <= input.len(), "{error:?} in {input:?}");
             assert!(!matches!(

@@ -48,9 +48,20 @@ fn decode_normalizes_supported_resources_and_rejects_malformed_ones() {
         ),
     ];
     for (input, expected) in cases {
-        assert_eq!(decode(input).as_deref(), expected.as_deref(), "{input:?}");
+        assert_eq!(
+            decode(input, true).as_deref(),
+            expected.as_deref(),
+            "{input:?}"
+        );
     }
-    assert_eq!(decode(&[0xff, 0xfe, b'a']), Err(ErrorKind::InvalidUtf16));
+    assert_eq!(
+        decode(&[0xff, 0xfe, b'a'], true),
+        Err(ErrorKind::InvalidUtf16)
+    );
+    // Only an entity of an XML 1.0 document must be 1.0.
+    let v11 = b"<?xml version='1.1' encoding='UTF-8'?>v";
+    assert_eq!(decode(v11, true), Err(ErrorKind::InvalidDeclaration));
+    assert_eq!(decode(v11, false).as_deref(), Ok("v"));
 }
 
 fn loader(limits: Limits, responses: Vec<io::Result<Option<Vec<u8>>>>) -> Loader {

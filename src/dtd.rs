@@ -292,6 +292,41 @@ impl<'a> DtdUnit<'a> {
         })
     }
 
+    /// Whether the names this unit declares or references are XML 1.0
+    /// Fourth Edition names (`OLD10`; libxml2's `xmlIsNameChar` with
+    /// `XML_PARSE_OLD10`).
+    pub(crate) fn fourth_edition(&self) -> bool {
+        use crate::name::old10_name;
+        let fourth = |name: &str| name.is_ascii() || old10_name(name, false);
+        match self.view() {
+            DtdUnitView::Header(header) => fourth(header.root_name()),
+            DtdUnitView::Element(element) => {
+                let model = match element.content() {
+                    ElementContentView::Mixed(model) | ElementContentView::Children(model) => {
+                        Some(model)
+                    }
+                    _ => None,
+                };
+                fourth(element.name())
+                    && model.into_iter().flatten().all(|token| match token {
+                        ModelTokenView::Name(name) => fourth(name),
+                        _ => true,
+                    })
+            }
+            DtdUnitView::AttributeList(list) => {
+                fourth(list.element_name())
+                    && list.definitions().all(|definition| {
+                        fourth(definition.name())
+                            && definition.values().all(|value| old10_name(value, true))
+                    })
+            }
+            DtdUnitView::Entity(entity) => fourth(entity.name()),
+            DtdUnitView::Notation(notation) => fourth(notation.name()),
+            DtdUnitView::ProcessingInstruction(instruction) => fourth(instruction.target),
+            DtdUnitView::Comment(_) => true,
+        }
+    }
+
     pub(crate) fn view(&self) -> DtdUnitView<'_> {
         match self.shape {
             Shape::Header { external, subset } => DtdUnitView::Header(DoctypeHeaderView {
@@ -509,9 +544,15 @@ pub(crate) enum DefaultDeclarationView<'a> {
 pub(crate) struct AttributeDefinitionView<'a> {
     unit: &'a DtdUnit<'a>,
     meta: &'a AttributeDefinitionMeta,
+    end: usize,
 }
 
 impl<'a> AttributeDefinitionView<'a> {
+    /// Where the definition ends in its unit, past the default.
+    pub(crate) fn end(self) -> usize {
+        self.end
+    }
+
     pub(crate) fn name(self) -> &'a str {
         self.unit.token_text(self.meta.name)
     }
@@ -554,9 +595,11 @@ impl<'a> AttributeListView<'a> {
         unit.tokens
             .iter()
             .filter_map(move |token| match &token.kind {
-                TokenKind::AttributeDefinition(meta) => {
-                    Some(AttributeDefinitionView { unit, meta })
-                }
+                TokenKind::AttributeDefinition(meta) => Some(AttributeDefinitionView {
+                    unit,
+                    meta,
+                    end: token.range.end,
+                }),
                 _ => None,
             })
     }
@@ -901,7 +944,7 @@ impl<'a, 'r> Parser<'a, 'r> {
             let run = match kind {
                 LiteralKind::EntityValue => memchr::memchr3(quote, b'%', b'&', rest),
                 LiteralKind::AttributeValue => memchr::memchr3(quote, b'<', b'&', rest),
-                LiteralKind::SystemIdentifier => memchr::memchr2(quote, b'#', rest),
+                LiteralKind::SystemIdentifier => memchr::memchr(quote, rest),
                 _ => Some(0),
             };
             if let Some(run @ 1..) = run {
@@ -910,9 +953,6 @@ impl<'a, 'r> Parser<'a, 'r> {
             }
             let character = self.remaining().chars().next().expect("byte exists");
             match (kind, byte) {
-                (LiteralKind::SystemIdentifier, b'#') => {
-                    return Err(self.error(ErrorKind::InvalidDtd));
-                }
                 // The closing quote returned above.
                 (LiteralKind::PublicIdentifier, _) if !pubid_char(character) => {
                     return Err(self.error(ErrorKind::InvalidDtd));
@@ -1157,6 +1197,14 @@ impl<'a, 'r> Parser<'a, 'r> {
             (None, false)
         } else {
             let identifier = self.external_identifier(false)?;
+            // xmlParseEntityDecl: "Fragment not allowed" (not for a
+            // DOCTYPE or NOTATION system identifier).
+            if let Some(system) = identifier.system {
+                let range = self.tokens[system].range.clone();
+                if let Some(at) = self.raw[range.clone()].find('#') {
+                    return Err(Error::new(ErrorKind::InvalidDtd, range.start + at));
+                }
+            }
             let ndata = !parameter
                 && !self
                     .remaining()

@@ -78,18 +78,28 @@ fn cursor<R: BufRead>(reader: &TextReader<R>, out: &mut String) {
     write!(out, " {} {}", attributes.0, u8::from(attributes.1)).unwrap();
     let (standalone, default) = (reader.standalone() as i32, reader.is_default());
     write!(out, " {standalone} {}", u8::from(default)).unwrap();
+    let declaration = u8::from(reader.is_namespace_decl());
+    write!(out, " {declaration} {}", reader.quote_char()).unwrap();
+    quoted(out, reader.xml_version());
+    quoted(out, reader.encoding());
 }
 
 /// The helper's dump format, line for line.
 fn describe<R: BufRead>(mut reader: TextReader<R>) -> String {
-    let mut out = String::new();
+    let mut out = String::from("START");
+    quoted(&mut out, reader.xml_version());
+    quoted(&mut out, reader.encoding());
+    out.push('\n');
     loop {
         match reader.read() {
             Ok(true) => {}
             Ok(false) => {
                 let (standalone, consumed) = (reader.standalone() as i32, reader.byte_consumed());
                 let normalization = u8::from(reader.normalization());
-                return out + &format!("END {standalone} {normalization} {consumed}\n");
+                write!(out, "END {standalone} {normalization} {consumed}").unwrap();
+                quoted(&mut out, reader.xml_version());
+                quoted(&mut out, reader.encoding());
+                return out + "\n";
             }
             Err(_) => return out + "ERROR\n",
         }
@@ -215,6 +225,11 @@ const OPTION_CASES: &[(u32, &str)] = &[
     (NOBLANKS | NOENT, "<!DOCTYPE r [<!ENTITY e ' '>]><r><a/>&e;<a/></r>"),
     (NOBLANKS, "<!DOCTYPE r [<!ENTITY e ' '>]><r><a/>&e;<a/></r>"),
     (0, "<r>\n  <a>\n    <b/>\n  </a>\n</r>"),
+    (0, "<?xml version='1.1' encoding='latin1'?><r/>"),
+    (0, "<?xml version='1.5' encoding='utf-8'?><r/>"),
+    (0, "\u{feff}<?xml version='1.0' encoding='ascii'?><r/>"),
+    (0, "\u{feff}<?xml version='1.0' encoding='utf-8'?><r/>"),
+    (0, "\u{feff}<r xmlns='urn:d'/>"),
 ];
 
 /// Runs the helper on every `(flags, input)` and compares full dumps.

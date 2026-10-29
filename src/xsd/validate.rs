@@ -52,13 +52,19 @@ pub(crate) fn schema_locations<T: Tree>(tree: &T) -> Vec<(Option<String>, String
     out
 }
 
-/// Feeds a tree's nodes from its document element to a validator. The ID
+/// Feeds a tree's nodes from `root` (default: the document element) to a
+/// validator, collecting the defaults to create when `create` is set. The ID
 /// attributes the parser recorded are all known before validation starts.
-pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> {
+pub(crate) fn run<T: Tree>(
+    schema: &Schema,
+    tree: &T,
+    root: Option<T::Id>,
+    create: bool,
+) -> Outcome<T::Id> {
     let recorded = tree.ids();
     let mut ids = HashMap::new();
     if ids.try_reserve(recorded.len()).is_err() {
-        return refusal();
+        return (refusal(), Vec::new());
     }
     ids.extend(
         (recorded.iter())
@@ -66,14 +72,24 @@ pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> 
             .map(|(_, value)| (normalize(value, WhiteSpace::Collapse).into_owned(), false)),
     );
     let mut validator = Validator::new(schema, ids);
+    validator.created = create.then(Vec::new);
+    let finish = |mut validator: Validator<T::Id>| {
+        let created = validator
+            .created
+            .take()
+            .filter(|_| !refused(&validator.out));
+        (validator.finish(), created.unwrap_or_default())
+    };
     let node = |id| Node {
         id,
         offset: tree.offset(id),
     };
-    let root = std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
-        .find(|&n| matches!(tree.item(n), Item::Element(_)));
+    let root = root.or_else(|| {
+        std::iter::successors(tree.first_child(tree.root()), |&n| tree.next_sibling(n))
+            .find(|&n| matches!(tree.item(n), Item::Element(_)))
+    });
     let Some(root) = root else {
-        return validator.finish();
+        return finish(validator);
     };
     let mut id = root;
     loop {
@@ -98,7 +114,7 @@ pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> 
                 _ => {}
             }
             if id == root {
-                return validator.finish();
+                return finish(validator);
             }
             if let Some(next) = tree.next_sibling(id) {
                 id = next;
@@ -108,6 +124,17 @@ pub(crate) fn run<T: Tree>(schema: &Schema, tree: &T) -> Vec<Diagnostic<T::Id>> 
         }
     }
 }
+
+/// A default the schema supplies (`XML_SCHEMA_VAL_VC_I_CREATE`): an
+/// attribute (namespace, local name), or with `None` the element's text.
+pub(crate) struct Created<Id> {
+    pub(crate) element: Id,
+    pub(crate) attribute: Option<(Option<Box<str>>, Box<str>)>,
+    pub(crate) value: Box<str>,
+}
+
+/// Diagnostics and the defaults to create.
+pub(crate) type Outcome<Id> = (Vec<Diagnostic<Id>>, Vec<Created<Id>>);
 
 /// An element as diagnostics name it.
 #[derive(Clone, Copy, Debug)]
@@ -188,6 +215,8 @@ pub(crate) struct Validator<Id> {
     text_run: Option<bool>,
     started: bool,
     out: Vec<Diagnostic<Id>>,
+    /// Defaults to create, when asked for.
+    created: Option<Vec<Created<Id>>>,
 }
 
 fn display(local: &str, ns: Option<&str>) -> String {
@@ -241,6 +270,7 @@ impl<Id: Copy> Validator<Id> {
             text_run: None,
             started: false,
             out: Vec::new(),
+            created: None,
         }
     }
 
@@ -268,6 +298,28 @@ impl<Id: Copy> Validator<Id> {
     /// Stops validation for a refused allocation.
     fn refuse(&mut self) {
         self.out = refusal();
+    }
+
+    /// Records a default for the element at `depth`, normalized as `ty`
+    /// (`xmlSchemaNormalizeValue`).
+    fn create(
+        &mut self,
+        depth: usize,
+        attribute: Option<(Option<&str>, &str)>,
+        value: &str,
+        ty: TypeId,
+    ) {
+        let Some(created) = &mut self.created else {
+            return;
+        };
+        let item = Created {
+            element: self.frames[depth].node.id,
+            attribute: attribute.map(|(ns, local)| (ns.map(Into::into), local.into())),
+            value: normalize(value, simple::whitespace(&self.schema.data.types, ty)).into(),
+        };
+        if created.try_push(item).is_err() {
+            self.refuse();
+        }
     }
 
     /// The element at `depth` as messages show it.
@@ -931,6 +983,16 @@ impl<Id: Copy> Validator<Id> {
                 self.engine.pop();
             }
         }
+        let creating = self.created.is_some();
+        for &u in defaults.iter().filter(|_| creating) {
+            let use_ = &complex.attributes[u];
+            let declaration = &schema.data.attributes[use_.decl];
+            let constraint = use_.value.as_ref().or(declaration.value.as_ref());
+            let local = schema.data.names.str(declaration.name.local);
+            let ns = Some(schema.data.names.str(declaration.name.ns)).filter(|ns| !ns.is_empty());
+            let lexical = &constraint.expect("default").lexical;
+            self.create(depth, Some((ns, local)), lexical, declaration.ty);
+        }
         for &u in &defaults {
             if !self.engine.active() {
                 break;
@@ -1170,9 +1232,9 @@ impl<Id: Copy> Validator<Id> {
                     return;
                 }
             }
-            if let Some(st) = simple_type {
-                let lexical = constraint.lexical.clone();
-                self.check_value(depth, st, &lexical);
+            let lexical = constraint.lexical.clone();
+            if simple_type.is_none_or(|st| self.check_value(depth, st, &lexical)) {
+                self.create(depth, None, &lexical, ty);
             }
             return;
         }

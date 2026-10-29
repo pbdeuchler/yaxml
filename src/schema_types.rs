@@ -27,7 +27,7 @@ mod temporal;
 use decimal::Decimal;
 use temporal::{Date, Duration};
 
-const XML_NAMESPACE: &str = "http://www.w3.org/XML/1998/namespace";
+use crate::XML_NAMESPACE;
 
 /// A built-in simple type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -298,6 +298,33 @@ impl Type {
             Type::IdRefs => Some(Type::IdRef),
             Type::Entities => Some(Type::Entity),
             _ => None,
+        }
+    }
+
+    /// Whether facet `name` constrains this primitive type, like
+    /// `xmlSchemaIsBuiltInTypeFacet`: false for derived built-in types.
+    pub fn allows_facet(self, name: &str) -> bool {
+        use Type::*;
+        let bounds = [
+            "maxInclusive",
+            "maxExclusive",
+            "minInclusive",
+            "minExclusive",
+        ];
+        let common = ["pattern", "enumeration", "whiteSpace"];
+        match self {
+            Boolean => ["pattern", "whiteSpace"].contains(&name),
+            String | Notation | QName | AnyUri | Base64Binary | HexBinary => {
+                ["length", "minLength", "maxLength"].contains(&name) || common.contains(&name)
+            }
+            Decimal => {
+                ["totalDigits", "fractionDigits"].contains(&name)
+                    || common.contains(&name)
+                    || bounds.contains(&name)
+            }
+            Time | GDay | GMonth | GMonthDay | GYear | GYearMonth | Date | DateTime | Duration
+            | Float | Double => common.contains(&name) || bounds.contains(&name),
+            _ => false,
         }
     }
 
@@ -674,6 +701,28 @@ fn compare_text(x: &str, xt: Type, y: &str, yt: Type) -> Comparison {
 }
 
 impl Value {
+    /// A string value of `text` as given, libxml2's
+    /// `xmlSchemaNewStringValue` (which accepts only `XML_SCHEMAS_STRING`).
+    pub fn string(text: &str) -> Value {
+        Value {
+            ty: Type::String,
+            data: Data::Text(text.into()),
+        }
+    }
+
+    /// A `QName` or `NOTATION` value, libxml2's `xmlSchemaNewQNameValue`
+    /// and `xmlSchemaNewNOTATIONValue`; `None` for other types. The names
+    /// are taken as given.
+    pub fn qname(ty: Type, namespace: Option<&str>, local: &str) -> Option<Value> {
+        matches!(ty, Type::QName | Type::Notation).then(|| Value {
+            ty,
+            data: Data::QName {
+                namespace: namespace.map(Into::into),
+                local: local.into(),
+            },
+        })
+    }
+
     /// The value's type.
     pub fn ty(&self) -> Type {
         self.ty
@@ -737,6 +786,67 @@ impl Value {
                 (Data::Text(x), Data::Text(y)) => x == y,
                 _ => self.compare(other) == Comparison::Equal,
             }
+    }
+
+    /// The canonical lexical form, libxml2's `xmlSchemaGetCanonValueWhtsp`
+    /// (`xmlSchemaGetCanonValue` with [`WhiteSpace::Preserve`]):
+    /// `whitespace` applies to string and normalizedString values, the
+    /// others are already collapsed. Numbers drop redundant signs and zeros
+    /// (`12.5`, `0.0`, `-3`), floats and doubles take C's `%.14e`
+    /// (`1.50000000000000e+00`, `INF`, `NaN`), booleans `true`/`false`,
+    /// binaries their upper-case hex or base64 alphabet. `None` for list
+    /// types and anySimpleType, which libxml2 answers with `"???"`.
+    pub fn canonical(&self, whitespace: WhiteSpace) -> Option<String> {
+        let exponent = |number: f64| match number {
+            n if n.is_nan() => "NaN".into(),
+            f64::INFINITY => "INF".into(),
+            f64::NEG_INFINITY => "-INF".into(),
+            n => {
+                let text = format!("{n:.14e}");
+                let (mantissa, exponent) = text.split_once('e').unwrap_or((&text, "0"));
+                let exponent: i32 = exponent.parse().unwrap_or(0);
+                let sign = if exponent < 0 { '-' } else { '+' };
+                format!("{mantissa}e{sign}{:02}", exponent.unsigned_abs())
+            }
+        };
+        Some(match &self.data {
+            Data::Text(_) if self.ty.item().is_some() || self.ty == Type::AnySimpleType => {
+                return None;
+            }
+            Data::Text(text) => normalize(text, whitespace).into_owned(),
+            Data::Boolean(b) => b.to_string(),
+            Data::Decimal(d) => d.canonical(self.ty != Type::Decimal),
+            Data::Float(f) => exponent(f64::from(*f)),
+            Data::Double(d) => exponent(*d),
+            Data::Duration(d) => d.canonical(),
+            Data::Date(d) => d.canonical(self.ty),
+            Data::Binary { text, .. } => text.to_string(),
+            Data::QName {
+                namespace: None,
+                local,
+            } => local.to_string(),
+            Data::QName {
+                namespace: Some(namespace),
+                local,
+            } => format!("{{{namespace}}}{local}"),
+        })
+    }
+
+    /// The normalized text of a string, name or anyURI value, libxml2's
+    /// `xmlSchemaValueGetAsString`; `None` for other types.
+    pub fn as_str(&self) -> Option<&str> {
+        match &self.data {
+            Data::Text(text) if self.ty.item().is_none() => Some(text),
+            _ => None,
+        }
+    }
+
+    /// A boolean value, libxml2's `xmlSchemaValueGetAsBoolean`.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self.data {
+            Data::Boolean(b) => Some(b),
+            _ => None,
+        }
     }
 
     /// A hash consistent with [`Value::equals`], for identity-constraint
@@ -875,6 +985,36 @@ impl Facet {
             "fractionDigits" => Facet::FractionDigits(count(Type::NonNegativeInteger)?),
             _ => return Err(FacetError::Unknown),
         })
+    }
+
+    /// The facet's XML Schema element name, as `new` takes it.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Facet::Length(_) => "length",
+            Facet::MinLength(_) => "minLength",
+            Facet::MaxLength(_) => "maxLength",
+            Facet::Pattern(_) => "pattern",
+            Facet::Enumeration(_) => "enumeration",
+            Facet::WhiteSpace(_) => "whiteSpace",
+            Facet::MinInclusive(_) => "minInclusive",
+            Facet::MaxInclusive(_) => "maxInclusive",
+            Facet::MinExclusive(_) => "minExclusive",
+            Facet::MaxExclusive(_) => "maxExclusive",
+            Facet::TotalDigits(_) => "totalDigits",
+            Facet::FractionDigits(_) => "fractionDigits",
+        }
+    }
+
+    /// The value of a length or digits facet, like
+    /// `xmlSchemaGetFacetValueAsULong`; `None` for the other facets.
+    pub fn count(&self) -> Option<u64> {
+        use Facet::*;
+        match self {
+            Length(n) | MinLength(n) | MaxLength(n) | TotalDigits(n) | FractionDigits(n) => {
+                Some(*n)
+            }
+            _ => None,
+        }
     }
 
     /// Whether `value` satisfies the facet; `normalized` is its lexical form

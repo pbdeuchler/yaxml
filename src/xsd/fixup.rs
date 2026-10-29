@@ -18,7 +18,8 @@ use super::parse::{
     AttrItem, Compositor, Drafts, GlobalKind, Loc, Particle, RawFacet, Ref, Shape, Term,
 };
 use super::simple::{self, Scope};
-use super::{Code, Compiled, Error, Limits, Schema};
+use super::{Code, Compiled, Error, Limits, Notes, Schema};
+use crate::{EditLimits, OwnedDocument, OwnedNodeKind};
 
 use super::parse::Table;
 
@@ -88,6 +89,7 @@ fn builtins(names: &mut Names) -> Vec<TypeDef> {
             attributes: Vec::new(),
             wildcard: None,
         }),
+        loc: None,
     }];
     for ty in Type::all() {
         let variety = match ty.item() {
@@ -112,6 +114,7 @@ fn builtins(names: &mut Names) -> Vec<TypeDef> {
                 patterns: Vec::new(),
                 enumeration: None,
             }),
+            loc: None,
         });
     }
     types
@@ -285,7 +288,8 @@ struct Fix {
     notations: HashSet<QName>,
     /// Each derivation step's own facets and whether they are fixed.
     own_facets: HashMap<TypeId, Vec<(&'static str, bool)>>,
-    /// Effective content particles of complex types with element content.
+    /// Effective content particles of complex types with element content
+    /// (libxml2's `subtypes`).
     particles: HashMap<TypeId, Particle>,
     elem_values: Vec<Option<ValueConstraint>>,
     members_of: Vec<Vec<ElemId>>,
@@ -324,6 +328,7 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
                 attributes: Vec::new(),
                 wildcard: None,
             }),
+            loc: Some(draft.loc),
         }));
         let (all, elements, attributes) =
             (types.len(), drafts.elements.len(), drafts.attributes.len());
@@ -360,6 +365,7 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
     let any = fix.new_wildcard(Wildcard {
         ns: NsConstraint::Any,
         process: Process::Lax,
+        loc: None,
     });
     let loc = Loc {
         doc: 0,
@@ -407,7 +413,72 @@ pub(crate) fn build(drafts: Drafts, limits: &Limits) -> Result<Schema, Error> {
         }
     }
     let refusal = fix.d.refusal();
-    fix.finish().map_err(|_| refusal)
+    let Ok(notes) = annotations(&fix.d) else {
+        return Err(refusal);
+    };
+    fix.finish(notes).map_err(|_| refusal)
+}
+
+/// Copies the recorded annotations, each owner's in parse order, under the
+/// root of one document (libxml2 points `annot->content` into the schema
+/// documents, which it keeps).
+fn annotations(d: &Drafts) -> Result<Option<Notes>, ()> {
+    if d.annotations.is_empty() && d.schema_annotation.is_none() {
+        return Ok(None);
+    }
+    // The sources were parsed within the schema limits.
+    const COPY: EditLimits = EditLimits {
+        max_value_bytes: usize::MAX,
+        max_owned_bytes: usize::MAX,
+        max_created_nodes: usize::MAX,
+        max_name_bytes: usize::MAX,
+        max_supplied_bytes: usize::MAX,
+        max_attributes: usize::MAX,
+        max_depth: usize::MAX,
+        max_created_attributes: usize::MAX,
+        max_namespace_work: usize::MAX,
+    };
+    let mut doc = OwnedDocument::parse("<annotations/>").map_err(drop)?;
+    let root = doc.root_element().id();
+    let mut editor = doc.edit(COPY).map_err(drop)?;
+    let mut copy = |at: Loc| {
+        let source = &*d.docs[at.doc].1;
+        let node = editor.import(source, at.node, true).map_err(drop)?;
+        // xmlSchemaCleanupDoc: libxml2 drops blank text (its
+        // `xml:space='preserve'` check asks a text node: always -1),
+        // comments and PIs before reading the schema (NOENT: no entity
+        // references, so both preorders correspond).
+        let copied = editor.document().node(node).ok_or(())?.descendants();
+        let pairs = (source.node(at.node).ok_or(())?.descendants()).zip(copied);
+        let doomed = pairs
+            .filter(|(from, _)| match from.kind() {
+                OwnedNodeKind::Comment | OwnedNodeKind::ProcessingInstruction => true,
+                OwnedNodeKind::Text => (from.text().unwrap_or_default().bytes())
+                    .all(|b| matches!(b, b' ' | b'\t' | b'\n' | b'\r')),
+                _ => false,
+            })
+            .map(|(_, to)| to.id());
+        for gone in crate::fallible::collected(doomed).map_err(drop)? {
+            editor.remove_subtree(gone).map_err(drop)?;
+        }
+        editor.append_child(root, node).map_err(drop)
+    };
+    let schema = d.schema_annotation.map(&mut copy).transpose()?;
+    let mut owners: HashMap<_, Vec<_>> = HashMap::new();
+    owners.try_reserve(d.annotations.len()).map_err(drop)?;
+    for &(owner, kind, at) in &d.annotations {
+        let node = copy(at)?;
+        owners
+            .entry((owner, kind))
+            .or_default()
+            .try_push(node)
+            .map_err(drop)?;
+    }
+    Ok(Some(Notes {
+        doc,
+        owners,
+        schema,
+    }))
 }
 
 impl Fix {
@@ -515,7 +586,7 @@ impl Fix {
                 return self.d.refuse();
             }
             if excluded.contains(&(global.kind, global.id))
-                || !added.insert((global.kind, global.id, global.loc.doc))
+                || !added.insert((global.kind, global.id, global.loc.doc, global.loc.node))
             {
                 continue;
             }
@@ -974,8 +1045,9 @@ impl Fix {
         self.wildcards.len() - 1
     }
 
-    /// Intersects `next` into the complete wildcard, copying the first one
-    /// before changing it.
+    /// Intersects `next` into the complete wildcard, copying a borrowed
+    /// group wildcard before changing it (the owner's own one, `created`,
+    /// changes in place and keeps its annotation).
     fn intersect(
         &mut self,
         complete: &mut Option<WildId>,
@@ -991,7 +1063,10 @@ impl Fix {
         match merged {
             Ok(ns) => {
                 if !*created {
-                    let copy = self.wildcards[current].clone();
+                    let copy = Wildcard {
+                        loc: None,
+                        ..self.wildcards[current].clone()
+                    };
                     *complete = Some(self.new_wildcard(copy));
                     *created = true;
                 }
@@ -1016,7 +1091,7 @@ impl Fix {
         let mut uses = Vec::new();
         let mut prohibitions = Vec::new();
         let mut wildcard = own;
-        let mut created = false;
+        let mut created = own.is_some();
         for item in items {
             match item {
                 AttrItem::Use(use_) => {
@@ -1029,6 +1104,7 @@ impl Fix {
                             lexical: lexical.into(),
                             value: None,
                         }),
+                        loc: use_.loc,
                     });
                 }
                 AttrItem::Prohibit(name, loc, _) => prohibitions.push((*name, *loc)),
@@ -1233,7 +1309,7 @@ impl Fix {
                 if let Some(bad) = draft
                     .facets
                     .iter()
-                    .find(|f| !facet_allowed(primitive, f.kind))
+                    .find(|f| !primitive.allows_facet(f.kind))
                 {
                     let message = format!(
                         "The facet '{}' is not allowed on types derived from the type 'xs:{}'.",
@@ -1371,15 +1447,14 @@ impl Fix {
                 patterns,
                 enumeration,
             }),
+            loc: Some(draft.loc),
         };
         if self.own_facets.try_reserve(1).is_err() {
             return self.d.refuse();
         }
         self.own_facets.insert(
             id,
-            own.iter()
-                .map(|(f, fixed, _)| (facet_name(f), *fixed))
-                .collect(),
+            own.iter().map(|(f, fixed, _)| (f.name(), *fixed)).collect(),
         );
     }
 
@@ -1399,55 +1474,9 @@ enum FacetValue {
     Other(Facet),
 }
 
-fn facet_name(facet: &Facet) -> &'static str {
-    match facet {
-        Facet::Length(_) => "length",
-        Facet::MinLength(_) => "minLength",
-        Facet::MaxLength(_) => "maxLength",
-        Facet::Pattern(_) => "pattern",
-        Facet::Enumeration(_) => "enumeration",
-        Facet::WhiteSpace(_) => "whiteSpace",
-        Facet::MinInclusive(_) => "minInclusive",
-        Facet::MaxInclusive(_) => "maxInclusive",
-        Facet::MinExclusive(_) => "minExclusive",
-        Facet::MaxExclusive(_) => "maxExclusive",
-        Facet::TotalDigits(_) => "totalDigits",
-        Facet::FractionDigits(_) => "fractionDigits",
-    }
-}
-
-/// `xmlSchemaIsBuiltInTypeFacet`.
-fn facet_allowed(primitive: Type, kind: &str) -> bool {
-    use Type::*;
-    let bounds = [
-        "maxInclusive",
-        "maxExclusive",
-        "minInclusive",
-        "minExclusive",
-    ];
-    let common = ["pattern", "enumeration", "whiteSpace"];
-    match primitive {
-        Boolean => ["pattern", "whiteSpace"].contains(&kind),
-        String | Notation | QName | AnyUri | Base64Binary | HexBinary => {
-            ["length", "minLength", "maxLength"].contains(&kind) || common.contains(&kind)
-        }
-        Decimal => {
-            ["totalDigits", "fractionDigits"].contains(&kind)
-                || common.contains(&kind)
-                || bounds.contains(&kind)
-        }
-        Time | GDay | GMonth | GMonthDay | GYear | GYearMonth | Date | DateTime | Duration
-        | Float | Double => common.contains(&kind) || bounds.contains(&kind),
-        _ => false,
-    }
-}
-
 fn compare_facets(a: &Facet, b: &Facet) -> Comparison {
     use Facet::*;
-    let count = |f: &Facet| match f {
-        Length(n) | MinLength(n) | MaxLength(n) | TotalDigits(n) | FractionDigits(n) => Some(*n),
-        _ => None,
-    };
+    let count = Facet::count;
     let value = |f: &Facet| match f {
         MinInclusive(v) | MaxInclusive(v) | MinExclusive(v) | MaxExclusive(v) => Some(v.clone()),
         _ => None,
@@ -1554,7 +1583,7 @@ impl Fix {
         base_fixed: &[&'static str],
         loc: Loc,
     ) -> Vec<Facet> {
-        let find = |set: &[Facet], name: &str| set.iter().find(|f| facet_name(f) == name).cloned();
+        let find = |set: &[Facet], name: &str| set.iter().find(|f| f.name() == name).cloned();
         let own_set: Vec<Facet> = own.iter().map(|(f, ..)| f.clone()).collect();
         let mine = |name: &str| find(&own_set, name);
         let theirs = |name: &str| find(base, name);
@@ -1707,7 +1736,7 @@ impl Fix {
         }
         let mut effective = own_set;
         for facet in base {
-            if !effective.iter().any(|f| facet_name(f) == facet_name(facet)) {
+            if !effective.iter().any(|f| f.name() == facet.name()) {
                 effective.push(facet.clone());
             }
         }
@@ -2010,6 +2039,7 @@ impl Fix {
         self.invalid.push(false);
         self.bases.push(Some(base));
         self.fix_simple(id);
+        self.types[id].loc = None;
         id
     }
 
@@ -2219,6 +2249,7 @@ impl Fix {
                             Ok(ns) => Some(self.new_wildcard(Wildcard {
                                 ns,
                                 process: self.wildcards[own].process,
+                                loc: None,
                             })),
                             Err(()) => {
                                 self.report(
@@ -2248,6 +2279,7 @@ impl Fix {
                 attributes: uses.clone(),
                 wildcard,
             }),
+            loc: Some(draft.loc),
         };
         if errors != self.d.diagnostics.len() {
             return;
@@ -2628,26 +2660,29 @@ impl Fix {
                 Err(TooComplex::Refused) => self.d.refuse(),
             }
         }
+        // Kept for the component views.
+        self.particles = particles;
     }
 
     // ---- assembly ----------------------------------------------------------
 
-    fn finish(self) -> Result<Schema, TryReserveError> {
-        let elements =
-            collected(
-                self.d
-                    .elements
-                    .iter()
-                    .enumerate()
-                    .map(|(e, draft)| ElementDecl {
-                        ty: self.elem_types[e],
-                        nillable: draft.nillable,
-                        abstract_: draft.abstract_,
-                        value: self.elem_values[e].clone(),
-                        block: draft.block,
-                        idcs: draft.idcs.clone(),
-                    }),
-            )?;
+    fn finish(self, notes: Option<Notes>) -> Result<Schema, TryReserveError> {
+        let members = self.members_of;
+        let elements = collected(self.d.elements.iter().zip(members).enumerate().map(
+            |(e, (draft, members))| ElementDecl {
+                name: draft.name,
+                ty: self.elem_types[e],
+                nillable: draft.nillable,
+                abstract_: draft.abstract_,
+                value: self.elem_values[e].clone(),
+                block: draft.block,
+                final_: draft.final_,
+                head: self.elem_heads[e],
+                members,
+                idcs: draft.idcs.clone(),
+                loc: draft.loc,
+            },
+        ))?;
         let attributes =
             collected(
                 self.d
@@ -2658,17 +2693,20 @@ impl Fix {
                         name: draft.name,
                         ty: self.attr_types[a],
                         value: self.attr_values[a].clone(),
+                        loc: draft.loc,
                     }),
             )?;
         let idcs = collected(self.d.idcs.iter().enumerate().map(|(i, draft)| Idc {
             kind: draft.kind,
             name: draft.name,
             selector: draft.selector.clone().unwrap_or_else(|| {
-                crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR)
-                    .expect("pattern")
+                let pattern =
+                    crate::pattern::Pattern::compile(".", &[], crate::pattern::XS_SELECTOR);
+                (".".into(), pattern.expect("pattern"))
             }),
             fields: draft.fields.clone(),
             refer: self.refers[i],
+            loc: draft.loc,
         }))?;
         let pick = |kind: GlobalKind| -> Result<HashMap<QName, usize>, TryReserveError> {
             let globals = (self.table.iter()).filter(|((k, _), _)| *k == kind);
@@ -2677,16 +2715,32 @@ impl Fix {
             picked.extend(globals.map(|((_, name), &id)| (*name, id)));
             Ok(picked)
         };
-        let (global_elements, global_types, global_attributes) = (
+        let (global_elements, global_types, global_attributes, global_attribute_groups) = (
             pick(GlobalKind::Element)?,
             pick(GlobalKind::Type)?,
             pick(GlobalKind::Attribute)?,
+            pick(GlobalKind::AttrGroup)?,
         );
+        let (global_idcs, global_groups) = (pick(GlobalKind::Idc)?, pick(GlobalKind::Group)?);
+        let attribute_groups = collected(self.d.attr_groups.iter().zip(self.group_attrs).map(
+            |(draft, expanded)| {
+                let (uses, wildcard) = expanded.unwrap_or_default();
+                AttrGroup {
+                    name: draft.name,
+                    uses,
+                    wildcard,
+                    loc: draft.loc,
+                }
+            },
+        ))?;
         Ok(Schema {
             data: Arc::new(Compiled {
+                target: self.d.buckets.first().map_or(NO_NS, |bucket| bucket.tns),
                 global_elements,
                 global_types,
                 global_attributes,
+                attribute_groups,
+                global_attribute_groups,
                 notations: self.notations,
                 names: self.d.names,
                 types: self.types,
@@ -2694,9 +2748,14 @@ impl Fix {
                 attributes,
                 wildcards: self.wildcards,
                 idcs,
+                global_idcs,
+                particles: self.particles,
+                groups: self.d.groups,
+                global_groups,
                 warnings: self.d.diagnostics,
                 max_counter_vectors: self.limits.max_counter_vectors,
                 max_idc_keys: self.limits.max_idc_keys,
+                notes,
             }),
         })
     }

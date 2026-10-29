@@ -74,16 +74,31 @@ These are checked to still differ by `harness/tests/xpath_oracle.rs`:
 Not compared, and deliberately different:
 
 - libxml2's `xmlXPathCmpNodes` orders namespace nodes after every other node.
-  yaxml orders them by their element, so unions mixing namespace nodes with
-  other nodes may sort differently.
+  yaxml (evaluation and `xpath::compare`, its port) orders them by their
+  element, after it and before its attributes, so unions mixing namespace
+  nodes with other nodes may sort differently.
+- `XPath::compile_in` applies `Context::with_flags` (`CHECKNS`, `NOVAR`) as
+  `xmlXPathCtxtCompile`, reporting where the parser meets the name test or
+  variable, as libxml2 does; lexical errors (unfinished literal, invalid
+  character, `$` without a name) come first, since the expression is
+  tokenized before it is parsed. `tests/xpath.rs` pins 27 verdicts recorded
+  from libxml2.
+- Lookup callbacks (`Context::with_variable_lookup`, `with_function_lookup`)
+  follow libxml2's order: a variable callback first, then the bound
+  variables, except that an unprefixed variable asks only the callback once
+  one is set (`xmlXPathVariableLookup`); core functions, then the function
+  callback, then registered functions; arguments are evaluated before the
+  prefix and the function are resolved (OP_FUNCTION). `Context::variable`,
+  `call` and `namespace` answer as evaluation does. The function callback
+  is a dispatcher (it calls rather than returns the function). There is no
+  object cache (`xmlXPathContextSetCache`) or error handler (errors are
+  returned); `tests/xpath.rs` pins 27 lookups recorded from libxml2.
 - `namespace::p:x` and `namespace::p:*` select nothing, since namespace nodes
   have a null namespace URI; libxml2 ignores the test's prefix.
 
 ## Gaps
 
-XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`, compile-time namespace checking
-(`XML_XPATH_CHECKNS`) or variable forbidding (`XML_XPATH_NOVAR`). Variable and
-function lookup callbacks are static maps. Extension functions receive their
+XPointer is [`yaxml::xpointer`](xinclude.md). No `xmlXPathOrderDocElems`. Extension functions receive their
 evaluated arguments, not the context node or tree. Entity-reference nodes do
 not exist in the current DOMs.
 

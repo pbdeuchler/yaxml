@@ -67,6 +67,8 @@ pub mod c14n;
 #[cfg(feature = "catalog")]
 pub mod catalog;
 pub mod chars;
+#[cfg(feature = "debug")]
+pub mod debug;
 pub mod diagnostic;
 mod dom;
 mod dtd;
@@ -75,9 +77,11 @@ mod dtd_controller;
 mod dtd_frames;
 mod dtd_scan;
 mod dtd_tag;
-mod encoding;
+pub mod encoding;
 mod error;
 mod escape;
+#[cfg(feature = "sax")]
+pub mod sax;
 // Shared helpers: some are unused when features are off.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
 mod fallible;
@@ -91,6 +95,7 @@ mod owned;
 mod parser;
 #[cfg(feature = "xpath")]
 pub mod pattern;
+pub mod properties;
 mod push;
 mod reader;
 #[cfg(feature = "schemas")]
@@ -118,6 +123,8 @@ mod textwriter;
 mod tokenizer;
 pub mod uri;
 pub mod valid;
+#[cfg(feature = "textreader")]
+mod walker;
 mod writer;
 #[cfg(feature = "xinclude")]
 pub mod xinclude;
@@ -138,7 +145,7 @@ pub mod xsd;
 pub use buffered::BufferedReader;
 pub use diagnostic::{Diagnostic, LineIndex};
 pub use dom::{Document, Node, NodeId, NodeKind};
-pub use encoding::{DecodeLimits, Transcoded};
+pub use encoding::{Converter, Converters, DecodeLimits, Transcoded};
 pub(crate) use error::DtdError;
 pub use error::{
     EditComponent, EditError, EditErrorKind, EditLimit, EditLocation, Error, ErrorKind, Limit,
@@ -160,8 +167,10 @@ pub use textreader::{NodeType, ParserProperty, ReadState, Standalone, TextReader
 #[cfg(feature = "textwriter")]
 pub use textwriter::TextWriter;
 pub use uri::{Uri, UriError};
+#[cfg(feature = "textreader")]
+pub use walker::Walker;
 pub use writer::{Writer, WriterLimits};
-pub use xpath::tree::NamespaceBinding;
+pub use xpath::tree::{NamespaceBinding, XML_NAMESPACE};
 
 mod dtd_reference;
 

@@ -674,3 +674,27 @@ fn attribute_lists_compare_and_convert_between_owned_and_lent() {
         ["1", "2"]
     );
 }
+
+/// `xmlIsXHTML`: any of the three XHTML 1.0 public or system identifiers.
+#[test]
+fn doctype_is_xhtml_by_either_identifier() {
+    #[rustfmt::skip]
+    let cases = [
+        ("<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'other.dtd'>", true),
+        ("<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Frameset//EN' 'x'>", true),
+        ("<!DOCTYPE html SYSTEM 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>", true),
+        ("<!DOCTYPE html PUBLIC 'other' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd'>", true),
+        ("<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.1//EN' 'xhtml11.dtd'>", false),
+        ("<!DOCTYPE html PUBLIC '-//w3c//dtd xhtml 1.0 strict//en' 'x'>", false),
+        ("<!DOCTYPE html>", false),
+    ];
+    for (doctype, expected) in cases {
+        let input = format!("{doctype}<html/>");
+        let document = yaxml::Document::parse(&input).unwrap();
+        assert_eq!(
+            document.doctype().unwrap().is_xhtml(),
+            expected,
+            "{doctype}"
+        );
+    }
+}

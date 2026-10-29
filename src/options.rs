@@ -28,8 +28,10 @@
 //! ```
 
 use std::fmt;
+use std::sync::Arc;
 
-use crate::{DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
+use crate::encoding::Handler;
+use crate::{Converters, DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
 /// `XML_PARSE_RECOVER`: build what is parsable of a malformed document, as
 /// libxml2 does (DOMs only).
@@ -67,9 +69,9 @@ pub const DTDVALID: u32 = 1 << 4;
 pub const NOERROR: u32 = 1 << 5;
 /// `XML_PARSE_NOWARNING`: accepted; yaxml returns warnings and never prints them.
 pub const NOWARNING: u32 = 1 << 6;
-/// `XML_PARSE_PEDANTIC`: accepted; it only adds printed warnings in libxml2
-/// (default-on warnings are kept in `errors()` without it; pedantic ones are
-/// not raised).
+/// `XML_PARSE_PEDANTIC`: also keep libxml2's pedantic warnings in `errors()`
+/// (a malformed `xml:lang`, a redefined entity, a relative URI in a prefixed
+/// namespace declaration); default-on warnings are kept without it.
 pub const PEDANTIC: u32 = 1 << 7;
 /// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs and `TextReader`), with
 /// libxml2's `areBlanks` rules.
@@ -92,7 +94,8 @@ pub const NOCDATA: u32 = 1 << 14;
 pub const NOXINCNODE: u32 = 1 << 15;
 /// `XML_PARSE_COMPACT`: accepted; storage layout is not configurable.
 pub const COMPACT: u32 = 1 << 16;
-/// `XML_PARSE_OLD10`: pre-Fifth-Edition name rules; not implemented, rejected.
+/// `XML_PARSE_OLD10`: XML 1.0 Fourth Edition name rules, and a version
+/// other than 1.0 is fatal (docs/compatibility.md#option-compatibility).
 pub const OLD10: u32 = 1 << 17;
 /// `XML_PARSE_NOBASEFIX`: no `xml:base` fixup of XInclude results.
 pub const NOBASEFIX: u32 = 1 << 18;
@@ -109,7 +112,8 @@ pub const BIG_LINES: u32 = 1 << 22;
 /// `XML_PARSE_NO_XXE`: never load the external subset or external entities,
 /// even with a resolver.
 pub const NO_XXE: u32 = 1 << 23;
-/// `XML_PARSE_UNZIP`: input decompression; not implemented, rejected.
+/// `XML_PARSE_UNZIP`: accepted with no effect, as in libxml2 built without
+/// zlib ([`Feature::Zlib`](crate::features::Feature::Zlib) is false).
 pub const UNZIP: u32 = 1 << 24;
 /// `XML_PARSE_NO_SYS_CATALOG`: accepted; there is never a system catalog.
 pub const NO_SYS_CATALOG: u32 = 1 << 25;
@@ -127,14 +131,17 @@ pub const LEGACY: u32 = NOENT | DTDATTR;
 
 /// Flags with no implementation on any surface, or whose implementation
 /// is compiled out (cargo features `xinclude`, `catalog`).
-const NEVER: u32 = OLD10
-    | OLDSAX
-    | UNZIP
+const NEVER: u32 = OLDSAX
     | (XINCLUDE * !cfg!(feature = "xinclude") as u32)
     | (CATALOG_PI * !cfg!(feature = "catalog") as u32);
 /// Flags only a tree can implement.
 const TREE_ONLY: u32 = DTDVALID | XINCLUDE;
 const KNOWN: u32 = (1 << 28) - 1;
+/// Crate-private, set after `check`: DTD defaults are appended as under
+/// `DTDATTR`, without its loading and error effects (libxml2 passes them to
+/// every SAX2 handler).
+#[cfg(feature = "sax")]
+pub(crate) const SAX_DEFAULTS: u32 = 1 << 31;
 
 /// Parser flags, resource ceilings and the resource loader.
 ///
@@ -153,9 +160,18 @@ pub struct ParseOptions {
     /// request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`) and
     /// never with `NO_XXE`.
     pub resolver: Option<Box<dyn Resolver>>,
+    /// Input converters for declared charsets without a built-in table
+    /// ([`Converters`], `xmlCtxtSetCharEncConvImpl`); unused under `IGNORE_ENC`.
+    pub converters: Option<Arc<dyn Converters>>,
+    /// Decodes the document as this charset whatever its byte order mark,
+    /// signature or declaration says (the `encoding` argument of
+    /// `xmlCtxtReadMemory`, `xmlSwitchEncodingName`); a mark it decodes to
+    /// U+FEFF is skipped. External entities are still detected. Borrowed
+    /// surfaces take it through [`Transcoded`](crate::Transcoded).
+    pub encoding: Option<Handler>,
 }
 
-setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>> });
+setters!(fn ParseOptions { flags: u32, limits: Limits, decode_limits: DecodeLimits, base: Option<String>, resolver: Option<Box<dyn Resolver>>, converters: Option<Arc<dyn Converters>>, encoding: Option<Handler> });
 
 impl Default for ParseOptions {
     fn default() -> Self {
@@ -171,6 +187,8 @@ impl fmt::Debug for ParseOptions {
             .field("decode_limits", &self.decode_limits)
             .field("base", &self.base)
             .field("resolver", &self.resolver.as_ref().map(|_| ".."))
+            .field("converters", &self.converters.as_ref().map(|_| ".."))
+            .field("encoding", &self.encoding.as_ref().map(Handler::name))
             .finish()
     }
 }
@@ -183,6 +201,8 @@ impl ParseOptions {
         decode_limits: DecodeLimits::DEFAULT,
         base: None,
         resolver: None,
+        converters: None,
+        encoding: None,
     };
 
     /// Default options with `flags` set.
@@ -219,6 +239,13 @@ impl ParseOptions {
     /// Whether any bit of `flag` is set.
     pub fn has(&self, flag: u32) -> bool {
         self.flags & flag != 0
+    }
+
+    /// The converters input decoding uses: none under `IGNORE_ENC` or a
+    /// forced encoding.
+    pub(crate) fn input_converters(&self) -> Option<Arc<dyn Converters>> {
+        let unused = self.has(IGNORE_ENC) || self.encoding.is_some();
+        self.converters.clone().filter(|_| !unused)
     }
 
     /// The ceilings in effect, after [`HUGE`] raises them.
@@ -271,6 +298,9 @@ impl Flags {
     }
 
     pub(crate) fn default_attributes(self) -> bool {
+        #[cfg(feature = "sax")]
+        return self.has(DTDATTR | SAX_DEFAULTS);
+        #[cfg(not(feature = "sax"))]
         self.has(DTDATTR)
     }
 
@@ -296,6 +326,14 @@ impl Flags {
 
     pub(crate) fn recovers(self) -> bool {
         self.has(RECOVER)
+    }
+
+    pub(crate) fn pedantic(self) -> bool {
+        self.has(PEDANTIC)
+    }
+
+    pub(crate) fn old10(self) -> bool {
+        self.has(OLD10)
     }
 
     pub(crate) fn validates(self) -> bool {

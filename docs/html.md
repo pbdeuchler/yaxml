@@ -12,6 +12,8 @@ the WHATWG tree builder.
 | yaxml | libxml2 |
 | --- | --- |
 | `html::parse(bytes, Options) -> Result<Parsed, Error>` | `htmlReadMemory` / `htmlCtxtReadMemory` |
+| `html::create(uri, public_id) -> Result<OwnedDocument, Error>` | `htmlNewDocNoDtD`: rootless, an `html` DOCTYPE only when an id is given; `htmlNewDoc(NULL, NULL)` = the HTML 4.0 Transitional ids. Build it with the [editor](owned-dom.md): `append_child` on the document adopts the first element (e.g. an `Editor::import`ed one) |
+| `html::meta_encoding(&document)`, `html::set_meta_encoding(&mut editor, encoding) -> Result<bool, EditError>` | `htmlGetMetaEncoding` (the charset alone; libxml2 returns the attribute value from the charset on, e.g. `latin1; x`), `htmlSetMetaEncoding` (`false` = no `head`; every declaring `<meta>` in the head rewritten, blanks around the old charset kept, `HTML` written as `ASCII`; else `<meta charset>` becomes the head's first child) |
 | `html::PushParser::{new, feed, finish}` | `htmlCreatePushParserCtxt`, `htmlParseChunk` |
 | `html::parse_events(bytes, Options, handler) -> Result<Summary, Error>` | `htmlNewSAXParserCtxt` + `htmlCtxtReadMemory` with custom SAX callbacks |
 | `html::EventParser::{new, feed, finish}` | `htmlCreatePushParserCtxt` with custom SAX callbacks |
@@ -19,6 +21,7 @@ the WHATWG tree builder.
 | `Diagnostic::{describe, render}` with `LineIndex::html(input, &document)` or `Summary::line_index(input)` | `xmlError` (`describe`), `xmlFormatError`'s report as `xmllint --html` prints it (`render`) |
 | `OwnedNode::line(&LineIndex::html(input, &document))` on an HTML node | `xmlGetLineNo` |
 | `html::to_html(&OwnedDocument)` | `htmlDocDumpMemory` (formatted, `<meta>` untouched) |
+| `html::dump_node(OwnedNode, format)` | `htmlNodeDump` (format), `htmlNodeDumpFormatOutput` and `htmlDocContentDumpFormatOutput` without a converter: the subtree in UTF-8, `<meta>` untouched |
 | `html::save(&OwnedDocument, format)` | `xmlSaveDoc` on an HTML document, as `xmllint --html [--format]` prints |
 | `Parsed { document, diagnostics, stopped }` | `ctxt->myDoc`, reported errors, `XML_ERR_RESOURCE_LIMIT` halt |
 | `OwnedDocument::{is_html, doctype, html_encoding}` | `XML_DOC_HTML`, `doc->intSubset`, `doc->encoding` |
@@ -159,6 +162,18 @@ in text or a value runs libxml2's prescan (`HTTP-EQUIV` ... `CONTENT` ...
 `CHARSET=`, up to the first NUL) and otherwise falls back to windows-1252.
 Tag names before that point are read as UTF-8. Invalid UTF-8 bytes become
 U+FFFD one byte at a time, as `htmlValidateUtf8` does.
+
+`Options::encoding` is `htmlCtxtReadMemory`'s `encoding` argument (every
+surface but `parse_fragment`, which takes the context's encoding): the
+handler's own charset decodes the input, so US-ASCII and ISO-8859-1 are not
+read as windows-1252, and neither a BOM nor a `<meta>` switches it; a mark
+is skipped only when it decodes to U+FEFF (a UTF-8 BOM under Latin-1 is
+three characters of text, a reversed UTF-16 mark is U+FFFE).
+`html_encoding()` is the handler's name. EBCDIC and UCS-4 handlers fail
+with `UnsupportedEncoding` (libxml2 converts them only through iconv); an
+unknown label fails at `Handler::open`, where libxml2 warns and sniffs
+(`tests/html.rs` `forced_encodings_match_html_ctxt_read_memory`, pinned
+against libxml2 2.15.4).
 
 Multi-byte converters are not implemented, deliberately: the pinned oracle is
 built without iconv, ICU and ISO8859X, and libxml2's `defaultHandlers` then
@@ -304,5 +319,7 @@ head is empty, so per-subtree output differs
 - Warnings for unusable prescan labels are not reported.
 - A DOCTYPE in a fragment is dropped; libxml2 replaces the context document's
   DOCTYPE only in its prolog state, which content parsing never is.
-- `htmlCtxtReset` and node-info recording (`HTML_PARSE_*` record_info) are
+- `htmlCtxtReset` is `PushParser::reset`, which builds a fresh parser with the
+  same options (nothing recycled); `EventParser` has none (its handler moves
+  into the parser): build a new one. Node-info recording (`record_info`) is
   not implemented.

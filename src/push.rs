@@ -77,6 +77,7 @@ impl PushParser {
         options: ParseOptions,
     ) -> Self {
         let mut session = StreamingSession::new(limits, decode, flags);
+        session.set_input(&options);
         if let Some(resolver) = options.resolver {
             session.set_resolver(options.base.as_deref().unwrap_or_default(), resolver);
         }
@@ -102,6 +103,7 @@ impl PushParser {
         let (limits, decode) = options.effective_limits();
         self.session.reset(limits, decode, flags);
         self.blanks = flags.drops_blanks().then(Box::default);
+        self.session.set_input(&options);
         if let Some(resolver) = options.resolver {
             self.session
                 .set_resolver(options.base.as_deref().unwrap_or_default(), resolver);

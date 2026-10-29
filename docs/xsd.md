@@ -34,6 +34,12 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   keeps the rest.
 - `Schema::validate(&tree)` returns `Vec<Diagnostic<Id>>` (code, element id,
   source offset, message); `xsd::is_valid` ignores warnings.
+  `Schema::validate_element(&tree, id)` validates one subtree as the
+  validation root (`xmlSchemaValidateOneElement`; `None` for a non-element).
+  `Schema::validate_creating(&mut editor)` validates an `OwnedDocument` and
+  then adds the schema's defaults to it (`XML_SCHEMA_VAL_VC_I_CREATE`): absent
+  attributes with a default or fixed value, normalized by their type, and the
+  default value of each empty, non-nilled element as a text child.
 - `Schema::validate_stream(input, options)` parses a `BufRead` with
   `BufferedReader` and validates in the same pass (`xmlSchemaValidateStream`).
   `StreamValidator::new(&schema)` (no lifetime: `Schema` clones share one `Arc` of compiled data) takes each `Event` and its `SourceOrigin`
@@ -42,6 +48,64 @@ assert_eq!(diagnostics[0].code, Code::CvcDatatypeValid1_2_1);
   `validate`'s for the parsed tree, with `node` the element's index in
   document order. Default and fixed values are checked and feed identity
   constraints but are never inserted, in both modes.
+
+## Components
+
+`Schema::element(ns, name)`, `attribute`, `type_definition` (also finds the
+built-in types) and the sorted lists `elements()`, `attributes()`,
+`type_definitions()` (global types only) are read-only views of the compiled
+components, `schemasInternals.h`'s `xmlSchemaElement`, `xmlSchemaAttribute`
+and `xmlSchemaType`. Imported components are found by the same lookups.
+`TypeDefinition` gives the name, base, derivation method, `final`/`block`
+sets, abstractness, and either the simple variety (atomic, list item, union
+members) or the complex content type with its effective attribute uses
+(inherited ones included, prohibited ones dropped) and attribute wildcard.
+A simple type also gives its whitespace handling (`None` for a union, as
+libxml2 sets no flag), its effective facets (`facetSet`: inherited
+length, bound, digit and `whiteSpace` facets included, as typed
+`schema_types::Facet` values, not lexical) and this derivation step's
+patterns; enumerations have no view. `notations()` lists the global
+notation declarations as sorted (namespace, name) pairs: libxml2 keeps
+neither public nor system identifier (`identifier` is never set).
+`ElementDeclaration` gives the type, nillable, abstract, `block`, `final`,
+value constraint, substitution group head and the declarations that may
+substitute for it (non-abstract ones its `block` and their types admit,
+transitively: non-empty is libxml2's `XML_SCHEMAS_ELEM_SUBST_GROUP_HEAD`;
+libxml2 keeps the member list private, so only the flag is compared); `AttributeUse::value` is the use's own constraint, not the
+declaration's, as in libxml2. tests/xsd_components.rs prints them in the line
+format of harness/tooling/libxml2_xsd_components.c, which walks libxml2's
+hash tables; with `YAXML_XSD_COMPONENTS_HELPER` the ignored test compares all
+123 libxml2 `test/schemas` schemas that both build. Differences: a union
+derived by restriction lists its base's member types (libxml2 leaves
+`memberTypes` empty), and wildcard namespace sets are sorted, absent
+namespace first (libxml2 keeps document order). `attribute_group`/`attribute_groups` give each global attribute group's
+uses and wildcard with group references expanded (libxml2's `attrUses` and
+intersected `attributeWildcard`). `ElementDeclaration::identity_constraints`
+lists an element's key, keyref and unique constraints in document order
+(`idcs`: kind, name, selector and field XPaths as written, a keyref's
+`refer`), and `Schema::identity_constraint` finds one by name (`idcDef`).
+`TypeDefinition::particle` is a complex type's content particle as libxml2
+builds it (`subtypes`: a group reference's term is the referenced model
+group, an extension's particle a sequence of its base's and its own,
+`maxOccurs="0"` particles and empty groups kept), with `Particle`, `Term`
+(element, `Wildcard`, `ModelGroup`) and `Compositor`; `model_group`/
+`model_groups` give the global `xs:group` definitions (`groupDecl`).
+`annotations()` on each component (`Annotations`, libxml2's `annot`
+chain) yields its `xs:annotation` elements, copied under one synthetic
+`<annotations/>` document; the copies lose the schema's ancestors and,
+as libxml2's `xmlSchemaCleanupDoc` does before parsing, blank text
+(even under `xml:space="preserve"`), comments and PIs. Owners follow
+libxml2: annotations of `restriction`/`extension`/`simpleContent`/
+`complexContent`/`list`/`union` chain into the enclosing type, of
+`selector`/`field` into the IDC; a local attribute's goes to its use, a
+global one's to the declaration; an element or group reference's to the
+particle, a declaration's to the declaration; a compositor's to the model
+group; `any` to the particle, `anyAttribute` to the wildcard (an owner's
+complete wildcard keeps its own annotation; a built one has none).
+`Schema::annotation` is the first top-level one (`_xmlSchema.annot`).
+Not exposed: enumerations, facet annotations and `version` (libxml2
+never sets `_xmlSchema.version`). `Schema::target_namespace` is the main
+document's.
 
 ## Pipeline
 
@@ -100,6 +164,12 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
 
 ## Differences
 
+- **Created namespaced defaults.** With `XML_SCHEMA_VAL_VC_I_CREATE`,
+  libxml2 gives a qualified default attribute the innermost declaration of
+  its URI even when that is the default namespace, so the saved attribute is
+  unqualified. `validate_creating` takes the innermost *prefixed* binding,
+  else declares `p0`, `p1`, ... on the document element as libxml2 does when
+  none is in scope.
 - **Counter quirks, deliberately not reproduced.** libxml2's epsilon
   reduction lets a counted repetition inside a nullable loop, such as
   `(x{2,3})*`, end below `minOccurs`, so it accepts an invalid instance; yaxml
@@ -122,6 +192,9 @@ keyrefs). Circularity checks are linear; include/import cycles load each documen
   126 MB for 2,000 of them and 170 s and 468 MB for 4,000, both accepted;
   yaxml compiles up to 1,741 (0.35 s, 132 MB resident) and rejects longer
   ones within about 115 MB.
+- A schema with nothing to fix up (only notation declarations) never fills
+  libxml2's global tables, so it has no `notaDecl` and repeated notation
+  names pass; yaxml registers and checks them as in every other schema.
 - `xml:base` in schema documents is ignored when resolving locations;
   attribute-use value constraints are not checked against the declaration's,
   as in libxml2.

@@ -800,17 +800,11 @@ fn single_byte_doctypes_decode_before_entity_processing() {
 
 #[test]
 fn declaration_token_and_default_ceilings_fail_identically() {
-    use ErrorKind::{InvalidDtd, LimitExceeded};
+    use ErrorKind::LimitExceeded;
     let d = Limits::default();
     let long_reference = format!("<!DOCTYPE r [<!ENTITY a 'x'>]><r>&{};</r>", "a".repeat(40));
     let long_value = format!("<!DOCTYPE r [<!ENTITY e '{}'>]><r/>", "x".repeat(40));
     let cases: &[(&str, Limits, ErrorKind, usize)] = &[
-        (
-            "<!DOCTYPE r [<!ENTITY lt SYSTEM 'x'>]><r/>",
-            d,
-            InvalidDtd,
-            13,
-        ),
         (
             "<!DOCTYPE r [<!ATTLIST r a CDATA 'x'><!ATTLIST r b CDATA 'y'>]><r/>",
             d.max_attributes(1),

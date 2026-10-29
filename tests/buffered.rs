@@ -541,6 +541,10 @@ fn unsupported_signatures_and_repeated_transport_boms_are_not_ignored() {
         [0, 0, b'<', 0],
         [0, b'<', 0, 0],
     ] {
+        // The `encodings` feature decodes the UCS-4 `<` signatures (tests/encodings.rs).
+        if cfg!(feature = "encodings") && matches!(bytes, [0, 0, 0, b'<'] | [b'<', 0, 0, 0]) {
+            continue;
+        }
         for boundary in 0..=bytes.len() {
             let mut reader = BufferedReader::new(Window::new(&bytes, 1, boundary));
             assert_eq!(

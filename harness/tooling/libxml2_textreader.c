@@ -4,11 +4,14 @@
  * Reads FILE with xmlReaderForFile(FILE, NULL, FLAGS | NONET) (FLAGS is a
  * decimal XML_PARSE_* mask, default NOENT | DTDATTR) and prints one line per
  * node (see tests/textreader_oracle.rs for the format): cursor properties
- * (with Standalone and IsDefault), every attribute through
+ * (with Standalone, IsDefault, IsNamespaceDecl, QuoteChar, XmlVersion and
+ * Encoding), every attribute through
  * MoveToNextAttribute and the nodes of its value through ReadAttributeValue,
  * indexed and named attribute lookups, then ReadString/ReadInnerXml/
- * ReadOuterXml except on DocumentType and EndElement nodes. A final END line
- * has Standalone, Normalization and ByteConsumed after the last node.
+ * ReadOuterXml except on DocumentType and EndElement nodes. A first START line
+ * has XmlVersion and Encoding before any read; a final END line has
+ * Standalone, Normalization, ByteConsumed, XmlVersion and Encoding after the
+ * last node.
  * Strings are C-escaped inside quotes; NULL is "~". A failed read prints ERROR. */
 #include <libxml/xmlreader.h>
 #include <stdio.h>
@@ -45,6 +48,9 @@ static void cursor(xmlTextReaderPtr r) {
     str(xmlTextReaderConstValue(r));
     printf(" %d %d", xmlTextReaderAttributeCount(r), xmlTextReaderHasAttributes(r));
     printf(" %d %d", xmlTextReaderStandalone(r), xmlTextReaderIsDefault(r));
+    printf(" %d %c", xmlTextReaderIsNamespaceDecl(r), xmlTextReaderQuoteChar(r));
+    str(xmlTextReaderConstXmlVersion(r));
+    str(xmlTextReaderConstEncoding(r));
 }
 
 int main(int argc, char **argv) {
@@ -54,6 +60,10 @@ int main(int argc, char **argv) {
         flags | XML_PARSE_NONET | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
     if (r == NULL) return 1;
     int ret;
+    fputs("START", stdout);
+    str(xmlTextReaderConstXmlVersion(r));
+    str(xmlTextReaderConstEncoding(r));
+    putchar('\n');
     while ((ret = xmlTextReaderRead(r)) == 1) {
         cursor(r);
         owned(xmlTextReaderBaseUri(r));
@@ -106,8 +116,13 @@ int main(int argc, char **argv) {
         putchar('\n');
     }
     if (ret != 0) puts("ERROR");
-    else printf("END %d %d %ld\n", xmlTextReaderStandalone(r), xmlTextReaderNormalization(r),
-                xmlTextReaderByteConsumed(r));
+    else {
+        printf("END %d %d %ld", xmlTextReaderStandalone(r), xmlTextReaderNormalization(r),
+               xmlTextReaderByteConsumed(r));
+        str(xmlTextReaderConstXmlVersion(r));
+        str(xmlTextReaderConstEncoding(r));
+        putchar('\n');
+    }
     xmlFreeTextReader(r);
     return 0;
 }

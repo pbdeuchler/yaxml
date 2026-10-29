@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use yaxml::valid::{
     self, AttributeDefault, AttributeKind, ContentKind, Dtd, Entity, EntityKind, Notation,
 };
-use yaxml::{Document, OwnedDocument, ParseOptions, Request, Resolver, options, save};
+use yaxml::{
+    Document, EditErrorKind, EditLimits, ErrorKind, OwnedDocument, ParseOptions, Request, Resolver,
+    options, save,
+};
 
 const SUBSET: &str = r#"<!DOCTYPE r SYSTEM "ext.dtd" [
 <!NOTATION gif PUBLIC "-//GIF//EN" "viewer">
@@ -374,6 +377,17 @@ fn loaded_dtds_expose_their_declarations() {
 }
 
 #[test]
+fn detached_declarations_come_from_markup() {
+    // xmlNewDtd(NULL, ..): an empty DTD; xmlNewEntity(NULL, ..): one entity.
+    let empty = Dtd::parse(b"").unwrap();
+    assert_eq!(empty.entities().count(), 0);
+    assert!(empty.name().is_none());
+    let one = Dtd::parse(b"<!ENTITY e 'x'>").unwrap();
+    assert_eq!(one.entity("e").map(|e| e.content), Some(Some("x")));
+    assert!(one.entity("f").is_none());
+}
+
+#[test]
 fn predefined_entities() {
     let cases: [(&str, Option<&str>); 7] = [
         ("lt", Some("<")),
@@ -387,6 +401,7 @@ fn predefined_entities() {
     for (name, content) in cases {
         let entity = valid::predefined_entity(name);
         assert_eq!(entity.and_then(|e| e.content), content, "{name}");
+        assert_eq!(entity.and_then(|e| e.original), content, "{name}");
         assert!(entity.is_none_or(|e| e.kind == EntityKind::Predefined && e.name == name));
     }
 }
@@ -464,5 +479,483 @@ fn encoders_follow_xml_escape_text() {
     ];
     for (text, expected) in special {
         assert_eq!(save::encode_special_chars(text), expected, "{text:?}");
+    }
+}
+
+#[test]
+fn values_match_libxml2_name_validators() {
+    use yaxml::valid::value_matches;
+    // (value, xmlValidateNameValue, NamesValue, NmtokenValue, NmtokensValue)
+    // as libxml2 2.15.4 returns them.
+    for (value, name, names, nmtoken, nmtokens) in [
+        ("", false, false, false, false),
+        ("a", true, true, true, true),
+        ("1a", false, false, true, true),
+        ("a b", false, true, false, true),
+        ("a  b", false, true, false, true),
+        (" a", false, false, false, true),
+        ("a ", false, false, false, true),
+        ("a\tb", false, false, false, false),
+        ("\ta", false, false, false, true),
+        ("a:b", true, true, true, true),
+        ("-x", false, false, true, true),
+        ("x-1.y", true, true, true, true),
+        ("é", true, true, true, true),
+        ("a b ", false, false, false, true),
+        (".5", false, false, true, true),
+        ("1 2", false, false, false, true),
+    ] {
+        let found = [
+            AttributeKind::Id,
+            AttributeKind::IdRefs,
+            AttributeKind::NmToken,
+            AttributeKind::NmTokens,
+        ]
+        .map(|kind| value_matches(kind, value));
+        assert_eq!(found, [name, names, nmtoken, nmtokens], "{value:?}");
+        assert!(value_matches(AttributeKind::Cdata, value), "{value:?}");
+    }
+}
+
+fn saved(document: &OwnedDocument) -> String {
+    String::from_utf8(save::to_vec(document, &save::Options::default()).unwrap()).unwrap()
+}
+
+#[test]
+fn editors_add_declarations_after_the_documents() {
+    // Outputs of xmlCreateIntSubset/xmlAddDocEntity/xmlAddNotationDecl and
+    // xmlDocDumpMemory in libxml2 2.15.4 (the DOCTYPE takes the qualified name).
+    let cases = [
+        // xmlCreateIntSubset: a DOCTYPE named after the document element.
+        (
+            "<p:r xmlns:p='u'/>",
+            "<!ENTITY e 'v'>",
+            "<!DOCTYPE p:r [\n<!ENTITY e \"v\">\n]>\n<p:r xmlns:p=\"u\"/>\n",
+        ),
+        // The first declaration of a name wins; new ones follow.
+        (
+            "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>",
+            "<!ENTITY a 'y'><!ENTITY b 'z'>",
+            "<!DOCTYPE r [\n<!ENTITY a \"x\">\n<!ENTITY b \"z\">\n]>\n<r/>\n",
+        ),
+        // Parameter entities declared before expand.
+        (
+            "<!DOCTYPE r [<!ENTITY % p '<!ELEMENT r EMPTY>'>]><r/>",
+            "%p;<!ATTLIST r a CDATA 'd'>",
+            "<!DOCTYPE r [\n<!ENTITY % p \"<!ELEMENT r EMPTY>\">\n<!ELEMENT r EMPTY>\n<!ATTLIST r a CDATA \"d\">\n]>\n<r/>\n",
+        ),
+        (
+            "<?pi?><!--c--><r/>",
+            "<!NOTATION n SYSTEM 'n'>",
+            "<?pi?>\n<!--c-->\n<!DOCTYPE r [\n<!NOTATION n SYSTEM \"n\" >\n]>\n<r/>\n",
+        ),
+    ];
+    for (input, markup, expected) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let mut editor = document.edit(EditLimits::default()).unwrap();
+        editor.add_declarations(markup).unwrap();
+        let expected = format!("<?xml version=\"1.0\"?>\n{expected}");
+        assert_eq!(saved(&document), expected, "{markup}");
+    }
+}
+
+#[test]
+fn added_declarations_type_and_validate_later_edits() {
+    let mut document = OwnedDocument::parse("<r><a id='x'/>t</r>").unwrap();
+    let root = document.root_element().id();
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    editor
+        .add_declarations("<!ELEMENT r (a)*><!ELEMENT a EMPTY><!ATTLIST a id ID #IMPLIED>")
+        .unwrap();
+    assert!(editor.document().is_id("a", "id"));
+    assert!(!editor.document().is_id("r", "id"));
+    assert!(editor.document().is_id("r", "xml:id"));
+    // As in libxml2, the attribute already in the tree is not retyped.
+    assert!(editor.document().element_by_id("x").is_none());
+    let a = editor.document().root_element().first_child().unwrap().id();
+    editor.remove_attribute(a, None, "id").unwrap();
+    let name = yaxml::NameSpec {
+        local: "id",
+        namespace: None,
+        prefix: yaxml::PrefixPolicy::Automatic,
+    };
+    editor.set_attribute(a, name, "y").unwrap();
+    assert_eq!(
+        editor.document().element_by_id("y").map(|n| n.id()),
+        Some(a)
+    );
+    let codes: Vec<_> = document.validate().iter().map(|d| d.code).collect();
+    assert_eq!(codes.len(), 1, "text in element content of {root:?}");
+}
+
+#[test]
+fn malformed_or_misplaced_declarations_change_nothing() {
+    let parse = |kind| EditErrorKind::Parse(kind);
+    let cases = [
+        (
+            "<r/>",
+            "<!ENTITY a>",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            Some(10),
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>]><x/>",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ELEMENT r EMPTY",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>",
+            "&a;",
+            EditLimits::default(),
+            parse(ErrorKind::InvalidDtd),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>",
+            EditLimits::DEFAULT.max_created_nodes(0),
+            EditErrorKind::LimitExceeded(yaxml::EditLimit::CreatedNodes),
+            None,
+        ),
+        (
+            "<r/>",
+            "<!ENTITY a 'x'>",
+            EditLimits::DEFAULT.max_value_bytes(4),
+            EditErrorKind::LimitExceeded(yaxml::EditLimit::ValueBytes),
+            None,
+        ),
+    ];
+    for (input, markup, limits, kind, offset) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let before = saved(&document);
+        let mut editor = document.edit(limits).unwrap();
+        let error = editor.add_declarations(markup).unwrap_err();
+        assert_eq!(error.kind, kind, "{markup}");
+        if offset.is_some() {
+            assert_eq!(error.value_offset, offset, "{markup}");
+        }
+        assert_eq!(saved(&document), before, "{markup}");
+    }
+}
+
+/// A DTD edit, as a test case applies it.
+#[derive(Clone, Copy, Debug)]
+enum DtdEdit {
+    Replace(&'static str),
+    Remove,
+    Ids(Option<&'static str>, Option<&'static str>),
+}
+
+fn apply(document: &mut OwnedDocument, edit: DtdEdit) -> Result<(), EditErrorKind> {
+    let mut editor = document.edit(EditLimits::default()).unwrap();
+    match edit {
+        DtdEdit::Replace(markup) => editor.set_internal_subset(markup),
+        DtdEdit::Remove => editor.remove_doctype(),
+        DtdEdit::Ids(public, system) => editor.set_doctype_ids(public, system),
+    }
+    .map_err(|error| error.kind)
+}
+
+#[test]
+fn editors_replace_and_remove_the_internal_subset() {
+    // Outputs of libxml2 2.15.4 after freeing the declaration nodes and
+    // xmlAddDocEntity, setting ExternalID/SystemID, or unlinking intSubset.
+    let input = "<!DOCTYPE r SYSTEM 'r.dtd' [<!ENTITY a 'x'><!ELEMENT r EMPTY>]><r/>";
+    let cases = [
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY b 'y'>"),
+            "<!DOCTYPE r SYSTEM \"r.dtd\" [\n<!ENTITY b \"y\">\n]>\n<r/>\n",
+        ),
+        // A name declared before is redefined.
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY a 'z'>"),
+            "<!DOCTYPE r SYSTEM \"r.dtd\" [\n<!ENTITY a \"z\">\n]>\n<r/>\n",
+        ),
+        (
+            input,
+            DtdEdit::Replace(""),
+            "<!DOCTYPE r SYSTEM \"r.dtd\">\n<r/>\n",
+        ),
+        (
+            "<r/>",
+            DtdEdit::Replace("<!ELEMENT r EMPTY>"),
+            "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n<r/>\n",
+        ),
+        (input, DtdEdit::Remove, "<r/>\n"),
+        (
+            input,
+            DtdEdit::Ids(Some("-//P//EN"), Some("r.dtd")),
+            "<!DOCTYPE r PUBLIC \"-//P//EN\" \"r.dtd\" [\n<!ENTITY a \"x\">\n<!ELEMENT r EMPTY>\n]>\n<r/>\n",
+        ),
+        (
+            "<!DOCTYPE r PUBLIC '-//P//EN' 'r.dtd'><r/>",
+            DtdEdit::Ids(None, Some("it's.dtd")),
+            "<!DOCTYPE r SYSTEM \"it's.dtd\">\n<r/>\n",
+        ),
+        (
+            "<!DOCTYPE r SYSTEM 'r.dtd'><r/>",
+            DtdEdit::Ids(None, None),
+            "<!DOCTYPE r>\n<r/>\n",
+        ),
+    ];
+    for (input, edit, expected) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        apply(&mut document, edit).unwrap();
+        let expected = format!("<?xml version=\"1.0\"?>\n{expected}");
+        assert_eq!(saved(&document), expected, "{edit:?}");
+    }
+    let mut document = OwnedDocument::parse(input).unwrap();
+    apply(&mut document, DtdEdit::Replace("<!ENTITY b 'y'>")).unwrap();
+    let dtd = document.dtd().unwrap();
+    assert!(dtd.entity("a").is_none() && dtd.element("r").is_none());
+    apply(&mut document, DtdEdit::Remove).unwrap();
+    assert!(document.dtd().is_none() && document.doctype().is_none());
+}
+
+#[test]
+fn invalid_predefined_redeclarations_are_dropped_with_a_warning() {
+    use yaxml::Warning;
+    // (subset, `lt`'s stored content, warnings, saved subset), from xmllint
+    // 2.15.4: XML 1.0 section 4.6 allows only the character or its
+    // reference, double-escaped for `lt` and `amp`.
+    let cases: [(&str, Option<&str>, usize, &str); 6] = [
+        ("<!ENTITY lt \"x\">", None, 1, ">"),
+        ("<!ENTITY lt SYSTEM \"x.ent\">", None, 1, ">"),
+        ("<!ENTITY lt \"<\">", None, 1, ">"),
+        (
+            "<!ENTITY lt \"&#38;#60;\">",
+            Some("&#60;"),
+            0,
+            " [\n<!ENTITY lt \"&#38;#60;\">\n]>",
+        ),
+        (
+            "<!ENTITY lt \"x\"><!ENTITY lt \"&#38;#x3C;\">",
+            Some("&#x3C;"),
+            1,
+            " [\n<!ENTITY lt \"&#38;#x3C;\">\n]>",
+        ),
+        (
+            "<!ENTITY % lt \"x\">",
+            None,
+            0,
+            " [\n<!ENTITY % lt \"x\">\n]>",
+        ),
+    ];
+    for (subset, content, warnings, saved_subset) in cases {
+        let input = format!("<!DOCTYPE r [{subset}]><r>&lt;</r>");
+        let document = OwnedDocument::parse(&input).unwrap();
+        let entity = document.dtd().unwrap().entity("lt").unwrap();
+        let stored = (entity.kind != EntityKind::Predefined).then_some(entity.content);
+        assert_eq!(stored, content.map(Some), "{subset}");
+        let kinds: Vec<_> = document.errors().iter().map(|error| error.kind).collect();
+        let warning = ErrorKind::Warning(Warning::PredefinedEntity);
+        assert_eq!(kinds, vec![warning; warnings], "{subset}");
+        let expected = format!("<?xml version=\"1.0\"?>\n<!DOCTYPE r{saved_subset}\n<r>&lt;</r>\n");
+        assert_eq!(saved(&document), expected, "{subset}");
+        // An editor drops it the same way, without an error.
+        let mut edited = OwnedDocument::parse("<!DOCTYPE r><r>&lt;</r>").unwrap();
+        apply(&mut edited, DtdEdit::Replace(subset)).unwrap();
+        assert_eq!(saved(&edited), expected, "edited {subset}");
+    }
+}
+
+#[test]
+fn external_subset_declarations_outlive_internal_edits() {
+    let input = "<!DOCTYPE r SYSTEM 'ext.dtd' [<!ENTITY outside 'in'><!ENTITY gone 'g'>]><r/>";
+    let cases: [(DtdEdit, Option<&str>, bool); 3] = [
+        (
+            DtdEdit::Replace("<!ENTITY outside 'new'>"),
+            Some("new"),
+            true,
+        ),
+        // The external declaration the internal one shadowed was dropped at
+        // parse time (libxml2 keeps it in extSubset).
+        (DtdEdit::Replace(""), None, true),
+        (DtdEdit::Remove, None, false),
+    ];
+    for (edit, outside, doctype) in cases {
+        let options = options(options::DTDLOAD);
+        let mut document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+        assert_eq!(
+            document.dtd().unwrap().entity("outside").unwrap().content,
+            Some("in")
+        );
+        apply(&mut document, edit).unwrap();
+        let dtd = document.dtd().unwrap();
+        let found = dtd.entity("outside").and_then(|entity| entity.content);
+        assert_eq!(found, outside, "{edit:?}");
+        assert!(dtd.entity("gone").is_none(), "{edit:?}");
+        assert_eq!(dtd.entity("other").unwrap().content, Some("ignored"));
+        assert_eq!(dtd.element("d").map(|d| d.kind), Some(ContentKind::Empty));
+        assert_eq!(document.doctype().is_some(), doctype, "{edit:?}");
+    }
+}
+
+#[test]
+fn rejected_dtd_edits_change_nothing() {
+    let input = "<!DOCTYPE r [<!ENTITY a 'x'>]><r/>";
+    let cases = [
+        (
+            input,
+            DtdEdit::Replace("<!ENTITY b>"),
+            EditErrorKind::Parse(ErrorKind::InvalidDtd),
+        ),
+        (
+            input,
+            DtdEdit::Replace("&a;"),
+            EditErrorKind::Parse(ErrorKind::InvalidDtd),
+        ),
+        ("<r/>", DtdEdit::Remove, EditErrorKind::WrongNodeKind),
+        (
+            "<r/>",
+            DtdEdit::Ids(None, Some("s")),
+            EditErrorKind::WrongNodeKind,
+        ),
+        (
+            input,
+            DtdEdit::Ids(Some("p"), None),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(Some("p\"q"), Some("s")),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(None, Some("'\"")),
+            EditErrorKind::InvalidValue,
+        ),
+        (
+            input,
+            DtdEdit::Ids(None, Some("\u{1}")),
+            EditErrorKind::InvalidCharacter,
+        ),
+    ];
+    for (input, edit, kind) in cases {
+        let mut document = OwnedDocument::parse(input).unwrap();
+        let before = saved(&document);
+        assert_eq!(apply(&mut document, edit), Err(kind), "{edit:?}");
+        assert_eq!(saved(&document), before, "{edit:?}");
+    }
+}
+
+#[test]
+fn external_attribute_lists_and_notations_survive_a_replaced_subset() {
+    let ext = "<!NOTATION n SYSTEM 'n'><!ATTLIST d x CDATA '1'><!ELEMENT d EMPTY>";
+    let resolver = move |_: Request<'_>| Ok(Some(ext.as_bytes().to_vec()));
+    let options = ParseOptions::new(options::DTDLOAD).with_resolver("doc.xml", Box::new(resolver));
+    let input = "<!DOCTYPE r SYSTEM 'ext.dtd' [<!ATTLIST d y CDATA 'i'><!ELEMENT d ANY>]><r/>";
+    let mut document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+    apply(&mut document, DtdEdit::Replace("<!ATTLIST d z CDATA 'n'>")).unwrap();
+    let dtd = document.dtd().unwrap();
+    let d = dtd.element("d").unwrap();
+    let names: Vec<_> = d.attributes().map(|attribute| attribute.name).collect();
+    // The external <!ELEMENT d> lost to the internal one when read.
+    assert_eq!((d.kind, names), (ContentKind::Undefined, vec!["z", "x"]));
+    assert!(dtd.notation("n").is_some());
+}
+
+/// `Entity::original` is libxml2's `orig` (`xmlGetDocEntity(..)->orig` and
+/// `xmlGetParameterEntity`, libxml2 2.15.4): the literal of the first
+/// declaration, references unexpanded; none for external entities.
+#[test]
+fn originals_are_libxml2_orig() {
+    const INTERNAL: &str = r#"<!DOCTYPE r [<!ENTITY % p "x&#37;"><!ENTITY e "a&#60;&f;z">
+<!ENTITY f "plain"><!ENTITY f "second&#60;"><!ENTITY lt "&#38;#60;">
+<!ENTITY % d "<!ENTITY g 'in&#38;#38;pe'>">%d;<!ENTITY u SYSTEM "u.xml"><!ENTITY ee "">]><r/>"#;
+    const EXTERNAL: &str =
+        "<!ENTITY % q 'Q&#60;'><!ENTITY ex 'ext&#38;&#60;%q;'><!ENTITY ok 'same'>";
+    type Expected<'a> = &'a [(&'a str, Option<&'a str>, Option<&'a str>)];
+    let cases: [(&str, u32, Expected); 2] = [
+        (
+            INTERNAL,
+            0,
+            &[
+                ("e", Some("a&#60;&f;z"), Some("a<&f;z")),
+                ("f", Some("plain"), Some("plain")),
+                ("%p", Some("x&#37;"), Some("x%")),
+                ("lt", Some("&#38;#60;"), Some("&#60;")),
+                ("g", Some("in&#38;pe"), Some("in&pe")),
+                ("u", None, None),
+                ("ee", Some(""), Some("")),
+                ("amp", Some("&"), Some("&")),
+                (
+                    "%d",
+                    Some("<!ENTITY g 'in&#38;#38;pe'>"),
+                    Some("<!ENTITY g 'in&#38;pe'>"),
+                ),
+                ("missing", None, None),
+            ],
+        ),
+        (
+            r#"<!DOCTYPE r SYSTEM "ext.dtd"><r/>"#,
+            options::DTDLOAD,
+            &[
+                ("%q", Some("Q&#60;"), Some("Q<")),
+                ("ex", Some("ext&#38;&#60;%q;"), Some("ext&<Q<")),
+                ("ok", Some("same"), Some("same")),
+            ],
+        ),
+    ];
+    for (input, flags, expected) in cases {
+        let resolver = move |request: Request<'_>| {
+            Ok((request.uri == "dir/ext.dtd").then(|| EXTERNAL.as_bytes().to_vec()))
+        };
+        let options = ParseOptions::new(flags).with_resolver("dir/doc.xml", Box::new(resolver));
+        let document = OwnedDocument::parse_with(input.as_bytes(), options).unwrap();
+        let dtd = document.dtd().unwrap();
+        for &(name, original, content) in expected {
+            let entity = match name.strip_prefix('%') {
+                Some(name) => dtd.parameter_entity(name),
+                None => dtd.entity(name),
+            };
+            let found = entity.map_or((None, None), |e| (e.original, e.content));
+            assert_eq!(found, (original, content), "{name}");
+        }
+    }
+}
+
+#[test]
+fn notation_tables_print_as_libxml2_dumps_them() {
+    // xmlDumpNotationTable output from libxml2 2.15.4 (its hash order
+    // happens to match declaration order here).
+    let cases = [
+        (
+            "<!NOTATION a SYSTEM 'x.gif'>",
+            "<!NOTATION a SYSTEM \"x.gif\" >\n",
+        ),
+        ("<!NOTATION a PUBLIC 'p'>", "<!NOTATION a PUBLIC \"p\" >\n"),
+        (
+            "<!NOTATION a PUBLIC 'p' \"s'q\">",
+            "<!NOTATION a PUBLIC \"p\" \"s'q\" >\n",
+        ),
+        (
+            "<!NOTATION a SYSTEM '\"&amp;'>",
+            "<!NOTATION a SYSTEM '\"&amp;' >\n",
+        ),
+        (
+            "<!NOTATION b SYSTEM 'b'><!NOTATION a SYSTEM 'a'><!NOTATION b SYSTEM 'c'>",
+            "<!NOTATION b SYSTEM \"b\" >\n<!NOTATION a SYSTEM \"a\" >\n",
+        ),
+        ("", ""),
+    ];
+    for (subset, expected) in cases {
+        let input = format!("<!DOCTYPE r [{subset}]><r/>");
+        let document = OwnedDocument::parse(&input).unwrap();
+        let table = save::notation_table(document.dtd().unwrap());
+        assert_eq!(table.as_deref(), Ok(expected), "{subset}");
     }
 }

@@ -41,22 +41,40 @@ pub enum Domain {
     Parser = 1,
     /// `XML_FROM_NAMESPACE`.
     Namespace = 3,
+    /// `XML_FROM_DTD`.
+    Dtd = 4,
     /// `XML_FROM_HTML`.
     Html = 5,
+    /// `XML_FROM_OUTPUT`.
+    Output = 7,
     /// `XML_FROM_IO`.
     Io = 8,
     /// `XML_FROM_XINCLUDE`.
     XInclude = 11,
     /// `XML_FROM_XPATH`.
     XPath = 12,
+    /// `XML_FROM_XPOINTER`.
+    XPointer = 13,
+    /// `XML_FROM_REGEXP`.
+    Regexp = 14,
+    /// `XML_FROM_DATATYPE`.
+    Datatype = 15,
     /// `XML_FROM_SCHEMASP`.
     SchemasParser = 16,
     /// `XML_FROM_SCHEMASV`.
     SchemasValidity = 17,
+    /// `XML_FROM_RELAXNGP`.
+    RelaxNgParser = 18,
     /// `XML_FROM_RELAXNGV`.
     RelaxNgValidity = 19,
+    /// `XML_FROM_CATALOG`.
+    Catalog = 20,
+    /// `XML_FROM_C14N`.
+    C14n = 21,
     /// `XML_FROM_VALID`.
     Valid = 23,
+    /// `XML_FROM_WRITER`.
+    Writer = 25,
     /// `XML_FROM_SCHEMATRONV`.
     SchematronValidity = 28,
 }
@@ -94,6 +112,9 @@ pub struct Diagnostic {
     pub str1: Option<String>,
     /// libxml2's second string argument (`xmlError.str2`).
     pub str2: Option<String>,
+    /// libxml2's third string argument (`xmlError.str3`): only the element
+    /// of an undefined attribute prefix (`XML_NS_ERR_UNDEFINED_NAMESPACE`).
+    pub str3: Option<String>,
     /// libxml2's integer argument (`xmlError.int1`), such as a line.
     pub int1: i64,
     /// Local name of the element `xmlError.node` names, which
@@ -189,6 +210,8 @@ pub mod code {
     pub const CDATA_NOT_FINISHED: u16 = 63;
     /// `XML_ERR_RESERVED_XML_NAME`.
     pub const RESERVED_XML_NAME: u16 = 64;
+    /// `XML_ERR_REDECL_PREDEF_ENTITY`.
+    pub const REDECL_PREDEF_ENTITY: u16 = 117;
     /// `XML_ERR_SPACE_REQUIRED`.
     pub const SPACE_REQUIRED: u16 = 65;
     /// `XML_ERR_SEPARATOR_REQUIRED`.
@@ -223,10 +246,22 @@ pub mod code {
     pub const ENTITY_PE_INTERNAL: u16 = 88;
     /// `XML_ERR_ENTITY_LOOP`.
     pub const ENTITY_LOOP: u16 = 89;
+    /// `XML_WAR_CATALOG_PI`.
+    pub const WAR_CATALOG_PI: u16 = 93;
     /// `XML_ERR_VERSION_MISSING`.
     pub const VERSION_MISSING: u16 = 96;
     /// `XML_WAR_UNKNOWN_VERSION`.
     pub const WAR_UNKNOWN_VERSION: u16 = 97;
+    /// `XML_WAR_LANG_VALUE`.
+    pub const WAR_LANG_VALUE: u16 = 98;
+    /// `XML_CATALOG_MISSING_ATTR`: an entry lacks its identifier or URI.
+    pub const CATALOG_MISSING_ATTR: u16 = 1650;
+    /// `XML_CATALOG_ENTRY_BROKEN`: an entry's URI does not resolve.
+    pub const CATALOG_ENTRY_BROKEN: u16 = 1651;
+    /// `XML_CATALOG_PREFER_VALUE`: `prefer` is neither `public` nor `system`.
+    pub const CATALOG_PREFER_VALUE: u16 = 1652;
+    /// `XML_CATALOG_NOT_CATALOG`: the root is not an OASIS `catalog`.
+    pub const CATALOG_NOT_CATALOG: u16 = 1653;
     /// `XML_WAR_NS_URI`.
     pub const WAR_NS_URI: u16 = 99;
     /// `XML_WAR_NS_URI_RELATIVE`.
@@ -235,6 +270,8 @@ pub mod code {
     pub const WAR_SPACE_VALUE: u16 = 102;
     /// `XML_ERR_NOTATION_PROCESSING`.
     pub const NOTATION_PROCESSING: u16 = 105;
+    /// `XML_WAR_ENTITY_REDEFINED`.
+    pub const WAR_ENTITY_REDEFINED: u16 = 107;
     /// `XML_ERR_UNKNOWN_VERSION`.
     pub const UNKNOWN_VERSION: u16 = 108;
     /// `XML_ERR_USER_STOP`.
@@ -257,6 +294,10 @@ pub mod code {
     pub const NS_ATTRIBUTE_REDEFINED: u16 = 203;
     /// `XML_NS_ERR_COLON`.
     pub const NS_COLON: u16 = 205;
+    /// `XML_DTD_XMLID_VALUE`, raised by the parser.
+    pub const DTD_XMLID_VALUE: u16 = 539;
+    /// `XML_DTD_XMLID_TYPE`, raised by the parser.
+    pub const DTD_XMLID_TYPE: u16 = 540;
     /// `XML_HTML_STRUCURE_ERROR`.
     pub const HTML_STRUCTURE_ERROR: u16 = 800;
     /// `XML_IO_LOAD_ERROR`.
@@ -266,6 +307,75 @@ pub mod code {
 }
 
 use code::*;
+
+/// libxml2's `xmlIOErr` code (`XML_IO_*`, domain I/O, level error) for an
+/// I/O failure, such as a [`ReadError::Io`](crate::ReadError::Io) or a
+/// resolver's error: by its OS error number where no [`std::io::ErrorKind`]
+/// tells it apart (`EPERM`, `EBADF`, ...), else by its kind;
+/// `XML_IO_UNKNOWN` (1500) for anything libxml2 does not name.
+///
+/// ```
+/// use std::io::{Error, ErrorKind};
+/// assert_eq!(yaxml::diagnostic::io_code(&Error::from(ErrorKind::NotFound)), 1524);
+/// assert_eq!(yaxml::diagnostic::io_code(&Error::other("refused")), 1500);
+/// ```
+pub fn io_code(error: &std::io::Error) -> u16 {
+    use std::io::ErrorKind as K;
+    // (errno, code); numbers 1-34 are the same on Linux and Apple systems.
+    #[rustfmt::skip]
+    const SHARED: [(i32, u16); 14] = [
+        (1, 1535), (3, 1540), (5, 1516), (6, 1534), (8, 1525), (9, 1503), (10, 1507),
+        (14, 1511), (19, 1523), (23, 1522), (24, 1518), (25, 1533), (33, 1509), (34, 1537),
+    ];
+    // ENOLCK, EBADMSG, ECANCELED, ENOTSUP, EALREADY, ENOTSOCK, EMSGSIZE,
+    // EAFNOSUPPORT, EISCONN, EINPROGRESS.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[rustfmt::skip]
+    const PLATFORM: [(i32, u16); 10] = [
+        (37, 1526), (74, 1504), (125, 1506), (95, 1532), (114, 1555),
+        (88, 1550), (90, 1520), (97, 1556), (106, 1551), (115, 1513),
+    ];
+    #[cfg(target_vendor = "apple")]
+    #[rustfmt::skip]
+    const PLATFORM: [(i32, u16); 10] = [
+        (77, 1526), (94, 1504), (89, 1506), (45, 1532), (37, 1555),
+        (38, 1550), (40, 1520), (47, 1556), (56, 1551), (36, 1513),
+    ];
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    const PLATFORM: [(i32, u16); 0] = [];
+    let errno = error.raw_os_error().filter(|_| cfg!(unix));
+    let named = errno.and_then(|errno| {
+        (SHARED.iter().chain(&PLATFORM)).find_map(|&(n, code)| (n == errno).then_some(code))
+    });
+    named.unwrap_or(match error.kind() {
+        K::PermissionDenied => 1501,
+        K::WouldBlock => 1502,
+        K::ResourceBusy => 1505,
+        K::Deadlock => 1508,
+        K::AlreadyExists => 1510,
+        K::FileTooLarge => 1512,
+        K::Interrupted => 1514,
+        K::InvalidInput => 1515,
+        K::IsADirectory => 1517,
+        K::TooManyLinks => 1519,
+        K::InvalidFilename => 1521,
+        K::NotFound => 1524,
+        K::OutOfMemory => 1527,
+        K::StorageFull => 1528,
+        K::Unsupported => 1529,
+        K::NotADirectory => 1530,
+        K::DirectoryNotEmpty => 1531,
+        K::BrokenPipe => 1536,
+        K::ReadOnlyFilesystem => 1538,
+        K::NotSeekable => 1539,
+        K::TimedOut => 1541,
+        K::CrossesDevices => 1542,
+        K::ConnectionRefused => 1552,
+        K::NetworkUnreachable => 1553,
+        K::AddrInUse => 1554,
+        _ => 1500,
+    })
+}
 
 /// The domain and level libxml2 raises a parser code with.
 const fn raised(code: u16) -> (Domain, Level) {
@@ -289,9 +399,18 @@ impl Warning {
             Self::ReservedTarget => (RESERVED_XML_NAME, Domain::Parser),
             Self::EncodingMismatch => (WAR_ENCODING_MISMATCH, Domain::Parser),
             Self::UndeclaredEntity { .. } => (WAR_UNDECLARED_ENTITY, Domain::Parser),
+            Self::PredefinedEntity => (REDECL_PREDEF_ENTITY, Domain::Parser),
+            Self::XmlIdValue => (DTD_XMLID_VALUE, Domain::Parser),
+            Self::XmlIdType => (DTD_XMLID_TYPE, Domain::Parser),
+            Self::LangValue => (WAR_LANG_VALUE, Domain::Parser),
+            Self::EntityRedefined => (WAR_ENTITY_REDEFINED, Domain::Parser),
+            Self::CatalogPi => (WAR_CATALOG_PI, Domain::Parser),
         };
         let level = match self {
-            Self::NamespaceUri | Self::UndeclaredEntity { error: true } => Level::Error,
+            Self::NamespaceUri
+            | Self::UndeclaredEntity { error: true }
+            | Self::XmlIdValue
+            | Self::XmlIdType => Level::Error,
             _ => Level::Warning,
         };
         (code, domain, level)
@@ -366,8 +485,16 @@ pub struct LineIndex<'s> {
 /// The decoders of transcoded input.
 #[derive(Clone, Copy)]
 enum Decoder {
-    Utf16 { big: bool },
+    Utf16 {
+        big: bool,
+    },
     Byte(&'static [u16; 128]),
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ucs4 {
+        big: bool,
+    },
+    #[cfg_attr(not(feature = "encodings"), allow(dead_code))]
+    Ebcdic(&'static [u16; 256]),
 }
 
 impl Decoder {
@@ -399,6 +526,20 @@ impl Decoder {
                 let c = char::decode_utf16(units).next()?.ok();
                 Some((replaced(c), 2 * c.map_or(1, char::len_utf16)))
             }
+            Self::Ucs4 { big } => {
+                let unit = *bytes.first_chunk::<4>()?;
+                let c = if big {
+                    u32::from_be_bytes(unit)
+                } else {
+                    u32::from_le_bytes(unit)
+                };
+                Some((replaced(char::from_u32(c)), 4))
+            }
+            Self::Ebcdic(table) => {
+                let &b = bytes.first()?;
+                let c = char::from_u32(table[usize::from(b)].into());
+                Some((replaced(c.filter(|&c| c != '\0' || b == 0)), 1))
+            }
         }
     }
 }
@@ -406,12 +547,21 @@ impl Decoder {
 impl<'s> LineIndex<'s> {
     /// Indexes `input`, the bytes that were parsed.
     pub fn new(input: &'s [u8]) -> Self {
-        use crate::encoding::{Charset, charset, declared_label};
+        use crate::encoding::{SourceEncoding, declared};
         let decoder = match input {
             [0xfe, 0xff, ..] | [0, b'<', 0, b'?', ..] => Decoder::Utf16 { big: true },
             [0xff, 0xfe, ..] | [b'<', 0, b'?', 0, ..] => Decoder::Utf16 { big: false },
-            _ => match declared_label(input).and_then(charset) {
-                Some(Charset::Byte(table)) => Decoder::Byte(table),
+            #[cfg(feature = "encodings")]
+            [0, 0, 0, b'<', ..] => Decoder::Ucs4 { big: true },
+            #[cfg(feature = "encodings")]
+            [b'<', 0, 0, 0, ..] => Decoder::Ucs4 { big: false },
+            #[cfg(feature = "encodings")]
+            [0x4c, 0x6f, 0xa7, 0x94, ..] => Decoder::Ebcdic(match declared(input) {
+                Some(SourceEncoding::Ebcdic(table)) => table,
+                _ => crate::encoding::IBM037,
+            }),
+            _ => match declared(input) {
+                Some(SourceEncoding::Byte(table)) => Decoder::Byte(table),
                 _ => {
                     let mut index = Self::utf8(input);
                     index.starts[0] = if input.starts_with(b"\xef\xbb\xbf") {
@@ -686,6 +836,7 @@ impl LineIndex<'_> {
                 .map_or(0, |()| self.text_column(found.at))
         };
         let (line, column) = found.place.unwrap_or_else(|| (line, column()));
+        let [str1, str2, str3] = found.strs.map(|s| s.map(String::from));
         Diagnostic {
             domain,
             code: found.code,
@@ -693,8 +844,9 @@ impl LineIndex<'_> {
             line,
             column,
             message: found.message,
-            str1: found.str1,
-            str2: found.str2,
+            str1,
+            str2,
+            str3,
             int1: found.int1,
             entity: found.place.is_some(),
             ..Diagnostic::default()
@@ -739,9 +891,21 @@ impl LineIndex<'_> {
     /// misplaced `]]>` the ASCII fast path of `xmlParseCharDataInternal` has
     /// not moved past the text run's start or its last `\r\n`. Character
     /// data holds no `<`, so the run starts after the `>` that ends the
-    /// markup before it.
+    /// markup before it. A predefined entity's redeclaration is reported
+    /// with the column of its value's closing quote (or of the reference's
+    /// `;`), past which the cursor is.
     fn cursor(&self, code: u16, at: usize) -> usize {
         let t = self.text();
+        let lags = match code {
+            REDECL_PREDEF_ENTITY => matches!(t.get(at), Some(b'"' | b'\'' | b';')),
+            DTD_XMLID_TYPE => t.get(at) == Some(&b';'),
+            // The column lags the tag end after an expanded entity.
+            DTD_XMLID_VALUE => !matches!(t.get(at), Some(b'/' | b'>')),
+            _ => false,
+        };
+        if lags {
+            return at + 1;
+        }
         if code != MISPLACED_CDATA_END {
             return at;
         }
@@ -757,10 +921,9 @@ impl LineIndex<'_> {
         memchr::memmem::rfind(run, b"\r\n").map_or(start, |cr| start + cr + 1)
     }
 
-    /// libxml2's context lines for a text offset (`xmlParserInputGetWindow`):
-    /// up to 80 bytes of its line and a caret under it.
-    fn window(&self, cur: usize) -> (Cow<'_, str>, String) {
-        const SIZE: usize = 80;
+    /// libxml2's window around a text offset (`xmlParserInputGetWindow`):
+    /// up to `size` bytes of its line and the offset's byte column in them.
+    pub(crate) fn window(&self, cur: usize, size: usize) -> (Cow<'_, str>, usize) {
         let t = self.text();
         let eol = |p: usize| matches!(t.get(p), Some(b'\n' | b'\r'));
         let mut p = cur.min(t.len());
@@ -768,7 +931,7 @@ impl LineIndex<'_> {
             p -= 1;
         }
         let mut n = 0;
-        while n < SIZE && p > 0 && !eol(p) {
+        while n < size && p > 0 && !eol(p) {
             p -= 1;
             n += 1;
         }
@@ -785,23 +948,17 @@ impl LineIndex<'_> {
             .ch()
             .filter(|&(c, _)| !matches!(c, '\0' | '\n' | '\r'))
         {
-            if n + len > SIZE {
+            if n + len > size {
                 break;
             }
             n += len;
         }
         let col = if col >= n {
-            if n < SIZE { n } else { SIZE - 1 }
+            if n < size { n } else { size.saturating_sub(1) }
         } else {
             col
         };
-        let content = &t[start..start + n];
-        let caret = content[..col]
-            .iter()
-            .map(|&b| if b == b'\t' { '\t' } else { ' ' })
-            .chain(['^'])
-            .collect();
-        (String::from_utf8_lossy(content), caret)
+        (String::from_utf8_lossy(&t[start..start + n]), col)
     }
 }
 
@@ -860,14 +1017,20 @@ impl Diagnostic {
             out += &format!("element {element}: ");
         }
         out += match self.domain {
-            Domain::Parser => "parser ",
+            Domain::Parser | Domain::XPointer => "parser ",
             Domain::Namespace => "namespace ",
+            Domain::Output => "output ",
+            Domain::Regexp => "regexp ",
+            Domain::RelaxNgParser => "Relax-NG parser ",
+            Domain::Catalog => "Catalog ",
+            Domain::C14n => "C14N ",
+            Domain::Datatype | Domain::Writer => "",
             Domain::Html => "HTML parser ",
             Domain::Io => "I/O ",
             Domain::XInclude => "XInclude ",
             Domain::XPath => "XPath ",
             Domain::SchemasParser => "Schemas parser ",
-            Domain::Valid => "validity ",
+            Domain::Valid | Domain::Dtd => "validity ",
             Domain::SchemasValidity => "Schemas validity ",
             Domain::RelaxNgValidity => "Relax-NG validity ",
             Domain::SchematronValidity => "schematron ",
@@ -904,8 +1067,12 @@ impl LineIndex<'_> {
             );
             out.push('\n');
         }
-        let (content, caret) = self.window(at);
-        out + &format!("{content}\n{caret}\n")
+        let (content, col) = self.window(at, 80);
+        let caret: String = content.as_bytes()[..col]
+            .iter()
+            .map(|&b| if b == b'\t' { '\t' } else { ' ' })
+            .collect();
+        out + &format!("{content}\n{caret}^\n")
     }
 }
 

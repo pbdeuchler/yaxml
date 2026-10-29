@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 
-use yaxml::xpath::{Context, Error, ErrorKind, Limit, Limits, Node, Value, XPath};
+use std::cmp::Ordering;
+
+use yaxml::xpath::{Context, Error, ErrorKind, Limit, Limits, Node, Tree, Value, XPath, compare};
 use yaxml::{
     Document, EditLimits, ElementSpec, NameSpec, NodeId, NodeKind, OwnedDocument, OwnedNodeId,
     OwnedNodeKind, PrefixPolicy,
@@ -1057,4 +1059,188 @@ fn errors_carry_libxml2_codes_and_messages() {
             "{expression}"
         );
     }
+}
+
+/// Every pair of a document-order node-set compares as its positions do.
+fn assert_document_order<T: Tree>(tree: &T, root: T::Id) {
+    let all = XPath::compile("//node() | //@* | //namespace::* | /")
+        .unwrap()
+        .select_nodes(tree, root, &Context::new())
+        .unwrap();
+    assert!(all.len() > 30);
+    for (i, &a) in all.iter().enumerate() {
+        for (j, &b) in all.iter().enumerate() {
+            assert_eq!(compare(tree, a, b), Some(i.cmp(&j)), "{a:?} {b:?}");
+        }
+    }
+}
+
+#[test]
+fn compare_follows_document_order_in_both_doms() {
+    let document = Document::parse(XML).unwrap();
+    assert_document_order(&document, document.root().id());
+    let owned = OwnedDocument::parse(XML).unwrap();
+    assert_document_order(&owned, owned.root().id());
+}
+
+#[test]
+fn compare_rejects_foreign_and_disconnected_nodes() {
+    let document = Document::parse("<r><x/></r>").unwrap();
+    let large = format!("<r>{}</r>", "<x/>".repeat(40));
+    let large = Document::parse(&large).unwrap();
+    let foreign = Node::Tree(large.nodes().last().unwrap().id());
+    let root = Node::Tree(document.root().id());
+    assert_eq!(compare(&document, root, foreign), None);
+    assert_eq!(compare(&document, foreign, root), None);
+
+    let mut owned = OwnedDocument::parse("<r><a><b/></a><c/></r>").unwrap();
+    let element = owned.document_element().unwrap();
+    let a = element.first_child().unwrap().id();
+    let b = owned.node(a).unwrap().first_child().unwrap().id();
+    let c = element.last_child().unwrap().id();
+    owned
+        .edit(EditLimits::default())
+        .unwrap()
+        .unlink(a)
+        .unwrap();
+    let (a, b, c) = (Node::Tree(a), Node::Tree(b), Node::Tree(c));
+    // A detached subtree is ordered within itself, never against the tree.
+    assert_eq!(compare(&owned, a, b), Some(Ordering::Less));
+    assert_eq!(compare(&owned, a, c), None);
+    assert_eq!(compare(&owned, c, b), None);
+}
+
+/// `xmlXPathCtxtCompile` verdicts of libxml2 2.15.4 for a context binding
+/// `p` with `flags` (1 = CHECKNS, 2 = NOVAR): 0 or the error code.
+#[test]
+fn compile_flags_match_libxml2() {
+    let cases = [
+        (1, "q:a", 1219),
+        (1, "/p:a/q:b", 1219),
+        (1, "q:*", 1219),
+        (1, "@q:a", 1219),
+        (1, "namespace::q:a", 1219),
+        (1, "xml:a", 0),
+        (1, "q:f()", 0),
+        (1, "$q:v", 0),
+        (1, "p:a", 0),
+        (1, "/a//b", 0),
+        (1, "a[q:b]", 1219),
+        (1, "a | q:b", 1219),
+        (1, "q:a +", 1219),
+        (0, "q:a", 0),
+        (2, "$v", 1224),
+        (2, "a[$v]", 1224),
+        (2, "count($v)", 1224),
+        (2, "$v +", 1224),
+        (2, "a[", 1207),
+        (3, "q:a[$v]", 1219),
+        (3, "a[$v]/q:b", 1224),
+        (3, "$v/q:b", 1224),
+        (3, "q:b[$v", 1219),
+        (2, "p:a", 0),
+        (0, "$v", 0),
+        (3, "child::q:a", 1219),
+        (3, "self::node()", 0),
+    ];
+    for (flags, expression, code) in cases {
+        let context = Context::<NodeId>::new()
+            .with_namespace("p", "urn:p")
+            .with_flags(flags);
+        let result = XPath::compile_in(expression, &context);
+        let got = result.err().map_or(0, |error| error.libxml2(expression).0);
+        assert_eq!(got, code, "{flags} {expression}");
+    }
+}
+
+/// Recorded from libxml2 2.15.4 (a variable callback answering names that
+/// start with `c` as `cb:uri:local`, a function callback answering them as
+/// `cbf`, registered `mapf` functions).
+#[test]
+fn lookup_callbacks_match_libxml2() {
+    let text = |s: &str| Ok::<_, u16>(s.to_owned());
+    let cases = [
+        (false, "$v", text("map")),
+        (false, "$cv", text("mapc")),
+        (false, "$cz", Err(1205)),
+        (false, "$p:v", text("mapns")),
+        (false, "$p:cz", Err(1205)),
+        (false, "$q:v", Err(1219)),
+        (false, "f()", text("mapf")),
+        (false, "cz()", Err(1209)),
+        (false, "p:f()", text("mapf")),
+        (false, "q:f()", Err(1219)),
+        // Arguments are evaluated before the prefix and the function.
+        (false, "z($z)", Err(1205)),
+        (false, "q:f($z)", Err(1205)),
+        // An unprefixed variable asks only the callback once one is set.
+        (true, "$v", Err(1205)),
+        (true, "$cv", text("cb::cv")),
+        (true, "$cz", text("cb::cz")),
+        (true, "$z", Err(1205)),
+        (true, "$p:v", text("mapns")),
+        (true, "$p:cv", text("cb:urn:p:cv")),
+        (true, "$p:z", Err(1205)),
+        (true, "f()", text("mapf")),
+        (true, "cf()", text("cbf")),
+        (true, "cz()", text("cbf")),
+        (true, "z()", Err(1209)),
+        (true, "p:cz()", text("cbf")),
+        (true, "p:z()", Err(1209)),
+        (true, "count(1)", Err(1211)),
+        (true, "string(cz($z))", Err(1205)),
+    ];
+    let document = Document::parse("<r/>").unwrap();
+    let string = |s: &str| Value::String(s.into());
+    let mapf = || Box::new(|_: &[Value<NodeId>]| Ok(Value::String("mapf".into())));
+    for (lookups, expression, expected) in cases {
+        let mut context = Context::<NodeId>::new()
+            .with_namespace("p", "urn:p")
+            .with_variable("v", string("map"))
+            .with_variable("cv", string("mapc"))
+            .with_variable_ns("urn:p", "v", string("mapns"))
+            .with_variable_ns("urn:p", "cv", string("mapnsc"))
+            .with_function("f", mapf())
+            .with_function("cf", mapf())
+            .with_function_ns("urn:p", "f", mapf());
+        if lookups {
+            context = context
+                .with_variable_lookup(Box::new(|uri, local| {
+                    local
+                        .starts_with('c')
+                        .then(|| Value::String(format!("cb:{uri}:{local}")))
+                }))
+                .with_function_lookup(Box::new(|_, local, _| {
+                    local
+                        .starts_with('c')
+                        .then(|| Ok(Value::String("cbf".into())))
+                }));
+        }
+        let got = XPath::compile(expression)
+            .and_then(|xpath| xpath.evaluate(&document, document.root().id(), &context))
+            .map_err(|error| error.libxml2(expression).0)
+            .map(|value| match value {
+                Value::String(text) => text,
+                other => panic!("{other:?}"),
+            });
+        assert_eq!(got, expected, "{lookups} {expression}");
+    }
+}
+
+#[test]
+fn context_queries_follow_evaluation_lookup() {
+    let context = Context::<NodeId>::new()
+        .with_namespace("p", "urn:p")
+        .with_variable_ns("urn:p", "v", Value::Number(1.0))
+        .with_function("f", Box::new(|args| Ok(Value::Number(args.len() as f64))));
+    assert_eq!(context.namespace("p"), Some("urn:p"));
+    assert_eq!(context.namespace("xml"), Some(yaxml::XML_NAMESPACE));
+    assert_eq!(context.namespace("q"), None);
+    assert_eq!(context.variable("urn:p", "v"), Ok(Some(Value::Number(1.0))));
+    assert_eq!(context.variable("", "v"), Ok(None));
+    let args = [Value::Boolean(true)];
+    assert_eq!(context.call("", "f", &args), Some(Ok(Value::Number(1.0))));
+    assert_eq!(context.call("urn:p", "f", &args), None);
+    // Core functions are bound at compilation, not looked up.
+    assert_eq!(context.call("", "count", &args), None);
 }

@@ -105,10 +105,21 @@ impl Stream {
         }
     }
 
+    /// The document's converters and forced encoding: only before input.
+    pub(crate) fn set_input(&mut self, options: &crate::ParseOptions) {
+        self.decoder.set_converters(options.input_converters());
+        if let Some(handler) = &options.encoding {
+            self.decoder.force(handler.source());
+            self.state.force_encoding();
+        }
+    }
+
     pub(crate) fn position(&self) -> usize {
-        self.tokenizer
-            .source_position()
-            .max(self.decoder.position())
+        self.decoder.converting().unwrap_or_else(|| {
+            self.tokenizer
+                .source_position()
+                .max(self.decoder.position())
+        })
     }
 
     pub(crate) fn has_token(&self) -> bool {
@@ -155,12 +166,15 @@ impl Stream {
         }
     }
 
-    /// Releases the token; a declaration that selected a byte charset takes
-    /// effect here, before any byte after it is decoded.
+    /// Releases the token; a declaration that selected a byte charset or an
+    /// EBCDIC code page takes effect here, before any byte after it is decoded.
     pub(crate) fn release(&mut self) {
         self.tokenizer.release();
         let encoding = self.state.encoding();
-        if matches!(encoding, crate::encoding::SourceEncoding::Byte(_)) {
+        if matches!(
+            encoding,
+            crate::encoding::SourceEncoding::Byte(_) | crate::encoding::SourceEncoding::Ebcdic(_)
+        ) {
             self.decoder.switch(encoding);
             self.tokenizer.switch(encoding);
         }
@@ -519,14 +533,23 @@ fn decode(
 ) -> Result<DecodeProgress, Error> {
     match decoded {
         Decoded::Start { encoding, bom } => {
-            tokenizer.configure(encoding, bom);
+            // Converted input is UTF-8 to the tokenizer.
+            tokenizer.configure(
+                match encoding {
+                    SourceEncoding::Custom => SourceEncoding::Utf8,
+                    encoding => encoding,
+                },
+                bom,
+            );
             let initial = if encoding == crate::encoding::SourceEncoding::Utf8 {
                 bom
             } else {
                 0
             };
             state.set_encoding(encoding, initial, limit);
-            if encoding == crate::encoding::SourceEncoding::Utf8 && bom == 0 {
+            if matches!(encoding, crate::encoding::SourceEncoding::Utf8 if bom == 0)
+                || matches!(encoding, crate::encoding::SourceEncoding::Ebcdic(_))
+            {
                 state.allow_switch();
             }
             Ok(DecodeProgress {

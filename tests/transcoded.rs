@@ -204,8 +204,8 @@ fn transcoded_parses_agree_with_the_owned_dom() {
             Err(error(ErrorKind::InvalidUtf16, 10)),
         ),
         (
-            "utf-32 signature",
-            b"\0\0\0<\0\0\0r\0\0\0/\0\0\0>".to_vec(),
+            "ucs-4 2143 signature",
+            b"\0\0<\0\0\0r\0\0\0/\0\0\0>\0".to_vec(),
             0,
             Err(error(ErrorKind::UnsupportedEncoding, 0)),
         ),
@@ -327,6 +327,43 @@ fn utf8_input_is_borrowed_and_parses_as_before() {
             panic!("copied text")
         };
         assert!(input.as_ptr_range().contains(&value.as_ptr()));
+    }
+}
+
+#[test]
+fn a_single_byte_charsets_declaration_maps_as_utf8() {
+    // The declaration is read as UTF-8 before its charset takes over, so
+    // UTF-8 in it counts its bytes, and the rest one byte per character.
+    type Errors = &'static [(ErrorKind, usize)];
+    #[rustfmt::skip]
+    let cases: &[(&[u8], u32, Errors)] = &[
+        (b"", 0, &[(ErrorKind::MismatchedEndTag, 47)]),
+        (b"\xef\xbb\xbf", RECOVER, &[(ErrorKind::InvalidDeclaration, 41), (ErrorKind::MismatchedEndTag, 50)]),
+        (b" \xc3\xa9", RECOVER, &[(ErrorKind::InvalidDeclaration, 44), (ErrorKind::MismatchedEndTag, 50)]),
+    ];
+    for &(inside, flags, expected) in cases {
+        let head = b"<?xml version='1.0' encoding='ISO-8859-1'";
+        let input = [&head[..], inside, b"?><r>\xe9</s>"].concat();
+        let input = &input[..];
+        let options = || ParseOptions::new(flags);
+        let text = Transcoded::new(input, &options()).unwrap();
+        let errors: Vec<_> = match Document::parse_transcoded(&text, options()) {
+            Ok(document) => document.errors().to_vec(),
+            Err(failure) => vec![failure],
+        };
+        let mapped: Vec<_> = (errors.iter())
+            .map(|e| (e.kind, text.source_offset(e.offset)))
+            .collect();
+        assert_eq!(mapped, expected, "{input:?}");
+        let owned: Vec<_> = match OwnedDocument::parse_with(input, options()) {
+            Ok(document) => document
+                .errors()
+                .iter()
+                .map(|e| (e.kind, e.offset))
+                .collect(),
+            Err(failure) => vec![(failure.kind, failure.offset)],
+        };
+        assert_eq!(owned, expected, "{input:?}");
     }
 }
 

@@ -18,7 +18,7 @@
 //! ```
 
 mod eval;
-mod parse;
+pub(crate) mod parse;
 // Shared helpers: some are unused when features are off.
 #[cfg_attr(not(feature = "full"), allow(dead_code))]
 pub(crate) mod tree;
@@ -52,6 +52,72 @@ impl<Id> From<Id> for Node<Id> {
     fn from(id: Id) -> Self {
         Self::Tree(id)
     }
+}
+
+impl<Id: Copy> Node<Id> {
+    /// The tree node: the node itself, or the attribute's or namespace's element.
+    fn owner(self) -> Id {
+        match self {
+            Self::Tree(id) | Self::Attribute(id, _) | Self::Namespace(id, _) => id,
+        }
+    }
+}
+
+/// `xmlXPathCmpNodes`: how `a` and `b` of `tree` compare in document order
+/// (an element, then its namespace nodes, then its attributes, then its
+/// children). `None` when either is not in `tree` or they share no root
+/// (nodes in different detached subtrees), libxml2's -2. Takes the depth of
+/// both nodes plus the siblings between their branches; no ranking of the
+/// whole document.
+///
+/// ```
+/// use std::cmp::Ordering;
+/// use yaxml::Document;
+/// use yaxml::xpath::{Node, compare};
+/// let document = Document::parse("<r a='1'><x/><y/></r>")?;
+/// let r = document.root_element();
+/// let (x, y) = (r.first_child().unwrap().id(), r.last_child().unwrap().id());
+/// assert_eq!(compare(&document, Node::Tree(x), Node::Tree(y)), Some(Ordering::Less));
+/// assert_eq!(compare(&document, Node::Attribute(r.id(), 0), Node::Tree(x)), Some(Ordering::Less));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+pub fn compare<T: Tree>(tree: &T, a: Node<T::Id>, b: Node<T::Id>) -> Option<std::cmp::Ordering> {
+    let (x, y) = (a.owner(), b.owner());
+    if !tree.contains(x) || !tree.contains(y) {
+        return None;
+    }
+    // Within one element: the element, its namespaces, its attributes.
+    let rank = |node: Node<T::Id>| match node {
+        Node::Tree(_) => (0, 0),
+        Node::Namespace(_, index) => (1, index),
+        Node::Attribute(_, index) => (2, index),
+    };
+    if x == y {
+        return Some(rank(a).cmp(&rank(b)));
+    }
+    let chain = |id| {
+        let mut chain: Vec<T::Id> =
+            std::iter::successors(Some(id), |&id| tree.parent(id)).collect();
+        chain.reverse();
+        chain
+    };
+    let (left, right) = (chain(x), chain(y));
+    if left[0] != right[0] {
+        return None;
+    }
+    let shared = left.iter().zip(&right).take_while(|(l, r)| l == r).count();
+    // An ancestor precedes its descendants, and their attributes.
+    let (Some(&l), Some(&r)) = (left.get(shared), right.get(shared)) else {
+        return Some(left.len().cmp(&right.len()));
+    };
+    let mut sibling = tree.next_sibling(l);
+    while let Some(id) = sibling {
+        if id == r {
+            return Some(std::cmp::Ordering::Less);
+        }
+        sibling = tree.next_sibling(id);
+    }
+    Some(std::cmp::Ordering::Greater)
 }
 
 /// The four XPath 1.0 value types. Node-sets are sorted in document order
@@ -153,6 +219,8 @@ pub enum ErrorKind {
     UndefinedPrefix,
     /// `XPATH_INVALID_CHAR_ERROR`
     InvalidChar,
+    /// `XPATH_FORBID_VARIABLE_ERROR`: a variable reference under [`NOVAR`].
+    ForbiddenVariable,
     /// `XPATH_INVALID_CTXT`: a node that does not belong to the evaluated tree.
     InvalidContext,
     /// `XPATH_OP_LIMIT_EXCEEDED` / `XPATH_RECURSION_LIMIT_EXCEEDED` and size ceilings.
@@ -213,6 +281,7 @@ impl Error {
             ErrorKind::UndefinedPrefix => (19, "Undefined namespace prefix"),
             ErrorKind::InvalidChar => (21, "Char out of XML range"),
             ErrorKind::InvalidContext => (22, "Invalid or incomplete context"),
+            ErrorKind::ForbiddenVariable => (24, "Forbidden variable"),
             ErrorKind::LimitExceeded(Limit::Depth) => (26, "Recursion limit exceeded"),
             ErrorKind::LimitExceeded(_) => (25, "Operation limit exceeded"),
             ErrorKind::Allocation => (15, "Memory allocation error"),
@@ -250,22 +319,37 @@ impl From<TryReserveError> for Error {
 /// An extension function. It receives evaluated arguments.
 pub type Function<Id> = Box<dyn Fn(&[Value<Id>]) -> Result<Value<Id>, Error> + Send + Sync>;
 
+/// A variable lookup callback (`xmlXPathVariableLookupFunc`): `(uri, local)`
+/// to a value, `""` for no namespace.
+pub type VariableLookup<Id> = Box<dyn Fn(&str, &str) -> Option<Value<Id>> + Send + Sync>;
+
+/// A function lookup callback (`xmlXPathFuncLookupFunc`): `(uri, local,
+/// arguments)` to a result, or `None` when it does not know the function.
+pub type FunctionLookup<Id> =
+    Box<dyn Fn(&str, &str, &[Value<Id>]) -> Option<Result<Value<Id>, Error>> + Send + Sync>;
+
 /// Static evaluation context: prefix bindings, variables, extension functions
 /// and limits. Names are expanded as (namespace URI, local name), with `""`
 /// for no namespace. The `xml` prefix is always bound.
 pub struct Context<Id> {
+    flags: u32,
     namespaces: HashMap<String, String>,
     variables: HashMap<String, HashMap<String, Value<Id>>>,
     functions: HashMap<String, HashMap<String, Function<Id>>>,
+    variable_lookup: Option<VariableLookup<Id>>,
+    function_lookup: Option<FunctionLookup<Id>>,
     limits: Limits,
 }
 
 impl<Id> Default for Context<Id> {
     fn default() -> Self {
         Self {
+            flags: 0,
             namespaces: HashMap::new(),
             variables: HashMap::new(),
             functions: HashMap::new(),
+            variable_lookup: None,
+            function_lookup: None,
             limits: Limits::default(),
         }
     }
@@ -274,6 +358,7 @@ impl<Id> Default for Context<Id> {
 impl<Id> fmt::Debug for Context<Id> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Context")
+            .field("flags", &self.flags)
             .field("namespaces", &self.namespaces)
             .field("limits", &self.limits)
             .finish_non_exhaustive()
@@ -336,13 +421,77 @@ impl<Id> Context<Id> {
         self
     }
 
-    fn namespace(&self, prefix: &str) -> Option<&str> {
+    /// libxml2's `XML_XPATH_*` compilation flags ([`CHECKNS`], [`NOVAR`]),
+    /// applied by [`XPath::compile_in`]; other bits are unused, as in libxml2.
+    pub fn with_flags(mut self, flags: u32) -> Self {
+        self.flags = flags;
+        self
+    }
+
+    /// Consults `lookup` for variables (`xmlXPathRegisterVariableLookup`), as
+    /// [`Self::variable`] describes.
+    pub fn with_variable_lookup(mut self, lookup: VariableLookup<Id>) -> Self {
+        self.variable_lookup = Some(lookup);
+        self
+    }
+
+    /// Consults `lookup` for extension functions before the registered ones
+    /// (`xmlXPathRegisterFuncLookup`), as [`Self::call`] describes.
+    pub fn with_function_lookup(mut self, lookup: FunctionLookup<Id>) -> Self {
+        self.function_lookup = Some(lookup);
+        self
+    }
+
+    /// The URI bound to `prefix`; `xml` is always bound (`xmlXPathNsLookup`).
+    pub fn namespace(&self, prefix: &str) -> Option<&str> {
         match prefix {
             "xml" => Some(tree::XML_NAMESPACE),
             _ => self.namespaces.get(prefix).map(String::as_str),
         }
     }
+
+    /// The value of variable `local` in namespace `uri` (`""` for none), as
+    /// evaluation sees it (`xmlXPathVariableLookupNS`): the lookup callback,
+    /// then the bound variables. As in libxml2, an unprefixed variable is
+    /// only asked of the callback when one is set (`xmlXPathVariableLookup`).
+    pub fn variable(&self, uri: &str, local: &str) -> Result<Option<Value<Id>>, Error>
+    where
+        Id: Copy,
+    {
+        let lookup = self.variable_lookup.as_ref();
+        let found = lookup.and_then(|lookup| lookup(uri, local));
+        if found.is_some() || (uri.is_empty() && lookup.is_some()) {
+            return Ok(found);
+        }
+        let bound = self.variables.get(uri).and_then(|scope| scope.get(local));
+        Ok(bound.map(Value::try_clone).transpose()?)
+    }
+
+    /// Calls extension function `local` in namespace `uri` as evaluation does
+    /// (`xmlXPathFunctionLookupNS`): the lookup callback, then the registered
+    /// functions; `None` when neither knows it. Core functions are bound at
+    /// compilation and never looked up here.
+    pub fn call(
+        &self,
+        uri: &str,
+        local: &str,
+        args: &[Value<Id>],
+    ) -> Option<Result<Value<Id>, Error>> {
+        let lookup = self.function_lookup.as_ref();
+        lookup
+            .and_then(|lookup| lookup(uri, local, args))
+            .or_else(|| {
+                let function = self.functions.get(uri).and_then(|scope| scope.get(local))?;
+                Some(function(args))
+            })
+    }
 }
+
+/// `XML_XPATH_CHECKNS`: [`XPath::compile_in`] rejects a name test whose
+/// prefix the context does not bind.
+pub const CHECKNS: u32 = 1 << 0;
+/// `XML_XPATH_NOVAR`: [`XPath::compile_in`] rejects variable references.
+pub const NOVAR: u32 = 1 << 1;
 
 /// A compiled XPath 1.0 expression, reusable across documents and threads.
 #[derive(Clone, Debug)]
@@ -359,10 +508,47 @@ impl XPath {
 
     /// Compiles an expression within `limits`.
     pub fn compile_with_limits(expression: &str, limits: &Limits) -> Result<Self, Error> {
+        Self::compiled(expression, limits, parse::Checks::NONE)
+    }
+
+    pub(crate) fn compiled(
+        expression: &str,
+        limits: &Limits,
+        checks: parse::Checks<'_>,
+    ) -> Result<Self, Error> {
         Ok(Self {
-            ast: parse::parse(expression, limits)?,
+            ast: parse::parse(expression, limits, checks)?,
             source: copied(expression)?.into(),
         })
+    }
+
+    /// Compiles within `context`'s limits and [flags](Context::with_flags)
+    /// (`xmlXPathCtxtCompile`): under [`CHECKNS`] a name-test prefix the
+    /// context does not bind is `UndefinedPrefix`, under [`NOVAR`] a variable
+    /// reference is `ForbiddenVariable`, where the parser meets it (before any later
+    /// syntax error, after lexical ones).
+    ///
+    /// ```
+    /// use yaxml::xpath::{CHECKNS, Context, ErrorKind, NOVAR, XPath};
+    /// use yaxml::NodeId;
+    ///
+    /// let context = Context::<NodeId>::new()
+    ///     .with_namespace("p", "urn:p")
+    ///     .with_flags(CHECKNS | NOVAR);
+    /// assert!(XPath::compile_in("/p:a/@p:b", &context).is_ok());
+    /// let kind = |expression| XPath::compile_in(expression, &context).unwrap_err().kind;
+    /// assert_eq!(kind("q:a"), ErrorKind::UndefinedPrefix);
+    /// assert_eq!(kind("a[$v]/q:b"), ErrorKind::ForbiddenVariable);
+    /// assert!(XPath::compile_in("q:a[$v]", &Context::<NodeId>::new()).is_ok());
+    /// ```
+    pub fn compile_in<Id>(expression: &str, context: &Context<Id>) -> Result<Self, Error> {
+        let bound =
+            |prefix: &str| context.flags & CHECKNS == 0 || context.namespace(prefix).is_some();
+        let checks = parse::Checks {
+            bound: &bound,
+            variables: context.flags & NOVAR == 0,
+        };
+        Self::compiled(expression, &context.limits, checks)
     }
 
     /// The source expression.
@@ -393,24 +579,6 @@ impl XPath {
         eval::evaluate(tree, &self.source, &self.ast, node, context, budget)
     }
 
-    /// libxml2's `XML_XPATH_CHECKNS` compilation: the first name-test prefix
-    /// that `bound` rejects is an `UndefinedPrefix` error at its offset.
-    #[cfg(feature = "schemas")]
-    pub(crate) fn check_prefixes(&self, bound: impl Fn(&str) -> bool) -> Result<(), Error> {
-        let unbound = (self.ast.steps.iter())
-            .filter_map(|step| match step.test {
-                parse::Test::Name(name) => name.prefix,
-                parse::Test::Any(prefix) => prefix,
-                _ => None,
-            })
-            .filter(|prefix| !bound(prefix.text(&self.source)))
-            .map(|prefix| prefix.range().start)
-            .min();
-        unbound.map_or(Ok(()), |offset| {
-            Err(Error::at(ErrorKind::UndefinedPrefix, offset))
-        })
-    }
-
     /// Evaluates an expression that must produce a node-set.
     ///
     /// # Errors
@@ -427,4 +595,30 @@ impl XPath {
             _ => Err(Error::new(ErrorKind::InvalidType)),
         }
     }
+}
+
+/// C's `printf("%g")`: six significant digits, exponent form outside
+/// [1e-4, 1e6), trailing zeros removed.
+#[cfg(any(feature = "schemas", feature = "debug"))]
+pub(crate) fn printf_g(value: f64) -> String {
+    if !value.is_finite() {
+        let text = match value {
+            _ if value.is_nan() => "nan",
+            _ if value > 0.0 => "inf",
+            _ => "-inf",
+        };
+        return text.to_owned();
+    }
+    let trim = |text: &str| match text.contains('.') {
+        true => text.trim_end_matches('0').trim_end_matches('.').to_owned(),
+        false => text.to_owned(),
+    };
+    let scientific = format!("{value:.5e}");
+    let (mantissa, exponent) = scientific.split_once('e').unwrap_or((&scientific, "0"));
+    let exponent: i32 = exponent.parse().unwrap_or(0);
+    if (-4..6).contains(&exponent) {
+        return trim(&format!("{value:.*}", (5 - exponent) as usize));
+    }
+    let sign = if exponent < 0 { '-' } else { '+' };
+    format!("{}e{sign}{:02}", trim(mantissa), exponent.unsigned_abs())
 }

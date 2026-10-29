@@ -492,6 +492,10 @@ impl<'input> DtdControllerCore<'input> {
             let offset = unit_offset(encoding, origin, unit.raw(), 0);
             budget.recover(Error::new(ErrorKind::Namespace, offset))?;
         }
+        if budget.old10() && !unit.fourth_edition() {
+            let offset = unit_offset(encoding, origin, unit.raw(), 0);
+            return Err(Error::new(ErrorKind::InvalidName, offset));
+        }
         let literals = match side {
             Side::Physical => LiteralSource::Physical,
             Side::Replacement => LiteralSource::Replacement,
@@ -508,13 +512,17 @@ impl<'input> DtdControllerCore<'input> {
             },
         );
         self.counters.work += self.catalog.usage().work - before;
-        result.map_err(|error| {
+        let warning = result.map_err(|error| {
             let offset = match error.offset {
                 Some(offset) => unit_offset(encoding, origin, unit.raw(), offset),
                 None => origin.error_offset(),
             };
             Error::new(error.kind, offset)
         })?;
+        if let Some((warning, at)) = warning {
+            let offset = unit_offset(encoding, origin, unit.raw(), at);
+            budget.recover(Error::new(ErrorKind::Warning(warning), offset))?;
+        }
         // Released once applied: recovery cuts the subset before a unit the
         // catalog rejects.
         self.release_scanner(side);

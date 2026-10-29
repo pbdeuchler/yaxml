@@ -1321,6 +1321,18 @@ const CASES: &[Case] = &[
         "V 1824",
     ),
     (
+        "second notation of a document",
+        "<xs:notation name='png' public='image/png'/><xs:notation name='gif' public='image/gif'/><xs:element name='r'><xs:simpleType><xs:restriction base='xs:NOTATION'><xs:enumeration value='gif'/></xs:restriction></xs:simpleType></xs:element>",
+        "<r>gif</r>",
+        "V",
+    ),
+    (
+        "duplicate notation",
+        "<xs:notation name='gif' public='image/gif'/><xs:notation name='gif' public='image/gif'/><xs:element name='r'/>",
+        "<r/>",
+        "S 1761",
+    ),
+    (
         "notation without name",
         "<xs:notation public='image/gif'/>",
         "<r/>",
@@ -1519,6 +1531,232 @@ fn restriction_keeps_the_base_fixed_value() {
             rejected,
             "{name}: {codes:?}"
         );
+    }
+}
+
+/// `validate_element` against `xmlSchemaValidateOneElement` (results
+/// recorded from libxml2 2.15.4); `path` = child indices from the document.
+#[test]
+fn validate_element_matches_validate_one_element() {
+    let text = schema(
+        "<xs:element name='r'><xs:complexType><xs:sequence><xs:element ref='b'/>\
+         <xs:element name='c' type='xs:int'/></xs:sequence></xs:complexType></xs:element>\
+         <xs:element name='b'><xs:complexType><xs:sequence><xs:element name='d' type='xs:int'/>\
+         </xs:sequence><xs:attribute name='ref' type='xs:IDREF'/><xs:attribute name='id' type='xs:ID'/>\
+         </xs:complexType></xs:element>",
+    );
+    let built = Schema::parse(text.as_bytes(), "schema.xsd").unwrap();
+    let int =
+        |name| format!("Element '{name}': 'x' is not a valid value of the atomic type 'xs:int'.");
+    let root = |name| {
+        format!(
+            "Element '{name}': No matching global declaration available for the validation root."
+        )
+    };
+    let cases = [
+        ("<r><b><d>1</d></b><c>x</c></r>", "00", Some(vec![])),
+        (
+            "<r><b><d>x</d></b><c>1</c></r>",
+            "00",
+            Some(vec![(1824, int("d"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "0",
+            Some(vec![(1824, int("c"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "01",
+            Some(vec![(1845, root("c"))]),
+        ),
+        (
+            "<r><b><d>1</d></b><c>x</c></r>",
+            "000",
+            Some(vec![(1845, root("d"))]),
+        ),
+        (
+            "<r><b ref='z'><d>1</d></b><b id='z'><d>1</d></b><c>1</c></r>",
+            "00",
+            Some(vec![]),
+        ),
+        ("<r><b ref='z' id='z'><d>1</d></b></r>", "00", Some(vec![])),
+        ("<r>text<b/></r>", "00", None),
+    ];
+    for (instance, path, expected) in cases {
+        let document = OwnedDocument::parse(instance).unwrap();
+        let mut node = document.root();
+        for index in path.bytes().map(|b| usize::from(b - b'0')) {
+            node = node.children().nth(index).unwrap();
+        }
+        let got = built
+            .validate_element(&document, node.id())
+            .map(|diagnostics| {
+                (diagnostics.iter())
+                    .map(|d| (d.code as u16, d.message.trim_end().to_owned()))
+                    .collect::<Vec<_>>()
+            });
+        assert_eq!(got, expected, "{instance} at {path}");
+    }
+}
+
+/// `validate_creating` against libxml2 2.15.4 with
+/// `XML_SCHEMA_VAL_VC_I_CREATE` (codes and saved output recorded). Marked
+/// cases diverge on purpose: libxml2 attaches a qualified default to an
+/// in-scope default namespace, which leaves it unqualified when saved.
+#[test]
+fn validate_creating_matches_vc_i_create() {
+    let target = "targetNamespace='urn:t' xmlns:t='urn:t' attributeFormDefault='qualified' elementFormDefault='qualified'";
+    let nested = "<xs:element name='r'><xs:complexType><xs:sequence><xs:element name='s' minOccurs='0'>\
+                  <xs:complexType><xs:attribute name='a' default='1'/></xs:complexType></xs:element>\
+                  </xs:sequence></xs:complexType></xs:element>";
+    let cases = [
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:attribute name='a' default=' x  y '/>\
+             <xs:attribute name='b' type='xs:token' default=' x  y '/><xs:attribute name='c' type='xs:int' fixed='1'/>\
+             </xs:complexType></xs:element>",
+            "<r/>",
+            "",
+            r#"<r a=" x  y " b="x y" c="1"/>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:attribute name='a' default='1'/></xs:complexType></xs:element>",
+            "<r a='2'/>",
+            "",
+            r#"<r a="2"/>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:sequence><xs:element name='e' type='xs:token' default=' a  b ' \
+             minOccurs='0' maxOccurs='3'/></xs:sequence></xs:complexType></xs:element>",
+            "<r><e/><e>z</e><e><!--c--></e></r>",
+            "",
+            "<r><e>a b</e><e>z</e><e><!--c-->a b</e></r>",
+        ),
+        (
+            target,
+            nested,
+            "<t:r xmlns:t='urn:t'><t:s/></t:r>",
+            "",
+            r#"<t:r xmlns:t="urn:t"><t:s t:a="1"/></t:r>"#,
+        ),
+        (
+            target,
+            nested,
+            "<r xmlns='urn:t'><s xmlns:q='urn:t'/></r>",
+            "",
+            r#"<r xmlns="urn:t"><s xmlns:q="urn:t" q:a="1"/></r>"#,
+        ),
+        // libxml2: <r xmlns="urn:t"><s a="1"/></r>
+        (
+            target,
+            nested,
+            "<r xmlns='urn:t'><s/></r>",
+            "",
+            r#"<r xmlns="urn:t" xmlns:p0="urn:t"><s p0:a="1"/></r>"#,
+        ),
+        // libxml2: <r xmlns="urn:t" xmlns:p0="urn:o"><s xmlns:p1="urn:o" a="1"/></r>
+        (
+            target,
+            nested,
+            "<r xmlns='urn:t' xmlns:p0='urn:o'><s xmlns:p1='urn:o'/></r>",
+            "",
+            r#"<r xmlns="urn:t" xmlns:p0="urn:o" xmlns:p2="urn:t"><s xmlns:p1="urn:o" p2:a="1"/></r>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:sequence><xs:element name='e' type='xs:int' default=' 7 ' minOccurs='0'/>\
+             <xs:element name='f' type='xs:int' default='7' minOccurs='0'/></xs:sequence>\
+             <xs:attribute name='i' type='xs:int' default='1'/></xs:complexType></xs:element>",
+            "<r i='x'><e>  </e><f xsi:nil='true' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'/></r>",
+            "1824 1824 1847",
+            r#"<r i="x"><e>  </e><f xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true">7</f></r>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:attribute name='a' type='l' default=' 1   2 '/></xs:complexType>\
+             </xs:element><xs:simpleType name='l'><xs:list itemType='xs:int'/></xs:simpleType>",
+            "<r/>",
+            "",
+            r#"<r a="1 2"/>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r'><xs:complexType><xs:attribute name='a' type='u' default=' 1 '/>\
+             <xs:attribute name='b' type='n' default=' &#9;a&#10; '/></xs:complexType></xs:element>\
+             <xs:simpleType name='u'><xs:union memberTypes='xs:int xs:string'/></xs:simpleType>\
+             <xs:simpleType name='n'><xs:restriction base='xs:normalizedString'/></xs:simpleType>",
+            "<r/>",
+            "",
+            r#"<r a=" 1 " b="  a  "/>"#,
+        ),
+        (
+            "",
+            "<xs:element name='r' default='d'><xs:complexType mixed='true'><xs:sequence minOccurs='0'>\
+             <xs:element name='e'/></xs:sequence></xs:complexType></xs:element>",
+            "<r/>",
+            "",
+            "<r>d</r>",
+        ),
+    ];
+    for (attributes, body, instance, codes, saved) in cases {
+        let text = format!("<xs:schema xmlns:xs='{XS}' {attributes}>{body}</xs:schema>");
+        let built = Schema::parse(text.as_bytes(), "schema.xsd").unwrap();
+        let mut document = OwnedDocument::parse(instance).unwrap();
+        let mut editor = document.edit(yaxml::EditLimits::DEFAULT).unwrap();
+        let diagnostics = built.validate_creating(&mut editor).unwrap();
+        let got: Vec<String> = diagnostics
+            .iter()
+            .map(|d| (d.code as u16).to_string())
+            .collect();
+        assert_eq!(got.join(" "), codes, "{instance}");
+        let bytes = yaxml::save::to_vec(editor.document(), &Default::default()).unwrap();
+        let output = String::from_utf8(bytes).unwrap();
+        assert_eq!(
+            output.split_once('\n').unwrap().1.trim_end(),
+            saved,
+            "{instance}"
+        );
+    }
+}
+
+/// Creation edits keep the editor's limits; diagnostics without defaults
+/// are those of `validate`.
+#[test]
+fn validate_creating_reports_edit_limits() {
+    let text = schema(
+        "<xs:element name='r'><xs:complexType><xs:attribute name='a' default='1'/></xs:complexType></xs:element>",
+    );
+    let built = Schema::parse(text.as_bytes(), "schema.xsd").unwrap();
+    let cases = [
+        ("<r/>", 0, Err(yaxml::EditLimit::CreatedAttributes)),
+        ("<r/>", 1, Ok(1)),
+        ("<r a='1'/>", 0, Ok(1)),
+        ("<x/>", 0, Ok(0)),
+    ];
+    for (instance, created, expected) in cases {
+        let mut document = OwnedDocument::parse(instance).unwrap();
+        let expected_codes = built.validate(&document).len();
+        let limits = yaxml::EditLimits::DEFAULT.max_created_attributes(created);
+        let mut editor = document.edit(limits).unwrap();
+        let got = match built.validate_creating(&mut editor) {
+            Ok(diagnostics) => {
+                assert_eq!(diagnostics.len(), expected_codes, "{instance}");
+                Ok(editor
+                    .document()
+                    .document_element()
+                    .unwrap()
+                    .attributes()
+                    .count())
+            }
+            Err(error) => match error.kind {
+                yaxml::EditErrorKind::LimitExceeded(limit) => Err(limit),
+                other => panic!("{instance}: {other:?}"),
+            },
+        };
+        assert_eq!(got, expected, "{instance}");
     }
 }
 
