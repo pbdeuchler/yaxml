@@ -70,6 +70,9 @@ pub struct Transcoded<'a> {
     /// For decoded text: the source encoding and, under `RECOVER`, the
     /// decoding error that ends the text.
     pub(crate) decoded: Option<(SourceEncoding, Option<Error>)>,
+    /// The text before a declared single-byte charset takes over: the
+    /// declaration, read as UTF-8 and copied as it is.
+    verbatim: usize,
 }
 
 impl<'a> Transcoded<'a> {
@@ -94,6 +97,7 @@ impl<'a> Transcoded<'a> {
             return Ok(Self {
                 text: Cow::Borrowed(input),
                 decoded: None,
+                verbatim: 0,
             });
         }
         let recovers = options.has(crate::options::RECOVER);
@@ -101,7 +105,7 @@ impl<'a> Transcoded<'a> {
             .filter(|_| forced.is_none() && !options.has(crate::options::IGNORE_ENC))
             .filter(|_| !recovers || recovered_label(&ascii_head(input)).is_some());
         let mut text = Vec::new();
-        let (encoding, end) = transcode(
+        let (encoding, split, end) = transcode(
             input,
             switch,
             forced,
@@ -122,9 +126,14 @@ impl<'a> Transcoded<'a> {
             }
             Err(error) => return Err(error),
         };
+        let verbatim = match switch {
+            Some(SourceEncoding::Byte(_)) => split.min(text.len()),
+            _ => 0,
+        };
         Ok(Self {
             text: Cow::Owned(text),
             decoded: Some((encoding, cut)),
+            verbatim,
         })
     }
 
@@ -138,7 +147,9 @@ impl<'a> Transcoded<'a> {
             SourceEncoding::Utf16 { bom: true, .. } => 2,
             _ => 0,
         };
-        bom + encoding.source_length(&self.text[..offset.min(self.text.len())])
+        let offset = offset.min(self.text.len());
+        let verbatim = self.verbatim.min(offset);
+        bom + verbatim + encoding.source_length(&self.text[verbatim..offset])
     }
 
     /// The UTF-8 text the borrowing parsers read.
@@ -1243,8 +1254,9 @@ fn recovered_label(input: &[u8]) -> Option<&str> {
 }
 
 /// Decodes complete `input` into `output` as the streams do, in `switch`
-/// after the declaration naming it (see [`declared`]): the detected encoding
-/// and how decoding ended (`output` then holds the text before the error).
+/// after the declaration naming it (see [`declared`]): the detected
+/// encoding, the input length read before the switch and how decoding ended
+/// (`output` then holds the text before the error).
 pub(crate) fn transcode(
     input: &[u8],
     switch: Option<SourceEncoding>,
@@ -1252,7 +1264,7 @@ pub(crate) fn transcode(
     converters: Option<Arc<dyn Converters>>,
     limit: usize,
     output: &mut Vec<u8>,
-) -> (SourceEncoding, Result<(), Error>) {
+) -> (SourceEncoding, usize, Result<(), Error>) {
     let mut decoder = Decoder::new(limit);
     decoder.set_converters(converters);
     if let Some(forced) = forced {
@@ -1295,7 +1307,7 @@ pub(crate) fn transcode(
         decoder.advance(&input[split..], &mut sink)?;
         decoder.finish_step(&mut sink).map(drop)
     })();
-    (switch.unwrap_or(encoding), end)
+    (switch.unwrap_or(encoding), split, end)
 }
 
 /// Locates a leading declaration's label only to route it to the decoder;
