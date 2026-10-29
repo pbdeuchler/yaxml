@@ -242,7 +242,7 @@ impl<'input> DtdControllerCore<'input> {
         self.cut
     }
 
-    /// Where the document resumes after `abandon`, decoded and physical.
+    /// Where the document resumes after a `recover`ed DOCTYPE, decoded and physical.
     pub(crate) fn resume_at(&mut self, decoded: usize, physical: usize) {
         self.resume = Some((decoded, physical));
     }

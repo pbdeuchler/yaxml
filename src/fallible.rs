@@ -1,4 +1,4 @@
-//! Growth the input sizes, failing instead of aborting when the allocator
+//! Input-sized growth that fails instead of aborting when the allocator
 //! refuses (docs/security.md#allocation-failure). Each subsystem maps
 //! [`TryReserveError`] to its own allocation error.
 
@@ -52,7 +52,7 @@ pub(crate) fn concat(parts: &[&str]) -> Result<String, TryReserveError> {
     Ok(joined)
 }
 
-/// A string built by many appends that fail once: growth the allocator
+/// A string built by many appends: an append whose growth the allocator
 /// refuses is skipped and remembered in `refused`.
 #[derive(Default)]
 pub(crate) struct Text {

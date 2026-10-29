@@ -696,9 +696,10 @@ struct Engine<I> {
     /// Local name of each key.
     locals: Vec<Box<str>>,
     key: String,
-    /// Values of `xsd:ID` attributes seen, and `xsd:IDREF(S)` references
-    /// (element, offset, attribute, ID) to resolve at the end.
+    /// Values of `xsd:ID` attributes seen.
     ids: HashSet<String>,
+    /// `xsd:IDREF(S)` references (element, offset, attribute, ID) to
+    /// resolve at the end.
     references: Vec<(I, Option<usize>, String, String)>,
     stack: Vec<Frame<I>>,
     root: Option<(I, Option<usize>)>,
@@ -1145,7 +1146,8 @@ impl<I: Copy> Engine<I> {
         }
     }
 
-    /// The end of the document: the work limit and unresolved references.
+    /// The end of the document: a refused allocation, the work limit, then
+    /// unresolved references.
     fn finish(&mut self) {
         let Some(root) = self.root else {
             return;

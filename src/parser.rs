@@ -37,7 +37,7 @@ const MAX_RECOVERED: usize = 100;
 
 /// Per-parse state every layer shares: accounting for normalized strings and
 /// retained structural strings, and the errors recovered from: namespace
-/// errors always, every well-formedness error under `RECOVER`.
+/// errors and warnings always, every well-formedness error under `RECOVER`.
 pub(crate) struct Budget {
     limits: Limits,
     owned_bytes: usize,
@@ -69,11 +69,11 @@ impl Budget {
         }
     }
 
-    /// An error site's decision: strict parsing fails with `error`, except
-    /// that a warning or a namespace error is recorded and the site continues with its
-    /// repair, as libxml2's `xmlNsErr` does. Under `RECOVER` every
-    /// well-formedness error is; resource limits, allocation failure, entity
-    /// loops and failed loads stay fatal.
+    /// An error site's decision: a warning or namespace error (as libxml2's
+    /// `xmlNsErr`), and under `RECOVER` any well-formedness error, is recorded
+    /// and the site continues with its repair; otherwise `error` is returned.
+    /// Resource limits, allocation failure, aborts, entity loops and failed
+    /// loads stay fatal.
     #[cold]
     #[inline(never)]
     pub(crate) fn recover(&mut self, error: Error) -> Result<(), Error> {
@@ -589,7 +589,7 @@ impl<'source> ParserState<'source> {
         Ok(self)
     }
 
-    /// Applies the token-level parser options (`NOCDATA`, `NSCLEAN`, `IGNORE_ENC`).
+    /// Applies `flags`; the budget takes `RECOVER` and `OLD10`.
     pub(crate) fn with_flags(mut self, flags: crate::options::Flags) -> Self {
         self.flags = flags;
         self.budget.recovers = flags.recovers();
@@ -2034,7 +2034,7 @@ impl<'source> ParserState<'source> {
 /// Placeholder namespace of a name whose URI [`ParserState::lend`] borrows;
 /// a real namespace is never empty.
 const LENT: &str = "";
-/// A normalized value lent from `ParserState::values`: NUL is never a value.
+/// A normalized value lent from `ParserState::lent`: NUL is never a value.
 const LENT_VALUE: &str = "\0";
 
 fn is_lent_value(value: &str) -> bool {

@@ -140,7 +140,7 @@ pub(crate) type ContentController = ContentControllerCore<'static>;
 pub(crate) type BorrowedContentController<'input> = ContentControllerCore<'input>;
 
 impl<'input> ContentControllerCore<'input> {
-    /// Resume the same decoded source with its original transport encoding.
+    /// Content of streamed input after the DTD, in the same transport encoding.
     pub(crate) fn new(
         body: DtdBodyState,
         parser: ParserState<'input>,

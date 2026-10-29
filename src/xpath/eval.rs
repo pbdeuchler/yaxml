@@ -181,7 +181,7 @@ pub(crate) fn number_to_string(value: f64) -> String {
     trim(&format!("{value:.*}", fraction as usize))
 }
 
-/// libxml2 rounding: halves round up, and (-0.5, 0) rounds to -0.
+/// libxml2 rounding: halves round up, and [-0.5, 0) rounds to -0.
 fn round(value: f64) -> f64 {
     if (-0.5..0.5).contains(&value) {
         return value * 0.0;

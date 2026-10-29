@@ -35,7 +35,7 @@ use crate::{
 pub(crate) mod dtd;
 
 /// `XML_SAVE_FORMAT`: indent element content, except inside elements with
-/// text or CDATA children.
+/// text, CDATA or entity-reference children.
 pub const FORMAT: u32 = 1 << 0;
 /// `XML_SAVE_NO_DECL`: omit the XML declaration.
 pub const NO_DECL: u32 = 1 << 1;
@@ -74,16 +74,16 @@ pub struct Options<'a> {
     /// `XML_SAVE_*` flags from this module's constants.
     pub flags: u32,
     /// The output encoding: UTF-8, UTF-16 (little-endian with a BOM),
-    /// UTF-16LE/BE, US-ASCII, ISO-8859-x or windows-1252, under any libxml2
-    /// alias, written verbatim into the declaration. `None` uses the
-    /// document's declared encoding; with none, non-ASCII text is written as
-    /// `&#xH;`.
+    /// UTF-16LE/BE, US-ASCII, ISO-8859-x, windows-1252, and UCS-4/EBCDIC with
+    /// feature `encodings`, under any libxml2 alias, written verbatim into the
+    /// declaration. `None` uses a saved document's declared encoding; without
+    /// one, and for any other node, non-ASCII text is written as `&#xH;`.
     pub encoding: Option<&'a str>,
     /// The indent string (`xmlSaveSetIndentString`): 1 to 60 spaces or tabs.
     /// Default: two spaces.
     pub indent: &'a str,
     /// The indentation level of a subtree's root (`xmlNodeDump`'s `level`),
-    /// at most 100; documents always start at 0.
+    /// capped at 100; documents always start at 0.
     pub level: usize,
 }
 
@@ -408,6 +408,7 @@ pub fn to_vec<'document, 'input: 'document>(
 /// - `UnsupportedOption`: unknown flags, an invalid indent, or [`AS_HTML`]
 ///   on a borrowed node or without the `html` feature.
 /// - `UnsupportedEncoding`: an unknown encoding.
+/// - `Allocation`: the output buffer cannot grow.
 /// - `InvalidCharacter`: a character the encoding lacks in a name, comment,
 ///   PI, CDATA section or DOCTYPE identifier (where libxml2 would change
 ///   the content); nothing after it is written.
@@ -507,8 +508,8 @@ pub fn notation_table(dtd: &crate::valid::Dtd) -> Result<String, Error> {
 }
 
 /// Escapes text for content (`xmlEncodeEntitiesReentrant`): `&`, `<` and
-/// `>` become references; for XML also `\r` becomes `&#13;` and other C0
-/// controls, NUL included, `&#xFFFD;`.
+/// `>` become references; for XML also `\r` becomes `&#13;` and the other C0
+/// controls but tab and newline, NUL included, `&#xFFFD;`.
 pub fn encode_entities(text: &str, escape: Escape) -> String {
     let mut out = String::new();
     escape_text(
@@ -521,8 +522,8 @@ pub fn encode_entities(text: &str, escape: Escape) -> String {
 }
 
 /// Escapes text for content or attribute values (`xmlEncodeSpecialChars`):
-/// `&`, `<`, `>` and `"` become references, `\r` `&#13;` and other C0
-/// controls `&#xFFFD;`; non-ASCII is kept.
+/// `&`, `<`, `>` and `"` become references, `\r` `&#13;` and the other C0
+/// controls but tab and newline `&#xFFFD;`; non-ASCII is kept.
 pub fn encode_special_chars(text: &str) -> String {
     let mut out = String::new();
     escape_into(text, &QUOT, false, |piece| out.push_str(piece));

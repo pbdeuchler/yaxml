@@ -464,8 +464,9 @@ impl ErrorKind {
 /// Maps input byte offsets to libxml2's lines and columns.
 ///
 /// Lines end at `\n`; columns count characters from 1, and a leading byte
-/// order mark is not a column. UTF-16 and single-byte encoded input is
-/// handled too; offsets are always input bytes.
+/// order mark is not a column. UTF-16, declared single-byte and (feature
+/// `encodings`) UCS-4 and EBCDIC input is decoded; offsets are always input
+/// bytes.
 pub struct LineIndex<'s> {
     input: Cow<'s, [u8]>,
     /// The input transcoded to UTF-8; `None` when the input is UTF-8 itself.
@@ -747,7 +748,7 @@ impl<'s> LineIndex<'s> {
     pub(crate) fn html_context(&self, at: usize, early: bool, bytes: bool) -> String {
         let text = self.raw.filter(|_| early).unwrap_or(self.text());
         let at = at.min(text.len());
-        // The window reaches 80 bytes back and forward.
+        // The window reaches 100 bytes back and forward.
         let (from, to) = (at.saturating_sub(100), (at + 100).min(text.len()));
         context(&text[from..to], at - from, bytes)
     }
@@ -853,7 +854,9 @@ impl LineIndex<'_> {
         }
     }
 
-    /// The errors of a recovered parse as libxml2 reports them, up to its 100.
+    /// The errors of a recovered parse as libxml2 reports them, up to its 100;
+    /// an `XML_ERR_TAG_NOT_FINISHED` or `XML_ERR_DOCUMENT_EMPTY` after a
+    /// fatal error is dropped.
     ///
     /// Work is linear in the input (eight bytes of work per input byte plus
     /// 64 KiB, shared by all errors); once it is spent, the remaining errors
@@ -891,9 +894,10 @@ impl LineIndex<'_> {
     /// misplaced `]]>` the ASCII fast path of `xmlParseCharDataInternal` has
     /// not moved past the text run's start or its last `\r\n`. Character
     /// data holds no `<`, so the run starts after the `>` that ends the
-    /// markup before it. A predefined entity's redeclaration is reported
-    /// with the column of its value's closing quote (or of the reference's
-    /// `;`), past which the cursor is.
+    /// markup before it. The cursor is one byte past a predefined entity's
+    /// redeclaration reported at its value's closing quote (or a reference's
+    /// `;`), past an `xml:id` type error at a `;`, and past an `xml:id`
+    /// value error not at the tag end.
     fn cursor(&self, code: u16, at: usize) -> usize {
         let t = self.text();
         let lags = match code {
@@ -1198,8 +1202,9 @@ impl crate::Node<'_, '_> {
 // Kept here, beside `Node::line`, rather than in the owned module.
 impl<A: crate::allocator::Allocator> crate::OwnedNode<'_, A> {
     /// `xmlGetLineNo` in the input `lines` indexes, as [`crate::Node::line`];
-    /// `None` for constructed nodes. HTML nodes keep the line the parser
-    /// recorded, so `lines` is not consulted for them.
+    /// `None` for constructed nodes. An HTML node's origin is the decoded
+    /// text offset whose line the parser recorded, so `lines` must be
+    /// `LineIndex::html` of its document.
     pub fn line(self, lines: &LineIndex<'_>) -> Option<usize> {
         lines.node_line(self.document(), self.id())
     }

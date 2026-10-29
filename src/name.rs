@@ -257,8 +257,8 @@ pub(crate) fn validate_edition(
 
 /// Whether `name` is a Fourth Edition `Name` (or `Nmtoken`), libxml2's
 /// `XML_PARSE_OLD10` rule. Fourth Edition names are a subset of Fifth
-/// Edition names with the same ASCII, so callers check only names that
-/// passed [`validate_name`] and hold non-ASCII.
+/// Edition names with the same ASCII, so a name that passed
+/// [`validate_name`] needs this check only if it holds non-ASCII.
 pub(crate) fn old10_name(name: &str, nmtoken: bool) -> bool {
     name.char_indices()
         .all(|(i, c)| old10_char(c, i == 0 && !nmtoken))

@@ -36,7 +36,7 @@ pub(super) enum Slot<'input> {
 pub(super) struct Template<'input> {
     entries: Box<[Entry<'input>]>,
     cost: Cost,
-    /// The recorded reference's invocation, from which its entities' count.
+    /// The recorded reference's invocation, from which its entities' invocations count.
     first: u64,
     /// Entities entered, the reference's own included.
     invocations: u64,
@@ -363,7 +363,7 @@ fn plain(event: &Event<'_>) -> bool {
 }
 
 /// A copy of a content event that borrows what it borrows, adding the
-/// bytes it owns (names counted whole) to `bytes`.
+/// bytes it owns (names counted whole) to `total`.
 fn duplicate<'a>(event: &Event<'a>, total: &mut usize) -> Result<Event<'a>, TryReserveError> {
     let bytes = std::cell::Cell::new(0);
     let text = |text: &Cow<'a, str>| {

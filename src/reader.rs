@@ -356,7 +356,7 @@ pub enum Event<'a> {
     /// A general entity reference in content, reported when entities are not
     /// substituted (no `NOENT`), like libxml2's SAX `reference` callback. The
     /// replacement text's events follow, then the matching [`Event::EntityEnd`];
-    /// a reference that is not loaded or declared has none.
+    /// a reference that is not loaded or declared has nothing in between.
     EntityStart(Cow<'a, str>),
     /// The end of the innermost [`Event::EntityStart`].
     EntityEnd,
@@ -384,9 +384,9 @@ enum End {
 ///
 /// Namespace-aware, and strict unless `RECOVER` is set (see
 /// [`Reader::errors`]). Whitespace outside the root element is skipped.
-/// Errors are sticky, and EOF repeats `Ok(None)`. For other
-/// encodings or I/O sources, use [`PushParser`](crate::PushParser) or
-/// [`BufferedReader`](crate::BufferedReader).
+/// Errors are sticky, and EOF repeats `Ok(None)`. For other encodings read
+/// [`Transcoded`] input ([`Reader::transcoded`]); for I/O sources use
+/// [`PushParser`](crate::PushParser) or [`BufferedReader`](crate::BufferedReader).
 ///
 /// ```
 /// use yaxml::{Event, Reader};
@@ -426,8 +426,12 @@ impl<'a> Reader<'a> {
     ///
     /// # Errors
     ///
-    /// Fails when the input is not UTF-8, holds a character outside XML's
-    /// `Char`, or exceeds `max_input_bytes`.
+    /// Fails when the input exceeds `max_input_bytes`, starts with a UTF-16 or
+    /// UCS-4 byte order mark or the UTF-16 `<?` signature
+    /// ([`ErrorKind::UnsupportedEncoding`]: read [`Transcoded`] input), is not
+    /// UTF-8, or holds a character outside XML's `Char`. Before invalid UTF-8,
+    /// a complete XML declaration is read and its error, such as an
+    /// unsupported declared encoding, is returned instead.
     pub fn new(input: &'a [u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
@@ -576,9 +580,9 @@ impl<'a> Reader<'a> {
         Ok(self)
     }
 
-    /// The declarations of the document's DTD, once its DOCTYPE was read
-    /// (its internal subset); complete after the document element's start tag (the external subset
-    /// loads while it is read).
+    /// The declarations of the document's DTD, once its DOCTYPE was read (its
+    /// internal subset); complete after the document element's start tag (the
+    /// external subset loads while it is read).
     ///
     /// ```
     /// let mut reader = yaxml::Reader::new(b"<!DOCTYPE r [<!ENTITY a 'v'>]><r/>")?;

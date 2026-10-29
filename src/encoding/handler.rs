@@ -78,8 +78,8 @@ pub enum CharEncoding {
 
 impl CharEncoding {
     /// `xmlDetectCharEncoding`: the encoding a document's first bytes
-    /// announce: a `<` or `<?` in UTF-8, UTF-16 or UCS-4, EBCDIC `<?xm`, or
-    /// a byte order mark.
+    /// announce: `<` in UCS-4, `<?xm` in UTF-8 or EBCDIC, `<?` in UTF-16, or
+    /// a UTF-8 or UTF-16 byte order mark.
     ///
     /// ```
     /// use yaxml::encoding::CharEncoding;

@@ -226,8 +226,6 @@ fn last_failure(codes: impl IntoIterator<Item = i32>) -> i32 {
         .unwrap_or(0)
 }
 
-/// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
-/// then Schematron, RELAX NG and XML Schema; the last failing code wins.
 /// Prints a schema verdict line; the exit code.
 fn verdict(o: &Opts, file: &str, ok: bool) -> i32 {
     match (ok, o.quiet) {
@@ -238,6 +236,8 @@ fn verdict(o: &Opts, file: &str, ok: bool) -> i32 {
     if ok { 0 } else { VALID }
 }
 
+/// Validation after parsing: DTD (`--valid`, `--postvalid`, `--dtdvalid`),
+/// then Schematron, RELAX NG and XML Schema; the last failing code wins.
 fn checks(o: &Opts, schemas: &Schemas, file: &str, input: &[u8], document: &OwnedDocument) -> i32 {
     let verdict = |ok| verdict(o, file, ok);
     let lines = LineIndex::new(input);

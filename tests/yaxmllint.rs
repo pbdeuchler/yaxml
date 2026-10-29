@@ -155,6 +155,7 @@ fn cases() -> Vec<Case> {
         case("version", &["--version"], 0, Has("yaxmllint using yaxml")),
         case("no-op options", &["--nonet", "--noent", "--nowarning", "--push", "--noout", "a.xml"], 0, Empty),
         case("huge", &["--huge", "--noout", "a.xml"], 0, Empty),
+        err(on(case("pedantic", &["--pedantic", "--noout", "a.xml"], 0, Empty), &[("a.xml", "<a xml:lang=\"1\"/>")], ""), "a.xml:1: parser warning : Malformed value for xml:lang : 1\n"),
         case("timing", &["--timing", "--noout", "a.xml"], 0, Empty),
         err(on(case("last failure wins", &["good.xml", "bad.xml"], 4, Has("<good/>")), &[("good.xml", "<good/>"), ("bad.xml", "<bad>")], ""), "bad.xml:1"),
         Case { stdin: "<a/>", ..case("stdin", &["-"], 0, Exact("<?xml version=\"1.0\"?>\n<a/>\n")) },
@@ -274,6 +275,17 @@ fn options() {
         }
         fs::remove_dir_all(dir).unwrap();
     }
+}
+
+#[test]
+fn pedantic_warnings_need_the_option() {
+    let dir = scratch(&[("a.xml", "<a xml:lang=\"1\"/>")]);
+    let plain = yaxmllint(&["--noout", "a.xml"], &dir, "", &[]);
+    assert_eq!((plain.code, plain.stderr.as_str()), (0, ""));
+    let pedantic = yaxmllint(&["--pedantic", "--noout", "a.xml"], &dir, "", &[]);
+    assert_eq!(pedantic.code, 0);
+    assert!(pedantic.stderr.contains("Malformed value for xml:lang"));
+    fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]

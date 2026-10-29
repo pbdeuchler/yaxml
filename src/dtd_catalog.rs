@@ -406,7 +406,6 @@ impl DtdCatalog {
         self.limits.flags.default_attributes()
     }
 
-    /// Records a validity error found while parsing.
     /// The warning a reference to an undeclared entity that unread markup
     /// could declare raises besides its validity note.
     pub(crate) fn undeclared_warning(&self) -> Option<crate::Warning> {
@@ -418,6 +417,7 @@ impl DtdCatalog {
         &self.undeclared
     }
 
+    /// Records a validity error found while parsing.
     pub(crate) fn note(&mut self, code: Code, offset: Option<usize>, message: String) {
         self.dtd.issues.push((code, offset, message));
     }
@@ -1343,7 +1343,8 @@ fn copy_string(raw: &str) -> Result<String, DtdError> {
     Ok(value)
 }
 
-/// The lexical unit validates the quote delimiters. No reference decoding occurs.
+/// The stored length of a quoted identifier: its content, a physical `\r\n`
+/// counting as one byte. References are not decoded.
 fn identifier_length(quoted: &str, source: LiteralSource) -> usize {
     let contents = &quoted.as_bytes()[1..quoted.len() - 1];
     contents.len()

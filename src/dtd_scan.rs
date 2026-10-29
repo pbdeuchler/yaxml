@@ -77,7 +77,7 @@ impl DtdScanner {
         (&self.buffer, self.start..self.position)
     }
 
-    /// Reuse scratch only at a complete between-declaration boundary.
+    /// Reuses the scratch; only at a complete between-declaration boundary.
     pub(crate) fn restart_fragment(&mut self) {
         debug_assert!(
             self.mode == ScanMode::SubsetFragment
@@ -93,7 +93,7 @@ impl DtdScanner {
         self.position
     }
 
-    /// The ready unit remains available until release, including after EOF calls.
+    /// The ready unit; it stays available until `release`, also after `finish_step`.
     pub(crate) fn current(&self) -> Option<(ScanKind, &[u8], Range<usize>)> {
         self.ready
             .map(|kind| (kind, self.buffer.as_slice(), self.start..self.position))
@@ -105,8 +105,8 @@ impl DtdScanner {
         self.buffer.clear();
     }
 
-    /// Stop at one unit; the controller advances only without a ready unit
-    /// and before the scanner completes or finalizes.
+    /// Scans to the end of one unit and returns the bytes consumed; called
+    /// only without a ready unit, before the scanner completes or finalizes.
     pub(crate) fn advance(&mut self, input: &[u8]) -> Result<usize, Error> {
         let mut index = 0;
         while index < input.len() {
@@ -193,7 +193,8 @@ impl DtdScanner {
         Ok(())
     }
 
-    /// Declare final EOF, draining a trailing whitespace unit before closure checks.
+    /// Input ended: a trailing whitespace unit becomes ready; elsewhere than
+    /// between declarations, the open unit is an error.
     pub(crate) fn finish_step(&mut self) -> Result<(), Error> {
         match self.state {
             State::Whitespace => {

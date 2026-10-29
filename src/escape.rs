@@ -65,8 +65,8 @@ pub(crate) fn find_byte(
 /// only C0 controls and U+FFFE/U+FFFF (`EF BF BE`/`EF BF BF`) can fail.
 /// Text shorter than 16 bytes (most tokens) is searched through a lookup
 /// table; longer text is screened in blocks of 128, then 64 bytes by a
-/// branch-free byte test that vectorizes, a hit is re-checked exactly the
-/// same way (`EF` alone is common: U+F000..U+FFFF), and only a confirmed
+/// branch-free byte test that vectorizes, a hit is re-checked exactly, also
+/// branch-free (`EF` alone is common: U+F000..U+FFFF), and only a confirmed
 /// block is searched. The tail under 64 bytes is screened as one run.
 pub(crate) fn invalid_char(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();

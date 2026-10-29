@@ -639,7 +639,7 @@ fn predefined(name: &str) -> Option<char> {
         .map(|&(_, c)| c)
 }
 
-/// Character references (and with `predefined` the predefined entities)
+/// Character references (and with `predefined_too` the predefined entities)
 /// replaced, as an attribute value or an entity literal reads them.
 fn expand(raw: &str, predefined_too: bool) -> String {
     let mut out = String::with_capacity(raw.len());
@@ -1619,7 +1619,7 @@ fn premature(c: &Cur<'_>, open: usize) -> Found {
 /// An error in the replacement text of a referenced internal entity is
 /// reported where the reference to the entity holding it ends, in the
 /// document or, for nested entities, in the referring entity's text.
-/// `seen` are the entities whose text is being read (`depth` = its length).
+/// `seen` are the entities whose text is being read.
 fn text_run(
     c: &mut Cur<'_>,
     end: usize,
@@ -1934,7 +1934,6 @@ fn unsupported_encoding(r: &Cur<'_>) -> Found {
     .strs(&name, None)
 }
 
-/// The context-free mapping, for kinds the input cannot refine.
 /// libxml2's report of `warning`, raised by the attribute, PI target or
 /// reference at `c`; a reference nested in entity text is reported after
 /// the outermost one.
@@ -2130,6 +2129,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
     }
 }
 
+/// The context-free mapping, for kinds the input cannot refine.
 fn fallback(kind: ErrorKind, at: usize) -> Found {
     let message = match kind {
         ErrorKind::LimitExceeded(Limit::Depth) => "Excessive depth in document".into(),

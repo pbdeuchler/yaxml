@@ -2382,7 +2382,8 @@ impl Fix {
 
     // ---- element declarations --------------------------------------------
 
-    /// The type of an element: its own, its head's, or `anyType`.
+    /// The type of each element declared without one: its nearest typed
+    /// head's, else `anyType`.
     fn element_types(&mut self) {
         for e in 0..self.d.elements.len() {
             if self.d.elements[e].ty.is_some() {

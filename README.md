@@ -129,13 +129,13 @@ assert_eq!(messages, ["Opening and ending tag mismatch: a line 1 and b"]);
 
 ## Security defaults
 
-| Threat                                       | Default                                                                           |
-| -------------------------------------------- | --------------------------------------------------------------------------------- |
-| External entities (XXE), external DTDs       | Loaded only through a `Resolver` you supply, and only when the flags ask for them |
-| Entity expansion ("billion laughs")          | Amplification and total-expansion limits, as in libxml2                           |
-| Deep nesting; huge names, attributes or text | Depth, size and count limits on every surface                                     |
-| Quadratic and backtracking inputs            | Linear algorithms; regular expressions and RELAX NG run on bounded automata       |
-| Memory                                       | Every allocation that the input controls is charged to a budget                   |
+| Threat                                       | Default                                                                                                |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| External entities (XXE), external DTDs       | Loaded only through a `Resolver` you supply, and only when the flags ask for them                      |
+| Entity expansion ("billion laughs")          | Amplification and total-expansion limits, as in libxml2                                                |
+| Deep nesting; huge names, attributes or text | Depth, size and count limits on every surface                                                          |
+| Quadratic and backtracking inputs            | Linear parsing; content models, regular expressions and RELAX NG compile under work and memory budgets |
+| Memory                                       | Every allocation that the input controls is charged to a budget                                        |
 
 Each limit is a field of a `Limits` struct, and `options::HUGE` relaxes the
 limits as libxml2's `XML_PARSE_HUGE` does. [docs/security.md](docs/security.md)
@@ -150,9 +150,9 @@ libxml2 and every known difference. The [API mapping](docs/libxml2-api.tsv)
 has one row per libxml2 function, and [conformance](docs/conformance.md)
 covers the W3C test suite results.
 
-Not yet supported: XML 1.1, and built-in decoding of the multi-byte encodings that
-libxml2 reads only through iconv or ICU (Shift_JIS, EUC-JP, GBK and others); a
-caller can supply them through `ParseOptions::converters`. The
+Not yet supported: XML 1.1, and built-in decoding of the multi-byte encodings
+that libxml2 reads only through iconv or ICU (Shift_JIS, EUC-JP, GBK and
+others); a caller can supply them through `ParseOptions::converters`. The
 [remaining work](docs/remaining-work.md) lists what is left.
 
 ## Cargo features
@@ -160,8 +160,8 @@ caller can supply them through `ParseOptions::converters`. The
 Everything is on by default (`full`). With `default-features = false` you get
 the core: `Reader`, `PushParser`, `BufferedReader`, `Document`,
 `OwnedDocument` and `Editor`, DTD processing and validation (`valid`),
-diagnostics, `save`, `Writer`, `uri` and `chars` (about 37,600 of the
-70,000 lines in `src/`). Then add what you need:
+diagnostics, `save`, `Writer`, `uri` and `chars` (about 41,300 of the
+78,700 lines in `src/`). Then add what you need:
 
 ```toml
 [dependencies]
@@ -170,17 +170,17 @@ yaxml = { version = "0.1", default-features = false, features = ["xpath"] }
 
 | Feature | Enables | Implies | Lines |
 | --- | --- | --- | --- |
-| `xpath` | `xpath` compile and evaluation, `xpointer`, `pattern` | | 3,400 |
+| `xpath` | `xpath` compile and evaluation, `xpointer`, `pattern` | | 3,650 |
 | `c14n` | `c14n` | `xpath` | 650 |
-| `xinclude` | `xinclude`, the `XINCLUDE` parser flag | `xpath` | 1,150 |
-| `catalog` | `catalog`, the `CATALOG_PI` parser flag | | 1,250 |
-| `schemas` | `xsd`, `relaxng`, `schematron`, `schema_types`, `regexp` | `xpath` | 16,800 |
-| `html` | `html`, `save::AS_HTML` | | 6,250 |
-| `textreader` | `TextReader`, `Walker` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 1,700 |
+| `xinclude` | `xinclude`, the `XINCLUDE` parser flag | `xpath` | 1,350 |
+| `catalog` | `catalog`, the `CATALOG_PI` parser flag | | 1,400 |
+| `schemas` | `xsd`, `relaxng`, `schematron`, `schema_types`, `regexp` | `xpath` | 18,650 |
+| `html` | `html`, `save::AS_HTML` | | 6,500 |
+| `textreader` | `TextReader`, `Walker` (its RELAX NG and XSD hooks need `schemas`) | `schemas` | 2,350 |
 | `textwriter` | `TextWriter` | | 1,200 |
-| `debug` | `debug` (libxml2's debugXML dumps, `yaxmllint --debug`) | | 750 |
-| `sax` | `sax` (SAX2-style callbacks, libxml2's `xmlSAXHandler`) | | 290 |
-| `encodings` | UCS-4 and EBCDIC input and `save` output (the code pages of the macOS iconv) | | 450 |
+| `debug` | `debug` (libxml2's debugXML dumps, `yaxmllint --debug`) | | 850 |
+| `sax` | `sax` (SAX2-style callbacks, libxml2's `xmlSAXHandler`) | | 500 |
+| `encodings` | UCS-4 and EBCDIC input and `save` output (the code pages of the macOS iconv) | | 400 |
 | `full` | all of the above (default) | | |
 | `allocator_api` | Rust 1.100+: `OwnedDocument` storage in any `Allocator` (`OwnedDocument::parse_in`); not in `full` | | |
 

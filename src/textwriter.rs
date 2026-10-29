@@ -1007,8 +1007,9 @@ impl<W: Write> TextWriter<W> {
 
     calls! {
         /// Writes the XML declaration (`xmlTextWriterStartDocument`). The
-        /// encoding (UTF-8, UTF-16, UTF-16LE/BE, US-ASCII, ISO-8859-x or
-        /// windows-1252) selects the output converter.
+        /// encoding (UTF-8, UTF-16, UTF-16LE/BE, US-ASCII, ISO-8859-x,
+        /// windows-1252, and UCS-4/EBCDIC with feature `encodings`) selects
+        /// the output converter; any other is `UnsupportedEncoding`.
         start_document(version: Option<&str>, encoding: Option<&str>, standalone: Option<&str>);
         /// Opens a comment (`xmlTextWriterStartComment`).
         start_comment();

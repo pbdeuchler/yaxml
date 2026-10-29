@@ -32,7 +32,7 @@ const EXPECTED: [(u32, &str, bool); 34] = [
     (25, "SCHEMAS", cfg!(feature = "schemas")),
     (26, "SCHEMATRON", cfg!(feature = "schemas")),
     (27, "MODULES", false),
-    (28, "DEBUG", false),
+    (28, "DEBUG", cfg!(feature = "debug")),
     (29, "DEBUG_MEM", false),
     (30, "DEBUG_RUN", false),
     (31, "ZLIB", false),

@@ -265,9 +265,9 @@ impl<'a> DtdUnit<'a> {
         &self.raw
     }
 
-    /// Retain a validated unit before mutating the catalog that supplied its text.
-    /// Existing owned text and token metadata move without copying. A borrowed
-    /// raw value spends the shared owned-string budget before allocation.
+    /// The unit with owned text, so the catalog that supplied it can change.
+    /// Owned text and tokens move; borrowed text is charged to `budget`'s
+    /// owned bytes, then copied.
     pub(crate) fn try_into_owned(
         self,
         budget: &mut crate::parser::Budget,

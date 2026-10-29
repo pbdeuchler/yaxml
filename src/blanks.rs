@@ -1,7 +1,8 @@
 //! libxml2's `areBlanks` (`XML_PARSE_NOBLANKS`) as the parse front sees it:
-//! text of spaces is ignorable unless `xml:space` preserves it, the
-//! element's declared content is mixed, or (undeclared) the element's other
-//! children make it significant. [`Blanks`] decides; [`Filter`] applies it
+//! text of spaces is ignorable unless `xml:space` preserves it, the element
+//! without `xml:space` already holds text the document spells, its declared
+//! content is mixed or ANY, or (undeclared) its other children make it
+//! significant. [`Blanks`] decides; [`Filter`] applies it
 //! to the streams' events, and the text reader to its nodes.
 
 use crate::{Element, Error, ErrorKind, Event, SourceOrigin};

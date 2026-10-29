@@ -529,7 +529,7 @@ pub(crate) struct Notes {
 
 impl Schema {
     /// Parses a schema document whose URI is `uri`; nothing else is loaded,
-    /// so `<include>` fails and `<import>` is skipped.
+    /// so `<include>` and `<redefine>` fail and `<import>` is skipped.
     pub fn parse(input: &[u8], uri: &str) -> Result<Schema, Error> {
         Self::with_resolver(input, uri, None, Limits::default())
     }

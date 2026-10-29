@@ -23,7 +23,8 @@ pub(super) enum Decoder {
     },
 }
 
-/// The start of the input: its decoder, BOM length and `doc->encoding`.
+/// The start of the input: its decoder, BOM length, whether the encoding
+/// is settled (no `<meta>` or guessed switch follows) and `doc->encoding`.
 pub(super) struct Sniffed {
     pub(super) decoder: Decoder,
     pub(super) bom: usize,
@@ -130,8 +131,8 @@ impl Decoder {
     }
 
     /// Appends decoded text and returns the output offset of the first
-    /// malformed input, if any. Malformed UTF-16 becomes U+FFFD and a
-    /// truncated final unit is dropped.
+    /// malformed input, if any. Malformed input becomes U+FFFD, except a
+    /// truncated final UTF-16 unit, which is dropped.
     pub(super) fn decode(&mut self, input: &[u8], last: bool, out: &mut Vec<u8>) -> Option<usize> {
         match self {
             Self::Utf8 => {

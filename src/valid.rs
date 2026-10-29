@@ -374,7 +374,9 @@ impl ElementDecl {
 impl Dtd {
     /// Reads the external DTD `system` through `resolver`, as libxml2's
     /// `xmlParseDTD(NULL, system)`; external parameter entities load the same
-    /// way. A declined subset is [`ErrorKind::ExternalResource`](crate::ErrorKind).
+    /// way, under [`Resolver::resolve`]'s rules. A subset the resolver
+    /// declines or fails to return is
+    /// [`ErrorKind::ExternalResource`](crate::ErrorKind).
     pub fn load(system: &str, limits: Limits, resolver: Box<dyn Resolver>) -> Result<Self, Error> {
         crate::dtd_catalog::external_dtd(system, limits, resolver)
     }

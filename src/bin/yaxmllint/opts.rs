@@ -34,7 +34,8 @@ pub struct Opts {
     pub xinclude: bool,
     pub nofixup_base: bool,
     /// Parser options set directly: `--loaddtd`, `--dtdattr`, `--noent`,
-    /// `--recover`, `--nocdata`, `--nsclean`, `--noenc`.
+    /// `--oldxml10`, `--pedantic`, `--recover`, `--nocdata`, `--nsclean`,
+    /// `--noenc`.
     pub flags: u32,
     pub catalogs: bool,
     pub huge: bool,
@@ -114,6 +115,7 @@ const TABLE: &[Spec] = &[
     flag("dtdattr", |o, _| o.with(options::DTDATTR)),
     flag("noent", |o, _| o.with(options::NOENT)),
     flag("oldxml10", |o, _| o.with(options::OLD10)),
+    flag("pedantic", |o, _| o.with(options::PEDANTIC)),
     flag("recover", |o, _| o.with(options::RECOVER)),
     flag("nocdata", |o, _| o.with(options::NOCDATA)),
     flag("nsclean", |o, _| o.with(options::NSCLEAN)),
@@ -206,7 +208,6 @@ const TABLE: &[Spec] = &[
 const NO_OPS: &[&str] = &[
     "nonet",
     "nowarning",
-    "pedantic",
     "nodict",
     "nocompact",
     "push",
@@ -218,7 +219,6 @@ const NO_OPS: &[&str] = &[
 
 /// xmllint options with no yaxml counterpart. The value-taking ones come last.
 const UNSUPPORTED: &[&str] = &[
-    "debug",
     "shell",
     "copy",
     "sax",

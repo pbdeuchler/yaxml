@@ -731,7 +731,8 @@ impl Value {
     /// `xmlSchemaCompareValues`. Numbers of the decimal family, floats with
     /// doubles, all date/time types, and the string family each compare
     /// among themselves; `NaN` equals itself and exceeds every number.
-    /// Unlike libxml2, string order is plain code point order.
+    /// Strings follow libxml2's whitespace-dependent byte comparisons:
+    /// unequal `string` values are [`Comparison::Indeterminate`].
     pub fn compare(&self, other: &Value) -> Comparison {
         let float = |data: &Data| match *data {
             Data::Float(f) => Some(f64::from(f)),

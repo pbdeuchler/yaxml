@@ -78,7 +78,8 @@ pub struct Options {
     pub xpath: xpath::Limits,
     /// [`crate::options`] flags for parsing included documents; like
     /// libxml2, `DTDLOAD` is always added, and `NOENT` when an XPointer
-    /// selects from the document. Default: [`crate::options::LEGACY`].
+    /// selects from the document; `XINCLUDE` and `DTDVALID` are dropped.
+    /// Default: [`crate::options::LEGACY`].
     pub parse_flags: u32,
 }
 
@@ -335,7 +336,8 @@ struct Subset {
     dtd: Option<Box<crate::valid::Dtd>>,
 }
 
-/// A load that failed without an error, so the fallback applies.
+/// An inclusion's pieces, or a failed load (with its parse error, if any),
+/// so the fallback applies.
 type Loaded = Result<Vec<Piece>, Option<crate::Error>>;
 
 struct Processor<'o> {
@@ -1106,8 +1108,9 @@ fn fail(local: &Local<'_>, node: Option<OwnedNode<'_>>, kind: ErrorKind) -> Erro
     }
 }
 
-/// Limits and allocation failures stop processing; other parse errors make
-/// the resource unavailable, as libxml2 only reports them.
+/// Limits, allocation failures and exhausted identifiers stop processing;
+/// other parse errors make the resource unavailable, as libxml2 only
+/// reports them.
 fn fatal(error: crate::Error) -> bool {
     matches!(
         error.kind,

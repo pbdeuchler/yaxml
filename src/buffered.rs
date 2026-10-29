@@ -86,8 +86,8 @@ impl<R: BufRead> BufferedReader<R> {
     ///
     /// # Errors
     ///
-    /// `DTDVALID` and `XINCLUDE`, which need a tree, are
-    /// [`ErrorKind::UnsupportedOption`].
+    /// Unknown or unimplemented flags, and `DTDVALID` and `XINCLUDE`, which
+    /// need a tree, are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -109,7 +109,8 @@ impl<R: BufRead> BufferedReader<R> {
 
     /// Starts a new document on `input` with the same flags and limits,
     /// reusing allocations (`xmlCtxtReset`), and returns the previous source.
-    /// All other state, the resolver included, is dropped.
+    /// All other state, the resolver, converters and forced encoding
+    /// included, is dropped.
     pub fn reset(&mut self, input: R) -> R {
         self.session.reset_same();
         self.restart(input)

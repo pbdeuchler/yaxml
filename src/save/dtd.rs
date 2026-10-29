@@ -80,9 +80,10 @@ fn declarations(
 
 /// Reads the internal subset again, expanding internal parameter entities,
 /// and passes each unit in order with the catalog read so far; returns the
-/// declarations. A stored subset is read recovering (a recovered document's
-/// can hold what libxml2 reads on from); declarations added after `seed`'s
-/// are read strictly.
+/// declarations. Without `seed` (a stored subset) the read recovers, as a
+/// recovered document's subset can hold errors libxml2 read past; with it,
+/// the catalog resumes from `seed` and the read is strict, failing with
+/// `InvalidDtd` when the subset ends before the text does.
 pub(crate) fn units(
     name: &str,
     subset: &str,
@@ -129,7 +130,8 @@ pub(crate) fn units(
 }
 
 /// The default libxml2 stores for an attribute definition: references
-/// expanded, then normalized.
+/// expanded, then normalized; with `kept`, its form with references kept
+/// when it has one.
 pub(crate) fn stored_default<'a>(
     catalog: &'a DtdCatalog,
     element: &str,

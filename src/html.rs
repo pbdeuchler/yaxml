@@ -65,7 +65,8 @@ pub const NONET: u32 = 1 << 11;
 pub const NOIMPLIED: u32 = 1 << 13;
 /// `HTML_PARSE_COMPACT`: accepted; storage is always compact.
 pub const COMPACT: u32 = 1 << 16;
-/// `HTML_PARSE_HUGE`: depth ceiling 2048 and value ceiling 1 GB, as in libxml2.
+/// `HTML_PARSE_HUGE`: raises the depth ceiling to at least 2048 and the
+/// value and name ceilings to at least 1 GB, as in libxml2.
 pub const HUGE: u32 = 1 << 19;
 /// `HTML_PARSE_IGNORE_ENC`: ignore `<meta>` encoding declarations.
 pub const IGNORE_ENC: u32 = 1 << 21;
@@ -459,7 +460,8 @@ impl PushParser {
     ///
     /// # Errors
     ///
-    /// Unsupported flags.
+    /// `UnsupportedOption` for an unknown flag, `UnsupportedEncoding` for a
+    /// forced encoding without an HTML converter, `Allocation`.
     pub fn new(options: Options) -> Result<Self, Error> {
         Ok(Self(Push::new(Engine::new(
             options.clone(),
@@ -500,7 +502,8 @@ impl<F: FnMut(Event<'_>) -> ControlFlow<()>> EventParser<F> {
     ///
     /// # Errors
     ///
-    /// Unsupported flags.
+    /// `UnsupportedOption` for an unknown flag, `UnsupportedEncoding` for a
+    /// forced encoding without an HTML converter.
     pub fn new(options: Options, handler: F) -> Result<Self, Error> {
         Ok(Self(Push::new(Engine::new(
             options,

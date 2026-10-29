@@ -234,8 +234,8 @@ pub enum ErrorKind {
 pub struct Error {
     /// What went wrong.
     pub kind: ErrorKind,
-    /// The expression byte offset: always set for a compilation error, and
-    /// for an evaluation error caused by an unknown name.
+    /// The expression byte offset: set for a compilation error other than
+    /// `Allocation`, and for an evaluation error caused by an unknown name.
     pub offset: Option<usize>,
 }
 

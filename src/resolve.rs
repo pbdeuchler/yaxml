@@ -48,9 +48,11 @@ pub struct Request<'a> {
 ///
 /// libxml2's custom resource loader. It is passed in
 /// [`ParseOptions`](crate::ParseOptions), whose flags decide what is
-/// requested: `DTDLOAD` the external subset, `NOENT` or `DTDVALID` external
-/// entities, never anything with `NO_XXE`. Loads are bounded by
-/// [`Limits::max_external_loads`] and [`Limits::max_external_bytes`].
+/// requested: the external subset under `DTDLOAD`, `DTDATTR` or `DTDVALID`;
+/// external parameter entities under those or `NOENT`; external general
+/// entities under `NOENT` or `DTDVALID`; nothing under `NO_XXE`. Loads are
+/// bounded by [`Limits::max_external_loads`] and
+/// [`Limits::max_external_bytes`].
 /// Closures implement this trait.
 ///
 /// ```
@@ -79,7 +81,9 @@ pub trait Resolver: Send {
     /// [`io::Error::other`]) or `XML_IO_ENOENT` ([`io::ErrorKind::NotFound`]).
     /// Any other `Err` (such as
     /// [`io::ErrorKind::PermissionDenied`]) aborts parsing with
-    /// [`ErrorKind::ExternalResource`].
+    /// [`ErrorKind::ExternalResource`]. These are the rules for DTD and
+    /// entity loads; XInclude, catalog and schema loads treat any `Err` as
+    /// a failed load.
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>>;
 
     /// Receives the `catalog` of each `<?oasis-xml-catalog?>` instruction

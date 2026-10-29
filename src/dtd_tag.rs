@@ -226,10 +226,10 @@ enum Piece<'a> {
 }
 
 /// libxml2's attribute value without `NOENT` (`xmlParseAttValueInternal`):
-/// general references `keep` accepts (declared ones, never predefined or
-/// character references) stay `&name;`, an `&` from a reference is `&#38;`,
-/// other references are resolved, an undeclared one is dropped, and
-/// whitespace is normalized around the kept references, not inside them.
+/// general references `keep` accepts stay `&name;`, character and predefined
+/// references are resolved (an `&` as `&#38;`), other references are
+/// dropped, and whitespace is normalized around the kept references, not
+/// inside them.
 /// `None`, without allocating, when nothing is kept. `charge` approves the
 /// one exact reservation (the literal's length) first.
 pub(crate) fn kept_form(

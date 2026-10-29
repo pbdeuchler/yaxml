@@ -139,7 +139,10 @@ pub enum ErrorKind {
     UnbalancedEntity,
     /// Malformed document type declaration or internal subset.
     InvalidDtd,
-    /// The resolver failed to load an external DTD subset or entity.
+    /// The resolver failed to load an external DTD subset or entity with an
+    /// error other than not-found or unknown (`XML_IO_ENOENT`,
+    /// `XML_IO_UNKNOWN`), which skip the resource; [`Dtd::load`](crate::valid::Dtd::load)
+    /// also reports a declined subset.
     ExternalResource,
     /// `XML_PARSE_XINCLUDE` processing failed; [`crate::xinclude::process`]
     /// reports the detail.

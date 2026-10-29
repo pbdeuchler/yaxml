@@ -8,11 +8,12 @@ use crate::{DecodeLimits, Error, ErrorKind, Event, Limits, ParseOptions, ReadErr
 
 /// An incremental parser fed byte chunks of any size, in bounded memory.
 ///
-/// Input may be UTF-8, UTF-16 or a declared single-byte
-/// [encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md),
-/// split anywhere. Events do not depend on the split: each text run is one
-/// event. Callbacks receive events lent for the call, so copy what you
-/// keep. Events before an error are delivered before the error is found.
+/// Input may be in any supported
+/// [encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md)
+/// or one [`ParseOptions::converters`] decodes, split anywhere. Events do
+/// not depend on the split: each text run is one event. Callbacks receive
+/// events lent for the call, so copy what you keep. Events before an error
+/// are delivered before the error is found.
 ///
 /// ```
 /// use std::ops::ControlFlow;
@@ -61,8 +62,8 @@ impl PushParser {
     ///
     /// # Errors
     ///
-    /// `DTDVALID` and `XINCLUDE`, which need a tree, are
-    /// [`ErrorKind::UnsupportedOption`].
+    /// Unknown or unimplemented flags, and `DTDVALID` and `XINCLUDE`, which
+    /// need a tree, are [`ErrorKind::UnsupportedOption`].
     pub fn with_options(options: ParseOptions) -> Result<Self, Error> {
         let flags = options.check(false, 0)?;
         let (limits, decode) = options.effective_limits();
@@ -86,8 +87,8 @@ impl PushParser {
     }
 
     /// Starts a new document with the same flags and limits, reusing
-    /// allocations (`xmlCtxtResetPush`). All other state, the resolver
-    /// included, is dropped.
+    /// allocations (`xmlCtxtResetPush`). All other state, the resolver,
+    /// converters and forced encoding included, is dropped.
     pub fn reset(&mut self) {
         self.session.reset_same();
         self.blanks = self.blanks.take().map(|_| Box::default());
