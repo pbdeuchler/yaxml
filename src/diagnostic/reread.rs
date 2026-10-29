@@ -2064,7 +2064,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
         // definition of `xml:id` gives a default's literal, and with a
         // tokenized type the value is normalized as one.
         Warning::XmlIdValue => {
-            let tag = memchr::memrchr(b'<', &t[..=c.i]).unwrap_or(0);
+            let tag = memchr::memrchr(b'<', &t[..(c.i + 1).min(t.len())]).unwrap_or(0);
             let mut r = Cur { i: tag + 1, ..*c };
             let attlist = format!("<!ATTLIST {} ", r.name(true).unwrap_or_default());
             let definition = |at: usize| {
@@ -2089,7 +2089,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             let expanded = (String::from_utf8_lossy(&t[tag..end]).split('&').skip(1))
                 .filter_map(|rest| Some(rest.split_once(';')?.0))
                 .any(|name| !name.starts_with('#') && predefined(name).is_none());
-            let end = end - usize::from(t[end - 1] == b'/') - usize::from(expanded);
+            let end = end - usize::from(end > 0 && t[end - 1] == b'/') - usize::from(expanded);
             let message = format!("xml:id : attribute value {value} is not an NCName");
             fail(code, end, message).strs(&value, None)
         }

@@ -758,6 +758,7 @@ impl<'s> LineIndex<'s> {
     }
 
     pub(crate) fn text_column(&self, at: usize) -> usize {
+        let at = at.min(self.text().len());
         let start = self.starts[self.text_line(at) - 1].min(at);
         1 + self.text()[start..at]
             .iter()
