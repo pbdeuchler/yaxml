@@ -34,6 +34,7 @@ fn memory(files: &[(&str, &str)], log: &Log) -> Box<dyn Resolver> {
         ));
         match request.uri {
             "dir/fail" => Err(io::Error::other("refused")),
+            "dir/denied" => Err(io::ErrorKind::PermissionDenied.into()),
             uri => Ok(files.get(uri).cloned()),
         }
     })
@@ -231,12 +232,12 @@ fn resolver_receives_resolved_uris_public_ids_and_remaining_bytes() {
 fn malformed_or_refused_external_resources_fail() {
     let cases: &[(&str, Files, ErrorKind)] = &[
         (
-            "<!DOCTYPE r SYSTEM 'fail'><r/>",
+            "<!DOCTYPE r SYSTEM 'denied'><r/>",
             &[],
             ErrorKind::ExternalResource,
         ),
         (
-            "<!DOCTYPE r [<!ENTITY e SYSTEM 'fail'>]><r>&e;</r>",
+            "<!DOCTYPE r [<!ENTITY e SYSTEM 'denied'>]><r>&e;</r>",
             &[],
             ErrorKind::ExternalResource,
         ),
@@ -313,6 +314,22 @@ fn malformed_or_refused_external_resources_fail() {
     ];
     for (input, files, kind) in cases {
         assert_eq!(all(input, files, Limits::default()), Err(*kind), "{input}");
+    }
+}
+
+/// xmlCtxtErrIO skips a resource whose error is unknown (`io::Error::other`)
+/// or ENOENT, as if the resolver had declined it.
+#[test]
+fn unknown_resolver_errors_skip_the_resource() {
+    for input in [
+        "<!DOCTYPE r SYSTEM '{}'><r/>",
+        "<!DOCTYPE r [<!ENTITY e SYSTEM '{}'>]><r>t&e;</r>",
+        "<!DOCTYPE r [<!ENTITY % p SYSTEM '{}'>%p;]><r/>",
+    ] {
+        let declined = all(&input.replace("{}", "missing"), &[], Limits::default());
+        assert!(declined.is_ok(), "{input}: {declined:?}");
+        let failed = all(&input.replace("{}", "fail"), &[], Limits::default());
+        assert_eq!(failed, declined, "{input}");
     }
 }
 

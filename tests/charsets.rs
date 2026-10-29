@@ -222,12 +222,16 @@ fn decoded_ceilings_count_utf8_output() {
     );
 }
 
-/// A declared byte charset is decoded as a stream: the borrowing DOM validates
-/// UTF-8 up front, while owning/streaming parsers meet ceilings in token order.
+/// A declared byte charset is decoded as a stream: owning/streaming parsers
+/// meet ceilings in token order. The borrowing DOM, which decodes only
+/// `Transcoded` input, reads a complete XML declaration before invalid UTF-8
+/// (rejecting its charset), and nothing else.
 #[test]
-fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
+fn declared_charset_errors_follow_token_order() {
     let valid = b"<?xml version='1.0' encoding='latin1'?><r>\xe9</r>";
     let bad_decl = b"<?xml version='1.0' encoding='latin1'\xe9?><r/>";
+    // Not supported without the `encodings` feature's tables or iconv.
+    let unknown = b"<?xml version='1.0' encoding='x-unknown'?><r>\xa4\xa2</r>";
     let limit = |max_token_bytes| Limits::default().max_token_bytes(max_token_bytes);
     let token = ErrorKind::LimitExceeded(Limit::TokenBytes);
     // (input, limits, borrowed, streaming)
@@ -235,19 +239,19 @@ fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
         (
             &valid[..],
             Limits::default(),
-            Some(error(ErrorKind::InvalidUtf8, 42)),
+            Some(error(ErrorKind::UnsupportedEncoding, 20)),
             None,
         ),
         (
             &valid[..],
             limit(100),
-            Some(error(ErrorKind::InvalidUtf8, 42)),
+            Some(error(ErrorKind::UnsupportedEncoding, 20)),
             None,
         ),
         (
             &valid[..],
             limit(10),
-            Some(error(ErrorKind::InvalidUtf8, 42)),
+            Some(error(token, 0)),
             Some(error(token, 0)),
         ),
         (
@@ -255,6 +259,12 @@ fn declared_charset_errors_follow_token_order_and_borrowing_utf8_precedes() {
             Limits::default(),
             Some(error(ErrorKind::InvalidUtf8, 37)),
             Some(error(ErrorKind::InvalidUtf8, 37)),
+        ),
+        (
+            &unknown[..],
+            Limits::default(),
+            Some(error(ErrorKind::UnsupportedEncoding, 20)),
+            Some(error(ErrorKind::UnsupportedEncoding, 20)),
         ),
         (
             &bad_decl[..],

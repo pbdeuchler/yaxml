@@ -782,7 +782,13 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
                 builder.consume(&event, origin, reader.owned_budget())?;
             };
-            let errors = Budget::conclude(reader.budget(), end)?;
+            let mut errors = Budget::conclude(reader.budget(), end)?;
+            // The repair's error, recorded before reading, takes its place
+            // in input order (after an unsupported declared encoding).
+            if let Some((_, error)) = repaired {
+                let at = errors[1..].partition_point(|e| e.offset < error.offset);
+                errors[..=at].rotate_left(1);
+            }
             builder.finish(reader.position(), reader.take_dtd(), flags, errors, content)?
         };
         Ok((

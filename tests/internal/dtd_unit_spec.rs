@@ -704,8 +704,8 @@ fn syntax_and_lexical_failures_report_the_selected_production_offset() {
         ("<?^1x?>", ErrorKind::InvalidName),
         ("<?p data?>^x", ErrorKind::InvalidDtd),
         ("<?p data?>^ more?>", ErrorKind::InvalidDtd),
-        ("<!ENTITY e SYSTEM 'a^#b'>", ErrorKind::InvalidDtd),
-        ("<!ENTITY % e PUBLIC 'p#' 's^#'>", ErrorKind::InvalidDtd),
+        ("<!ENTITY e SYSTEM 'a#b'^>", ErrorKind::InvalidDtd),
+        ("<!ENTITY % e PUBLIC 'p#' 's#'^>", ErrorKind::InvalidDtd),
     ];
     let mut mismatches = Vec::new();
     for (marked_raw, kind) in cases {

@@ -897,10 +897,12 @@ impl<'a> SliceReader<'a> {
             ),
         };
         let character = invalid_char(input).map(|i| Error::new(ErrorKind::InvalidCharacter, i));
-        // Strict parsing reports invalid UTF-8 first; recovery parses the
-        // prefix before invalid UTF-8, which ends the document, and repairs
-        // characters outside `Char` as libxml2 does.
-        if let Some(error) = utf8.or(character).filter(|_| !flags.recovers()) {
+        // Strict parsing reports invalid UTF-8 first (after the XML
+        // declaration, below), then characters outside `Char`; recovery parses
+        // the prefix before invalid UTF-8, which ends the document, and
+        // repairs characters outside `Char` as libxml2 does.
+        let strict = (!flags.recovers()).then_some(utf8).flatten();
+        if let Some(error) = character.filter(|_| !flags.recovers() && strict.is_none()) {
             return Err(error);
         }
         // A decoded U+FEFF is content: the decoder removed the BOM.
@@ -928,6 +930,20 @@ impl<'a> SliceReader<'a> {
         if decoded_limit || decoded.is_some() {
             let limit = decode.max_decoded_token_bytes;
             reader.state.set_encoding(encoding, initial, limit);
+        }
+        if let Some(utf8) = strict {
+            // A complete XML declaration is read first: its errors (an
+            // unsupported encoding) precede, as in libxml2 and the streams.
+            let declared = match input.as_bytes()[initial..].strip_prefix(b"<?xml") {
+                Some([b' ' | b'\t' | b'\r' | b'\n', rest @ ..]) => {
+                    memchr::memmem::find(rest, b"?>").is_some()
+                }
+                _ => false,
+            };
+            return Err(match declared {
+                true => reader.read_step().err().unwrap_or(utf8),
+                false => utf8,
+            });
         }
         Ok((reader, utf8, character))
     }

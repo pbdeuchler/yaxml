@@ -2051,9 +2051,12 @@ fn bound_in<'source>(
     if indexed {
         index.get(prefix).copied()
     } else {
-        bindings
-            .iter()
-            .rposition(|binding| binding.prefix == prefix)
+        bindings.iter().rposition(|binding| {
+            // Same-length prefixes (`ns1`/`ns2`, `inkscape`/`sodipodi`) mostly
+            // differ in their last byte: test it before calling bcmp.
+            let (b, p) = (binding.prefix.as_bytes(), prefix.as_bytes());
+            b.len() == p.len() && (b.is_empty() || (b.last() == p.last() && b == p))
+        })
     }
 }
 

@@ -94,6 +94,9 @@ impl Resolver for PyResolver {
                 Err(e) => Err(remember(&self.failure, e)),
             }
         })
+        // A kind the core treats as fatal (an unknown error only skips the
+        // resource), so the remembered exception is raised, as in lxml.
+        .map_err(|e| io::Error::new(io::ErrorKind::PermissionDenied, e))
     }
 }
 

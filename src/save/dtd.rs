@@ -231,8 +231,13 @@ fn declaration(
         }
         DtdUnitView::Entity(entity) => {
             let parameter = entity.is_parameter();
-            // An invalid predefined-entity redeclaration was dropped.
-            if !parameter && catalog.dtd().declared(entity.name()).is_none() {
+            // An invalid predefined-entity redeclaration or a parameter
+            // entity with a fragment was dropped.
+            let dtd = catalog.dtd();
+            if match parameter {
+                true => !dtd.parameter.contains_key(entity.name()),
+                false => dtd.declared(entity.name()).is_none(),
+            } {
                 return false;
             }
             if first(if parameter { "%" } else { "&" }, entity.name()) {

@@ -62,7 +62,7 @@ Measured on an Apple M1 Max only ([benchmarks.md](benchmarks.md)).
 
 | # | Gap | Size | Notes |
 | --- | --- | --- | --- |
-| 29 | CI on a hosted runner | S | The workflows exist (Linux only) but have never run. Add macOS and Windows; Windows is untested. |
+| 29 | CI on a hosted runner | S | ci.yml and harness.yml run on ubuntu-latest for every push and pull request. Add macOS and Windows runners and the per-feature combos; Windows is untested. |
 | 30 | API review before 1.0 | M | Audit `#[non_exhaustive]` use, public fields (`Error`, `Diagnostic`), naming consistency across the six parsing surfaces, and which libxml2-numbered constants should be enums. Known candidates: remove `options::LEGACY`; hide `LineIndex::describe_counted` (public but `#[doc(hidden)]`, for tests) behind a feature; `save::to_writer` with `AS_HTML` on a borrowed node reports `UnsupportedOption` where a node-type error fits better. |
 | 31 | MSRV policy | S | 1.97, pinned because rustc 1.95–1.96 miscompile a struct-update pattern ([rust-lang/rust#158206](https://github.com/rust-lang/rust/issues/158206)). Relax it once fixed compilers age out. `tooling/simplify_comparison_scan.py` guards the pattern. |
 | 32 | Changelog and semver policy | S | Neither exists yet. |

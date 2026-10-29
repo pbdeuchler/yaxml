@@ -23,6 +23,9 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all-targets
       - run: cargo test --doc
+      - run: cargo clippy --all-targets --no-default-features -- -D warnings
+      - run: cargo test --all-targets --no-default-features
+      - run: cargo test --doc --no-default-features
 
   capi:
     runs-on: ubuntu-latest

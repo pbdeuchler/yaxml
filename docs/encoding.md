@@ -36,7 +36,9 @@ detected name (`UTF-8`, `UTF-16LE`, `UTF-16BE`), not the label. Malformed
 declaration grammar returns `InvalidDeclaration`. BOM-less UTF-16 still requires
 a declaration with an encoding (`EncodingMismatch`). An undetected source
 (no BOM) switches to a declared single-byte charset; in the borrowing reader any
-non-UTF-8 label returns `UnsupportedEncoding` (transcode it first). Declaration
+non-UTF-8 label returns `UnsupportedEncoding` (transcode it first), even when
+non-UTF-8 bytes follow a complete declaration: its error comes first, as in
+libxml2 and the streams. Declaration
 views preserve the original spelling.
 
 A single-byte encoding applies to the bytes after the ASCII declaration, which

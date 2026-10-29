@@ -585,6 +585,10 @@ impl DtdCatalog {
                         identifier,
                         notation,
                     } => {
+                        // A recovered "Fragment not allowed" (src/dtd.rs).
+                        if parameter && identifier.system.is_some_and(|s| s.contains('#')) {
+                            return Ok(None);
+                        }
                         if !parameter && predefined(entity.name()).is_some() {
                             return Ok(Some((crate::Warning::PredefinedEntity, 0)));
                         }
