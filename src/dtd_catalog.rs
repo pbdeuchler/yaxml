@@ -797,13 +797,14 @@ impl DtdCatalog {
         if matches!(mode, ValueMode::Entity) && raw.contains('%') {
             self.parameter_reference = true;
         }
+        // Callers read `undeclared_references` after every value, unchanged ones too.
+        self.undeclared.clear();
         if let Some(value) = self.unchanged(raw, mode, request.borrow_physical) {
             return Ok(value);
         }
         let may_be_unread = self.may_be_unread();
         let (usage, requested) = (self.usage, request.requested);
         let noted = self.dtd.issues.len();
-        self.undeclared.clear();
         loop {
             let mut processor = ValueProcessor {
                 general: &self.dtd.general,

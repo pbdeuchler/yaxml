@@ -430,6 +430,15 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
         document.errors()[0].describe(&LineIndex::new(input)).level,
         W
     );
+    // An attribute value without references reports none of the previous value's.
+    let input = b"<!DOCTYPE r [%p;]><r a='&e;' b='x'/>";
+    for flags in [0, RECOVER] {
+        for (surface, parse) in SURFACES {
+            let (_, errors) = parse(input, flags).unwrap();
+            let offsets: Vec<_> = errors.iter().map(|error| error.offset).collect();
+            assert_eq!(offsets, [13, 24], "{surface} flags {flags}");
+        }
+    }
     // A strict well-formedness error still fails after a warning.
     let input = b"<?xml version='1.1'?><r></s>";
     for (surface, parse) in SURFACES {
