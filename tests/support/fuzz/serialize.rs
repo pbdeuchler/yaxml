@@ -56,9 +56,12 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
         Err(error) => {
             // At <=256 reference bytes the sixfold encoding bound and the
             // quadratic name/URI bound are safely below default string quotas.
+            let defaulted = (expected.nodes())
+                .any(|node| node.attributes().iter().any(|a| super::unwritable(&a.name)));
             assert!(
-                input.len() > 256
-                    && matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
+                defaulted
+                    || input.len() > 256
+                        && matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
                 "serializer rejected bounded valid tree: {error}"
             );
             terminal(tree, &mut writer);

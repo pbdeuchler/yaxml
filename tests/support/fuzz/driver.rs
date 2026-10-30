@@ -11,6 +11,12 @@ pub fn event_bound(input: usize) -> usize {
     expanded_bound(input).saturating_mul(2).saturating_add(1)
 }
 
+/// A defaulted name libxml2 splits at its first colon (`xmlns:a:b` declares
+/// `a:b`): parsed without error, but no namespace-checked writer can write it.
+pub fn unwritable(name: &yaxml::Name<'_>) -> bool {
+    name.prefix().is_some() && name.local().contains(':')
+}
+
 /// Input bytes plus the largest default entity-expansion allowance.
 pub fn expanded_bound(input: usize) -> usize {
     let limits = Limits::default();

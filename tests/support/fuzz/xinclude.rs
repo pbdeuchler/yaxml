@@ -98,7 +98,9 @@ fn check(result: &OwnedDocument) -> Vec<u8> {
     // A namespace error can leave a prefix unbound (in no namespace) where
     // the result binds it, as libxml2 copies such a node; the checked
     // writer refuses that.
-    let unbound = |name: yaxml::Name<'_>| name.prefix().is_some() && name.namespace().is_none();
+    let unbound = |name: yaxml::Name<'_>| {
+        name.prefix().is_some() && name.namespace().is_none() || super::unwritable(&name)
+    };
     let unbound = result
         .nodes()
         .any(|node| node.name().is_some_and(unbound) || node.attributes().any(|a| unbound(a.name)));

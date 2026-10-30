@@ -114,6 +114,7 @@ pub(super) fn exercise(input: &[u8]) {
                     node.entity_name().is_none()
                         && (0..node.attributes().len())
                             .all(|position| node.unexpanded_attribute(position).is_none())
+                        && !node.attributes().any(|a| super::unwritable(&a.name))
                         // A CR from replacement text is written raw where
                         // nothing escapes it, and reads back as a line end.
                         && (node.kind() == OwnedNodeKind::Text
