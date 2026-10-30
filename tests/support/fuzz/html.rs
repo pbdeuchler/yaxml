@@ -398,12 +398,20 @@ fn saved_as_xml(document: &OwnedDocument, seed: u64) {
         .children()
         .filter(|node| node.kind() == OwnedNodeKind::Element)
         .count();
-    // UTF-16 output (a forced encoding) starts each subtree with a BOM.
-    let utf16 = (document.html_encoding()).is_some_and(|name| name.starts_with("UTF-16"));
+    // Wide output (UTF-16, UCS-4) starts each subtree with a BOM or encodes
+    // the newline below differently; labels keep their declared case
+    // (`<meta charset=utf-16>`).
+    let wide = (document.html_encoding()).is_some_and(|name| {
+        let mut newline = Vec::new();
+        yaxml::encoding::Handler::open(name).is_ok_and(|handler| {
+            let encoded = handler.encode("\n", &mut newline).is_ok();
+            !handler.bom().is_empty() || !encoded || newline != b"\n"
+        })
+    });
     if let Ok(html) = &html
         && document.root().first_child().is_some()
         && elements <= 1
-        && !utf16
+        && !wide
     {
         let mut subtrees = Vec::new();
         for node in document.root().children() {
