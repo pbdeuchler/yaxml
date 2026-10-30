@@ -1,5 +1,7 @@
 # yaxml
 
+[![crates.io](https://img.shields.io/crates/v/yaxml.svg)](https://crates.io/crates/yaxml)
+
 #### YetAnotherXML Crate
 
 A safe, fast XML toolkit for Rust that behaves like libxml2.

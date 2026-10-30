@@ -2766,6 +2766,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
     }
 
     /// The element's QName and namespace, borrowed from the pool.
+    #[cfg(any(feature = "textreader", feature = "xinclude"))]
     pub(crate) fn name_parts(self) -> Option<(&'document str, Option<&'document str>)> {
         match &self.record().content {
             Content::Element { name, .. } => Some(self.document.name_parts(name)),
@@ -2797,6 +2798,7 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
     }
 
     /// One attribute's QName, namespace and value by source index.
+    #[cfg(any(feature = "textreader", feature = "xinclude"))]
     pub(crate) fn attribute_parts(
         self,
         index: usize,
