@@ -1077,8 +1077,8 @@ fn declare(markup: &mut String, entity: &crate::valid::Entity<'_>) {
             let content = entity.content.unwrap_or_default();
             markup.push_str(" \"");
             for (index, c) in content.char_indices() {
-                let rest = &content[index + 1..];
                 let reference = c == '&' && {
+                    let rest = &content[index + 1..];
                     let length = crate::parser::name_length(rest, false);
                     length > 0 && rest[length..].starts_with(';')
                 };
