@@ -562,7 +562,8 @@ fn describe_without_context_falls_back_to_the_kind() {
 }
 
 /// RECOVER offsets count repaired text, so they can pass the input: every
-/// warning describes without panicking at and past its end.
+/// warning describes without panicking at any offset, also past its end and
+/// where invalid UTF-8 follows a construct that is not the warned one.
 #[test]
 fn warnings_past_the_input_are_described() {
     let warnings = [
@@ -580,10 +581,18 @@ fn warnings_past_the_input_are_described() {
         Warning::EntityRedefined,
         Warning::CatalogPi,
     ];
-    for input in [&b""[..], b">", b"<a xml:id='1'", b"<a xml:id='1'/>"] {
+    let inputs = [
+        &b""[..],
+        b">",
+        b"<a xml:id='1'",
+        b"<a xml:id='1'/>",
+        b"<!E\xff\xffxxxx>",
+    ];
+    for input in inputs {
         let lines = LineIndex::new(input);
-        for (warning, past) in warnings.iter().flat_map(|w| [(*w, 0), (*w, 2)]) {
-            let offset = input.len() + past;
+        for (warning, offset) in
+            (warnings.iter()).flat_map(|w| (0..input.len() + 3).map(move |o| (*w, o)))
+        {
             let d = Error {
                 kind: ErrorKind::Warning(warning),
                 offset,

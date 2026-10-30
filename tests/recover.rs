@@ -94,6 +94,9 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // a declaration keeps what it can
     ("<?xml version=\"1.0\" standalone=\"maybe\"?><r/>", "<r/>", &[InvalidDeclaration]),
     ("<?xml version=\"1.0\" encoding=\"bogus\"?><r/>", "<r/>", &[UnsupportedEncoding]),
+    // ... up to the first pseudo-attribute it rejects, skipping the rest
+    ("<?xml version=\"1.0\" encoding=\"1.0\" encoding=\"UTF-16\"?><r/>", "<r/>", &[InvalidDeclaration]),
+    ("<?xml version=\"1.0\" x=\"1\" standalone=\"maybe\"?><r/>", "<r/>", &[InvalidDeclaration]),
     // the DTD reads on where libxml2 requires a space but does not stop
     ("<!DOCTYPEr><r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
     ("<!DOCTYPE r [<!ELEMENT r(#PCDATA)><!ENTITY e SYSTEM \"x\"NDATA n><!ATTLIST r a CDATA #FIXED\"v\">]><r/>",

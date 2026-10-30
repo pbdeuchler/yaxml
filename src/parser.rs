@@ -2449,8 +2449,8 @@ impl<'a> TagScanner<'a> {
 
 /// Parses an XML declaration, or with `text` an external entity's text
 /// declaration (optional version, required encoding, no standalone). Like
-/// libxml2, recovery skips a pseudo-attribute it cannot take and the rest of
-/// a malformed declaration.
+/// libxml2 (`'?>' expected`, then MOVETO_ENDTAG), recovery skips the rest of
+/// the declaration from the first pseudo-attribute it cannot take.
 pub(crate) fn parse_declaration<'a>(
     raw: &'a str,
     offset: usize,
@@ -2521,10 +2521,11 @@ pub(crate) fn parse_declaration<'a>(
             }
             _ => false,
         };
-        match accepted {
-            true => count += 1,
-            false => recover(Error::new(ErrorKind::InvalidDeclaration, position))?,
+        if !accepted {
+            recover(Error::new(ErrorKind::InvalidDeclaration, position))?;
+            break;
         }
+        count += 1;
     }
     if count == 0 || (text && encoding_offset.is_none()) {
         recover(Error::new(ErrorKind::InvalidDeclaration, offset))?;
