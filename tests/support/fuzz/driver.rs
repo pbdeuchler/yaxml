@@ -719,7 +719,10 @@ pub fn exercise_with_limits(input: &[u8], limits: Limits) -> Outcome {
         Err(error) => check_error(error, input),
     }
     let incremental = drive_push(input, &[input.len()], limits, |_, _| {});
-    if !matches!(&incremental, Err(error) if error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes))
+    // Streams lend an owned (normalized) namespace URI to each element in
+    // its scope, where the slice reader copies it: owned storage differs.
+    let owned = |error: &Error| error.kind == ErrorKind::LimitExceeded(yaxml::Limit::OwnedBytes);
+    if !incremental.as_ref().err().is_some_and(owned) && !outcome.error.as_ref().is_some_and(owned)
     {
         assert_eq!(
             incremental.is_ok(),
