@@ -78,7 +78,7 @@ pub trait Resolver: Send {
     /// is skipped and an entity reference expands to nothing. An `Err` that
     /// libxml2 also skips declines the same way: one whose
     /// [`io_code`](crate::diagnostic::io_code) is `XML_IO_UNKNOWN` (any
-    /// [`io::Error::other`]) or `XML_IO_ENOENT` ([`io::ErrorKind::NotFound`]).
+    /// `io::Error::other`) or `XML_IO_ENOENT` ([`io::ErrorKind::NotFound`]).
     /// Any other `Err` (such as
     /// [`io::ErrorKind::PermissionDenied`]) aborts parsing with
     /// [`ErrorKind::ExternalResource`]. These are the rules for DTD and

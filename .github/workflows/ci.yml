@@ -27,6 +27,20 @@ jobs:
       - run: cargo test --all-targets --no-default-features
       - run: cargo test --doc --no-default-features
 
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - name: Docs as docs.rs builds them (nightly, doc_cfg feature labels)
+        run: cargo +nightly doc --no-deps
+        env:
+          RUSTDOCFLAGS: --cfg docsrs -D warnings
+      - name: Published crate builds from its own tarball (rust-toolchain.toml)
+        run: cargo package
+
   capi:
     runs-on: ubuntu-latest
     defaults:

@@ -47,7 +47,20 @@ work.
   in release builds ([rust-lang/rust#158206](https://github.com/rust-lang/rust/issues/158206),
   MIR pass SimplifyComparisonIntegral, fixed by #158214 in 1.97).
   `tooling/simplify_comparison_scan.py` stays as the regression guard.
+- docs.rs: nightly with `--cfg docsrs` (`[package.metadata.docs.rs]`), which
+  turns on `doc_cfg` so every item shows the feature it needs. CI's `package`
+  job builds the docs that way with `-D warnings` and runs `cargo package`.
 - Fuzz and coverage: `nightly-2026-10-18` (`fuzz/rust-toolchain.toml`, so plain
   `cargo fuzz` inside `fuzz/` works; from the root use `cargo +nightly-2026-10-18`).
   The earlier pin, `nightly-2026-06-06`, predates the fix. Campaign results in
   docs that name it were measured on it and are left as recorded.
+
+## Releasing to crates.io
+
+1. The gate (CLAUDE.md "Gate") and `./oracle.sh` pass on `main`.
+2. Bump `version` in `Cargo.toml` (and the `yaxml = "x.y"` snippets in
+   README.md when the minor version changes).
+3. `cargo publish --dry-run`: the package holds only `src/`, the README and
+   the licenses (`include`), so the "ignoring test" warnings are expected.
+   It must build from the tarball.
+4. `cargo publish`, then tag the commit `vX.Y.Z` and push the tag.

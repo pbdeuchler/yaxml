@@ -219,8 +219,14 @@ required-features = ["schemas"]
 name = "yaxmllint"
 required-features = ["full"]
 
+[package.metadata.docs.rs]
+# Default features (`full`); `docsrs` labels each item with the feature it needs.
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [lints.rust]
 unsafe_code = "forbid"
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(docsrs)"] }
 
 [profile.release]
 lto = "thin"

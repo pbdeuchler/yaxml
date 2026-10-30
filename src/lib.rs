@@ -56,6 +56,7 @@
 //! ```
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 // The allocator API is stable from Rust 1.100: the feature raises the MSRV.
 #![cfg_attr(feature = "allocator_api", allow(clippy::incompatible_msrv))]
 
