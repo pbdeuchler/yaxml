@@ -1341,8 +1341,9 @@ fn parse_sgml(
 
 /// A [`Resolver`] that maps each request through a [`Catalog`] as libxml2's
 /// default entity loader does (`xmlCatalogResolve` with the public and system
-/// identifiers, then `xmlCatalogResolveURI`), then lets `inner` fetch the
-/// mapped URI or, without a mapping, the original one.
+/// identifiers, then `xmlCatalogResolveURI`; each step tries the document's
+/// `<?oasis-xml-catalog?>` catalogs before this one), then lets `inner` fetch
+/// the mapped URI or, without a mapping, the original one.
 pub struct CatalogResolver {
     catalog: Catalog,
     inner: Box<dyn Resolver>,

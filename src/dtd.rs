@@ -265,9 +265,9 @@ impl<'a> DtdUnit<'a> {
         &self.raw
     }
 
-    /// Retain a validated unit before mutating the catalog that supplied its text.
-    /// Existing owned text and token metadata move without copying. A borrowed
-    /// raw value spends the shared owned-string budget before allocation.
+    /// The unit with owned text, so the catalog that supplied it can change.
+    /// Owned text and tokens move; borrowed text is charged to `budget`'s
+    /// owned bytes, then copied.
     pub(crate) fn try_into_owned(
         self,
         budget: &mut crate::parser::Budget,
@@ -1197,13 +1197,14 @@ impl<'a, 'r> Parser<'a, 'r> {
             (None, false)
         } else {
             let identifier = self.external_identifier(false)?;
-            // xmlParseEntityDecl: "Fragment not allowed" (not for a
-            // DOCTYPE or NOTATION system identifier).
-            if let Some(system) = identifier.system {
-                let range = self.tokens[system].range.clone();
-                if let Some(at) = self.raw[range.clone()].find('#') {
-                    return Err(Error::new(ErrorKind::InvalidDtd, range.start + at));
-                }
+            // xmlParseEntityDecl: "Fragment not allowed" after the external
+            // ID (not for a DOCTYPE or NOTATION system identifier); libxml2
+            // reads on, declaring a general entity but no parameter entity.
+            if identifier
+                .system
+                .is_some_and(|system| self.raw[self.tokens[system].range.clone()].contains('#'))
+            {
+                self.soft(ErrorKind::InvalidDtd)?;
             }
             let ndata = !parameter
                 && !self

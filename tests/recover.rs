@@ -100,6 +100,14 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
      "<!DOCTYPE r [\n<!ELEMENT r (#PCDATA)>\n<!ENTITY e SYSTEM \"x\" NDATA n>\n<!ATTLIST r a CDATA #FIXED \"v\">\n]>\n<r/>", &[InvalidDtd; 3]),
     ("<!DOCTYPE r [<!ENTITY%p\"x\"><!ENTITY e PUBLIC\"p\"\"s\">]><r/>",
      "<!DOCTYPE r [\n<!ENTITY % p \"x\">\n<!ENTITY e PUBLIC \"p\" \"s\">\n]>\n<r/>", &[InvalidDtd; 5]),
+    // ... and past an entity's fragment ("Fragment not allowed"): a general
+    // entity is declared, a parameter entity is not; a DOCTYPE's is no error
+    ("<!DOCTYPE r [<!ENTITY e SYSTEM \"x#y\">]><r>t</r>", "<!DOCTYPE r [\n<!ENTITY e SYSTEM \"x#y\">\n]>\n<r>t</r>", &[InvalidDtd]),
+    ("<!DOCTYPE r [<!ENTITY e PUBLIC \"p#\" \"x#y\" NDATA n><!NOTATION n SYSTEM \"q#r\">]><r/>",
+     "<!DOCTYPE r [\n<!NOTATION n SYSTEM \"q#r\" >\n<!ENTITY e PUBLIC \"p#\" \"x#y\" NDATA n>\n]>\n<r/>", &[InvalidDtd]),
+    ("<!DOCTYPE r [<!ENTITY % p SYSTEM \"x#y\">%p;<!ELEMENT r ANY>]><r/>",
+     "<!DOCTYPE r [\n<!ELEMENT r ANY>\n]>\n<r/>", &[InvalidDtd, Warning(yaxml::Warning::UndeclaredEntity { error: false })]),
+    ("<!DOCTYPE r SYSTEM \"x#y\"><r/>", "<!DOCTYPE r SYSTEM \"x#y\">\n<r/>", &[]),
     // ... else the DOCTYPE keeps the declarations before the error, and the
     // document resumes there: at markup that is no declaration
     ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),

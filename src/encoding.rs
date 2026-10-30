@@ -39,7 +39,7 @@ impl Default for DecodeLimits {
 
 /// Input as UTF-8 for the borrowing parsers ([`Reader::transcoded`],
 /// [`Document::parse_transcoded`]): UTF-8 input as it is, without a copy;
-/// UTF-16 and declared single-byte input decoded once, as the streaming
+/// other input decoded once, as the streaming
 /// parsers decode it ([encoding](https://github.com/pbdeuchler/yaxml/blob/main/docs/encoding.md)).
 /// Keep it alive beside the tree, which borrows it.
 ///
@@ -76,9 +76,10 @@ pub struct Transcoded<'a> {
 }
 
 impl<'a> Transcoded<'a> {
-    /// Detects `input`'s encoding from its BOM, signature or declaration and
-    /// decodes it unless it is UTF-8, within `options`' `max_input_bytes`
-    /// and [`DecodeLimits`]. Under `IGNORE_ENC` a declared charset is ignored.
+    /// Detects `input`'s encoding from its BOM, signature or declaration (or
+    /// takes `options.encoding`) and decodes it unless it is UTF-8, within
+    /// `options`' `max_input_bytes` and [`DecodeLimits`]. Under `IGNORE_ENC`
+    /// a declared charset is ignored.
     ///
     /// # Errors
     ///
@@ -488,7 +489,7 @@ pub(crate) struct Decoder {
     position: usize,
     decoded: usize,
     limit: usize,
-    /// A code unit's bytes so far, and the offset of its first byte.
+    /// A code unit's bytes so far, their count and the offset of the first.
     unit: ([u8; 4], usize, usize),
     high: Option<(u32, usize)>,
     pending: [u8; 4],
@@ -954,8 +955,8 @@ impl Decoder {
         })
     }
 
-    /// Decodes one byte of an encoding the decoder does not forward as UTF-8.
-    /// A byte charset's character, which 0 marks unmapped.
+    /// Carries `unit`, the character a single-byte or EBCDIC table maps a
+    /// byte to; 0 marks it unmapped.
     fn mapped(&mut self, unit: u16, offset: usize) -> Result<(), Error> {
         let scalar = char::from_u32(unit.into())
             .filter(|scalar| *scalar != '\0')
@@ -1197,9 +1198,8 @@ pub(crate) fn repair_utf8(input: &[u8]) -> Option<Result<(String, Error), Error>
     Some(repaired.map(|text| (text, Error::new(ErrorKind::InvalidUtf8, first))))
 }
 
-/// Choose the owning constructor's path without decoding or allocating.
-/// Whether `input` is not plain UTF-8: also, given `converters`, when its
-/// declaration names a label no built-in charset has.
+/// Whether `input` is not plain UTF-8, or, given `converters`, declares a
+/// label no built-in charset has; decided without decoding or allocating.
 pub(crate) fn needs_decoding(input: &[u8], converters: bool) -> bool {
     converters && declared_label(input).is_some_and(|label| charset(label).is_none())
         || input.starts_with(&[0xff, 0xfe])

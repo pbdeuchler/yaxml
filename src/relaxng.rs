@@ -696,9 +696,10 @@ struct Engine<I> {
     /// Local name of each key.
     locals: Vec<Box<str>>,
     key: String,
-    /// Values of `xsd:ID` attributes seen, and `xsd:IDREF(S)` references
-    /// (element, offset, attribute, ID) to resolve at the end.
+    /// Values of `xsd:ID` attributes seen.
     ids: HashSet<String>,
+    /// `xsd:IDREF(S)` references (element, offset, attribute, ID) to
+    /// resolve at the end.
     references: Vec<(I, Option<usize>, String, String)>,
     stack: Vec<Frame<I>>,
     root: Option<(I, Option<usize>)>,
@@ -805,7 +806,12 @@ impl<I: Copy> Engine<I> {
         {
             return false;
         }
-        if let Some((code, message)) = self.stack.last().and_then(|parent| self.simple(parent)) {
+        let parent = self
+            .stack
+            .last()
+            .map(|parent| (parent.content, parent.name));
+        if let Some((code, message)) = parent.and_then(|(content, name)| self.simple(content, name))
+        {
             self.report(code, at, message);
             let parent = self.stack.last_mut().expect("checked above");
             (parent.errored, parent.content) = (true, NOT_ALLOWED);
@@ -1083,10 +1089,10 @@ impl<I: Copy> Engine<I> {
         }
     }
 
-    /// The DATAELEM-like error for an element child of `parent`, whose
-    /// content is only datatypes, values or lists.
-    fn simple(&self, parent: &Frame<I>) -> Option<(Code, String)> {
-        let front = self.deriver.front(parent.content);
+    /// The DATAELEM-like error for an element child of element `name`, whose
+    /// `content` is only datatypes, values or lists.
+    fn simple(&mut self, content: Id, name: u32) -> Option<(Code, String)> {
+        let front = self.deriver.front(content);
         let mut kinds = front.iter().map(|leaf| match leaf {
             Pat::Data(..) => Some((Code::DataElement, "Datatype")),
             Pat::Value(_) => Some((Code::ValueElement, "Value")),
@@ -1095,7 +1101,7 @@ impl<I: Copy> Engine<I> {
         });
         let (code, kind) = kinds.next()??;
         kinds.all(|kind| kind.is_some()).then_some(())?;
-        let local = &self.locals[parent.name as usize];
+        let local = &self.locals[name as usize];
         Some((code, format!("{kind} element {local} has child elements")))
     }
 
@@ -1123,8 +1129,9 @@ impl<I: Copy> Engine<I> {
 
     /// Classifies content that ended too early.
     fn missing(&mut self, frame: &Frame<I>, cx: &dyn Context) -> (Code, String) {
+        let front = self.deriver.front(frame.pattern);
         let tables = &self.deriver.tables;
-        let missing = (self.deriver.front(frame.pattern).into_iter()).find_map(|leaf| match leaf {
+        let missing = (front.into_iter()).find_map(|leaf| match leaf {
             Pat::Element(element) => Some(
                 tables
                     .describe(tables.elements[element as usize].0)
@@ -1145,7 +1152,8 @@ impl<I: Copy> Engine<I> {
         }
     }
 
-    /// The end of the document: the work limit and unresolved references.
+    /// The end of the document: a refused allocation, the work limit, then
+    /// unresolved references.
     fn finish(&mut self) {
         let Some(root) = self.root else {
             return;
@@ -1173,10 +1181,11 @@ impl<I: Copy> Engine<I> {
     }
 
     /// Classifies an element that `pattern` does not allow.
-    fn unexpected(&self, pattern: Id, name: Name<'_>) -> (Code, String) {
+    fn unexpected(&mut self, pattern: Id, name: Name<'_>) -> (Code, String) {
         let element = name.local;
+        let front = self.deriver.front(pattern);
         let tables = &self.deriver.tables;
-        let expected: Vec<(&str, &str)> = (self.deriver.front(pattern).into_iter())
+        let expected: Vec<(&str, &str)> = (front.into_iter())
             .filter_map(|leaf| match leaf {
                 Pat::Element(element) => {
                     match &tables.names[tables.elements[element as usize].0 as usize] {

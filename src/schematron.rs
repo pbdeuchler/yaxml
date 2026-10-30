@@ -179,7 +179,8 @@ pub enum Output<Id> {
 pub struct Validation<Id> {
     /// `xmlSchematronValidateDoc`'s result: the number of failed asserts,
     /// fired reports and failed `let`s, or `None` for its internal error
-    /// (-1): no rules, a failed `let` in one-pass mode, or no operations left.
+    /// (-1): no rules, a failed `let` or `let` unregistration in one-pass
+    /// mode, no operations left, or a refused allocation.
     pub errors: Option<usize>,
     /// The report, in libxml2's order.
     pub output: Vec<Output<Id>>,

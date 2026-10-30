@@ -43,7 +43,7 @@ pub enum NodeType {
     ProcessingInstruction = 7,
     /// A comment.
     Comment = 8,
-    /// Never reported: the reader starts at the root element.
+    /// Never reported: the document node is not visited.
     Document = 9,
     /// The document type declaration.
     DocumentType = 10,
@@ -536,7 +536,8 @@ impl<R: BufRead> TextReader<R> {
     ///
     /// # Errors
     ///
-    /// `XINCLUDE` is [`ErrorKind::UnsupportedOption`].
+    /// Unknown or unimplemented flags and `XINCLUDE` are
+    /// [`ErrorKind::UnsupportedOption`].
     pub fn with_options(input: R, options: ParseOptions) -> Result<Self, Error> {
         // `BufferedReader` rejects the flags a reader does not support.
         let flags = Flags(options.flags);
@@ -565,7 +566,8 @@ impl<R: BufRead> TextReader<R> {
 
     /// Starts a new document on `input` with the same flags, limits and
     /// document URI, reusing allocations (`xmlReaderNewIO`), and returns the
-    /// previous source. State, schemas and the resolver are dropped.
+    /// previous source. State, schemas, the resolver, converters and forced
+    /// encoding are dropped.
     pub fn reset(&mut self, input: R) -> R {
         let previous = self.source.reset(input);
         self.resolver = false;

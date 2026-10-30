@@ -74,7 +74,8 @@ fn on_cycle(n: usize, edges: impl Fn(usize) -> Vec<usize>) -> Vec<bool> {
 /// The built-in types: `anyType`, then every [`Type`].
 fn builtins(names: &mut Names) -> Vec<TypeDef> {
     let xs = names.intern(XS);
-    let mut types = vec![TypeDef {
+    let mut types = Vec::with_capacity(Type::all().count() + 1);
+    types.push(TypeDef {
         name: Some(QName {
             ns: xs,
             local: names.intern("anyType"),
@@ -90,7 +91,7 @@ fn builtins(names: &mut Names) -> Vec<TypeDef> {
             wildcard: None,
         }),
         loc: None,
-    }];
+    });
     for ty in Type::all() {
         let variety = match ty.item() {
             Some(item) => Variety::List(builtin(item)),
@@ -2382,7 +2383,8 @@ impl Fix {
 
     // ---- element declarations --------------------------------------------
 
-    /// The type of an element: its own, its head's, or `anyType`.
+    /// The type of each element declared without one: its nearest typed
+    /// head's, else `anyType`.
     fn element_types(&mut self) {
         for e in 0..self.d.elements.len() {
             if self.d.elements[e].ty.is_some() {

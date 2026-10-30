@@ -34,8 +34,8 @@ impl Decimal {
         })
     }
 
-    /// `xs:decimal`: an optional sign, then digits with an optional point;
-    /// a lone point needs a leading zero (`0.` is valid, `.` is not).
+    /// `xs:decimal`: an optional sign, then at least one digit with an
+    /// optional point (`0.` and `.5` are valid, `.` is not).
     pub(super) fn parse(text: &str) -> Option<Self> {
         let (negative, rest) = sign(text);
         let (integral, fraction) = rest.split_once('.').unwrap_or((rest, ""));

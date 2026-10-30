@@ -48,9 +48,11 @@ pub struct Request<'a> {
 ///
 /// libxml2's custom resource loader. It is passed in
 /// [`ParseOptions`](crate::ParseOptions), whose flags decide what is
-/// requested: `DTDLOAD` the external subset, `NOENT` or `DTDVALID` external
-/// entities, never anything with `NO_XXE`. Loads are bounded by
-/// [`Limits::max_external_loads`] and [`Limits::max_external_bytes`].
+/// requested: the external subset under `DTDLOAD`, `DTDATTR` or `DTDVALID`;
+/// external parameter entities under those or `NOENT`; external general
+/// entities under `NOENT` or `DTDVALID`; nothing under `NO_XXE`. Loads are
+/// bounded by [`Limits::max_external_loads`] and
+/// [`Limits::max_external_bytes`].
 /// Closures implement this trait.
 ///
 /// ```
@@ -73,8 +75,15 @@ pub trait Resolver: Send {
     /// # Errors
     ///
     /// `Ok(None)` declines, like libxml2's missing-file warning: the subset
-    /// is skipped and an entity reference expands to nothing. `Err` aborts
-    /// parsing with [`ErrorKind::ExternalResource`].
+    /// is skipped and an entity reference expands to nothing. An `Err` that
+    /// libxml2 also skips declines the same way: one whose
+    /// [`io_code`](crate::diagnostic::io_code) is `XML_IO_UNKNOWN` (any
+    /// [`io::Error::other`]) or `XML_IO_ENOENT` ([`io::ErrorKind::NotFound`]).
+    /// Any other `Err` (such as
+    /// [`io::ErrorKind::PermissionDenied`]) aborts parsing with
+    /// [`ErrorKind::ExternalResource`]. These are the rules for DTD and
+    /// entity loads; XInclude, catalog and schema loads treat any `Err` as
+    /// a failed load.
     fn resolve(&mut self, request: Request<'_>) -> io::Result<Option<Vec<u8>>>;
 
     /// Receives the `catalog` of each `<?oasis-xml-catalog?>` instruction
@@ -259,11 +268,16 @@ impl Loader {
             public_id,
             max_bytes: self.bytes_left,
         };
-        let Some(bytes) = self
-            .resolver
-            .resolve(request)
-            .map_err(|_| ErrorKind::ExternalResource)?
-        else {
+        // xmlCtxtErrIO: XML_IO_UNKNOWN and XML_IO_ENOENT are reported and the
+        // resource skipped; other I/O errors are fatal.
+        let loaded =
+            self.resolver.resolve(request).or_else(|error| {
+                match crate::diagnostic::io_code(&error) {
+                    1500 | 1524 => Ok(None),
+                    _ => Err(ErrorKind::ExternalResource),
+                }
+            });
+        let Some(bytes) = loaded? else {
             return Ok(None);
         };
         self.bytes_left = self

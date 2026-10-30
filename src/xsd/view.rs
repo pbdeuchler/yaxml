@@ -171,7 +171,7 @@ pub struct TypeDefinition<'a> {
     id: TypeId,
 }
 
-/// A global element declaration (`xmlSchemaElement`).
+/// An element declaration, global or local (`xmlSchemaElement`).
 #[derive(Clone, Copy)]
 pub struct ElementDeclaration<'a> {
     schema: &'a Schema,

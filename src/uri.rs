@@ -529,7 +529,8 @@ fn merge(r: Uri, b: Uri) -> Uri {
 }
 
 /// `xmlBuildURI`: resolves `reference` against `base`. A base without `://` is
-/// a filesystem path; an empty reference yields the base.
+/// a filesystem path; an empty reference yields the base (a URI base without
+/// its fragment).
 pub fn resolve(reference: &str, base: &str) -> Result<String, UriError> {
     let (reference, base) = (cstr(reference), cstr(base));
     let parsed = match reference.is_empty() {

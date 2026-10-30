@@ -295,7 +295,8 @@ impl<A: Allocator> Editor<'_, A> {
     /// (`xmlDocCopyNode`); `deep` includes descendants, otherwise an element
     /// keeps only its attributes. Insert the copy with
     /// [`append_child`](Self::append_child) or another move. Bindings it
-    /// needs are declared on its root.
+    /// needs are declared on its root, or where each is needed when that
+    /// takes fewer declarations.
     ///
     /// This document's DTD decides IDs; an entity reference it does not
     /// declare is replaced by its content.
@@ -303,7 +304,8 @@ impl<A: Allocator> Editor<'_, A> {
     /// # Errors
     ///
     /// The document node and DOCTYPE are `WrongNodeKind` (use
-    /// [`OwnedDocument::try_clone`]); an HTML destination rejects namespaced
+    /// [`OwnedDocument::try_clone`]); an undeclared entity reference as the
+    /// copied node is `Hierarchy`; an HTML destination rejects namespaced
     /// names (`Namespace`), and an XML one what XML cannot write
     /// (`InvalidName`, `InvalidCharacter`, `InvalidValue`).
     ///
@@ -504,9 +506,9 @@ impl<A: Allocator> Editor<'_, A> {
     ///
     /// Malformed content is [`EditErrorKind::Parse`] at its byte offset
     /// ([`LineIndex::content`](crate::LineIndex::content) gives libxml2's
-    /// diagnostic); namespace errors never fail, and under `RECOVER` only
-    /// limits fail: [`Fragment::errors`] lists the rest. A DOCTYPE context or an HTML
-    /// document is `WrongNodeKind` (see
+    /// diagnostic); namespace errors and warnings never fail, and under
+    /// `RECOVER` only limits fail: [`Fragment::errors`] lists the rest. A
+    /// DOCTYPE context or an HTML document is `WrongNodeKind` (see
     /// [`html::parse_fragment`](crate::html::parse_fragment)); `XINCLUDE`
     /// and `DTDVALID` are `Parse(UnsupportedOption)`.
     ///
@@ -613,8 +615,8 @@ impl<A: Allocator> Editor<'_, A> {
 pub struct Fragment {
     /// The top-level nodes in input order, each detached.
     pub nodes: Vec<OwnedNodeId>,
-    /// The errors the parse kept (namespace errors, and under `RECOVER` what
-    /// it recovered from), as [`OwnedDocument::errors`].
+    /// The errors the parse kept (namespace errors, warnings, and under
+    /// `RECOVER` what it recovered from), as [`OwnedDocument::errors`].
     pub errors: Vec<Error>,
 }
 
@@ -636,7 +638,7 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
     ///
     /// # Errors
     ///
-    /// Allocation failure or identity exhaustion only.
+    /// Allocation failure or identity exhaustion.
     ///
     /// ```
     /// use yaxml::OwnedDocument;

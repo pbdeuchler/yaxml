@@ -14,7 +14,7 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 
 | Family | Options |
 | --- | --- |
-| Input | `FILE...`, `-` (stdin), `--recover`, `--html`, `--nodefdtd`, `--stream`, `--huge`, `--max-ampl N`, `--maxmem BYTES`, `--nocdata`, `--nsclean`, `--noenc` |
+| Input | `FILE...`, `-` (stdin), `--recover`, `--html`, `--nodefdtd`, `--stream`, `--huge`, `--max-ampl N`, `--maxmem BYTES`, `--nocdata`, `--nsclean`, `--noenc`, `--pedantic` |
 | Output | `--noout`, `--output FILE` / `-o`, `--format`, `--pretty 0\|1\|2`, `--encode ENC`, `--xmlout`, `--noblanks`, `XMLLINT_INDENT` |
 | Canonical XML | `--c14n`, `--c14n11`, `--exc-c14n` (all with comments, like xmllint) |
 | XPath | `--xpath EXPR`, `--xpath0 EXPR` (implies `--noout`) |
@@ -22,11 +22,11 @@ cargo run --bin yaxmllint -- --format --xpath '//item[@id]' doc.xml
 | Schemas | `--schematron FILE`, `--relaxng FILE`, `--schema FILE` |
 | XInclude | `--xinclude`, `--noxincludenode`, `--nofixup-base-uris` |
 | Resources | `--path DIRS`, `--catalogs` (reads `XML_CATALOG_FILES`), `--nocatalogs`, `--nonet` |
-| Misc | `--quiet`, `--timing`, `--version` |
+| Misc | `--debug` (feature `debug` dumps), `--quiet`, `--timing`, `--version` |
 
-`--push --memory --nowarning --pedantic --nodict --nocompact --repeat
+`--push --memory --nowarning --nodict --nocompact --repeat
 --strict-namespace --load-trace` are accepted and ignored.
-`--debug --shell --copy --sax --sax1 --insert
+`--shell --copy --sax --sax1 --insert
 --walker --dropdtd --auto --compress --pattern --dtdvalidfpi` are
 xmllint options with no counterpart: they print `unsupported option` and exit
 1. Unknown options print the usage and exit 1.

@@ -7,7 +7,7 @@ use yaxml::diagnostic::{Domain, Level};
 use yaxml::options::RECOVER;
 use yaxml::{
     Document, Error, ErrorKind, Limit, LineIndex, NodeKind, OwnedDocument, OwnedNodeKind,
-    ParseOptions, TextReader, relaxng, schematron, xsd,
+    ParseOptions, TextReader, Warning, relaxng, schematron, xsd,
 };
 
 /// The first error: the one that stopped the parse, or a namespace error
@@ -559,6 +559,48 @@ fn describe_without_context_falls_back_to_the_kind() {
         (empty.code, empty.line, empty.message.as_str()),
         (4, 1, "Document is empty")
     );
+}
+
+/// RECOVER offsets count repaired text, so they can pass the input: every
+/// warning describes without panicking at and past its end.
+#[test]
+fn warnings_past_the_input_are_described() {
+    let warnings = [
+        Warning::UnknownVersion,
+        Warning::NamespaceUri,
+        Warning::RelativeNamespaceUri,
+        Warning::SpaceValue,
+        Warning::ReservedTarget,
+        Warning::EncodingMismatch,
+        Warning::UndeclaredEntity { error: false },
+        Warning::PredefinedEntity,
+        Warning::XmlIdValue,
+        Warning::XmlIdType,
+        Warning::LangValue,
+        Warning::EntityRedefined,
+        Warning::CatalogPi,
+    ];
+    for input in [&b""[..], b">", b"<a xml:id='1'", b"<a xml:id='1'/>"] {
+        let lines = LineIndex::new(input);
+        for (warning, past) in warnings.iter().flat_map(|w| [(*w, 0), (*w, 2)]) {
+            let offset = input.len() + past;
+            let d = Error {
+                kind: ErrorKind::Warning(warning),
+                offset,
+            }
+            .describe(&lines);
+            assert_eq!(
+                d.code,
+                ErrorKind::Warning(warning).libxml2_code().1,
+                "{warning:?} at {offset} in {input:?}"
+            );
+        }
+    }
+    // At the offset the parser records, the value is read as usual.
+    let input = b"<a xml:id='1'/>";
+    let document = Document::parse_bytes(input).unwrap();
+    let d = document.errors()[0].describe(&LineIndex::new(input));
+    assert_eq!(d.message, "xml:id : attribute value 1 is not an NCName");
 }
 
 #[test]

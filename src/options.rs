@@ -33,14 +33,13 @@ use std::sync::Arc;
 use crate::encoding::Handler;
 use crate::{Converters, DecodeLimits, Error, ErrorKind, Limits, Resolver, ResourceKind};
 
-/// `XML_PARSE_RECOVER`: build what is parsable of a malformed document, as
-/// libxml2 does (DOMs only).
+/// `XML_PARSE_RECOVER`: repair malformed input as libxml2 does, on every
+/// surface.
 ///
-/// [`Document::errors`](crate::Document::errors) and
-/// [`OwnedDocument::errors`](crate::OwnedDocument::errors) list the errors
-/// recovered from; namespace errors are listed without `RECOVER` too.
-/// Resource limits stay fatal, and input without any element is still an
-/// error. See
+/// Each surface's `errors()` (e.g. [`Document::errors`](crate::Document::errors))
+/// lists the errors recovered from; namespace errors and warnings are listed
+/// without `RECOVER` too. Resource limits stay fatal; input without an element
+/// gives a document without one, and empty input is still an error. See
 /// [the repairs](https://github.com/pbdeuchler/yaxml/blob/main/docs/compatibility.md#recovery-recover).
 ///
 /// ```
@@ -62,7 +61,7 @@ pub const NOENT: u32 = 1 << 1;
 pub const DTDLOAD: u32 = 1 << 2;
 /// `XML_PARSE_DTDATTR`: add DTD default attributes; implies `DTDLOAD`.
 pub const DTDATTR: u32 = 1 << 3;
-/// `XML_PARSE_DTDVALID`: validate against the DTD after parsing (DOMs only);
+/// `XML_PARSE_DTDVALID`: validate against the DTD (DOMs and `TextReader`);
 /// loads the external subset and entities like `DTDLOAD | NOENT` would.
 pub const DTDVALID: u32 = 1 << 4;
 /// `XML_PARSE_NOERROR`: accepted; yaxml returns errors and never prints them.
@@ -73,8 +72,8 @@ pub const NOWARNING: u32 = 1 << 6;
 /// (a malformed `xml:lang`, a redefined entity, a relative URI in a prefixed
 /// namespace declaration); default-on warnings are kept without it.
 pub const PEDANTIC: u32 = 1 << 7;
-/// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text (DOMs and `TextReader`), with
-/// libxml2's `areBlanks` rules.
+/// `XML_PARSE_NOBLANKS`: drop ignorable whitespace text with libxml2's
+/// `areBlanks` rules (every surface but [`Reader`](crate::Reader)).
 pub const NOBLANKS: u32 = 1 << 8;
 /// `XML_PARSE_SAX1`: accepted; yaxml has no SAX1 handlers to prefer.
 pub const SAX1: u32 = 1 << 9;
@@ -157,8 +156,8 @@ pub struct ParseOptions {
     /// The document's URI or path, against which relative system identifiers resolve.
     pub base: Option<String>,
     /// Loader for external resources, consulted only for what the flags
-    /// request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`) and
-    /// never with `NO_XXE`.
+    /// request (`DTDLOAD`, `DTDATTR`, `DTDVALID`, `NOENT`, `XINCLUDE`); under
+    /// `NO_XXE` never for the DTD or entities.
     pub resolver: Option<Box<dyn Resolver>>,
     /// Input converters for declared charsets without a built-in table
     /// ([`Converters`], `xmlCtxtSetCharEncConvImpl`); unused under `IGNORE_ENC`.
@@ -269,7 +268,7 @@ impl ParseOptions {
     }
 
     /// Rejects unknown flags, unimplemented ones, and tree-only flags on a
-    /// streaming surface (`tree`: false), or `extra` flags the surface lacks.
+    /// streaming surface (`tree`: false), or `unsupported` flags the surface lacks.
     pub(crate) fn check(&self, tree: bool, unsupported: u32) -> Result<Flags, Error> {
         let rejected = !KNOWN | NEVER | unsupported | if tree { 0 } else { TREE_ONLY };
         match self.flags & rejected {

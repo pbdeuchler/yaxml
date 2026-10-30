@@ -3,9 +3,10 @@
 //! Positions are the element and wildcard particles. A repetition with a
 //! finite `maxOccurs` above one (or a `minOccurs` above one) gets a counter
 //! instead of being unrolled, so `maxOccurs="1000000"` costs one counter.
-//! Each transition records how many enclosing counters it keeps, whether it
-//! starts another iteration of the innermost kept one, and which counters it
-//! leaves (they must have run `minOccurs` times) or enters (set to one).
+//! Each transition records how many leading enclosing counters it keeps,
+//! whether it starts another iteration of the counter after them, and which
+//! counters it leaves (they must have run `minOccurs` times) or enters (set
+//! to one).
 //!
 //! A run is the set of reachable configurations (position and counter
 //! values), so matching decides membership without backtracking; for

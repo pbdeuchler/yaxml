@@ -163,7 +163,8 @@ impl StreamingSession {
         })
     }
 
-    /// The errors a `RECOVER` parse recovered from so far.
+    /// The errors kept so far: namespace errors and warnings, and under
+    /// `RECOVER` every error recovered from.
     pub(crate) fn errors(&self) -> &[Error] {
         if let Some(ordinary) = &self.ordinary {
             return ordinary.state.errors();

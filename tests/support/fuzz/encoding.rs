@@ -40,6 +40,12 @@ fn unsupported_signature(prefix: &[u8]) -> bool {
     )
 }
 
+/// UCS-4 or EBCDIC input, which has no reference: the `encodings` feature may
+/// decode it, so a parser may accept it.
+fn unreferenced(input: &[u8]) -> bool {
+    input.get(..4).is_some_and(unsupported_signature)
+}
+
 /// libxml2 2.15.4 xmllint decoding of bytes 0x80..=0xFF per built-in charset.
 const CHARSETS: &str = include_str!("../../fixtures/charsets.tsv");
 
@@ -353,10 +359,10 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
         ControlFlow::Continue(())
     });
     match io {
-        Ok(()) => {
-            assert!(valid, "I/O accepted invalid UTF-16 XML");
-            assert!(reader.unwrap().read_event().unwrap().is_none());
-        }
+        Ok(()) => match reader {
+            Some(mut reader) => assert!(reader.read_event().unwrap().is_none()),
+            None => assert!(unreferenced(input), "I/O accepted invalid UTF-16 XML"),
+        },
         Err(ReadError::Xml(error)) => {
             super::check_error(error, input);
             assert!(!valid || resource_error(error.kind));
@@ -380,8 +386,11 @@ pub(super) fn exercise(input: &[u8]) -> Outcome {
         assert!(owned.is_ok(), "small valid UTF-16 rejected by owned tree");
     }
     match owned {
+        Ok(_) if !valid => assert!(
+            unreferenced(input),
+            "owned tree accepted invalid UTF-16 XML"
+        ),
         Ok(owned) => {
-            assert!(valid, "owned tree accepted invalid UTF-16 XML");
             let reference = reference.as_ref().unwrap();
             let borrowed = document.as_ref().unwrap().as_ref().unwrap();
             super::serialize::owned(&owned, borrowed, reference.canonical.as_bytes());
@@ -599,13 +608,15 @@ fn compare_stream(
         }
     });
     match result {
-        Ok(()) => {
-            assert!(valid, "stream accepted invalid UTF-16 XML");
-            assert!(
-                reader.unwrap().read_event().unwrap().is_none(),
-                "missing decoded event"
-            );
-        }
+        Ok(()) => match reader {
+            Some(mut reader) => {
+                assert!(
+                    reader.read_event().unwrap().is_none(),
+                    "missing decoded event"
+                );
+            }
+            None => assert!(unreferenced(input), "stream accepted invalid UTF-16 XML"),
+        },
         Err(error) => assert!(
             !valid || resource_error(error.kind),
             "valid UTF-16 rejected: {error}"
@@ -902,7 +913,7 @@ fn decode_stream(
     match result {
         Ok(()) => {
             assert!(
-                oracle.is_some(),
+                oracle.is_some() || unreferenced(input),
                 "explicit decode policy accepted invalid XML"
             );
             if let Some(mut reader) = reader {

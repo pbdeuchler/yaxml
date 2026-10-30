@@ -92,7 +92,7 @@ use Feature::*;
 
 /// Every feature with its answer. `Thread`: all types are `Send` and there
 /// is no global state. `Iso8859x`: own decoding tables, so no iconv is
-/// needed. `Sax1`: only `SAX1` the option bit is accepted, no SAX1 handlers.
+/// needed. `Sax1`: only the `SAX1` option bit is accepted, no SAX1 handlers.
 /// `Legacy` (deprecated APIs), `Automata` (`xmlAutomata*`; the XSD content
 /// model automaton is internal) and `Expr` (`xmlexp`) have no equivalent.
 /// Subsystems behind a cargo feature answer whether it is compiled in.
@@ -124,7 +124,7 @@ const TABLE: [(Feature, bool); 34] = [
     (Schemas, cfg!(feature = "schemas")),
     (Schematron, cfg!(feature = "schemas")),
     (Modules, false),
-    (Debug, false),
+    (Debug, cfg!(feature = "debug")),
     (DebugMem, false),
     (DebugRun, false),
     (Zlib, false),

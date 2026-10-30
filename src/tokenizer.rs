@@ -34,8 +34,8 @@ enum Scan {
     },
 }
 
-/// Keeps one bounded decoded token. The scan
-/// state advances with each byte, including across one-byte input chunks.
+/// Keeps one bounded decoded token; the scan state carries across input
+/// chunks of any size, down to one byte.
 /// Replacement text is scanned as UTF-8 whose source offsets are its own.
 pub(crate) struct Tokenizer {
     buffer: Vec<u8>,

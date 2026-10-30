@@ -527,7 +527,8 @@ pub struct OwnedDocument<A: Allocator = Global> {
     dtd: Option<Box<crate::valid::Dtd>>,
     /// Diagnostics of `DTDVALID` validation after parsing.
     validity: Vec<crate::valid::Diagnostic<OwnedNodeId>>,
-    /// Well-formedness errors a `RECOVER` parse recovered from.
+    /// Kept parse errors: namespace errors, warnings, and what `RECOVER`
+    /// recovered from.
     errors: Vec<Error>,
     /// `ParseOptions::base` or `Editor::set_url`: libxml2's `doc->URL`.
     url: Option<String>,
@@ -782,7 +783,13 @@ impl<A: Allocator + Clone> OwnedDocument<A> {
                     .ok_or_else(|| Error::new(ErrorKind::InvalidState, reader.position()))?;
                 builder.consume(&event, origin, reader.owned_budget())?;
             };
-            let errors = Budget::conclude(reader.budget(), end)?;
+            let mut errors = Budget::conclude(reader.budget(), end)?;
+            // The repair's error, recorded before reading, takes its place
+            // in input order (after an unsupported declared encoding).
+            if let Some((_, error)) = repaired {
+                let at = errors[1..].partition_point(|e| e.offset < error.offset);
+                errors[..=at].rotate_left(1);
+            }
             builder.finish(reader.position(), reader.take_dtd(), flags, errors, content)?
         };
         Ok((
@@ -919,12 +926,11 @@ impl<A: Allocator> OwnedDocument<A> {
         self.dtd.as_deref()
     }
 
-    /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2, which past that still keeps the first error clearing a
-    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
-    /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
-    /// well-formedness error recovered from; empty for a namespace-well-formed
-    /// document.
+    /// The errors the parse kept, in the order found: namespace errors and
+    /// warnings (libxml2's `xmlNsErr`, `ErrorKind::Warning`), which never stop
+    /// a parse, and under `RECOVER` every well-formedness error recovered
+    /// from. At most 100, as in libxml2; past that the first error clearing a
+    /// [`properties`](crate::properties) bit is still kept.
     pub fn errors(&self) -> &[Error] {
         &self.errors
     }
@@ -1559,8 +1565,8 @@ impl<A: Allocator> Editor<'_, A> {
     /// # Errors
     ///
     /// Malformed markup is [`EditErrorKind::Parse`] at its byte offset, and
-    /// nothing changes; an HTML or rootless document without a DOCTYPE is
-    /// `WrongNodeKind`.
+    /// nothing changes; an HTML document, or a rootless one without a
+    /// DOCTYPE, is `WrongNodeKind`.
     ///
     /// ```
     /// use yaxml::{EditLimits, OwnedDocument, save};
@@ -1641,7 +1647,9 @@ impl<A: Allocator> Editor<'_, A> {
     ///
     /// No DOCTYPE is [`EditErrorKind::WrongNodeKind`]; a public identifier
     /// without a system one or with a character outside `PubidChar`, and a
-    /// system identifier with both quote characters, are `InvalidValue`.
+    /// system identifier with both quote characters, are `InvalidValue`; an
+    /// identifier over `max_value_bytes` or with a non-XML character is
+    /// `LimitExceeded` or `InvalidCharacter`.
     ///
     /// ```
     /// use yaxml::{EditLimits, OwnedDocument, save};
@@ -1798,7 +1806,10 @@ impl<A: Allocator> Editor<'_, A> {
     ///
     /// # Errors
     ///
-    /// A missing attribute or a namespace declaration.
+    /// A non-element is `WrongNodeKind`, a missing attribute
+    /// `MissingAttribute`, a namespace declaration `NamespaceDeclaration`; a
+    /// value over `max_value_bytes` or with a non-XML character is
+    /// `LimitExceeded` or `InvalidCharacter`.
     pub fn set_attribute_value(
         &mut self,
         element: OwnedNodeId,
@@ -2381,8 +2392,9 @@ pub(crate) enum LastChild<'a> {
 
 /// Builds an HTML document from tree-construction calls, in libxml2's SAX2
 /// shape: names are stored verbatim (HTML allows names XML rejects), adjacent
-/// Text or CDATA appends merge, and nodes carry no source origins. Errors are
-/// limit or allocation failures with offset 0; the caller supplies offsets.
+/// Text or CDATA appends merge, and a node's origin is only the empty range
+/// marking its line. Errors are limit or allocation failures with offset 0;
+/// the caller supplies offsets.
 #[cfg(feature = "html")]
 pub(crate) struct HtmlBuilder {
     nodes: allocator::Vec<OwnedRecord, Global>,

@@ -639,7 +639,7 @@ fn predefined(name: &str) -> Option<char> {
         .map(|&(_, c)| c)
 }
 
-/// Character references (and with `predefined` the predefined entities)
+/// Character references (and with `predefined_too` the predefined entities)
 /// replaced, as an attribute value or an entity literal reads them.
 fn expand(raw: &str, predefined_too: bool) -> String {
     let mut out = String::with_capacity(raw.len());
@@ -1619,7 +1619,7 @@ fn premature(c: &Cur<'_>, open: usize) -> Found {
 /// An error in the replacement text of a referenced internal entity is
 /// reported where the reference to the entity holding it ends, in the
 /// document or, for nested entities, in the referring entity's text.
-/// `seen` are the entities whose text is being read (`depth` = its length).
+/// `seen` are the entities whose text is being read.
 fn text_run(
     c: &mut Cur<'_>,
     end: usize,
@@ -1934,7 +1934,6 @@ fn unsupported_encoding(r: &Cur<'_>) -> Found {
     .strs(&name, None)
 }
 
-/// The context-free mapping, for kinds the input cannot refine.
 /// libxml2's report of `warning`, raised by the attribute, PI target or
 /// reference at `c`; a reference nested in entity text is reported after
 /// the outermost one.
@@ -2065,7 +2064,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
         // definition of `xml:id` gives a default's literal, and with a
         // tokenized type the value is normalized as one.
         Warning::XmlIdValue => {
-            let tag = memchr::memrchr(b'<', &t[..=c.i]).unwrap_or(0);
+            let tag = memchr::memrchr(b'<', &t[..(c.i + 1).min(t.len())]).unwrap_or(0);
             let mut r = Cur { i: tag + 1, ..*c };
             let attlist = format!("<!ATTLIST {} ", r.name(true).unwrap_or_default());
             let definition = |at: usize| {
@@ -2090,7 +2089,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
             let expanded = (String::from_utf8_lossy(&t[tag..end]).split('&').skip(1))
                 .filter_map(|rest| Some(rest.split_once(';')?.0))
                 .any(|name| !name.starts_with('#') && predefined(name).is_none());
-            let end = end - usize::from(t[end - 1] == b'/') - usize::from(expanded);
+            let end = end - usize::from(end > 0 && t[end - 1] == b'/') - usize::from(expanded);
             let message = format!("xml:id : attribute value {value} is not an NCName");
             fail(code, end, message).strs(&value, None)
         }
@@ -2130,6 +2129,7 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
     }
 }
 
+/// The context-free mapping, for kinds the input cannot refine.
 fn fallback(kind: ErrorKind, at: usize) -> Found {
     let message = match kind {
         ErrorKind::LimitExceeded(Limit::Depth) => "Excessive depth in document".into(),

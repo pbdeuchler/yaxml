@@ -97,11 +97,25 @@ fn loader_counts_requests_and_bytes_across_loads() {
         large.load(ResourceKind::DtdSubset, "u", None),
         Err(ErrorKind::LimitExceeded(Limit::ExternalBytes))
     );
-    let mut failing = loader(limits, vec![Err(io::Error::other("denied"))]);
-    assert_eq!(
-        failing.load(ResourceKind::ParameterEntity, "u", None),
-        Err(ErrorKind::ExternalResource)
-    );
+    // xmlCtxtErrIO: unknown and ENOENT errors are skipped.
+    for (error, expected) in [
+        (io::Error::other("refused"), Ok(None)),
+        (io::ErrorKind::NotFound.into(), Ok(None)),
+        (io::Error::from_raw_os_error(2), Ok(None)),
+        (
+            io::ErrorKind::PermissionDenied.into(),
+            Err(ErrorKind::ExternalResource),
+        ),
+        (
+            io::ErrorKind::TimedOut.into(),
+            Err(ErrorKind::ExternalResource),
+        ),
+    ] {
+        let label = format!("{error:?}");
+        let mut failing = loader(limits, vec![Err(error)]);
+        let loaded = failing.load(ResourceKind::ParameterEntity, "u", None);
+        assert_eq!(loaded, expected, "{label}");
+    }
     let mut malformed = loader(limits, vec![Ok(Some(vec![0xff]))]);
     assert_eq!(
         malformed.load(ResourceKind::ParameterEntity, "u", None),

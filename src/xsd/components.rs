@@ -148,7 +148,8 @@ pub(crate) struct SimpleType {
     pub(crate) builtin: Type,
     pub(crate) variety: Variety,
     pub(crate) whitespace: WhiteSpace,
-    /// Effective length, bound and digit facets (libxml2's `facetSet`).
+    /// Effective length, bound, digit and `whiteSpace` facets (libxml2's
+    /// `facetSet`).
     pub(crate) facets: Vec<Facet>,
     /// This derivation step's patterns; any one must match.
     pub(crate) patterns: Vec<Regex>,

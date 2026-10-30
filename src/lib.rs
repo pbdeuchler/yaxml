@@ -41,6 +41,8 @@
 //! # Example
 //!
 //! ```
+//! # #[cfg(not(feature = "xpath"))] fn main() {}
+//! # #[cfg(feature = "xpath")] fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use yaxml::{Document, xpath};
 //!
 //! let document = Document::parse("<shop><item price='3'/><item price='4'/></shop>")?;
@@ -50,7 +52,7 @@
 //! let total = xpath::XPath::compile("sum(//item/@price)")?;
 //! let value = total.evaluate(&document, document.root().id(), &xpath::Context::new())?;
 //! assert_eq!(value, xpath::Value::Number(7.0));
-//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! # Ok(()) }
 //! ```
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -174,6 +176,7 @@ pub use xpath::tree::{NamespaceBinding, XML_NAMESPACE};
 
 mod dtd_reference;
 
-#[cfg(doctest)]
+// The README shows the default (`full`) feature set.
+#[cfg(all(doctest, feature = "full"))]
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;

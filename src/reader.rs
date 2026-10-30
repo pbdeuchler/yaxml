@@ -356,7 +356,7 @@ pub enum Event<'a> {
     /// A general entity reference in content, reported when entities are not
     /// substituted (no `NOENT`), like libxml2's SAX `reference` callback. The
     /// replacement text's events follow, then the matching [`Event::EntityEnd`];
-    /// a reference that is not loaded or declared has none.
+    /// a reference that is not loaded or declared has nothing in between.
     EntityStart(Cow<'a, str>),
     /// The end of the innermost [`Event::EntityStart`].
     EntityEnd,
@@ -384,9 +384,9 @@ enum End {
 ///
 /// Namespace-aware, and strict unless `RECOVER` is set (see
 /// [`Reader::errors`]). Whitespace outside the root element is skipped.
-/// Errors are sticky, and EOF repeats `Ok(None)`. For other
-/// encodings or I/O sources, use [`PushParser`](crate::PushParser) or
-/// [`BufferedReader`](crate::BufferedReader).
+/// Errors are sticky, and EOF repeats `Ok(None)`. For other encodings read
+/// [`Transcoded`] input ([`Reader::transcoded`]); for I/O sources use
+/// [`PushParser`](crate::PushParser) or [`BufferedReader`](crate::BufferedReader).
 ///
 /// ```
 /// use yaxml::{Event, Reader};
@@ -426,8 +426,12 @@ impl<'a> Reader<'a> {
     ///
     /// # Errors
     ///
-    /// Fails when the input is not UTF-8, holds a character outside XML's
-    /// `Char`, or exceeds `max_input_bytes`.
+    /// Fails when the input exceeds `max_input_bytes`, starts with a UTF-16 or
+    /// UCS-4 byte order mark or the UTF-16 `<?` signature
+    /// ([`ErrorKind::UnsupportedEncoding`]: read [`Transcoded`] input), is not
+    /// UTF-8, or holds a character outside XML's `Char`. Before invalid UTF-8,
+    /// a complete XML declaration is read and its error, such as an
+    /// unsupported declared encoding, is returned instead.
     pub fn new(input: &'a [u8]) -> Result<Self, Error> {
         Self::with_limits(input, Limits::default())
     }
@@ -576,9 +580,9 @@ impl<'a> Reader<'a> {
         Ok(self)
     }
 
-    /// The declarations of the document's DTD, once its DOCTYPE was read
-    /// (its internal subset); complete after the document element's start tag (the external subset
-    /// loads while it is read).
+    /// The declarations of the document's DTD, once its DOCTYPE was read (its
+    /// internal subset); complete after the document element's start tag (the
+    /// external subset loads while it is read).
     ///
     /// ```
     /// let mut reader = yaxml::Reader::new(b"<!DOCTYPE r [<!ENTITY a 'v'>]><r/>")?;
@@ -897,10 +901,12 @@ impl<'a> SliceReader<'a> {
             ),
         };
         let character = invalid_char(input).map(|i| Error::new(ErrorKind::InvalidCharacter, i));
-        // Strict parsing reports invalid UTF-8 first; recovery parses the
-        // prefix before invalid UTF-8, which ends the document, and repairs
-        // characters outside `Char` as libxml2 does.
-        if let Some(error) = utf8.or(character).filter(|_| !flags.recovers()) {
+        // Strict parsing reports invalid UTF-8 first (after the XML
+        // declaration, below), then characters outside `Char`; recovery parses
+        // the prefix before invalid UTF-8, which ends the document, and
+        // repairs characters outside `Char` as libxml2 does.
+        let strict = (!flags.recovers()).then_some(utf8).flatten();
+        if let Some(error) = character.filter(|_| !flags.recovers() && strict.is_none()) {
             return Err(error);
         }
         // A decoded U+FEFF is content: the decoder removed the BOM.
@@ -928,6 +934,20 @@ impl<'a> SliceReader<'a> {
         if decoded_limit || decoded.is_some() {
             let limit = decode.max_decoded_token_bytes;
             reader.state.set_encoding(encoding, initial, limit);
+        }
+        if let Some(utf8) = strict {
+            // A complete XML declaration is read first: its errors (an
+            // unsupported encoding) precede, as in libxml2 and the streams.
+            let declared = match input.as_bytes()[initial..].strip_prefix(b"<?xml") {
+                Some([b' ' | b'\t' | b'\r' | b'\n', rest @ ..]) => {
+                    memchr::memmem::find(rest, b"?>").is_some()
+                }
+                _ => false,
+            };
+            return Err(match declared {
+                true => reader.read_step().err().unwrap_or(utf8),
+                false => utf8,
+            });
         }
         Ok((reader, utf8, character))
     }

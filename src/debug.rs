@@ -692,8 +692,12 @@ impl<'d, A: Allocator> Dump<'d, A> {
                 }
                 DtdUnitView::Entity(declaration) => {
                     let (name, parameter) = (declaration.name(), declaration.is_parameter());
-                    // An invalid predefined-entity redeclaration was dropped.
-                    let dropped = !parameter && catalog.dtd().declared(name).is_none();
+                    // An invalid predefined-entity redeclaration or a
+                    // parameter entity with a fragment was dropped.
+                    let dropped = match parameter {
+                        true => !catalog.dtd().parameter.contains_key(name),
+                        false => catalog.dtd().declared(name).is_none(),
+                    };
                     if dropped || !first(if parameter { "%" } else { "&" }, name) {
                         return;
                     }

@@ -19,7 +19,7 @@ use crate::{Event, SourceOrigin};
 /// [`Document::validate`](crate::Document::validate), except that content
 /// model mismatches use libxml2's push wording (`Misplaced b`, `Text not
 /// allowed`, `Expecting more children`) at the child or end tag that shows
-/// them, and an empty DTD is `Validation failed: no DTD found !`.
+/// them, and a missing or empty DTD is `Validation failed: no DTD found !`.
 ///
 /// The DTD is the one [`set_dtd`](Self::set_dtd) supplies, normally the
 /// reader's [`dtd`](crate::BufferedReader::dtd); without one, the internal

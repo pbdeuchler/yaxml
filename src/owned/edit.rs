@@ -144,7 +144,8 @@ impl<A: Allocator> OwnedDocument<A> {
         .any(|id| matches!(self.nodes[id.index()].content, Content::EntityRef(_)))
     }
 
-    /// Elements on the path from `index` up to its root, `index` included.
+    /// The number of elements on the path from `index` up to its root,
+    /// `index` included.
     fn depth(&self, index: usize) -> usize {
         std::iter::successors(Some(NodeId::new(index)), |id| {
             self.nodes[id.index()].parent.get()
@@ -706,7 +707,7 @@ impl<A: Allocator> Editor<'_, A> {
 
     /// The prefix a name in `name.namespace` takes on `element`. `Exact`
     /// keeps the request; `Automatic` takes a matching in-scope binding
-    /// (an element first the default namespace), else the first unbound
+    /// (for an element, the default namespace first), else the first unbound
     /// `nsN`. Reconciliation declares whatever is not yet bound.
     fn choose_prefix(
         &self,
@@ -1162,8 +1163,8 @@ impl<A: Allocator> OwnedDocument<A> {
                 .is_some_and(|dtd| dtd.declares_id(element, attribute))
     }
 
-    /// Calls `visit` on every pool range a live record, attribute or kept
-    /// form refers to, in a fixed order.
+    /// Calls `visit` on every pool range a node record, attribute record
+    /// (relocated ones too) or kept form refers to, in a fixed order.
     fn visit_strings(&mut self, mut visit: impl FnMut(&mut Range<usize>)) {
         if let Some(declaration) = &mut self.declaration {
             visit(&mut declaration.version);

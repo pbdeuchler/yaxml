@@ -396,12 +396,11 @@ impl<'input> Document<'input> {
         Ok(())
     }
 
-    /// The errors the parse kept, in the order found (at most 100, like
-    /// libxml2, which past that still keeps the first error clearing a
-    /// [`properties`](crate::properties) bit): namespace errors and warnings, which never stop a parse
-    /// (libxml2's `xmlNsErr`, `ErrorKind::Warning`), and under `RECOVER` every
-    /// well-formedness error recovered from; empty for a namespace-well-formed
-    /// document.
+    /// The errors the parse kept, in the order found: namespace errors and
+    /// warnings (libxml2's `xmlNsErr`, `ErrorKind::Warning`), which never stop
+    /// a parse, and under `RECOVER` every well-formedness error recovered
+    /// from. At most 100, as in libxml2; past that the first error clearing a
+    /// [`properties`](crate::properties) bit is still kept.
     pub fn errors(&self) -> &[Error] {
         &self.errors
     }

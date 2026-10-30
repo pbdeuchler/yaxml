@@ -709,8 +709,8 @@ impl Parser {
         }
     }
 
-    /// `xmlGetMinOccurs` / `xmlGetMaxOccurs`; `all` limits both to 0 or 1
-    /// (and `maxOccurs` to 1).
+    /// `xmlGetMinOccurs` / `xmlGetMaxOccurs`; under `all`, `minOccurs` is 0
+    /// or 1 and `maxOccurs` 1.
     fn occurs(&mut self, cx: &Cx, node: Id, all: bool) -> (u32, Option<u32>) {
         const UNBOUNDED: u64 = 1 << 30;
         let parse = |value: &str| -> Option<u64> {
@@ -881,7 +881,8 @@ impl Parser {
         self.drafts.buckets.len() - 1
     }
 
-    /// Parses the main document and everything it includes or imports.
+    /// Parses the main document and everything it includes, imports or
+    /// redefines.
     pub(crate) fn run(&mut self, bytes: &[u8], uri: &str) {
         let Some(doc) = self.load_document(uri, bytes, None) else {
             return;

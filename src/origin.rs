@@ -202,8 +202,8 @@ impl SourceOrigin {
         self.0.cancellation_offset()
     }
 
-    /// Closes an element within the same exact source occurrence. Element bodies
-    /// may create a gap between opening and closing tag spans.
+    /// Closes an element within the same source occurrence: the result covers
+    /// both tags and the body between them.
     pub(crate) fn close_element(self, end: Self) -> Self {
         Self(self.0.close_element(end.0))
     }

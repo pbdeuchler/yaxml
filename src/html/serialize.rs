@@ -351,7 +351,8 @@ impl Dumper<'_> {
         self.encoded.clear();
     }
 
-    /// `xmlSerializeText` with the HTML tables: `&`, `<`, `>`, and `"` in attributes.
+    /// `xmlSerializeText` with the HTML tables: `&`, `<`, `>`, and `"` in
+    /// attributes, up to a NUL.
     fn escape(&mut self, text: &str, attribute: bool) {
         if !self.room(text) {
             return;
@@ -368,8 +369,8 @@ impl Dumper<'_> {
         }
     }
 
-    /// `htmlSerializeUri`: leading blanks kept, then controls, space, DEL and
-    /// non-ASCII bytes percent-encoded.
+    /// `htmlSerializeUri`: leading blanks kept, then `"` and `&` escaped and
+    /// controls, space, DEL and non-ASCII bytes percent-encoded, up to a NUL.
     fn uri(&mut self, text: &str) {
         let rest = text.trim_start_matches(|c: char| c.is_ascii() && blank(c as u8));
         self.write(&text[..text.len() - rest.len()]);
@@ -595,7 +596,8 @@ impl Dumper<'_> {
         false
     }
 
-    /// A newline between a block element and a following non-text sibling.
+    /// A newline between a block element and a following non-text sibling,
+    /// unless the parent's name starts with `p` ([`not_p`]).
     fn newline_after(&mut self, node: OwnedNode<'_>, parent: Option<OwnedNode<'_>>) {
         if let Some(next) = node.next_sibling()
             && !is_text(Some(next))
