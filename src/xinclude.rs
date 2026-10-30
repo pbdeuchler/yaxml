@@ -1201,7 +1201,13 @@ fn select<'d>(
         return Ok(document.document_element().into_iter().collect());
     };
     xpointer::evaluate(document, fragment, limits)
-        .map_err(ErrorKind::XPointer)?
+        .map_err(|error| match error {
+            xpointer::Error::XPath(xpath::Error {
+                kind: xpath::ErrorKind::Allocation,
+                ..
+            }) => ErrorKind::Xml(crate::Error::new(crate::ErrorKind::Allocation, 0)),
+            error => ErrorKind::XPointer(error),
+        })?
         .into_iter()
         .filter_map(|found| match found {
             xpath::Node::Tree(id) => {
