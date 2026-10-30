@@ -114,6 +114,10 @@ pub(super) fn exercise(input: &[u8]) {
                     node.entity_name().is_none()
                         && (0..node.attributes().len())
                             .all(|position| node.unexpanded_attribute(position).is_none())
+                        // A CR from replacement text is written raw where
+                        // nothing escapes it, and reads back as a line end.
+                        && (node.kind() == OwnedNodeKind::Text
+                            || !node.text().is_some_and(|text| text.contains('\r')))
                 }) =>
         {
             let reparsed = OwnedDocument::parse_bytes(&output)

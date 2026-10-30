@@ -181,8 +181,13 @@ fn tree_equal(expected: &Document<'_>, actual: &Document<'_>) {
             expected.attributes() == actual.attributes(),
             "serializer changed ordered attributes or XMLNS declarations"
         );
+        // A CR from replacement text in CDATA, a comment or a PI is written
+        // raw (no reference there) and reads back as a line end.
+        let line_ends = |text: &str| text.replace("\r\n", "\n").replace('\r', "\n");
         assert!(
-            expected.text() == actual.text(),
+            expected.text() == actual.text()
+                || !matches!(expected.kind(), NodeKind::Text(_))
+                    && expected.text().map(line_ends).as_deref() == actual.text(),
             "serializer changed a logical value"
         );
         match (expected.kind(), actual.kind()) {
