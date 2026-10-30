@@ -294,6 +294,13 @@ fn whole_documents() {
             true,
             r#"<a xmlns:p="http://a/?x&y"></a>"#,
         ),
+        // ... so a reference in one reads back as another URI (xmllint --c14n).
+        (
+            "<a xmlns:p='http://a/?x&amp;apos;y'/>",
+            &[Mode::C14n10],
+            true,
+            r#"<a xmlns:p="http://a/?x&apos;y"></a>"#,
+        ),
         // W3C C14N 1.0 section 3.2: whitespace in document content is kept.
         (
             "<doc>\n   <clean>   </clean>\n   <dirty>   A   B   </dirty>\n   <mixed>\n      A\n      <clean>   </clean>\n      B\n      <dirty>   A   B   </dirty>\n      C\n   </mixed>\n</doc>",
@@ -306,8 +313,9 @@ fn whole_documents() {
         for &mode in modes {
             let canonical = both(xml, mode, with_comments, None, &[]).expect("c14n");
             assert_eq!(canonical, expected, "{mode:?} {xml}");
-            // Raw namespace URIs can make the output malformed, as in libxml2.
-            if Document::parse(&canonical).is_ok() {
+            // Raw namespace URIs can make the output malformed or name
+            // another URI, as in libxml2.
+            if !xml.contains("xmlns:p='http://a/?x&amp;") {
                 let again =
                     both(&canonical, mode, with_comments, None, &[]).expect("idempotent c14n");
                 assert_eq!(again, canonical, "{mode:?} is not idempotent on {xml}");
