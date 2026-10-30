@@ -532,6 +532,11 @@ fn streams_recover_as_the_slice_reader_whatever_the_chunks() {
         b"<r>x</r>\xff",
         b"<r>a<!\xc3\xa9>b</r>",
         b"\xff",
+        // Invalid markup ends inside a scalar: the text after it fails
+        // where its token ends, past a reference the input cuts off.
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xc3\xa9&",
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xef\xbb\xbfx&",
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xc3\xa9</c>",
     ];
     for input in inputs.chain(invalid.iter().copied()) {
         for flags in [0, NOENT] {
