@@ -30,19 +30,31 @@ pub struct QName<'a> {
 
 impl<'a> QName<'a> {
     pub(crate) fn new((qualified, namespace): (&'a str, Option<&'a str>)) -> Self {
+        Self::split((qualified, namespace), qualified.rfind(':'))
+    }
+
+    /// With the stored split: a QName the parser found malformed (`p:`) is
+    /// unprefixed even in a namespace.
+    pub(crate) fn split(
+        (qualified, namespace): (&'a str, Option<&'a str>),
+        prefix: Option<usize>,
+    ) -> Self {
         let namespace = namespace.filter(|uri| !uri.is_empty());
         Self {
             qualified,
-            local: match namespace {
-                Some(_) => qualified.rsplit(':').next().unwrap_or(qualified),
-                None => qualified,
+            local: match (namespace, prefix) {
+                (Some(_), Some(length)) => &qualified[length + 1..],
+                _ => qualified,
             },
             namespace,
         }
     }
 
     pub(crate) fn of(name: &'a crate::Name<'_>) -> Self {
-        Self::new((name.qualified(), name.namespace()))
+        Self::split(
+            (name.qualified(), name.namespace()),
+            name.prefix().map(str::len),
+        )
     }
 
     pub(crate) fn is_namespace_declaration(&self) -> bool {
@@ -209,9 +221,7 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
         };
         let text = node.text().unwrap_or_default();
         match node.kind() {
-            OwnedNodeKind::Element => node
-                .name_parts()
-                .map_or(Item::Root, |name| Item::Element(QName::new(name))),
+            OwnedNodeKind::Element => node.qname().map_or(Item::Root, Item::Element),
             OwnedNodeKind::Text | OwnedNodeKind::Cdata => Item::Text(text),
             OwnedNodeKind::Comment => Item::Comment(text),
             OwnedNodeKind::ProcessingInstruction => Item::Pi(
@@ -224,8 +234,7 @@ impl<A: crate::allocator::Allocator> Navigate for OwnedDocument<A> {
     }
 
     fn attribute(&self, id: OwnedNodeId, index: usize) -> Option<(QName<'_>, &str)> {
-        let (name, value) = self.node(id)?.attribute_parts(index)?;
-        Some((QName::new(name), value))
+        self.node(id)?.attribute_qname(index)
     }
 
     fn slot(&self, id: OwnedNodeId) -> usize {
@@ -595,7 +604,7 @@ fn libxml2_name<'a>(name: &QName<'a>) -> &'a str {
     }
 }
 
-fn prefix<'a>(name: &QName<'a>) -> Option<&'a str> {
+pub(crate) fn prefix<'a>(name: &QName<'a>) -> Option<&'a str> {
     name.namespace?;
     let prefix = name.qualified.strip_suffix(name.local)?;
     prefix.strip_suffix(':')

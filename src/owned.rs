@@ -1035,6 +1035,11 @@ impl<A: Allocator> OwnedDocument<A> {
         )
     }
 
+    fn qname(&self, name: &StoredName) -> tree::QName<'_> {
+        let prefix = name.prefix_length.map(NonZeroUsize::get);
+        tree::QName::split(self.name_parts(name), prefix)
+    }
+
     /// The XML declaration.
     pub fn declaration(&self) -> Option<Declaration<'_>> {
         self.declaration
@@ -2766,6 +2771,29 @@ impl<'document, A: Allocator> OwnedNode<'document, A> {
             Content::Element { name, .. } => Some(self.document.name_parts(name)),
             _ => None,
         }
+    }
+
+    /// The element's name as XPath and C14N read it.
+    pub(crate) fn qname(self) -> Option<tree::QName<'document>> {
+        match &self.record().content {
+            Content::Element { name, .. } => Some(self.document.qname(name)),
+            _ => None,
+        }
+    }
+
+    /// One attribute's name and value by source index, as XPath reads them.
+    pub(crate) fn attribute_qname(
+        self,
+        index: usize,
+    ) -> Option<(tree::QName<'document>, &'document str)> {
+        let Content::Element { attributes, .. } = &self.record().content else {
+            return None;
+        };
+        let attribute = self.document.attributes[attributes.clone()].get(index)?;
+        Some((
+            self.document.qname(&attribute.name),
+            &self.document.pool.0[attribute.value.clone()],
+        ))
     }
 
     /// One attribute's QName, namespace and value by source index.

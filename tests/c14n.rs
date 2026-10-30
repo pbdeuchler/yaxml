@@ -287,6 +287,13 @@ fn whole_documents() {
             true,
             r#"<r xml:lang="en"><xml:e></xml:e></r>"#,
         ),
+        // A malformed QName is unprefixed, so it uses the default namespace.
+        (
+            "<ts: xmlns='http://e/'/>",
+            &ALL,
+            true,
+            r#"<ts: xmlns="http://e/"></ts:>"#,
+        ),
         // Namespace URIs are written as stored, like xmlOutputBufferWriteQuotedString.
         (
             "<a xmlns:p='http://a/?x&amp;y'/>",
