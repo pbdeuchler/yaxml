@@ -322,7 +322,7 @@ struct Local<'d> {
     document: &'d OwnedDocument,
     url: &'d str,
     /// `None` while expanding, to detect loops.
-    memo: HashMap<OwnedNodeId, Option<Rc<[Piece]>>>,
+    memo: HashMap<OwnedNodeId, Option<Rc<Vec<Piece>>>>,
     /// The DTDs of the newly loaded documents that have one, in load order:
     /// libxml2 creates an internal subset in a document without one and
     /// merges their general entities into it.
@@ -438,7 +438,7 @@ impl Processor<'_> {
         local: &mut Local<'d>,
         node: OwnedNode<'d>,
         depth: usize,
-    ) -> Result<Rc<[Piece]>, Error> {
+    ) -> Result<Rc<Vec<Piece>>, Error> {
         if depth >= self.options.max_depth {
             return Err(fail(local, Some(node), ErrorKind::RecursionDepth));
         }
@@ -448,7 +448,7 @@ impl Processor<'_> {
             None => {}
         }
         local.memo.insert(node.id(), None);
-        let pieces: Rc<[Piece]> = self.load(local, node, depth + 1)?.into();
+        let pieces = Rc::new(self.load(local, node, depth + 1)?);
         local.memo.insert(node.id(), Some(pieces.clone()));
         Ok(pieces)
     }
