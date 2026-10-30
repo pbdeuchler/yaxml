@@ -1,6 +1,7 @@
 //! Content parsed in a node's context (`Editor::parse_content`), then
 //! inserted. A failure (other than allocation) leaves the document as it
-//! was and describes without panicking; under `RECOVER` only limits fail.
+//! was and describes without panicking; under `RECOVER` only limits and
+//! entity loops fail (docs/compatibility.md#recovery-recover).
 //! The result is detached; appended under the node it was parsed in (or
 //! else the document element, which may need declarations), the document
 //! stays namespace-consistent and saves to a tree that reparses the same
@@ -87,7 +88,9 @@ pub fn exercise(input: &[u8]) {
                 Error { kind, offset }.describe(&LineIndex::content(content));
                 let fatal = matches!(
                     kind,
-                    yaxml::ErrorKind::LimitExceeded(_) | yaxml::ErrorKind::UnsupportedOption
+                    yaxml::ErrorKind::LimitExceeded(_)
+                        | yaxml::ErrorKind::UnsupportedOption
+                        | yaxml::ErrorKind::EntityLoop
                 );
                 assert!(options & RECOVER == 0 || fatal, "RECOVER failed: {error:?}");
             }
