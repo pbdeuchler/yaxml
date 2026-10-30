@@ -178,6 +178,36 @@ impl Store {
         }
     }
 
+    /// The leaf patterns that could match the next item of `p`: elements,
+    /// attributes, text and datatypes, from at most 10,000 patterns.
+    fn front(&self, p: Id) -> Result<Vec<Pat>, TryReserveError> {
+        let mut seen = std::collections::HashSet::new();
+        let mut stack = vec![p];
+        let mut out = Vec::new();
+        while let Some(id) = stack.pop() {
+            seen.try_reserve(1)?;
+            if !seen.insert(id) || seen.len() > 10_000 {
+                continue;
+            }
+            match self.pat(id) {
+                Pat::Choice(a, b) | Pat::Interleave(a, b) => {
+                    stack.try_push(a)?;
+                    stack.try_push(b)?;
+                }
+                Pat::Group(a, b) => {
+                    stack.try_push(a)?;
+                    if self.nullable(a) {
+                        stack.try_push(b)?;
+                    }
+                }
+                Pat::OneOrMore(a) | Pat::After(a, _) => stack.try_push(a)?,
+                Pat::Empty | Pat::NotAllowed => {}
+                leaf => out.try_push(leaf)?,
+            }
+        }
+        Ok(out)
+    }
+
     /// Interns `pat` as is.
     fn intern(&mut self, pat: Pat) -> Id {
         if let Some(&id) = self
@@ -649,28 +679,11 @@ impl Deriver {
     }
 
     /// The leaf patterns that could match the next item of `p`, for
-    /// diagnostics: elements, attributes, text and datatypes.
-    pub(super) fn front(&self, p: Id) -> Vec<Pat> {
-        let mut seen = std::collections::HashSet::new();
-        let mut stack = vec![p];
-        let mut out = Vec::new();
-        while let Some(id) = stack.pop() {
-            if !seen.insert(id) || seen.len() > 10_000 {
-                continue;
-            }
-            match self.store.pat(id) {
-                Pat::Choice(a, b) | Pat::Interleave(a, b) => stack.extend([a, b]),
-                Pat::Group(a, b) => {
-                    stack.push(a);
-                    if self.store.nullable(a) {
-                        stack.push(b);
-                    }
-                }
-                Pat::OneOrMore(a) | Pat::After(a, _) => stack.push(a),
-                Pat::Empty | Pat::NotAllowed => {}
-                leaf => out.push(leaf),
-            }
-        }
-        out
+    /// diagnostics; none once an allocation is refused.
+    pub(super) fn front(&mut self, p: Id) -> Vec<Pat> {
+        let front = self.store.front(p);
+        self.store
+            .refuses(front.as_ref().map(drop).map_err(Clone::clone));
+        front.unwrap_or_default()
     }
 }

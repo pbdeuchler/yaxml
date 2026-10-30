@@ -52,12 +52,19 @@ jobs:
           toolchain: nightly-2026-10-18
           components: llvm-tools-preview
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
-      - name: Fuzz every target for 20 seconds
-        working-directory: yaxml
+      - name: Replay every target's regressions
+        working-directory: yaxml/fuzz
         run: |
           set -eu
-          for target in $(./fuzz.sh); do
-            ./fuzz.sh "$target" 20
+          replay() { cargo +nightly-2026-10-18 fuzz run -O "$@"; }
+          for dir in "$PWD"/../tests/fixtures/fuzz-regressions/*/; do
+            target=$(basename "$dir")
+            if [ "$target" = allocfail ]; then
+              YAXML_ALLOCFAIL_SWEEP=1 replay allocfail $(ls -d "$dir"* | grep -v /infallible-)
+              YAXML_ALLOCFAIL_MIN_SIZE=16384 replay allocfail "$dir"infallible-*
+            else
+              replay "$target" "$dir"*
+            fi
           done
       - uses: actions/upload-artifact@v4
         if: failure()

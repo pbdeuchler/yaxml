@@ -68,7 +68,7 @@ Ignored/env-gated differentials still in core tests (dtd, valid, valid_stream, r
 - bench.sh: parse_benchmark with the parse_bench helper; ratio = libxml2 median / yaxml median of (parse_ns+drop_ns)/iterations; harness release profile = core's (thin LTO, 1 CGU).
 - Tests building examples (`*_cli.rs`, oracle_cli) run `cargo build --example` in harness; fixtures harness/tests/fixtures (fake_*.rs, create_oracle_expected.tsv); conformance baseline harness/tests/fixtures/xmlconf-20130923-required.tsv (9,810 pairs, 1,962 IDs).
 - Core keeps namespace errors without failing (`errors()`); conformance_worker (XMLTS scores namespace well-formedness), fuzz_replay (xmllint `--strict-namespace`) and parse_bench (the C helper fails on any error) count a kept error as rejection.
-- CI: .github/workflows/harness.yml (oracle, fuzz-smoke 20 s/target, coverage; checkout path `yaxml` so ../yaxml-oracle stays in the workspace).
+- CI: .github/workflows/harness.yml (oracle, fuzz-smoke = each target's binary replays `tests/fixtures/fuzz-regressions/<t>` (allocfail: sweep, `infallible-*` with MIN_SIZE=16384), coverage; checkout path `yaxml` so ../yaxml-oracle stays in the workspace).
 - Harness gate (with harness/ or fuzz/ changes): `(cd harness && cargo fmt --check && cargo clippy --all-targets -q -- -D warnings && cargo test --all-targets -q) && (cd fuzz && cargo +nightly-2026-10-18 fuzz build -O) && sh -n *.sh && ./oracle.sh` (every step ok; xmlconf: required_pass_pairs=9810 required_pass_regressions=0).
 
 ## Fuzz
