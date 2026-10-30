@@ -176,10 +176,6 @@ fn replacement(byte: u8, escape: Escape) -> Option<&'static str> {
     }
 }
 
-fn prefix(qualified: &str) -> &str {
-    qualified.split_once(':').map_or("", |(prefix, _)| prefix)
-}
-
 fn xml_attribute<'t, T: Navigate>(
     tree: &'t T,
     id: T::Id,
@@ -473,7 +469,7 @@ impl<'t, T: Navigate, F: FnMut(&str)> C14n<'t, '_, T, F> {
             has_empty |= prefix.is_empty();
         }
         let element = match name.namespace {
-            Some(uri) => Some((prefix(name.qualified), uri)),
+            Some(uri) => Some((tree::prefix(&name).unwrap_or_default(), uri)),
             None => self.search(""),
         };
         if let Some((prefix, uri)) = element.filter(|&(prefix, _)| prefix != "xml") {
@@ -492,7 +488,7 @@ impl<'t, T: Navigate, F: FnMut(&str)> C14n<'t, '_, T, F> {
             let Some(uri) = attribute.namespace else {
                 continue;
             };
-            let prefix = prefix(attribute.qualified);
+            let prefix = tree::prefix(&attribute).unwrap_or_default();
             if attribute.is_namespace_declaration()
                 || prefix == "xml"
                 || !self.visible(Node::Attribute(id, index))

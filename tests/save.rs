@@ -421,6 +421,31 @@ fn xhtml_documents_follow_appendix_c() {
     let br = document.root_element().first_child().unwrap();
     assert_eq!(save::to_vec(br, &options(save::XHTML)).unwrap(), b"<br />");
     assert_eq!(save::to_vec(br, &options(0)).unwrap(), b"<br/>");
+    // Only the head of a document-level `html` gains the Content-Type `meta`
+    // (libxml2 `xhtmlNodeDumpOutput`), so a nested one saved alone does not.
+    let xhtml = "<html xmlns=\"http://www.w3.org/1999/xhtml\">";
+    for (input, nested, expected) in [
+        (
+            "<html><head/></html>",
+            false,
+            format!("{xhtml}<head>{meta}</head></html>"),
+        ),
+        (
+            "<r><html><head/></html></r>",
+            true,
+            format!("{xhtml}<head></head></html>"),
+        ),
+    ] {
+        let document = OwnedDocument::parse(input).unwrap();
+        let root = document.root_element();
+        let html = if nested {
+            root.first_child().unwrap()
+        } else {
+            root
+        };
+        let output = save::to_vec(html, &options(save::XHTML)).unwrap();
+        assert_eq!(String::from_utf8(output).unwrap(), expected, "{input}");
+    }
 }
 
 #[test]

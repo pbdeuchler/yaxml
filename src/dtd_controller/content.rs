@@ -1005,12 +1005,14 @@ fn scan(text: &str, at: usize, token: TokenLimit) -> Result<Scanned, Error> {
     let (limit, overflow) = (token.bytes, token.error(at));
     match tail.first() {
         None => return Ok(Scanned::End),
-        // Invalid markup recognized on a leading byte ended inside a scalar.
-        Some(_) if !text.is_char_boundary(at) => {
-            return Err(Error::new(ErrorKind::InvalidUtf8, at));
-        }
         Some(b'<') => {}
         Some(_) => {
+            // Invalid markup recognized on a leading byte can end inside a
+            // scalar: the text after it fails once it ends, as a stream's does.
+            let text_token = |end| match text.is_char_boundary(at) {
+                true => Ok(Scanned::Token(TokenKind::Text, end)),
+                false => Err(Error::new(ErrorKind::InvalidUtf8, at)),
+            };
             let mut end = 0;
             while let Some(found) = memchr2(b'<', b'&', &tail[end..]) {
                 end += found;
@@ -1018,20 +1020,20 @@ fn scan(text: &str, at: usize, token: TokenLimit) -> Result<Scanned, Error> {
                     return Err(overflow);
                 }
                 if tail[end] == b'<' {
-                    return Ok(Scanned::Token(TokenKind::Text, at + end));
+                    return text_token(at + end);
                 }
                 let (kind, after) = reference(text, at + end, token)?;
                 if kind == ReferenceKind::General {
-                    return Ok(match end {
-                        0 => Scanned::Reference(after),
-                        _ => Scanned::Token(TokenKind::Text, at + end),
-                    });
+                    return match end {
+                        0 => Ok(Scanned::Reference(after)),
+                        _ => text_token(at + end),
+                    };
                 }
                 end = after - at;
             }
             return match tail.len() > limit {
                 true => Err(overflow),
-                false => Ok(Scanned::Token(TokenKind::Text, text.len())),
+                false => text_token(text.len()),
             };
         }
     }

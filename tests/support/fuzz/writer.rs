@@ -42,8 +42,11 @@ fn roundtrip(input: &[u8]) {
     while let Some(event) = reader.read_event().unwrap() {
         if let Err(error) = writer.write_event(&event) {
             // Owning open names/namespaces spends more than borrowing input.
+            let defaulted = matches!(&event, Event::Start(element) | Event::Empty(element)
+                if element.attributes.iter().any(|attribute| super::unwritable(&attribute.name)));
             assert!(
-                matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
+                defaulted
+                    || matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
                 "valid parsed event was rejected by writer: {error}"
             );
             assert_terminal(&mut writer);
@@ -115,6 +118,12 @@ fn logical(mut reader: Reader<'_>) -> Vec<String> {
             (Event::EntityStart(_) | Event::EntityEnd, _) => {}
             (Event::Text(text), Some(last)) if last.starts_with("Text:") => last.push_str(text),
             (Event::Text(text), _) => events.push(format!("Text:{text}")),
+            // A CR from replacement text is written raw here (no reference
+            // in CDATA, comments or PIs) and reads back as a line end.
+            (Event::Cdata(_) | Event::Comment(_) | Event::ProcessingInstruction { .. }, _) => {
+                let event = format!("{event:?}");
+                events.push(event.replace(r"\r\n", r"\n").replace(r"\r", r"\n"));
+            }
             _ => events.push(format!("{event:?}")),
         }
     }

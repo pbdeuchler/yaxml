@@ -94,6 +94,9 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     // a declaration keeps what it can
     ("<?xml version=\"1.0\" standalone=\"maybe\"?><r/>", "<r/>", &[InvalidDeclaration]),
     ("<?xml version=\"1.0\" encoding=\"bogus\"?><r/>", "<r/>", &[UnsupportedEncoding]),
+    // ... up to the first pseudo-attribute it rejects, skipping the rest
+    ("<?xml version=\"1.0\" encoding=\"1.0\" encoding=\"UTF-16\"?><r/>", "<r/>", &[InvalidDeclaration]),
+    ("<?xml version=\"1.0\" x=\"1\" standalone=\"maybe\"?><r/>", "<r/>", &[InvalidDeclaration]),
     // the DTD reads on where libxml2 requires a space but does not stop
     ("<!DOCTYPEr><r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
     ("<!DOCTYPE r [<!ELEMENT r(#PCDATA)><!ENTITY e SYSTEM \"x\"NDATA n><!ATTLIST r a CDATA #FIXED\"v\">]><r/>",
@@ -108,6 +111,9 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<!DOCTYPE r [<!ENTITY % p SYSTEM \"x#y\">%p;<!ELEMENT r ANY>]><r/>",
      "<!DOCTYPE r [\n<!ELEMENT r ANY>\n]>\n<r/>", &[InvalidDtd, Warning(yaxml::Warning::UndeclaredEntity { error: false })]),
     ("<!DOCTYPE r SYSTEM \"x#y\"><r/>", "<!DOCTYPE r SYSTEM \"x#y\">\n<r/>", &[]),
+    // a malformed header is reread from the input: the quote closing a
+    // public literal can open the system one, past the scanner's `>`
+    ("<!DOCTYPE r PUBLIC \"p\t\" a>\"><r/>", "<!DOCTYPE r PUBLIC \"p\" \" a>\">\n<r/>", &[InvalidDtd]),
     // ... else the DOCTYPE keeps the declarations before the error, and the
     // document resumes there: at markup that is no declaration
     ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
@@ -157,6 +163,8 @@ const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
     // and the document resumes where libxml2's does
     ("<!DOCTYPE .r><r/>", "<!DOCTYPE >\n", &[InvalidName, TextOutsideRoot]),
     ("<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>", "<!DOCTYPE r PUBLIC \"\" \"\">\n", &[InvalidDtd, TextOutsideRoot]),
+    // ... or one running to the end of the input
+    ("<!DOCTYPE r PUBLIC \"p\t\" a><r/>", "<!DOCTYPE r PUBLIC \"p\" \" a><r/>\">\n", &[InvalidDtd, MissingRoot]),
     ("<!DOCTYPE r [<!ELEMENT r EMPTY><!ATTLIST r a NAME #IMPLIED><!ELEMENT s ANY>]><r/>",
      "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
     ("<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",
@@ -529,6 +537,11 @@ fn streams_recover_as_the_slice_reader_whatever_the_chunks() {
         b"<r>x</r>\xff",
         b"<r>a<!\xc3\xa9>b</r>",
         b"\xff",
+        // Invalid markup ends inside a scalar: the text after it fails
+        // where its token ends, past a reference the input cuts off.
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xc3\xa9&",
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xef\xbb\xbfx&",
+        b"<!DOCTYPE c [<!ATTLIST e r CDATA ''>]><c><![CD\xc3\xa9</c>",
     ];
     for input in inputs.chain(invalid.iter().copied()) {
         for flags in [0, NOENT] {

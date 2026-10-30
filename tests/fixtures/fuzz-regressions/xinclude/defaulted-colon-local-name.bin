@@ -1,0 +1,12 @@
+<!DOCTYPE doc [
+<!ATTLIST e2 xml:xml:langspace (default.preserve) 'preser22222222222
+ 222222222222222222:2222222222222222:2`222222222222222222222222222222222ve'>
+<!ATTLIST e2 id ID #IMPLIED>
+]>
+<doc xmlns="httkkkkkkkkkkkkp://www.ietf.org" xmlns:w7c="http://www.w3.org">
+   <e1>
+      <e2 xmlns="">
+         <e3 id="E0"/>
+0     </e2>
+   </e1>
+</doc>

@@ -613,6 +613,7 @@ fn included_entities_merge_like_libxml2() {
         ("nest.xml", b"<!DOCTYPE n [<!ENTITY mid 'm'>]><n><xi:include href='ent.xml' xmlns:xi='http://www.w3.org/2001/XInclude'/></n>"),
         ("s.dtd", b"<!ENTITY ext 'external'>"),
         ("es.xml", b"<!DOCTYPE e SYSTEM 's.dtd' [<!ENTITY int 'i'>]><e/>"),
+        ("mb.xml", "<!DOCTYPE e [<!ENTITY m '\u{e9}&amp;\u{fc}&#37;'>]><e/>".as_bytes()),
     ];
     let ent = r#"<!ENTITY i "a&amp;b&#x25;c&#38;#38;d"><!ENTITY u SYSTEM "u.bin" NDATA n><!ENTITY q "&#34;">"#;
     let body =
@@ -682,6 +683,14 @@ fn included_entities_merge_like_libxml2() {
             format!("<!DOCTYPE r SYSTEM 's.dtd'>{}", include("href='es.xml'")),
             Ok(format!(
                 r#"<!DOCTYPE r SYSTEM "s.dtd" [<!ENTITY int "i">]>{}"#,
+                body("<e/>")
+            )),
+        ),
+        (
+            "a value with characters of more than one byte",
+            include("href='mb.xml'"),
+            Ok(format!(
+                "<!DOCTYPE r [<!ENTITY m \"\u{e9}&amp;\u{fc}&#x25;\">]>{}",
                 body("<e/>")
             )),
         ),

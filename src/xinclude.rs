@@ -322,7 +322,7 @@ struct Local<'d> {
     document: &'d OwnedDocument,
     url: &'d str,
     /// `None` while expanding, to detect loops.
-    memo: HashMap<OwnedNodeId, Option<Rc<[Piece]>>>,
+    memo: HashMap<OwnedNodeId, Option<Rc<Vec<Piece>>>>,
     /// The DTDs of the newly loaded documents that have one, in load order:
     /// libxml2 creates an internal subset in a document without one and
     /// merges their general entities into it.
@@ -438,7 +438,7 @@ impl Processor<'_> {
         local: &mut Local<'d>,
         node: OwnedNode<'d>,
         depth: usize,
-    ) -> Result<Rc<[Piece]>, Error> {
+    ) -> Result<Rc<Vec<Piece>>, Error> {
         if depth >= self.options.max_depth {
             return Err(fail(local, Some(node), ErrorKind::RecursionDepth));
         }
@@ -448,7 +448,7 @@ impl Processor<'_> {
             None => {}
         }
         local.memo.insert(node.id(), None);
-        let pieces: Rc<[Piece]> = self.load(local, node, depth + 1)?.into();
+        let pieces = Rc::new(self.load(local, node, depth + 1)?);
         local.memo.insert(node.id(), Some(pieces.clone()));
         Ok(pieces)
     }
@@ -1077,8 +1077,8 @@ fn declare(markup: &mut String, entity: &crate::valid::Entity<'_>) {
             let content = entity.content.unwrap_or_default();
             markup.push_str(" \"");
             for (index, c) in content.char_indices() {
-                let rest = &content[index + 1..];
                 let reference = c == '&' && {
+                    let rest = &content[index + 1..];
                     let length = crate::parser::name_length(rest, false);
                     length > 0 && rest[length..].starts_with(';')
                 };
@@ -1201,7 +1201,13 @@ fn select<'d>(
         return Ok(document.document_element().into_iter().collect());
     };
     xpointer::evaluate(document, fragment, limits)
-        .map_err(ErrorKind::XPointer)?
+        .map_err(|error| match error {
+            xpointer::Error::XPath(xpath::Error {
+                kind: xpath::ErrorKind::Allocation,
+                ..
+            }) => ErrorKind::Xml(crate::Error::new(crate::ErrorKind::Allocation, 0)),
+            error => ErrorKind::XPointer(error),
+        })?
         .into_iter()
         .filter_map(|found| match found {
             xpath::Node::Tree(id) => {

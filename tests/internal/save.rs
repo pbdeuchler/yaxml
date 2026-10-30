@@ -208,10 +208,14 @@ fn appended_errors_keep_their_absolute_offset() {
 fn subtrees_gain_undeclared_namespaces_in_first_use_order() {
     let input = "<r xmlns='urn:d' xmlns:a='urn:a' xmlns:b='urn:b'>\
                  <a:x b:y='1' xml:lang='en'>t<z xmlns:a='urn:o'><a:w/></z><c/></a:x></r>";
+    let entry = |ordinal, prefix: Option<&str>, uri: &str| {
+        (ordinal, prefix.map(str::to_owned), uri.to_owned())
+    };
+    // The default z and c use is hoisted to the root: one declaration, not two.
     let expected = [
-        (Some("a".to_owned()), "urn:a".to_owned()),
-        (Some("b".to_owned()), "urn:b".to_owned()),
-        (None, "urn:d".to_owned()),
+        entry(0, Some("a"), "urn:a"),
+        entry(0, Some("b"), "urn:b"),
+        entry(0, None, "urn:d"),
     ];
     let document = Document::parse(input).unwrap();
     let x = document.root_element().first_child().unwrap();
@@ -224,4 +228,15 @@ fn subtrees_gain_undeclared_namespaces_in_first_use_order() {
     assert!(missing_namespaces(Tree::Owned(owned.root_element())).is_empty());
     let text = x.first_child().unwrap();
     assert!(missing_namespaces(Tree::Owned(text)).is_empty());
+    // An unprefixed root takes the default once; an own `xmlns=''` keeps
+    // its subtree out of it.
+    let owned =
+        OwnedDocument::parse("<r xmlns='urn:d'><x><y xmlns=''><z/></y><w/></x></r>").unwrap();
+    let x = owned.root_element().first_child().unwrap();
+    assert_eq!(
+        missing_namespaces(Tree::Owned(x)),
+        [entry(0, None, "urn:d")]
+    );
+    let y = x.first_child().unwrap();
+    assert!(missing_namespaces(Tree::Owned(y)).is_empty());
 }

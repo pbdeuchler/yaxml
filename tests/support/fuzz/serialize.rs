@@ -56,9 +56,12 @@ fn exercise(tree: Tree<'_, '_>, expected: &Document<'_>, input: &[u8]) {
         Err(error) => {
             // At <=256 reference bytes the sixfold encoding bound and the
             // quadratic name/URI bound are safely below default string quotas.
+            let defaulted = (expected.nodes())
+                .any(|node| node.attributes().iter().any(|a| super::unwritable(&a.name)));
             assert!(
-                input.len() > 256
-                    && matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
+                defaulted
+                    || input.len() > 256
+                        && matches!(error, WriteError::Xml(error) if error.kind == ErrorKind::LimitExceeded(Limit::OwnedBytes)),
                 "serializer rejected bounded valid tree: {error}"
             );
             terminal(tree, &mut writer);
@@ -181,8 +184,13 @@ fn tree_equal(expected: &Document<'_>, actual: &Document<'_>) {
             expected.attributes() == actual.attributes(),
             "serializer changed ordered attributes or XMLNS declarations"
         );
+        // A CR from replacement text in CDATA, a comment or a PI is written
+        // raw (no reference there) and reads back as a line end.
+        let line_ends = |text: &str| text.replace("\r\n", "\n").replace('\r', "\n");
         assert!(
-            expected.text() == actual.text(),
+            expected.text() == actual.text()
+                || !matches!(expected.kind(), NodeKind::Text(_))
+                    && expected.text().map(line_ends).as_deref() == actual.text(),
             "serializer changed a logical value"
         );
         match (expected.kind(), actual.kind()) {

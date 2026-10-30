@@ -943,7 +943,7 @@ impl LineIndex<'_> {
         if n > 0 && eol(p) {
             p += 1;
         } else {
-            while p < cur && t[p] & 0xc0 == 0x80 {
+            while p < cur && t.get(p).is_some_and(|b| b & 0xc0 == 0x80) {
                 p += 1;
             }
         }

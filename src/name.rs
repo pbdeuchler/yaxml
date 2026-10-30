@@ -155,6 +155,21 @@ pub(crate) fn qname(name: &str, offset: usize) -> Result<(Option<&str>, &str), E
     }
 }
 
+/// A declared attribute's prefix and local part as libxml2's `xmlSplitQName`
+/// reads a default's name, without an error: a malformed QName stays
+/// unprefixed (`xmlns:`, `a:`), and only the first colon splits (`xmlns:a:b`
+/// declares `a:b`).
+pub(crate) fn default_qname(name: &str) -> (Option<&str>, &str) {
+    match name.split_once(':') {
+        Some((prefix, local))
+            if is_ncname(prefix) && local.split(':').next().is_some_and(is_ncname) =>
+        {
+            (Some(prefix), local)
+        }
+        _ => (None, name),
+    }
+}
+
 /// ASCII name classes: bit 0 starts a name, bit 1 continues one (colon excluded).
 const ASCII_NAME: [u8; 128] = {
     let mut table = [0; 128];

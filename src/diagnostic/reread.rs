@@ -2034,7 +2034,8 @@ fn warned(warning: Warning, c: &Cur<'_>) -> Found {
                     let end = unquoted(t, c.i, b">").unwrap_or(t.len());
                     let text = String::from_utf8_lossy(&t[c.i..end]).into_owned();
                     let last = (c.i..end).rfind(|&i| !blank(t[i])).unwrap_or(c.i);
-                    let past = usize::from(!literal(&text["<!ENTITY".len().min(text.len())..]));
+                    let rest = &t[(c.i + "<!ENTITY".len()).min(end)..end];
+                    let past = usize::from(!literal(&String::from_utf8_lossy(rest)));
                     (text, last + past - lag)
                 }
             };

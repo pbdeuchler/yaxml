@@ -399,7 +399,9 @@ pub fn to_vec<'document, 'input: 'document>(
 ///
 /// A document node is saved with `xmlSaveDoc`; any other node with
 /// `xmlSaveTree` at [`Options::level`], with the namespace declarations it
-/// uses added to its root. Text and attribute characters the encoding lacks
+/// uses added as a copy of it would have them: on its root, but a default
+/// namespace that would capture an unprefixed element in another one on
+/// each element needing it. Text and attribute characters the encoding lacks
 /// become `&#N;`. HTML documents use the HTML serializer unless [`AS_XML`]
 /// or [`XHTML`] is set.
 ///
@@ -980,19 +982,27 @@ impl<'a> Saver<'a, '_> {
     }
 
     /// `xmlNodeDumpOutputInternal`, or `xhtmlNodeDumpOutput` for `xhtml`,
-    /// with `added` namespace declarations on the root element.
-    fn node(&mut self, root: Tree<'_, '_>, xhtml: bool, added: &[(Option<String>, String)]) {
+    /// declaring `added` ([`missing_namespaces`]) on the elements their
+    /// ordinals name.
+    fn node(
+        &mut self,
+        root: Tree<'_, '_>,
+        xhtml: bool,
+        mut added: &[(usize, Option<String>, String)],
+    ) {
         let format = self.format;
         let mut unformatted = None;
-        let mut depth = 0;
+        let (mut depth, mut ordinal) = (0, 0);
         let mut attributes = Vec::new();
         let mut current = root;
         loop {
             self.out.checkpoint();
             let is_root = current.same(root);
             if let Some(name) = current.name() {
-                let added = if is_root { added } else { &[] };
-                if self.element(current, &name, is_root, xhtml, added, &mut attributes) {
+                let own = added.iter().take_while(|(at, ..)| *at == ordinal).count();
+                let (own, rest) = added.split_at(own);
+                (added, ordinal) = (rest, ordinal + 1);
+                if self.element(current, &name, is_root, xhtml, own, &mut attributes) {
                     // XHTML writes its meta before checking for text children.
                     let mut unformat = |saver: &mut Self| {
                         if saver.format == 1 && has_text(current, xhtml) {
@@ -1063,7 +1073,7 @@ impl<'a> Saver<'a, '_> {
         name: &Name<'_>,
         is_root: bool,
         xhtml: bool,
-        added: &[(Option<String>, String)],
+        added: &[(usize, Option<String>, String)],
         attributes: &mut Vec<Attribute<'d>>,
     ) -> bool {
         if !is_root && self.format == 1 {
@@ -1082,7 +1092,7 @@ impl<'a> Saver<'a, '_> {
                 self.attribute(attribute.name.qualified(), (&attribute.value, None), false);
             }
         }
-        for (prefix, uri) in added {
+        for (_, prefix, uri) in added {
             declared = true;
             match prefix {
                 Some(prefix) => self.attribute(&format!("xmlns:{prefix}"), (uri, None), false),
@@ -1314,32 +1324,80 @@ fn needs_meta(node: Tree<'_, '_>) -> bool {
         && !node.children().any(content_type)
 }
 
-/// Namespaces an element subtree uses but does not declare, in first-use
-/// order: what a copy declares on its root.
-fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(Option<String>, String)> {
-    let mut added: Vec<(Option<String>, String)> = Vec::new();
+/// Namespaces an element subtree uses but does not declare, as (element
+/// preorder ordinal, prefix, URI), what a copy declares (`reconcile_copy`):
+/// prefixes on the root (ordinal 0) in first-use order; the default
+/// namespace on each element whose own differs from the one in scope, or
+/// the first one used below the root hoisted to it when that takes no more
+/// declarations (a detached subtree's undeclared default would otherwise
+/// capture its unprefixed descendants in no namespace).
+fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(usize, Option<String>, String)> {
     if root.name().is_none() {
-        return added;
+        return Vec::new();
     }
-    let (mut declared, mut marks, mut attributes) = (Vec::new(), Vec::new(), Vec::new());
+    let each = scan_namespaces(root, None).unwrap_or_default();
+    let first = each.iter().find(|(_, prefix, _)| prefix.is_none());
+    first
+        .filter(|(at, ..)| *at > 0)
+        .and_then(|(at, _, uri)| scan_namespaces(root, Some((*at, uri))))
+        .filter(|hoisted| hoisted.len() <= each.len())
+        .unwrap_or(each)
+}
+
+/// [`missing_namespaces`] with `seed`'s (ordinal, URI) default declared on
+/// the root at its first use; None if the root needs its own default.
+fn scan_namespaces(
+    root: Tree<'_, '_>,
+    seed: Option<(usize, &str)>,
+) -> Option<Vec<(usize, Option<String>, String)>> {
+    let mut added: Vec<(usize, Option<String>, String)> = Vec::new();
+    let mut declared: Vec<_> = seed
+        .map(|(_, uri)| (None, uri.to_owned()))
+        .into_iter()
+        .collect();
+    let (mut marks, mut attributes) = (Vec::new(), Vec::new());
+    // Below the root, in preorder: `added` stays as short as its prefixes.
+    let mut defaults = Vec::new();
     let mut node = root;
+    let mut ordinal = 0;
     loop {
         if let Some(name) = node.name() {
             marks.push(declared.len());
             if node.attributes(&mut attributes, usize::MAX, 0).is_err() {
-                return added;
+                return Some(added);
             }
+            let before = declared.len();
             declared.extend(
                 attributes
                     .iter()
                     .filter(|attribute| is_declaration(attribute))
                     .map(|attribute| {
-                        attribute
-                            .name
-                            .prefix()
-                            .map(|_| attribute.name.local().to_owned())
+                        let prefix = attribute.name.prefix();
+                        let prefix = prefix.map(|_| attribute.name.local().to_owned());
+                        (prefix, attribute.value.to_string())
                     }),
             );
+            let own = declared[before..]
+                .iter()
+                .any(|(prefix, _)| prefix.is_none());
+            let wanted = name.namespace().unwrap_or("");
+            let scope = declared.iter().rev().find(|(prefix, _)| prefix.is_none());
+            let differs = name.prefix().is_none()
+                && !own
+                && scope.map_or("", |(_, uri)| uri.as_str()) != wanted;
+            match seed {
+                Some(_) if ordinal == 0 && (own || differs) => return None,
+                Some((at, uri)) if at == ordinal => added.push((0, None, uri.to_owned())),
+                _ => {}
+            }
+            if differs {
+                declared.push((None, wanted.to_owned()));
+                match ordinal {
+                    0 => &mut added,
+                    _ => &mut defaults,
+                }
+                .push((ordinal, None, wanted.to_owned()));
+            }
             let names = std::iter::once(&name).chain(
                 attributes
                     .iter()
@@ -1347,16 +1405,17 @@ fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(Option<String>, String)> {
                     .map(|attribute| &attribute.name),
             );
             for name in names {
-                if let Some(uri) = name.namespace() {
-                    let prefix = name.prefix().map(str::to_owned);
+                if let (Some(prefix), Some(uri)) = (name.prefix(), name.namespace()) {
+                    let prefix = Some(prefix.to_owned());
                     if prefix.as_deref() != Some("xml")
-                        && !declared.contains(&prefix)
-                        && !added.iter().any(|(bound, _)| *bound == prefix)
+                        && !declared.iter().any(|(bound, _)| *bound == prefix)
+                        && !added.iter().any(|(_, bound, _)| *bound == prefix)
                     {
-                        added.push((prefix, uri.to_owned()));
+                        added.push((0, prefix, uri.to_owned()));
                     }
                 }
             }
+            ordinal += 1;
             if let Some(child) = node.first_child() {
                 node = child;
                 continue;
@@ -1365,7 +1424,8 @@ fn missing_namespaces(root: Tree<'_, '_>) -> Vec<(Option<String>, String)> {
         }
         loop {
             let Some(parent) = node.parent().filter(|_| !node.same(root)) else {
-                return added;
+                added.append(&mut defaults);
+                return Some(added);
             };
             if let Some(next) = node.next_sibling() {
                 node = next;

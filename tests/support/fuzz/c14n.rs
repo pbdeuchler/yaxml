@@ -133,9 +133,19 @@ pub fn exercise(input: &[u8]) {
             "DOM disagreement"
         );
     }
-    // A whole-document canonical form is its own canonical form. Raw namespace
-    // URIs (`&`) can make it malformed, as in libxml2; such output is skipped.
-    if let (0, Ok(canonical_form)) = (selector & 8, &result)
+    // A whole-document canonical form is its own canonical form. Namespace
+    // URIs are written unescaped, as in libxml2 (docs/c14n.md): one holding a
+    // character attribute values escape reads back as another URI or makes
+    // the output malformed, so such output is skipped.
+    let raw = owned
+        .nodes()
+        .flat_map(|node| node.attributes())
+        .any(|attribute| {
+            let name = attribute.name.qualified();
+            (name == "xmlns" || name.starts_with("xmlns:"))
+                && attribute.value.contains(['&', '<', '"', '\t', '\n', '\r'])
+        });
+    if let (false, 0, Ok(canonical_form)) = (raw, selector & 8, &result)
         && let Ok(reparsed) = Document::parse(canonical_form)
     {
         let again = canonical(&reparsed, reparsed.root().id(), selector);

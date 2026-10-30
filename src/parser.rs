@@ -561,6 +561,11 @@ impl<'source> ParserState<'source> {
         Ok(())
     }
 
+    /// Whether a token at `offset` can be the XML declaration.
+    pub(crate) fn declares(&self, offset: usize) -> bool {
+        offset == self.initial && !self.replacement
+    }
+
     pub(crate) fn set_initial_offset(&mut self, offset: usize) {
         self.initial = offset;
     }
@@ -605,13 +610,15 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Whether `prefix` is already bound to `uri` outside this element, so
-    /// `NSCLEAN` drops the declaration.
-    fn redundant(&self, prefix: &str, uri: &str) -> bool {
+    /// Whether `prefix` is already bound to `uri` by a binding before
+    /// `scope` (outside this element), so `NSCLEAN` drops the declaration
+    /// unbound (as libxml2 does): a repeat within the tag that is not
+    /// redundant is still a duplicate.
+    fn redundant(&self, prefix: &str, uri: &str, scope: usize) -> bool {
         self.flags.clean_namespaces()
             && self
                 .bound(prefix)
-                .is_some_and(|index| self.bindings[index].uri == uri)
+                .is_some_and(|index| index < scope && self.bindings[index].uri == uri)
     }
 
     /// Streaming frontends copy every retained name. Open element names then
@@ -1174,7 +1181,7 @@ impl<'source> ParserState<'source> {
             }
         }
         let target = &body[..name_end];
-        if target == "xml" && start == self.initial && !self.replacement {
+        if target == "xml" && self.declares(start) {
             // Under `OLD10` a version other than 1.0 is fatal.
             let (mut declaration, encoding_offset) = parse_declaration(
                 &body[name_end..],
@@ -1394,7 +1401,8 @@ impl<'source> ParserState<'source> {
                 }
                 _ => {}
             }
-            let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
+            let redundant =
+                declaration.is_some_and(|prefix| self.redundant(prefix, &value, bindings_start));
             if let Some(bound_prefix) = declaration {
                 // libxml2 ignores a declaration it cannot bind, and all but
                 // the first of a prefix in one tag.
@@ -1426,10 +1434,10 @@ impl<'source> ParserState<'source> {
                         .recover(Error::new(ErrorKind::DuplicateAttribute, offset))?;
                     continue;
                 }
+                if redundant {
+                    continue;
+                }
                 self.bind(bound_prefix, Some(bound_prefix), &value, offset, retain)?;
-            }
-            if redundant {
-                continue;
             }
             attributes
                 .try_reserve(1)
@@ -1611,7 +1619,7 @@ impl<'source> ParserState<'source> {
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
         let fail = |kind| Error::new(kind, start);
-        let (prefix, local) = qname(&name, start).map_err(|error| fail(error.kind))?;
+        let (prefix, local) = crate::name::default_qname(&name);
         let prefix_length = prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         if attributes.len() == self.budget.limits.max_attributes {
             return Err(fail(ErrorKind::LimitExceeded(Limit::Attributes)));
@@ -1628,7 +1636,7 @@ impl<'source> ParserState<'source> {
             if invalid_namespace_binding(bound_prefix, &value) {
                 return Ok(());
             }
-            let redundant = self.redundant(bound_prefix, &value);
+            let redundant = self.redundant(bound_prefix, &value, usize::MAX);
             self.bind(bound_prefix, None, &value, start, retain)?;
             if redundant {
                 return Ok(());
@@ -2449,8 +2457,8 @@ impl<'a> TagScanner<'a> {
 
 /// Parses an XML declaration, or with `text` an external entity's text
 /// declaration (optional version, required encoding, no standalone). Like
-/// libxml2, recovery skips a pseudo-attribute it cannot take and the rest of
-/// a malformed declaration.
+/// libxml2 (`'?>' expected`, then MOVETO_ENDTAG), recovery skips the rest of
+/// the declaration from the first pseudo-attribute it cannot take.
 pub(crate) fn parse_declaration<'a>(
     raw: &'a str,
     offset: usize,
@@ -2521,10 +2529,11 @@ pub(crate) fn parse_declaration<'a>(
             }
             _ => false,
         };
-        match accepted {
-            true => count += 1,
-            false => recover(Error::new(ErrorKind::InvalidDeclaration, position))?,
+        if !accepted {
+            recover(Error::new(ErrorKind::InvalidDeclaration, position))?;
+            break;
         }
+        count += 1;
     }
     if count == 0 || (text && encoding_offset.is_none()) {
         recover(Error::new(ErrorKind::InvalidDeclaration, offset))?;

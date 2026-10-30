@@ -213,6 +213,9 @@ impl<'input> DtdControllerCore<'input> {
     pub(crate) fn encoding(&self) -> SourceEncoding {
         self.encoding
     }
+    pub(crate) fn decoded_start(&self) -> usize {
+        self.decoded_start
+    }
     /// Decoded bytes the physical scanner consumed, from `decoded_start`.
     pub(crate) fn decoded_position(&self) -> usize {
         self.decoded_start + self.physical.position()

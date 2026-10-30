@@ -412,7 +412,9 @@ impl Stream {
                     let recovery = self.recovery.as_mut().expect("recovering stream");
                     parse_recovering(&self.tokenizer, &mut self.state, recovery)?
                 } else {
-                    let raw = validate(kind, bytes, span, self.tokenizer.screened())?;
+                    let raw = validate(kind, bytes, span, self.tokenizer.screened()).map_err(
+                        |error| declaration_first(kind, bytes, span, &mut self.state, error),
+                    )?;
                     let event = parse_valid(kind, raw, span, &mut self.state)?;
                     (event, SourceOrigin::input(span.source.clone()))
                 };
@@ -632,8 +634,33 @@ fn parse_event<'token>(
             tokenizer.source_position(),
         ));
     };
-    let raw = validate(kind, bytes, span, tokenizer.screened())?;
+    let raw = validate(kind, bytes, span, tokenizer.screened())
+        .map_err(|error| declaration_first(kind, bytes, span, state, error))?;
     parse_valid(kind, raw, span, state)
+}
+
+/// A character outside `Char` in the XML declaration is reported after the
+/// declaration's own errors, as in libxml2 (whose declaration grammar rejects
+/// it) and the slice reader.
+#[cold]
+#[inline(never)]
+fn declaration_first(
+    kind: TokenKind,
+    bytes: &[u8],
+    span: &TokenSpan,
+    state: &mut ParserState<'static>,
+    error: Error,
+) -> Error {
+    match std::str::from_utf8(bytes) {
+        Ok(raw)
+            if kind == TokenKind::Instruction
+                && error.kind == ErrorKind::InvalidCharacter
+                && state.declares(span.decoded.start) =>
+        {
+            parse_valid(kind, raw, span, state).err().unwrap_or(error)
+        }
+        _ => error,
+    }
 }
 
 #[inline(always)]
