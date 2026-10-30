@@ -604,6 +604,18 @@ const CASES: &[Case] = &[
         Ok("<r xmlns:ns1=\"urn:z\" xmlns:ns2=\"urn:p\" ns2:x=\"1\"/>"),
     ),
     (
+        "set generated prefix skips an unbound spelling",
+        "<r ns1:x='a'/>",
+        &[Op::Set("/r", name("x", Some("urn:p"), AUTO), "1")],
+        Ok("<r xmlns:ns2=\"urn:p\" ns1:x=\"a\" ns2:x=\"1\"/>"),
+    ),
+    (
+        "set exact prefix spelled unbound",
+        "<r ns1:x='a'/>",
+        &[Op::Set("/r", name("x", Some("urn:p"), exact("ns1")), "1")],
+        Err(EditErrorKind::DuplicateAttribute),
+    ),
+    (
         "set exact prefix",
         "<r/>",
         &[Op::Set("/r", name("x", Some("urn:p"), exact("q")), "1")],

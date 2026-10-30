@@ -101,6 +101,23 @@ fn check_name(
     Ok(())
 }
 
+/// Whether `node` has an attribute spelled `prefix:local`: a name read with
+/// an unbound prefix keeps its spelling in no namespace.
+fn spelled<A: Allocator>(node: OwnedNode<'_, A>, prefix: Option<&str>, local: &str) -> bool {
+    node.attributes().any(|attribute| {
+        let qualified = attribute.name.qualified();
+        match prefix {
+            Some(prefix) => {
+                qualified
+                    .strip_prefix(prefix)
+                    .and_then(|after| after.strip_prefix(':'))
+                    == Some(local)
+            }
+            None => qualified == local,
+        }
+    })
+}
+
 impl StoredName {
     fn prefix(&self) -> Option<Range<usize>> {
         let length = self.prefix_length?.get();
@@ -751,7 +768,10 @@ impl<A: Allocator> Editor<'_, A> {
                 }
                 let fresh = (1usize..)
                     .map(|number| format!("ns{number}"))
-                    .find(|prefix| node.search_ns(Some(prefix)).is_none());
+                    .find(|prefix| {
+                        node.search_ns(Some(prefix)).is_none()
+                            && (is_element || !spelled(node, Some(prefix), name.local))
+                    });
                 return Ok(fresh);
             }
         };
@@ -786,6 +806,13 @@ impl<A: Allocator> Editor<'_, A> {
         }
         validate_value(value, ValueKind::Text, self.limits.max_value_bytes)?;
         let prefix = self.choose_prefix(index, &name, Some(false))?;
+        let node = self.document.view(index).expect("live element");
+        if spelled(node, prefix.as_deref(), name.local) {
+            return Err(EditError::located(
+                EditErrorKind::DuplicateAttribute,
+                location(Some(false), EditComponent::Prefix, None),
+            ));
+        }
         let document = &mut *self.document;
         let created = document.edit_created_attributes + 1;
         if created > self.limits.max_created_attributes {
