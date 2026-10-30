@@ -111,6 +111,9 @@ const CASES: &[(&str, &str, &[ErrorKind])] = &[
     ("<!DOCTYPE r [<!ENTITY % p SYSTEM \"x#y\">%p;<!ELEMENT r ANY>]><r/>",
      "<!DOCTYPE r [\n<!ELEMENT r ANY>\n]>\n<r/>", &[InvalidDtd, Warning(yaxml::Warning::UndeclaredEntity { error: false })]),
     ("<!DOCTYPE r SYSTEM \"x#y\"><r/>", "<!DOCTYPE r SYSTEM \"x#y\">\n<r/>", &[]),
+    // a malformed header is reread from the input: the quote closing a
+    // public literal can open the system one, past the scanner's `>`
+    ("<!DOCTYPE r PUBLIC \"p\t\" a>\"><r/>", "<!DOCTYPE r PUBLIC \"p\" \" a>\">\n<r/>", &[InvalidDtd]),
     // ... else the DOCTYPE keeps the declarations before the error, and the
     // document resumes there: at markup that is no declaration
     ("<!DOCTYPE r [<r/>", "<!DOCTYPE r>\n<r/>", &[InvalidDtd]),
@@ -160,6 +163,8 @@ const ROOTLESS: &[(&str, &str, &[ErrorKind])] = &[
     // and the document resumes where libxml2's does
     ("<!DOCTYPE .r><r/>", "<!DOCTYPE >\n", &[InvalidName, TextOutsideRoot]),
     ("<!DOCTYPE r PUBLIC \"[\" \"x\"><r/>", "<!DOCTYPE r PUBLIC \"\" \"\">\n", &[InvalidDtd, TextOutsideRoot]),
+    // ... or one running to the end of the input
+    ("<!DOCTYPE r PUBLIC \"p\t\" a><r/>", "<!DOCTYPE r PUBLIC \"p\" \" a><r/>\">\n", &[InvalidDtd, MissingRoot]),
     ("<!DOCTYPE r [<!ELEMENT r EMPTY><!ATTLIST r a NAME #IMPLIED><!ELEMENT s ANY>]><r/>",
      "<!DOCTYPE r [\n<!ELEMENT r EMPTY>\n]>\n", &[InvalidDtd, TextOutsideRoot]),
     ("<!DOCTYPE r [<!ENTITY e 'x'><!ELEMENT r ANY>&e;]><r/>",

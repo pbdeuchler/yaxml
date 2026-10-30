@@ -13,6 +13,9 @@ enum Phase {
         parser: ParserState<'static>,
         /// The declaration's decoded UTF-8 text, published once at its end.
         raw: Vec<u8>,
+        /// While a recovered header reads on past the scanner: the length of
+        /// `raw` it was last read at.
+        overrun: Option<usize>,
     },
     Content(ContentController),
 }
@@ -533,6 +536,7 @@ impl StreamingSession {
                 controller,
                 parser: state,
                 raw,
+                overrun: None,
             }),
             decoder_finished: false,
             physical: self.physical,
@@ -598,11 +602,12 @@ impl DtdSession {
             controller,
             parser,
             mut raw,
+            ..
         } = self.phase.take().expect("declaration owner")
         else {
             unreachable!("checked declaration phase")
         };
-        let first = controller.decoded_position() - raw.len();
+        let first = controller.decoded_start();
         let body = controller.into_body_state()?;
         self.replay = raw.split_off(body.resume_position().0 - first);
         let content = ContentController::new(
@@ -618,10 +623,16 @@ impl DtdSession {
         loop {
             match self.phase.as_mut().expect("owned semantic phase") {
                 Phase::Declarations {
-                    controller, parser, ..
+                    controller,
+                    parser,
+                    raw,
+                    overrun,
                 } => {
                     // Only the declaration's end is published; its parts are internal.
                     match controller.current() {
+                        Some((DtdEvent::End, _)) if overrun.is_some() && !self.decoder_finished => {
+                            return Ok(SessionOutcome::NeedInput);
+                        }
                         Some((DtdEvent::End, _)) => return Ok(SessionOutcome::Ready),
                         Some(_) => {
                             controller.release();
@@ -639,6 +650,7 @@ impl DtdSession {
                     };
                     if let Err(error) = result {
                         controller.recover(error, parser.owned_budget())?;
+                        *overrun = open_header(controller, raw);
                     }
                     if controller.current().is_none() && !controller.is_complete() {
                         return Ok(SessionOutcome::NeedInput);
@@ -709,15 +721,14 @@ fn lend_current<'event>(
             controller,
             parser,
             raw,
+            ..
         } => {
             let (_, end) = controller.current().expect("ready DTD end");
             let range = controller.start()..end.physical_context().end;
             parser.check_event_limit(range.start)?;
             parser.commit_doctype();
-            // A recovered declaration can end inside a character.
-            let first = controller.decoded_position() - raw.len();
-            let valid = std::str::from_utf8(raw).map_or_else(|e| e.valid_up_to(), str::len);
-            let raw = std::str::from_utf8(&raw[..valid]).expect("valid UTF-8 prefix");
+            let first = controller.decoded_start();
+            let raw = valid_prefix(raw);
             let (doctype, range) = match controller.cut() {
                 None => (Doctype::parse(raw), range),
                 Some((unit, at)) => {
@@ -752,6 +763,21 @@ fn lend_current<'event>(
     })
 }
 
+/// `raw` up to a character a recovered declaration ends inside.
+fn valid_prefix(raw: &[u8]) -> &str {
+    let valid = std::str::from_utf8(raw).map_or_else(|e| e.valid_up_to(), str::len);
+    std::str::from_utf8(&raw[..valid]).expect("valid UTF-8 prefix")
+}
+
+/// After a recovered header error, `raw`'s length if the header reads on:
+/// libxml2 rereads it from the input, where a literal the scanner closed
+/// can open and run past the scanner's end.
+fn open_header(controller: &DtdController, raw: &[u8]) -> Option<usize> {
+    let text = valid_prefix(raw);
+    let header = matches!(controller.cut(), Some((None, _)));
+    (header && Doctype::header(text).1 == text.len()).then_some(raw.len())
+}
+
 /// The index in `raw`, decoded from physical offset `start`, of physical
 /// offset `at`.
 fn decoded_index(raw: &str, encoding: SourceEncoding, start: usize, at: usize) -> usize {
@@ -777,10 +803,14 @@ fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgres
             controller,
             parser,
             raw,
+            overrun,
         } => {
             // Recovery replays what the scanner consumed before an error.
             let before = controller.decoded_position();
-            let result = controller.advance(bytes, parser.owned_budget());
+            let result = match overrun {
+                Some(_) => Ok(0),
+                None => controller.advance(bytes, parser.owned_budget()),
+            };
             let consumed = controller.decoded_position() - before;
             capture(
                 raw,
@@ -790,10 +820,28 @@ fn phase_decode(phase: &mut Phase, decoded: Decoded<'_>) -> Result<DecodeProgres
             )?;
             if let Err(error) = result {
                 controller.recover(error, parser.owned_budget())?;
+                *overrun = open_header(controller, raw);
+            }
+            if overrun.is_none() {
+                return Ok(DecodeProgress {
+                    consumed,
+                    suspended: controller.current().is_some() || controller.is_complete(),
+                });
+            }
+            // A header read on takes all input: what follows it is replayed.
+            capture(
+                raw,
+                &bytes[consumed..],
+                parser.owned_budget(),
+                controller.physical_position(),
+            )?;
+            // Reread at each doubling: linear however the input is chunked.
+            if overrun.is_some_and(|checked| raw.len() >= checked.saturating_mul(2)) {
+                *overrun = open_header(controller, raw);
             }
             Ok(DecodeProgress {
-                consumed,
-                suspended: controller.current().is_some() || controller.is_complete(),
+                consumed: bytes.len(),
+                suspended: overrun.is_none(),
             })
         }
         Phase::Content(controller) => {
