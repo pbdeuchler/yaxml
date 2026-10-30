@@ -462,6 +462,44 @@ fn nocdata_and_nsclean_rewrite_tokens_on_every_surface() {
 }
 
 #[test]
+fn nsclean_drops_only_declarations_an_ancestor_makes() {
+    // xmllint --nsclean: a repeat within one tag stays a duplicate unless an
+    // ancestor already binds the prefix to that URI.
+    for (input, expected) in [
+        ("<r><a xmlns:p='u' xmlns:p='u'/></r>", None),
+        ("<r xmlns:p='v'><a xmlns:p='u' xmlns:p='u'/></r>", None),
+        ("<r><a xmlns='urn:d' xmlns='urn:d'/></r>", None),
+        ("<r xmlns:p='u'><a xmlns:p='u' xmlns:p='u'/></r>", Some(0)),
+        (
+            "<r xmlns='urn:d'><a xmlns='urn:d' xmlns='urn:d'/></r>",
+            Some(0),
+        ),
+        ("<r xmlns:p='u'><a xmlns:p='u' xmlns:q='u'/></r>", Some(1)),
+    ] {
+        for document in [input.to_owned(), format!("<!DOCTYPE r>{input}")] {
+            let parsed = Document::parse_with(document.as_bytes(), options(NSCLEAN));
+            let attributes = parsed.as_ref().map(|d| {
+                let a = d.root_element().first_child().unwrap();
+                a.attributes().len()
+            });
+            match expected {
+                Some(count) => assert_eq!(attributes.ok(), Some(count), "{document}"),
+                None => assert_eq!(
+                    parsed.err().map(|e| e.kind),
+                    Some(ErrorKind::DuplicateAttribute),
+                    "{document}"
+                ),
+            }
+            let mut push = PushParser::with_options(options(NSCLEAN)).unwrap();
+            let pushed = push
+                .feed(document.as_bytes(), |_, _| ControlFlow::Continue(()))
+                .and_then(|_| push.finish(|_, _| ControlFlow::Continue(())));
+            assert_eq!(pushed.is_ok(), expected.is_some(), "push {document}");
+        }
+    }
+}
+
+#[test]
 fn loading_follows_dtdload_noent_and_no_xxe() {
     let resolver = || {
         Box::new(|request: Request<'_>| {

@@ -610,13 +610,15 @@ impl<'source> ParserState<'source> {
         }
     }
 
-    /// Whether `prefix` is already bound to `uri` outside this element, so
-    /// `NSCLEAN` drops the declaration.
-    fn redundant(&self, prefix: &str, uri: &str) -> bool {
+    /// Whether `prefix` is already bound to `uri` by a binding before
+    /// `scope` (outside this element), so `NSCLEAN` drops the declaration
+    /// unbound (as libxml2 does): a repeat within the tag that is not
+    /// redundant is still a duplicate.
+    fn redundant(&self, prefix: &str, uri: &str, scope: usize) -> bool {
         self.flags.clean_namespaces()
             && self
                 .bound(prefix)
-                .is_some_and(|index| self.bindings[index].uri == uri)
+                .is_some_and(|index| index < scope && self.bindings[index].uri == uri)
     }
 
     /// Streaming frontends copy every retained name. Open element names then
@@ -1399,7 +1401,8 @@ impl<'source> ParserState<'source> {
                 }
                 _ => {}
             }
-            let redundant = declaration.is_some_and(|prefix| self.redundant(prefix, &value));
+            let redundant =
+                declaration.is_some_and(|prefix| self.redundant(prefix, &value, bindings_start));
             if let Some(bound_prefix) = declaration {
                 // libxml2 ignores a declaration it cannot bind, and all but
                 // the first of a prefix in one tag.
@@ -1431,10 +1434,10 @@ impl<'source> ParserState<'source> {
                         .recover(Error::new(ErrorKind::DuplicateAttribute, offset))?;
                     continue;
                 }
+                if redundant {
+                    continue;
+                }
                 self.bind(bound_prefix, Some(bound_prefix), &value, offset, retain)?;
-            }
-            if redundant {
-                continue;
             }
             attributes
                 .try_reserve(1)
@@ -1633,7 +1636,7 @@ impl<'source> ParserState<'source> {
             if invalid_namespace_binding(bound_prefix, &value) {
                 return Ok(());
             }
-            let redundant = self.redundant(bound_prefix, &value);
+            let redundant = self.redundant(bound_prefix, &value, usize::MAX);
             self.bind(bound_prefix, None, &value, start, retain)?;
             if redundant {
                 return Ok(());
