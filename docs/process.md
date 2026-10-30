@@ -57,10 +57,27 @@ work.
 
 ## Releasing to crates.io
 
-1. The gate (CLAUDE.md "Gate") and `./oracle.sh` pass on `main`.
+`.github/workflows/release.yml` publishes from a version tag: push `vX.Y.Z`
+or publish a GitHub release that creates it. The `verify` job fails unless the
+tag equals `v` + the `Cargo.toml` version, skips a version already on
+crates.io (so the tag push and the release event, which can both fire, publish
+once), then runs the gate, the docs.rs doc build and `cargo publish --dry-run`.
+`publish` (environment `crates-io`) authenticates by trusted publishing and
+runs `cargo publish`; for a pushed tag it also creates the GitHub release with
+generated notes.
+
+1. On `main`: the gate (CLAUDE.md "Gate") and `./oracle.sh` pass.
 2. Bump `version` in `Cargo.toml` (and the `yaxml = "x.y"` snippets in
-   README.md when the minor version changes).
-3. `cargo publish --dry-run`: the package holds only `src/`, the README and
-   the licenses (`include`), so the "ignoring test" warnings are expected.
-   It must build from the tarball.
-4. `cargo publish`, then tag the commit `vX.Y.Z` and push the tag.
+   README.md when the minor version changes); commit and push.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z`, or draft a GitHub release with
+   tag `vX.Y.Z` on `main` and publish it.
+
+The package holds only `src/`, the README and the licenses (`include`), so
+`cargo publish`'s "ignoring test" warnings are expected.
+
+One-time setup: crates.io allows trusted publishing only for an existing
+crate, so the first version is published by hand (`cargo publish`, then tag
+it; the workflow then skips it). Afterwards, on crates.io: crate Settings ->
+Trusted Publishing -> GitHub, owner `pbdeuchler`, repository `yaxml`, workflow
+`release.yml`, environment `crates-io`. Required reviewers on the GitHub
+`crates-io` environment make every release wait for an approval.

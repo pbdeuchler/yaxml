@@ -1,0 +1,91 @@
+name: Release
+
+# Publishes yaxml to crates.io from a version tag. Either push a tag
+# (`git tag v0.2.0 && git push origin v0.2.0`) or publish a GitHub release
+# that creates one; both events may fire for the same tag, so runs are
+# serialized per tag and a version already on crates.io is skipped.
+# Auth is crates.io trusted publishing (OIDC): no stored token. Setup and
+# steps: docs/process.md#releasing-to-cratesio.
+
+on:
+  push:
+    tags: ["v*"]
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.event.release.tag_name || github.ref_name }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      published: ${{ steps.version.outputs.published }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - id: version
+        name: Tag matches Cargo.toml; skip versions already on crates.io
+        run: |
+          set -eu
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "yaxml") | .version')"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::tag $TAG does not match Cargo.toml version $version"
+            exit 1
+          fi
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --user-agent 'yaxml release workflow (github.com/pbdeuchler/yaxml)' \
+            "https://crates.io/api/v1/crates/yaxml/$version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "published=$([ "$status" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.version.outputs.published == 'false'
+        name: Gate (rust-toolchain.toml = MSRV)
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test --all-targets
+          cargo test --doc
+          cargo clippy --all-targets --no-default-features -- -D warnings
+          cargo test --all-targets --no-default-features
+      - if: steps.version.outputs.published == 'false'
+        name: Docs as docs.rs builds them
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo +nightly doc --no-deps
+        env:
+          RUSTDOCFLAGS: --cfg docsrs -D warnings
+      - if: steps.version.outputs.published == 'false'
+        run: cargo publish --dry-run
+
+  publish:
+    needs: verify
+    if: needs.verify.outputs.published == 'false'
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      contents: write # create the GitHub release for a pushed tag
+      id-token: write # trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      - name: GitHub release for a pushed tag
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 ||
+            gh release create "$TAG" --verify-tag --generate-notes --title "yaxml $TAG"
