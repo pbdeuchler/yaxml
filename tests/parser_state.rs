@@ -64,3 +64,55 @@ fn streams_check_a_cut_off_token_start_like_the_slice_reader() {
         assert_eq!(slice.offset, pushed.offset, "{input:?}");
     }
 }
+
+/// A character outside `Char` in the XML declaration comes after the
+/// declaration's own error, as in libxml2, on every surface and in every
+/// encoding path (UTF-8 in place, invalid UTF-8 later, a declared encoding).
+#[test]
+fn declaration_errors_precede_its_invalid_characters() {
+    use yaxml::{Document, ErrorKind::*, Event, OwnedDocument, PushParser};
+    let cases: &[(&[u8], (yaxml::ErrorKind, usize))] = &[
+        (
+            b"<?xml version='x' a\x0b='no'?><r/>",
+            (InvalidDeclaration, 6),
+        ),
+        (
+            b"<?xml version='x' a\x0b='no'?><r/>\xff",
+            (InvalidDeclaration, 6),
+        ),
+        (
+            b"<?xml version='1.0' a\x0b='no'?><r/>",
+            (InvalidDeclaration, 21),
+        ),
+        (
+            b"<?xml version='x' encoding='ISO-8859-5' a\x0b='no'?><r/>\xff",
+            (InvalidDeclaration, 6),
+        ),
+        // Characters past a valid declaration keep their order.
+        (b"<?xml version='1.0'?><r>\x0b</r>", (InvalidCharacter, 24)),
+        (b"<r>\x0b</r>", (InvalidCharacter, 3)),
+        (
+            b"<?xml version='1.0' encoding='bogus'?><r>\x0b</r>",
+            (UnsupportedEncoding, 20),
+        ),
+    ];
+    for &(input, expected) in cases {
+        let mut parser = PushParser::new();
+        let mut emit = |_: &Event, _| std::ops::ControlFlow::Continue(());
+        let pushed = parser
+            .feed(input, &mut emit)
+            .and_then(|_| parser.finish(&mut emit));
+        let errors = [
+            pushed.err(),
+            Document::parse_bytes(input).err(),
+            OwnedDocument::parse_bytes(input).err(),
+        ];
+        for error in errors {
+            assert_eq!(
+                error.map(|e| (e.kind, e.offset)),
+                Some(expected),
+                "{input:?}"
+            );
+        }
+    }
+}

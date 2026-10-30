@@ -374,6 +374,54 @@ fn dtdattr_adds_defaults_and_namespace_defaults_always_apply() {
     assert_eq!(names(&complete), ["a=d", "xmlns:p=urn:p"]);
 }
 
+/// A default whose name is not a QName reads as libxml2's `xmlSplitQName`
+/// splits it, without an error (xmllint, with and without `--dtdattr`):
+/// unprefixed when a part is empty, else split at the first colon.
+#[test]
+fn malformed_default_names_split_like_libxml2() {
+    for (attlist, flags, expected) in [
+        ("xmlns: CDATA 'urn:u'", 0, &[][..]),
+        ("xmlns: CDATA 'urn:u'", DTDATTR, &["xmlns:=urn:u"][..]),
+        ("xmlns: CDATA 'urn:u'", RECOVER, &[]),
+        ("a: CDATA 'urn:u'", 0, &[]),
+        ("a: CDATA 'urn:u'", DTDATTR, &["a:=urn:u"]),
+        ("xmlns:a:b CDATA 'urn:u'", 0, &["xmlns:a:b=urn:u"]),
+        ("xmlns:a:b CDATA 'urn:u'", DTDATTR, &["xmlns:a:b=urn:u"]),
+        (
+            "xmlns CDATA 'urn:u' xmlns: CDATA 'urn:v'",
+            0,
+            &["xmlns=urn:u"],
+        ),
+    ] {
+        let input = format!("<!DOCTYPE d [<!ATTLIST e {attlist}>]><d xmlns='urn:w'><e/></d>");
+        let document = Document::parse_with(input.as_bytes(), options(flags)).unwrap();
+        assert!(document.errors().is_empty(), "{input}");
+        let e = document.root_element().first_child().unwrap();
+        let attributes: Vec<String> = (e.attributes().iter())
+            .map(|attribute| format!("{}={}", attribute.name.qualified(), attribute.value))
+            .collect();
+        assert_eq!(attributes, expected, "{input} {flags}");
+        let mut push = PushParser::with_options(options(flags)).unwrap();
+        let mut namespaces = Vec::new();
+        let mut collect = |event: &Event<'_>, _| {
+            let name = match event {
+                Event::Start(element) | Event::Empty(element) => &element.name,
+                Event::End(name) => name,
+                _ => return ControlFlow::Continue(()),
+            };
+            namespaces.push(name.namespace().map(str::to_owned));
+            ControlFlow::Continue(())
+        };
+        push.feed(input.as_bytes(), &mut collect).unwrap();
+        push.finish(&mut collect).unwrap();
+        let default = expected.first().is_some_and(|a| a.starts_with("xmlns="));
+        let inner = Some(if default { "urn:u" } else { "urn:w" }.to_owned());
+        assert_eq!(namespaces.len(), 3, "{input}");
+        assert_eq!(namespaces[1], inner, "{input}");
+        assert_eq!(namespaces[2], Some("urn:w".to_owned()), "{input}");
+    }
+}
+
 #[test]
 fn nocdata_and_nsclean_rewrite_tokens_on_every_surface() {
     let input = b"<r xmlns:p='u'><p:i xmlns:p='u' xmlns:q='v'>a<![CDATA[<b>]]>c</p:i></r>";

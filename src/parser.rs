@@ -561,6 +561,11 @@ impl<'source> ParserState<'source> {
         Ok(())
     }
 
+    /// Whether a token at `offset` can be the XML declaration.
+    pub(crate) fn declares(&self, offset: usize) -> bool {
+        offset == self.initial && !self.replacement
+    }
+
     pub(crate) fn set_initial_offset(&mut self, offset: usize) {
         self.initial = offset;
     }
@@ -1174,7 +1179,7 @@ impl<'source> ParserState<'source> {
             }
         }
         let target = &body[..name_end];
-        if target == "xml" && start == self.initial && !self.replacement {
+        if target == "xml" && self.declares(start) {
             // Under `OLD10` a version other than 1.0 is fatal.
             let (mut declaration, encoding_offset) = parse_declaration(
                 &body[name_end..],
@@ -1611,7 +1616,7 @@ impl<'source> ParserState<'source> {
         F: FnMut(&'event str, usize, &mut Budget) -> Result<Cow<'source, str>, Error>,
     {
         let fail = |kind| Error::new(kind, start);
-        let (prefix, local) = qname(&name, start).map_err(|error| fail(error.kind))?;
+        let (prefix, local) = crate::name::default_qname(&name);
         let prefix_length = prefix.and_then(|prefix| NonZeroUsize::new(prefix.len()));
         if attributes.len() == self.budget.limits.max_attributes {
             return Err(fail(ErrorKind::LimitExceeded(Limit::Attributes)));

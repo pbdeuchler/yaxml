@@ -228,7 +228,10 @@ impl AttributeDecl {
 
     /// It is `xmlns` or `xmlns:*`.
     pub(crate) fn declares_namespace(&self) -> bool {
-        self.name == "xmlns" || self.name.starts_with("xmlns:")
+        matches!(
+            crate::name::default_qname(&self.name),
+            (None, "xmlns") | (Some("xmlns"), _)
+        )
     }
 
     fn fixed(&self) -> Option<&str> {
