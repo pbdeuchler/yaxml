@@ -102,6 +102,13 @@ pub(super) fn exercise(input: &[u8]) {
         Ok(output)
             if node.kind() == OwnedNodeKind::Element
                 && matches!(options.encoding, None | Some("UTF-8"))
+                // XHTML adds a Content-Type `meta` only to the head of a
+                // document-level `html`, which a nested one becomes.
+                && (flags & save::XHTML == 0
+                    || node.name().is_some_and(|name| name.local() != "html")
+                    || node.parent().is_some_and(|parent| {
+                        parent.kind() == OwnedNodeKind::Document
+                    }))
                 && node.descendants().all(|node| {
                     // References need the document's DTD to reparse.
                     node.entity_name().is_none()
