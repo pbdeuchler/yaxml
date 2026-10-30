@@ -245,39 +245,33 @@ pub(super) fn check(document: &OwnedDocument, handles: &[OwnedNodeId]) {
         );
         assert_eq!(node.descendants().len(), walk(node));
     }
-    // Every attached name resolves where it stands.
+    // Every attached name resolves where it stands, but a name read with an
+    // unbound prefix (a namespace error) is libxml2's unprefixed `p:c`, which
+    // a later declaration of `p` leaves in no namespace (and which reparsing
+    // the saved tree then binds).
+    let mut rebinds = false;
     for node in document.nodes().filter(|node| !in_entity(*node)) {
         let Some(element) = node.name() else {
             continue;
         };
-        let namespace = node
-            .search_ns(element.prefix())
-            .filter(|uri| !uri.is_empty());
-        assert_eq!(
-            namespace,
-            element.namespace(),
-            "element {:?}",
-            element.qualified()
-        );
-        for attribute in node.attributes() {
-            let name = &attribute.name;
-            if name.namespace() == Some(XMLNS) || name.prefix().is_none() {
+        let attributes = node.attributes().map(|attribute| (false, attribute.name));
+        for (element, name) in std::iter::once((true, element)).chain(attributes) {
+            if name.namespace() == Some(XMLNS) || !element && name.prefix().is_none() {
                 continue;
             }
-            assert_eq!(
-                node.search_ns(name.prefix()),
-                name.namespace(),
-                "{:?}",
-                name.qualified()
-            );
+            let namespace = node.search_ns(name.prefix()).filter(|uri| !uri.is_empty());
+            if name.prefix().is_some() && name.namespace().is_none() {
+                rebinds |= namespace.is_some();
+                continue;
+            }
+            assert_eq!(namespace, name.namespace(), "{:?}", name.qualified());
         }
     }
     // Saving and reparsing gives the same tree.
     let saved = yaxml::save::to_vec(document, &yaxml::save::Options::default()).unwrap();
     let reparsed = OwnedDocument::parse_bytes(&saved).expect("saved output reparses");
-    assert_eq!(
-        shape(document),
-        shape(&reparsed),
+    assert!(
+        rebinds || shape(document) == shape(&reparsed),
         "{}",
         String::from_utf8_lossy(&saved)
     );
