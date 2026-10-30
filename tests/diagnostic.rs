@@ -743,6 +743,22 @@ fn render_matches_xmllint() {
             .render("f", &LineIndex::new(&long))
             .ends_with(&window)
     );
+    // A position past the text (an xml:id value warning's lagging column at
+    // its end) after a run of continuation bytes longer than the window.
+    let tail = [b"<d>".as_slice(), &[0xa5; 100]].concat();
+    let lines = LineIndex::new(&tail);
+    // (code, column, window)
+    let cases = [
+        (539, 999, "\n^\n"),
+        (539, 1, "<d>\n ^\n"),
+        (7, 999, "\n^\n"),
+    ];
+    for (code, column, window) in cases {
+        let mut diagnostic = describe(&tail);
+        (diagnostic.code, diagnostic.line, diagnostic.column) = (code, 1, column);
+        let report = diagnostic.render("f", &lines);
+        assert!(report.ends_with(window), "{code} {column}: {report:?}");
+    }
 }
 
 #[test]
