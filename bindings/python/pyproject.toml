@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "yaxml"
-version = "0.1.0"
+version = "0.1.1"
 description = "lxml.etree-style XML for Python on yaxml, a safe Rust libxml2 2.15.4 rewrite"
 readme = "README.md"
 requires-python = ">=3.10"

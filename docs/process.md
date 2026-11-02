@@ -68,8 +68,15 @@ generated notes.
 
 1. On `main`: the gate (CLAUDE.md "Gate") and `./oracle.sh` pass.
 2. Bump `version` in `Cargo.toml` (and the `yaxml = "x.y"` snippets in
-   README.md when the minor version changes); commit and push.
-3. `git tag vX.Y.Z && git push origin vX.Y.Z`, or draft a GitHub release with
+   README.md when the minor version changes) and, in lockstep, in
+   `bindings/capi/Cargo.toml`, `bindings/python/Cargo.toml` and
+   `bindings/python/pyproject.toml` (capi's `yaxml_version` test compares
+   the two); refresh every lockfile (`cargo update -p yaxml --offline` in
+   the root, harness, fuzz, bindings and bindings/capi/fuzz; the yaxml entry
+   in bindings/python/uv.lock); commit and push.
+3. Wait for CI and Harness to pass on that commit: the tag ruleset refuses a
+   tag before its required checks pass.
+4. `git tag vX.Y.Z && git push origin vX.Y.Z`, or draft a GitHub release with
    tag `vX.Y.Z` on `main` and publish it.
 
 The package holds only `src/`, the README and the licenses (`include`), so

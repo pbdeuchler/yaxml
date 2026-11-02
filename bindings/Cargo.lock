@@ -139,14 +139,14 @@ dependencies = [
 
 [[package]]
 name = "yaxml-capi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "yaxml",
 ]
 
 [[package]]
 name = "yaxml-py"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
