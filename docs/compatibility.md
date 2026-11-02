@@ -221,8 +221,17 @@ Differences from libxml2, by design:
 - `content` is also the text of an external entity the parser loaded;
   libxml2 parses external general entities into children and stores
   external parameter entity text only under `NOENT` or `DTDVALID`.
-- Stored entity values have normalized line ends; libxml2 stores CR as read
-  and normalizes when the text is parsed.
+- Stored entity values have normalized line ends, as XML 1.0 section 2.11
+  requires before parsing; libxml2 stores CR as read and normalizes when the
+  text is parsed. Content reads the same, but in an attribute value libxml2
+  turns the CR and the LF of a CRLF into a space each: for an entity value
+  holding a literal CR LF between `a` and `b`, `a="&e;"` is `a  b` there and
+  `a b` here.
+- A PI or comment in the internal subset is checked (a PI target as in
+  content: reserved `xml` prefix warning, colon namespace error) but has no
+  DOM node; libxml2 keeps both as children of the DTD node (its serializer
+  skips them; yaxml's `debug` dump re-reads them from the subset text) and
+  SAX2 reports the PI to `processingInstruction` (`sax::Handler` does not).
 - Without a resolver nothing has a base, so `uri` is the system identifier
   (libxml2 resolves it against the file name).
 - `encode_*` escape a NUL as `&#xFFFD;`; libxml2's C strings end there.
@@ -360,7 +369,7 @@ on `Diagnostic::level`.
 | `LangValue` (`XML_WAR_LANG_VALUE`, warning; `PEDANTIC`) | an `xml:lang` value `xmlCheckLanguageID` rejects (RFC 3066/4646 shape) |
 | `EntityRedefined` (`XML_WAR_ENTITY_REDEFINED`, warning; `PEDANTIC`) | a second internal-subset declaration of an entity (the first is kept) |
 | `CatalogPi` (`XML_WAR_CATALOG_PI`, warning; `CATALOG_PI`) | an `oasis-xml-catalog` instruction whose data is not `catalog="URL"` (silent without `=` after `catalog`) |
-| `ReservedTarget` (`XML_ERR_RESERVED_XML_NAME`, warning) | a PI target starting with `xml` (not `xml-stylesheet`/`xml-model`) |
+| `ReservedTarget` (`XML_ERR_RESERVED_XML_NAME`, warning) | a PI target starting with `xml` (not `xml-stylesheet`/`xml-model`), in content and the internal subset |
 | `EncodingMismatch` (`XML_WAR_ENCODING_MISMATCH`, warning) | a BOM or signature that disagrees with the declared label |
 | `UndeclaredEntity` (`XML_WAR_UNDECLARED_ENTITY`; error with `NOENT`/`DTDLOAD`/`DTDATTR`) | an undeclared reference libxml2 does not make fatal (unread external subset or parameter entity), in content, attribute values and the internal subset |
 | `PredefinedEntity` (`XML_ERR_REDECL_PREDEF_ENTITY`, warning) | an internal-subset declaration of `lt`, `gt`, `amp`, `apos` or `quot` with replacement text XML 1.0 section 4.6 does not allow; the declaration is dropped (not stored or saved) |
@@ -416,7 +425,7 @@ and under the same 100-error cap as recovered errors. Each is an
 | A Name that is not a QName, as `a:b:c` or `a:` (`XML_NS_ERR_QNAME`) | The name, unprefixed, in no namespace. |
 | `xmlns:p=""`, `xml` or `xmlns` misused, the XML or XMLNS namespace name bound elsewhere (`XML_NS_ERR_XML_NAMESPACE`) | The declaration is dropped. |
 | One expanded attribute name under two prefixes (`XML_NS_ERR_ATTRIBUTE_REDEFINED`) | Both attributes are kept. |
-| A colon in a PI target, or in an entity or notation name in the internal subset (`XML_NS_ERR_COLON`) | Kept. |
+| A colon in a PI target (in content and the internal subset), or in an entity or notation name in the internal subset (`XML_NS_ERR_COLON`) | Kept. |
 
 A QName repeated in one tag (`xmlns:p` included) stays a fatal
 `DuplicateAttribute`, as libxml2's `XML_ERR_ATTRIBUTE_REDEFINED` is. A name

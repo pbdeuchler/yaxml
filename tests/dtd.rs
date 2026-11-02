@@ -891,19 +891,23 @@ fn declaration_token_and_default_ceilings_fail_identically() {
             "{input}"
         );
     }
-    // Normalizing a tokenized value spends the string budget; streaming
-    // surfaces copy names too, so they stop earlier.
-    let input = b"<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]>\
-        <r a='   xxxxxxxxxxxxxxxxxxxxxxxx    yyyyyyyyyyyyyyyyyyyyy   '/>";
-    let owned = d.max_owned_bytes(60);
+    // Normalizing a tokenized value spends the string budget, once the
+    // declaration's records (about 370 bytes) fit in it.
+    let input = format!(
+        "<!DOCTYPE r [<!ATTLIST r a NMTOKENS #IMPLIED>]><r a='   {}    {}   '/>",
+        "x".repeat(240),
+        "y".repeat(210)
+    );
+    let input = input.as_bytes();
+    let owned = d.max_owned_bytes(400);
     let error = |offset| {
         Err(Error {
             kind: LimitExceeded(Limit::OwnedBytes),
             offset,
         })
     };
-    assert_eq!(reader(input, owned), error(56));
-    assert_eq!(push(input, &[], owned), error(45));
+    assert_eq!(reader(input, owned), error(184));
+    assert_eq!(push(input, &[], owned), error(184));
 }
 
 #[test]

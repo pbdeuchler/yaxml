@@ -35,8 +35,9 @@ pub struct Limits {
     /// Number of emitted events, including the declaration and empty elements.
     pub max_events: usize,
     /// Cumulative string capacity requested for copies (normalized values,
-    /// names, owned-DOM storage), released buffers included. Borrowed text
-    /// is free.
+    /// names, owned-DOM storage), released buffers included, and the DTD's
+    /// declaration records; a declaration's tokens must fit in what is left.
+    /// Borrowed text is free.
     pub max_owned_bytes: usize,
     /// Source bytes in the document type declaration, from `<!DOCTYPE` to `>`.
     pub max_dtd_bytes: usize,

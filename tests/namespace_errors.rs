@@ -188,6 +188,8 @@ fn namespace_errors_are_kept_on_every_surface() {
         // XML_NS_ERR_COLON in PI targets and entity and notation names.
         ("<?a:b x?><r/>", &[3], &["r{}"]),
         ("<!DOCTYPE r [<!ENTITY a:b 'x'><!NOTATION n:o SYSTEM 'y'>]><r>&a:b;</r>", &[13, 30], &["r{}"]),
+        ("<!DOCTYPE r [<?p:foo?>]><r/>", &[16], &["r{}"]),
+        ("<!DOCTYPE r [<!ENTITY % e '<?p:q?>'>%e;]><r/>", &[36], &["r{}"]),
         // In entity content.
         ("<!DOCTYPE r [<!ENTITY e '<p:c/>'>]><r>&e;</r>", &[38], &["r{}", "p:c{}"]),
         // A defaulted declaration libxml2 binds unchecked is dropped silently.
@@ -294,6 +296,11 @@ fn namespace_errors_describe_as_libxml2() {
             "colons are forbidden from PI names 'a:b'",
         ),
         (
+            "<!DOCTYPE r [<?p:foo?>]><r/>",
+            205,
+            "colons are forbidden from PI names 'p:foo'",
+        ),
+        (
             "<p:r xmlns:xmlns='u'/>",
             200,
             "redefinition of the xmlns prefix is forbidden",
@@ -392,6 +399,10 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
          "xmlns: URI rel is not absolute"),
         ("<?xml-foo x?><r/>", Warning::ReservedTarget, Domain::Parser, 64, W, 10,
          "xmlParsePITarget: invalid name prefix 'xml'"),
+        ("<!DOCTYPE s [<?xmlfoo?>]><s/>", Warning::ReservedTarget, Domain::Parser, 64, W, 22,
+         "xmlParsePITarget: invalid name prefix 'xml'"),
+        ("<!DOCTYPE s [<?XMLx d?>]><s/>", Warning::ReservedTarget, Domain::Parser, 64, W, 20,
+         "xmlParsePITarget: invalid name prefix 'xml'"),
         ("<!DOCTYPE r SYSTEM 'x.dtd'><r>&u;</r>", Warning::UndeclaredEntity { error: true },
          Domain::Parser, 27, E, 34, "Entity 'u' not defined"),
         ("<!DOCTYPE r [<!ENTITY gt \">x\">]><r/>", Warning::PredefinedEntity, Domain::Parser,
@@ -464,6 +475,20 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
             assert_eq!(offsets, [13, 24], "{surface} flags {flags}");
         }
     }
+    // A PI from a parameter entity warns at its reference (libxml2's
+    // column there, 42, is not modelled: describe gives 40).
+    let input = b"<!DOCTYPE s [<!ENTITY % e \"<?xmlfoo?>\">%e;]><s/>";
+    let reserved = ErrorKind::Warning(Warning::ReservedTarget);
+    for flags in [0, RECOVER] {
+        for (surface, parse) in SURFACES {
+            let (_, errors) = parse(input, flags).unwrap();
+            let found: Vec<_> = errors
+                .iter()
+                .map(|error| (error.kind, error.offset))
+                .collect();
+            assert_eq!(found, [(reserved, 39)], "{surface} flags {flags}");
+        }
+    }
     // Values libxml2 accepts or never checks: blanks around an NCName,
     // entity content,
     // and a character reference that spells a valid value (a lent value).
@@ -472,6 +497,7 @@ fn warnings_are_kept_on_every_surface_and_describe_as_libxml2() {
         "<r xml:id=' a '/>", "<r xml:id='\u{e9}1'/>", "<r xml:id='_1\u{b7}'/>",
         "<!DOCTYPE r [<!ENTITY e \"<a xml:id='1'/>\">]><r>&e;</r>",
         "<r xml:space='&#100;efault' xml:id='&#97;'/>",
+        "<!DOCTYPE s [<?xml-stylesheet x?><?xml-model?><?xm?>]><s/>",
     ];
     for &input in silent {
         for flags in [0, RECOVER] {

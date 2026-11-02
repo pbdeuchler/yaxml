@@ -331,6 +331,37 @@ fn utf8_input_is_borrowed_and_parses_as_before() {
 }
 
 #[test]
+fn an_undecodable_label_passes_through_for_the_parse_to_reject() {
+    // (input, the parse's error): kept as it is, not UTF-8-checked, as the
+    // owned DOM and libxml2 stop at the label.
+    let cases: &[(&[u8], Error)] = &[
+        (
+            b"<?xml version=\"1.0\" encoding=\"koi8-r\"?><s>\x80</s>",
+            error(ErrorKind::UnsupportedEncoding, 20),
+        ),
+        (
+            b"<?xml version=\"1.0\" encoding=\"bogus\"?><s>\xe9</s>",
+            error(ErrorKind::UnsupportedEncoding, 20),
+        ),
+        (
+            b"<?xml version=\"1.0\" encoding=\"UTF-16\"?><s/>",
+            error(ErrorKind::UnsupportedEncoding, 20),
+        ),
+    ];
+    for &(input, expected) in cases {
+        let text = Transcoded::new(input, &ParseOptions::default()).unwrap();
+        assert_eq!(text.as_bytes(), input);
+        let parsed = Document::parse_transcoded(&text, ParseOptions::default());
+        assert_eq!(parsed.err(), Some(expected), "{input:?}");
+        assert_eq!(OwnedDocument::parse_bytes(input).err(), Some(expected));
+    }
+    // A label a table has is decoded, so the text is UTF-8.
+    let input = b"<?xml version=\"1.0\" encoding=\"latin1\"?><s>\xe9</s>";
+    let text = Transcoded::new(input, &ParseOptions::default()).unwrap();
+    assert!(std::str::from_utf8(text.as_bytes()).is_ok());
+}
+
+#[test]
 fn a_single_byte_charsets_declaration_maps_as_utf8() {
     // The declaration is read as UTF-8 before its charset takes over, so
     // UTF-8 in it counts its bytes, and the rest one byte per character.

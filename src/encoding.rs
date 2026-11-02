@@ -85,8 +85,10 @@ impl<'a> Transcoded<'a> {
     ///
     /// `LimitExceeded` (`InputBytes`, `DecodedBytes`), `Allocation`, and the
     /// decoding errors at their input offset: `InvalidUtf16`, `UnmappedByte`
-    /// and `UnsupportedEncoding`. Under `RECOVER` a decoding error ends the
-    /// text instead, and the parse recovers from it there.
+    /// and `UnsupportedEncoding` (an undecodable signature). Under `RECOVER`
+    /// a decoding error ends the text instead, and the parse recovers from it
+    /// there. A declared label no decoder supports is not an error here: the
+    /// input is kept as it is and the parse reports it.
     pub fn new(input: &'a [u8], options: &ParseOptions) -> Result<Self, Error> {
         let (limits, decode) = options.effective_limits();
         if input.len() > limits.max_input_bytes {
@@ -153,7 +155,10 @@ impl<'a> Transcoded<'a> {
         bom + verbatim + encoding.source_length(&self.text[verbatim..offset])
     }
 
-    /// The UTF-8 text the borrowing parsers read.
+    /// The text the borrowing parsers read: decoded UTF-8, or the input
+    /// as it is when it needs no decoding. That input is not checked here
+    /// (invalid UTF-8, or a declared label no decoder supports, is the
+    /// parse's error), so it is known to be UTF-8 only once a parse accepts it.
     pub fn as_bytes(&self) -> &[u8] {
         &self.text
     }
@@ -1280,9 +1285,15 @@ pub(crate) fn transcode(
                 0
             }
             Decoded::Bytes(bytes) => {
-                output
-                    .try_reserve(bytes.len())
-                    .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+                // Doubling, but never past `limit`: the decoder emits at
+                // most `limit` bytes, so the capacity stays within it.
+                let needed = output.len() + bytes.len();
+                if needed > output.capacity() {
+                    let target = needed.max((output.capacity() * 2).min(limit));
+                    output
+                        .try_reserve_exact(target - output.len())
+                        .map_err(|_| Error::new(ErrorKind::Allocation, 0))?;
+                }
                 output.extend_from_slice(bytes);
                 bytes.len()
             }

@@ -680,3 +680,40 @@ fn owned_routing_peeks_only_at_a_byte_charset_label() {
         assert_eq!(found, expected, "{input:?}");
     }
 }
+
+#[test]
+fn transcoded_capacity_never_exceeds_the_decoded_limit() {
+    // 2 * n decoded bytes: within a limit of exactly that, or refused at
+    // a smaller one; the buffer never grows past the limit either way.
+    let head = b"<?xml version='1.0' encoding='ISO-8859-1'?><r>";
+    for n in [1, 1000, 100_000] {
+        let mut input = head.to_vec();
+        input.extend(std::iter::repeat_n(0xE9, n));
+        let total = head.len() + 2 * n;
+        let switch = declared(&input);
+        for (limit, fits) in [(total, true), (total - 1, false), (total / 2 + 1, false)] {
+            let mut output = Vec::new();
+            let (_, _, end) = transcode(&input, switch, None, None, limit, &mut output);
+            let refused = Err(Error::new(ErrorKind::LimitExceeded(Limit::DecodedBytes), 0));
+            assert_eq!(end, if fits { Ok(()) } else { refused }, "{n} {limit}");
+            assert!(
+                output.capacity() <= limit,
+                "{n} {limit}: {}",
+                output.capacity()
+            );
+            assert_eq!(output.len() == total, fits, "{n} {limit}");
+        }
+    }
+    // Without a limit (resolver loads) it still grows by doubling.
+    let mut output = Vec::new();
+    let input = [head.as_slice(), &[0xE9; 4096]].concat();
+    let (_, _, end) = transcode(
+        &input,
+        declared(&input),
+        None,
+        None,
+        usize::MAX,
+        &mut output,
+    );
+    assert_eq!((end, output.len()), (Ok(()), head.len() + 8192));
+}

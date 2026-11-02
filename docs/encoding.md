@@ -25,6 +25,16 @@ Its quirk mapping `iso8859-10`, `-13`, `-14` and `-15` to ISO-8859-1 is preserve
 Labels libxml2 decodes only through iconv/ICU (Shift_JIS, EUC-JP, ISO-2022-JP,
 UCS-2, HTML, and UCS-4/EBCDIC labels outside a detected UCS-4/EBCDIC input)
 and unknown labels return `UnsupportedEncoding`.
+The reference is libxml2 built without iconv and ICU, with its `ISO8859X`
+tables. A libxml2 built with iconv, as most distributions ship
+it, decodes every label but UTF-8, UTF-16, ISO-8859-1, US-ASCII and
+windows-1252 through iconv, so it accepts more: glibc's aliases
+(`ISO_8859-15`, `LATIN9`, `MS-ANSI`) and charsets without a table here
+(KOI8-R, windows-1250/1251, MACINTOSH), which [caller
+converters](#caller-converters) can supply; and glibc's ISO-8859-7:2003 bytes
+0xA4, 0xA5 and 0xAA (U+20AC, U+20AF, U+037A), which libxml2's own table, and
+so this one, leaves unmapped (`UnmappedByte`; a converter never sees a label a
+built-in table has).
 An auto-detected encoding (UTF-8 BOM, UTF-16 BOM or `<?` signature) outranks the
 declared label, as in `xmlSetDeclaredEncoding`: UTF-8 allows `UTF-8`/`UTF8`,
 UTF-16LE `UTF-16`/`UTF-16LE`/`UTF16`, UTF-16BE `UTF-16`/`UTF-16BE`/`UTF16`. Any
@@ -47,8 +57,9 @@ through tables generated from libxml2's `codegen/charset.inc` by
 `tooling/gen_charsets.py`. A byte libxml2 leaves unmapped (every high byte in
 US-ASCII) returns `UnmappedByte` at that byte. `tests/fixtures/charsets.tsv`,
 recorded from an ISO8859X-enabled xmllint by `tooling/charset_oracle.py`,
-independently checks every table. There is no caller encoding override and no
-pluggable converter (`xmlCtxtSetCharEncConvImpl`).
+independently checks every table. A caller can force an encoding
+(`ParseOptions::encoding`) or supply converters for other labels
+([caller converters](#caller-converters), `xmlCtxtSetCharEncConvImpl`).
 
 This follows the [XML encoding agreement rules](https://www.w3.org/TR/2008/REC-xml-20081126/#charencoding)
 and [autodetection signatures](https://www.w3.org/TR/2008/REC-xml-20081126/#sec-guessing).
@@ -196,9 +207,14 @@ parser starts in the detected encoding, so declarations are checked as a stream
 checks them. `IGNORE_ENC` ignores a declared charset, as streams do; under
 `RECOVER` a declaration whose errors drop its label does not switch.
 
-A decoding error (`InvalidUtf16`, `UnmappedByte`, `UnsupportedEncoding`) is
-returned by `Transcoded::new` at its input offset, before any later markup
-error, as the slice reader reports invalid UTF-8 first. Under `RECOVER` it ends
+A decoding error (`InvalidUtf16`, `UnmappedByte`, and `UnsupportedEncoding`
+for an undecodable signature) is returned by `Transcoded::new` at its input
+offset, before any later markup error, as the slice reader reports invalid
+UTF-8 first. Input that needs no decoding is passed through unchecked:
+UTF-8, and input whose declaration names a label no decoder has (`koi8-r`
+without a converter, `bogus`, BOM-less `UTF-16`), which the parse then
+rejects with `UnsupportedEncoding` at the label, as libxml2 stops there. So
+`as_bytes()` is known to be UTF-8 only once a parse has accepted it. Under `RECOVER` it ends
 the text instead, and the parse recovers from it at that point, keeping the
 text decoded before it as `xmllint --recover` does (the streams drop text
 pending at the error).
