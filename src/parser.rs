@@ -1245,10 +1245,7 @@ impl<'source> ParserState<'source> {
         if target.eq_ignore_ascii_case("xml") {
             // libxml2 keeps a misplaced or miscased declaration as a PI.
             self.recover_markup(Error::new(ErrorKind::InvalidDeclaration, start))?;
-        } else if target.len() > 3
-            && target.as_bytes()[..3].eq_ignore_ascii_case(b"xml")
-            && !matches!(target, "xml-stylesheet" | "xml-model")
-        {
+        } else if reserved_target(target) {
             let warning = ErrorKind::Warning(crate::Warning::ReservedTarget);
             self.budget.recover(Error::new(warning, start + 2))?;
         }
@@ -2077,6 +2074,14 @@ pub(crate) fn name_length(text: &str, old10: bool) -> usize {
             false => !(name_char(c, true) && (i > 0 || name_start(c, true))),
         })
         .map_or(text.len(), |(i, _)| i)
+}
+
+/// A PI target libxml2 warns about (`XML_ERR_RESERVED_XML_NAME`): longer
+/// than `xml`, starting with it in any case, not a W3C-registered target.
+pub(crate) fn reserved_target(target: &str) -> bool {
+    target.len() > 3
+        && target.as_bytes()[..3].eq_ignore_ascii_case(b"xml")
+        && !matches!(target, "xml-stylesheet" | "xml-model")
 }
 
 /// A QName's prefix and local part, from a scanner-proven split when present.

@@ -449,7 +449,11 @@ impl<'input> DtdControllerCore<'input> {
         }
         // Grammar is always checked before an input-mode-dependent raw copy.
         self.charge_work(raw_len, origin)?;
-        let (encoding, started, limits) = (self.encoding, self.started, self.limits);
+        let (encoding, started, mut limits) = (self.encoding, self.started, self.limits);
+        // A unit's tokens fit in the storage its declarations may still use.
+        limits.storage = limits
+            .storage
+            .saturating_sub(self.catalog.usage().storage_bytes);
         let mut input = None;
         let (unit, salvaged) = match (side, self.stable) {
             (Side::Physical, Some((source, source_start))) => {
@@ -484,15 +488,25 @@ impl<'input> DtdControllerCore<'input> {
             }
         };
         self.commit_source(side, raw_len)?;
-        // A colon in an entity or notation name is a namespace error
-        // (libxml2's `XML_NS_ERR_COLON`).
-        let colon = match unit.view() {
-            DtdUnitView::Entity(entity) => entity.name().contains(':'),
-            DtdUnitView::Notation(notation) => notation.name().contains(':'),
-            _ => false,
+        // A colon in an entity, notation or PI name is a namespace error
+        // (libxml2's `XML_NS_ERR_COLON`); a PI target is checked as in
+        // content (`xmlParsePITarget`: the reserved prefix warns first).
+        let (reserved, colon) = match unit.view() {
+            DtdUnitView::Entity(entity) => (false, entity.name().contains(':').then_some(0)),
+            DtdUnitView::Notation(notation) => (false, notation.name().contains(':').then_some(0)),
+            DtdUnitView::ProcessingInstruction(instruction) => (
+                crate::parser::reserved_target(instruction.target),
+                instruction.target.find(':').map(|at| at + 2),
+            ),
+            _ => (false, None),
         };
-        if colon {
-            let offset = unit_offset(encoding, origin, unit.raw(), 0);
+        if reserved {
+            let offset = unit_offset(encoding, origin, unit.raw(), 2);
+            let warning = ErrorKind::Warning(crate::Warning::ReservedTarget);
+            budget.recover(Error::new(warning, offset))?;
+        }
+        if let Some(at) = colon {
+            let offset = unit_offset(encoding, origin, unit.raw(), at);
             budget.recover(Error::new(ErrorKind::Namespace, offset))?;
         }
         if budget.old10() && !unit.fourth_edition() {

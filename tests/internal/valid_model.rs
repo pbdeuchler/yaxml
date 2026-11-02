@@ -95,3 +95,34 @@ fn construction_spends_a_bounded_budget() {
     assert!(budget < 1 << 20 && budget > 0);
     assert!(accepts(&model, "e0 e63") && !accepts(&model, "e63 e0"));
 }
+
+#[test]
+fn transitions_are_charged_before_they_are_built() {
+    // The budget a model spends, compiled with room to spare.
+    let spent = |source: &str| {
+        let unit = DtdUnit::parse(format!("<!ELEMENT r {source}>"), DtdLimits::STANDALONE).unwrap();
+        let DtdUnitView::Element(element) = unit.view() else {
+            unreachable!()
+        };
+        let ElementContentView::Children(tokens) = element.content() else {
+            unreachable!()
+        };
+        let mut budget = usize::MAX;
+        let model = Model::compile(tokens, &mut budget).unwrap();
+        (usize::MAX - budget, model)
+    };
+    // Equal follow sets: an ambiguous model keeps (and is charged for) none.
+    let distinct: Vec<_> = (0..64).map(|index| format!("e{index}?")).collect();
+    let distinct = format!("({})", distinct.join(","));
+    let repeated = format!("({})", ["e?"; 64].join(","));
+    let (follow, ambiguous) = spent(&repeated);
+    assert!(!ambiguous.deterministic() && ambiguous.transitions.is_empty());
+    assert!(compile(&repeated, follow).is_ok());
+    // A deterministic one pays three units per transition, or fails first.
+    let (total, model) = spent(&distinct);
+    assert!(model.deterministic());
+    assert_eq!(total - follow, 3 * model.transitions.len());
+    assert_eq!(model.transitions.capacity(), model.transitions.len());
+    assert!(compile(&distinct, total).is_ok());
+    assert_eq!(compile(&distinct, total - 1).unwrap_err(), TooComplex);
+}

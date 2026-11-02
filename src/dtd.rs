@@ -733,9 +733,23 @@ impl<'a, 'r> Parser<'a, 'r> {
                 range.start,
             ));
         }
-        self.tokens
-            .try_reserve(1)
-            .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
+        // The token array grows within the storage budget left: doubling,
+        // but never past it.
+        let (length, room) = (
+            self.tokens.len(),
+            self.limits.storage / size_of::<DtdToken>(),
+        );
+        if length >= room {
+            return Err(Error::new(
+                ErrorKind::LimitExceeded(Limit::OwnedBytes),
+                range.start,
+            ));
+        }
+        if length == self.tokens.capacity() {
+            self.tokens
+                .try_reserve_exact(length.max(8).min(room - length))
+                .map_err(|_| Error::new(ErrorKind::Allocation, range.start))?;
+        }
         let index = self.tokens.len();
         self.tokens.push(DtdToken { kind, range });
         Ok(index)

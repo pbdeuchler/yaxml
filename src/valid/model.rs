@@ -171,38 +171,53 @@ impl Model {
                 ModelTokenView::Pcdata => {}
             }
         }
-        let root = done.unwrap_or_default();
-        *budget = builder.budget;
-        let mut names: Vec<Box<str>> = builder.positions.iter().map(|&name| name.into()).collect();
+        let Fragment {
+            nullable,
+            first,
+            last,
+        } = done.unwrap_or_default();
+        let Builder {
+            positions,
+            mut follow,
+            budget: left,
+        } = builder;
+        let mut names: Vec<Box<str>> = positions.iter().map(|&name| name.into()).collect();
         names.sort_unstable();
         names.dedup();
-        let label = |position: u32| {
-            names
-                .binary_search_by(|name| (**name).cmp(builder.positions[position as usize]))
-                .expect("interned") as u32
-        };
-        let mut transitions = Vec::new();
-        let mut deterministic = true;
-        for (state, targets) in std::iter::once(root.first.clone())
-            .chain(builder.follow)
-            .enumerate()
-        {
-            let mut row: Vec<_> = targets
-                .into_iter()
-                .map(|position| (state as u32, label(position), position + 1))
-                .collect();
-            row.sort_unstable();
+        let labels: Vec<u32> = positions
+            .iter()
+            .map(|&position| {
+                names
+                    .binary_search_by(|name| (**name).cmp(position))
+                    .expect("interned") as u32
+            })
+            .collect();
+        let label = |position: u32| labels[position as usize];
+        // Every row is sorted and checked before any transition is kept (an
+        // ambiguous model keeps none); the kept ones are charged, at three
+        // follow-entry units (12 bytes) each, before they are built.
+        follow.insert(0, first);
+        let (mut kept, mut deterministic) = (0usize, true);
+        for row in &mut follow {
+            row.sort_unstable_by_key(|&position| (label(position), position));
             row.dedup();
-            deterministic &= row.windows(2).all(|pair| pair[0].1 != pair[1].1);
-            transitions.extend(row);
+            kept += row.len();
+            if row.windows(2).any(|pair| label(pair[0]) == label(pair[1])) {
+                deterministic = false;
+                break;
+            }
         }
-        let mut accepting = vec![false; builder.positions.len() + 1];
-        accepting[0] = root.nullable;
-        for position in root.last {
+        let kept = kept * usize::from(deterministic);
+        *budget = left.checked_sub(kept.saturating_mul(3)).ok_or(TooComplex)?;
+        let mut transitions = Vec::with_capacity(kept);
+        for (state, row) in follow.iter().enumerate().take_while(|_| deterministic) {
+            let state = state as u32;
+            transitions.extend(row.iter().map(|&p| (state, label(p), p + 1)));
+        }
+        let mut accepting = vec![false; positions.len() + 1];
+        accepting[0] = nullable;
+        for position in last {
             accepting[position as usize + 1] = true;
-        }
-        if !deterministic {
-            transitions = Vec::new();
         }
         Ok(Self {
             names,

@@ -39,6 +39,9 @@ pub(crate) struct CatalogUsage {
     pub(crate) amplification: usize,
 }
 
+/// A name table's entry beside the record it indexes: key, index, control byte.
+const TABLE_ENTRY: usize = size_of::<(String, usize)>() + 1;
+
 const fn limit(limit: Limit) -> ErrorKind {
     ErrorKind::LimitExceeded(limit)
 }
@@ -608,7 +611,11 @@ impl DtdCatalog {
                         (EntityBody::External(external), bytes)
                     }
                 };
-                self.store_bytes(checked_sum(&[entity.name().len(), bytes])?)?;
+                self.store_bytes(checked_sum(&[
+                    size_of::<EntityDecl>() + TABLE_ENTRY,
+                    entity.name().len() * 2,
+                    bytes,
+                ])?)?;
                 self.add_binding()?;
                 let stored = (parameter, bound, input, written);
                 self.insert_entity(entity.name(), stored, body)?;
@@ -672,6 +679,8 @@ impl DtdCatalog {
                     self.add_binding()?;
                     let values: usize = attribute.values.iter().map(String::len).sum();
                     self.store_bytes(checked_sum(&[
+                        size_of::<AttributeDecl>(),
+                        attribute.values.len() * size_of::<String>(),
                         definition.name().len(),
                         definition.name().len(),
                         attribute.default.value().map_or(0, str::len),
@@ -707,6 +716,7 @@ impl DtdCatalog {
                     raw.map_or(0, |raw| identifier_length(raw, context.literals))
                 };
                 self.store_bytes(checked_sum(&[
+                    size_of::<NotationDecl>() + TABLE_ENTRY,
                     notation.name().len(),
                     length(identifier.public),
                     length(identifier.system),
@@ -728,7 +738,7 @@ impl DtdCatalog {
         if let Some(&index) = self.dtd.element_index.get(name) {
             return Ok(index);
         }
-        self.store_bytes(name.len())?;
+        self.store_bytes(size_of::<ElementDecl>() + TABLE_ENTRY + name.len() * 2)?;
         self.dtd
             .element_index
             .try_reserve(1)

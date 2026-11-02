@@ -288,3 +288,40 @@ fn entity_depth_defaults_match_libxml2_and_huge_raises_them() {
     }
     assert_eq!(Limits::DEFAULT.max_entity_depth, 20);
 }
+
+#[test]
+fn dtd_records_and_token_arrays_count_against_the_owned_budget() {
+    let elements = (0..100)
+        .map(|index| format!("<!ELEMENT a{index} EMPTY>"))
+        .collect::<String>();
+    let elements = format!("<!DOCTYPE r [{elements}]><r/>");
+    let references = format!(
+        "<!DOCTYPE r [<!ENTITY a 'x'><!ENTITY b '{}'>]><r/>",
+        "&a;".repeat(100)
+    );
+    let model = format!("<!DOCTYPE r [<!ELEMENT r (a{})>]><r/>", "|a".repeat(999));
+    let values = format!(
+        "<!DOCTYPE r [<!ATTLIST r x (a{}) #IMPLIED>]><r/>",
+        (1..1000)
+            .map(|index| format!("|a{index}"))
+            .collect::<String>()
+    );
+    // Each fits the default budget and none fits 4 KiB: the records (about
+    // 300 bytes an element) and the declaration's tokens are charged.
+    for input in [&elements, &references, &model, &values] {
+        for (name, _, parse) in FRONTENDS {
+            let fits = parse(input.as_bytes(), ParseOptions::default());
+            assert_eq!(fits, Ok(()), "{name}: {input:.40}");
+            let limits = Limits::DEFAULT.max_owned_bytes(4096);
+            let refused = parse(
+                input.as_bytes(),
+                ParseOptions::default().with_limits(limits),
+            );
+            assert_eq!(
+                refused,
+                Err(ErrorKind::LimitExceeded(Limit::OwnedBytes)),
+                "{name}: {input:.40}"
+            );
+        }
+    }
+}
