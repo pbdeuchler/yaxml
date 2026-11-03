@@ -62,7 +62,7 @@ or publish a GitHub release that creates it. The `verify` job fails unless the
 tag equals `v` + the `Cargo.toml` version, skips a version already on
 crates.io (so the tag push and the release event, which can both fire, publish
 once), then runs the gate, the docs.rs doc build and `cargo publish --dry-run`.
-`publish` (environment `crates-io`) authenticates by trusted publishing and
+`publish` (environment `publish`) authenticates by trusted publishing and
 runs `cargo publish`; for a pushed tag it also creates the GitHub release with
 generated notes.
 
@@ -86,5 +86,6 @@ One-time setup: crates.io allows trusted publishing only for an existing
 crate, so the first version is published by hand (`cargo publish`, then tag
 it; the workflow then skips it). Afterwards, on crates.io: crate Settings ->
 Trusted Publishing -> GitHub, owner `pbdeuchler`, repository `yaxml`, workflow
-`release.yml`, environment `crates-io`. Required reviewers on the GitHub
-`crates-io` environment make every release wait for an approval.
+`release.yml`, environment `publish`. The GitHub `publish` environment
+accepts deployments from `v*` tags only; required reviewers on it would make
+every release wait for an approval.
